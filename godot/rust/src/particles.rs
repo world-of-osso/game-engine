@@ -553,8 +553,10 @@ impl ParticlePools {
 
     /// Fogs every pool with the scene fog of `light`, and pools created later too.
     pub fn update_lighting(&mut self, light: &TerrainLight) {
-        for pool in &mut self.pools {
-            light.bind_scene_fog(&mut pool.material);
+        if self.light.is_none() {
+            for pool in &mut self.pools {
+                light.bind_scene_fog(&mut pool.material);
+            }
         }
         self.light = Some(light.clone());
     }

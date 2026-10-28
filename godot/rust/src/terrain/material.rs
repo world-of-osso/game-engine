@@ -166,8 +166,10 @@ impl TerrainMaterials {
     }
 
     pub fn update_lighting(&mut self, light: TerrainLight) {
-        for material in &mut self.materials {
-            light.bind(material);
+        if self.light.is_none() {
+            for material in &mut self.materials {
+                light.bind(material);
+            }
         }
         self.water.update_lighting(&light);
         self.light = Some(light);

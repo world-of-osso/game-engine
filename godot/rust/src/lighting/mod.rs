@@ -40,6 +40,12 @@ type LightValues = (
     Vec<PlanetDraw>,
 );
 
+static MATERIAL_LIGHT_WRITES: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
+fn count_material_light_writes(count: u64) {
+    MATERIAL_LIGHT_WRITES.fetch_add(count, std::sync::atomic::Ordering::Relaxed);
+}
+
 #[derive(Clone)]
 pub(crate) struct TerrainLight {
     retail: RetailLightData,
@@ -72,6 +78,7 @@ impl TerrainLight {
     pub fn bind(&self, material: &mut Gd<ShaderMaterial>) {
         self.bind_model(material);
         material.set_shader_parameter("environment_map", &self.cube.to_variant());
+        count_material_light_writes(1);
     }
 
     /// Writes the scene light and fog: the global uniforms every `bind_model` material
@@ -90,6 +97,28 @@ impl TerrainLight {
             server.global_shader_parameter_set(name, &Vector3::from_array(value).to_variant());
         }
         bind_fog(&mut server, &self.fog);
+        for (name, value) in [
+            ("river_close", self.water.river_close),
+            ("river_far", self.water.river_far),
+            ("ocean_close", self.water.ocean_close),
+            ("ocean_far", self.water.ocean_far),
+        ] {
+            server.global_shader_parameter_set(name, &Vector4::from_array(value).to_variant());
+        }
+        for (name, value) in [
+            ("specular_color", self.water.specular),
+            ("underwater_fog_color", self.water.underwater_fog_color),
+            (
+                "underwater_fog",
+                [
+                    self.water.underwater_fog.start,
+                    self.water.underwater_fog.end,
+                    self.water.underwater_fog.density,
+                ],
+            ),
+        ] {
+            server.global_shader_parameter_set(name, &Vector3::from_array(value).to_variant());
+        }
     }
 
     /// The scene light and fog range `bind_scene` writes, for automation (scene-lit
@@ -107,12 +136,17 @@ impl TerrainLight {
             state.set(name, Vector3::from_array(value));
         }
         state.set("fog_range", Vector2::from_array(self.fog.range));
+        state.set(
+            "material_light_writes",
+            MATERIAL_LIGHT_WRITES.load(std::sync::atomic::Ordering::Relaxed) as i64,
+        );
         state
     }
 
     /// Lights `material` with the scene light and fog of `bind_scene`.
     pub fn bind_model(&self, material: &mut Gd<ShaderMaterial>) {
         material.set_shader_parameter("scene_light", &true.to_variant());
+        count_material_light_writes(1);
         self.bind_scene_fog(material);
     }
 
@@ -120,34 +154,12 @@ impl TerrainLight {
     pub fn bind_scene_fog(&self, material: &mut Gd<ShaderMaterial>) {
         material.set_shader_parameter("fog_mode", &1i32.to_variant());
         material.set_shader_parameter("fog_opacity", &1.0f32.to_variant());
+        count_material_light_writes(2);
     }
 
     /// The model light plus the retail water scene inputs of `water.gdshader`.
     pub fn bind_water(&self, material: &mut Gd<ShaderMaterial>) {
         self.bind_model(material);
-        let water = &self.water;
-        for (name, value) in [
-            ("river_close", water.river_close),
-            ("river_far", water.river_far),
-            ("ocean_close", water.ocean_close),
-            ("ocean_far", water.ocean_far),
-        ] {
-            material.set_shader_parameter(name, &Vector4::from_array(value).to_variant());
-        }
-        for (name, value) in [
-            ("specular_color", water.specular),
-            ("underwater_fog_color", water.underwater_fog_color),
-            (
-                "underwater_fog",
-                [
-                    water.underwater_fog.start,
-                    water.underwater_fog.end,
-                    water.underwater_fog.density,
-                ],
-            ),
-        ] {
-            material.set_shader_parameter(name, &Vector3::from_array(value).to_variant());
-        }
     }
 
     /// Back to the material's own light, without fog.
@@ -155,6 +167,7 @@ impl TerrainLight {
         for name in ["scene_light", "fog_mode", "fog_opacity"] {
             material.set_shader_parameter(name, &Variant::nil());
         }
+        count_material_light_writes(3);
     }
 }
 
@@ -170,6 +183,7 @@ pub(crate) struct WorldLighting {
     planets: Option<planets::Planets>,
     fog_cone: Option<fog_cone::FogCone>,
     previous: Option<LightValues>,
+    cube: Option<Gd<Cubemap>>,
 }
 
 /// Render priorities of the sky models, in WebWowViewerCpp's sky-view draw order (dome,
@@ -222,7 +236,23 @@ impl WorldLighting {
             return Ok(None);
         }
         let direction = Vector3::from_array(sample.retail.sun_direction);
-        let light = TerrainLight::new(sample, fog)?;
+        let cube = match self.cube.as_mut() {
+            Some(cube) => {
+                update_cubemap(cube, stops)?;
+                cube.clone()
+            }
+            None => {
+                let cube = create_cubemap(stops)?;
+                self.cube = Some(cube.clone());
+                cube
+            }
+        };
+        let light = TerrainLight {
+            retail: sample.retail,
+            fog: fog_uniforms(&fog, sample.fog_sun_direction),
+            cube,
+            water: sample.water,
+        };
         light.bind_scene();
         self.attach_nodes(parent)?;
         bind_sky_dome(self.sky.as_mut().expect("attached sky"), &stops, &light.fog);
@@ -550,6 +580,24 @@ fn bind_fog(server: &mut Gd<RenderingServer>, fog: &FogUniforms) {
     ] {
         set(name, Vector4::from_array(value).to_variant());
     }
+}
+
+fn update_cubemap(cube: &mut Gd<Cubemap>, stops: SkyStops) -> Result<(), String> {
+    let pixels = sky_cubemap_data::build_sky_cubemap(&stops);
+    let size = sky_cubemap_data::ENV_MAP_SIZE as i32;
+    let face_bytes = size as usize * size as usize * 8;
+    for (layer, pixels) in pixels.chunks_exact(face_bytes).enumerate() {
+        let image = Image::create_from_data(
+            size,
+            size,
+            false,
+            image::Format::RGBAH,
+            &PackedByteArray::from(pixels),
+        )
+        .ok_or("Godot rejected authored linear sky cubemap face")?;
+        cube.update_layer(&image, layer as i32);
+    }
+    Ok(())
 }
 
 fn create_cubemap(stops: SkyStops) -> Result<Gd<Cubemap>, String> {

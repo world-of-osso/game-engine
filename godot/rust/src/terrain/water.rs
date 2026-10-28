@@ -122,8 +122,10 @@ impl WaterMaterials {
     }
 
     pub fn update_lighting(&mut self, light: &TerrainLight) {
-        for surface in self.materials.values_mut() {
-            light.bind_water(&mut surface.material);
+        if self.light.is_none() {
+            for surface in self.materials.values_mut() {
+                light.bind_water(&mut surface.material);
+            }
         }
         self.light = Some(light.clone());
     }

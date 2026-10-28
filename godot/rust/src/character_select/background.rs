@@ -167,8 +167,10 @@ impl Background {
             minutes,
             self.objects.camera_fog(camera).as_ref(),
         )? {
-            if let Some(model) = model {
-                bind_visual_light(model, Some(&light));
+            if self.light.is_none() {
+                if let Some(model) = model {
+                    bind_visual_light(model, Some(&light));
+                }
             }
             self.materials.update_lighting(light.clone());
             self.objects.update_lighting(&light);

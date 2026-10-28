@@ -136,3 +136,32 @@ scene_sun_direction={
 "type": "vec3",
 "value": Vector3(0, -1, 0)
 }
+
+river_close={
+"type": "vec4",
+"value": Vector4(0, 0, 0, 0)
+}
+river_far={
+"type": "vec4",
+"value": Vector4(0, 0, 0, 0)
+}
+ocean_close={
+"type": "vec4",
+"value": Vector4(0, 0, 0, 0)
+}
+ocean_far={
+"type": "vec4",
+"value": Vector4(0, 0, 0, 0)
+}
+specular_color={
+"type": "vec3",
+"value": Vector3(0, 0, 0)
+}
+underwater_fog_color={
+"type": "vec3",
+"value": Vector3(0, 0, 0)
+}
+underwater_fog={
+"type": "vec3",
+"value": Vector3(0, 100000000, 0)
+}

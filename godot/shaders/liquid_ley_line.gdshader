@@ -31,8 +31,8 @@ uniform vec3 liquid_color_1 = vec3(0.0);
 uniform vec2 flow = vec2(0.0);
 
 // Underwater fog (start, end, density per yard) and colour.
-uniform vec3 underwater_fog = vec3(0.0, 100000000.0, 0.0);
-uniform vec3 underwater_fog_color = vec3(0.0);
+global uniform vec3 underwater_fog;
+global uniform vec3 underwater_fog_color;
 #include "res://shaders/retail_fog.gdshaderinc"
 
 const float DEGREES = 0.017453292;

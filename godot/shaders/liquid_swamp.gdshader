@@ -35,7 +35,7 @@ uniform vec3 frame_counts_3 = vec3(1.0);
 uniform vec2 flow = vec2(0.0);
 
 #include "res://shaders/scene_light.gdshaderinc"
-uniform vec3 specular_color = vec3(0.0);
+global uniform vec3 specular_color;
 #include "res://shaders/retail_fog.gdshaderinc"
 
 // MapSceneRenderer.cpp:204 binds uExteriorSpecularColor.a, the specular power, as 1.0.

@@ -31,15 +31,15 @@ uniform int color_source = 1;
 uniform bool interior = false;
 
 #include "res://shaders/scene_light.gdshaderinc"
-uniform vec3 specular_color = vec3(0.0);
+global uniform vec3 specular_color;
 // Close/far liquid colour with shallow/deep alpha.
-uniform vec4 river_close = vec4(0.0);
-uniform vec4 river_far = vec4(0.0);
-uniform vec4 ocean_close = vec4(0.0);
-uniform vec4 ocean_far = vec4(0.0);
+global uniform vec4 river_close;
+global uniform vec4 river_far;
+global uniform vec4 ocean_close;
+global uniform vec4 ocean_far;
 // Underwater fog (start, end, density per yard) and colour.
-uniform vec3 underwater_fog = vec3(0.0, 100000000.0, 0.0);
-uniform vec3 underwater_fog_color = vec3(0.0);
+global uniform vec3 underwater_fog;
+global uniform vec3 underwater_fog_color;
 #include "res://shaders/retail_fog.gdshaderinc"
 
 // MapSceneRenderer.cpp:204 binds uExteriorSpecularColor.a, the specular power, as 1.0.

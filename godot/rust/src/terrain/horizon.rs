@@ -90,8 +90,10 @@ impl WorldHorizon {
     }
 
     pub fn update_lighting(&mut self, light: &TerrainLight) {
-        if let Some(material) = self.material.as_mut() {
-            light.bind_scene_fog(material);
+        if self.light.is_none() {
+            if let Some(material) = self.material.as_mut() {
+                light.bind_scene_fog(material);
+            }
         }
         self.light = Some(light.clone());
     }

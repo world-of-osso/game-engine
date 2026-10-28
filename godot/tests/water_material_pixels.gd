@@ -89,8 +89,8 @@ func check_colour() -> String:
 	var coefficients: Vector4 = material.get_shader_parameter("depth_coefficients")
 	var d := depth
 	var mix_amount := clampf(coefficients.x + coefficients.y * d + coefficients.z * d * d + coefficients.w * d * d * d, 0.0, 1.0)
-	var close: Vector4 = material.get_shader_parameter("river_close")
-	var far: Vector4 = material.get_shader_parameter("river_far")
+	var close: Vector4 = RenderingServer.global_shader_parameter_get("river_close")
+	var far: Vector4 = RenderingServer.global_shader_parameter_get("river_far")
 	var water := close.lerp(far, mix_amount)
 	# The scene-lit material reads the scene light's global uniforms.
 	var ambient: Vector3 = scene_light.ambient
@@ -98,8 +98,8 @@ func check_colour() -> String:
 	var sun: Vector3 = scene_light.sun_direction
 	var n_dot_l := clampf(-sun.y, 0.0, 1.0)
 	var lit := Vector3(water.x, water.y, water.z) * (direct * n_dot_l + ambient)
-	var fog_color: Vector3 = material.get_shader_parameter("underwater_fog_color")
-	var fog: Vector3 = material.get_shader_parameter("underwater_fog")
+	var fog_color: Vector3 = RenderingServer.global_shader_parameter_get("underwater_fog_color")
+	var fog: Vector3 = RenderingServer.global_shader_parameter_get("underwater_fog")
 	var visibility := minf(exp(-maxf(0.0, 2.0 - fog.x) * fog.z), clampf((1.0 / 0.7) * (1.0 - 2.0 / fog.y), 0.0, 1.0))
 	var below := fog_color * (1.0 - visibility)
 	var floats_8: Vector4 = material.get_shader_parameter("floats_8")
