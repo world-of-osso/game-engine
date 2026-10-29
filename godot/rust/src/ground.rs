@@ -131,6 +131,10 @@ impl TerrainGround<'_> {
             .filter_map(|direction| self.sample_point(feet + direction * radius))
             .filter(|ground| (ground.height - feet.y).abs() <= tolerance)
             .max_by(|a, b| a.height.total_cmp(&b.height))
+            .map(|mut ground| {
+                ground.height = ground.height.min(feet.y);
+                ground
+            })
             .or(center)
     }
 
