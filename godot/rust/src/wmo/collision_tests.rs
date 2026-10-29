@@ -297,8 +297,8 @@ fn neltharus_return_crosses_recorded_gorek_lip() {
 
 #[test]
 fn neltharus_return_keeps_support_at_recorded_upper_drop() {
-    let terrain = load("2519", (32, 32), |terrain| {
-        terrain.parsed_tiles.contains_key(&(32, 32))
+    let terrain = load("2519", (33, 32), |terrain| {
+        terrain.parsed_tiles.contains_key(&(33, 32))
     });
     let start = Vec3::new(-116.3634, 122.8751, 580.7299);
     let target = Vec3::new(-116.46331, 123.0, 579.68677);
