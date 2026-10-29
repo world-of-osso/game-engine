@@ -15,7 +15,7 @@ game-engine-core = { path = "../core" }
 # Shared PlayerSpellsTab/item data, talents/editor/loadouts/search and chrome stay base.
 game-engine-ui-model = { path = "../ui-model" }
 # Existing spell/talent snapshots retain their wire identities.
-shared = { git = "https://github.com/world-of-osso/shared-protocol.git", rev = "74e67cf" }
+shared = { git = "https://github.com/world-of-osso/shared-protocol.git", rev = "470a7e8b7aed67d808defc473c6e46475dafc53f" }
 ui-toolkit = { package = "ui-toolkit-core", path = "../../../ui-toolkit/core" }
 
 [dev-dependencies]

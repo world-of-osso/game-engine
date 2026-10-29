@@ -34,7 +34,7 @@ osso_asset_resolver = { package = "asset-resolver", path = "../../../asset-resol
 game-engine-network = { path = "../network" }
 game-engine-session = { path = "../session" }
 # Authoritative wire message types; engine scheduling stays inside the network worker.
-shared = { git = "https://github.com/world-of-osso/shared-protocol.git", rev = "74e67cf" }
+shared = { git = "https://github.com/world-of-osso/shared-protocol.git", rev = "470a7e8b7aed67d808defc473c6e46475dafc53f" }
 game-engine-ui-model = { path = "../ui-model" }
 game-engine-ui-housing = { path = "../ui-housing" }
 game-engine-ui-adventure = { path = "../ui-adventure" }

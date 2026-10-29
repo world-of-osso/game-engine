@@ -15,5 +15,5 @@ game-engine-core = { path = "../core" }
 # Shared chrome, item catalogs, tooltips and selection/menu helpers stay in ui-model.
 game-engine-ui-model = { path = "../ui-model" }
 # Realm Journal/renown snapshots retain their existing wire identities.
-shared = { git = "https://github.com/world-of-osso/shared-protocol.git", rev = "74e67cf" }
+shared = { git = "https://github.com/world-of-osso/shared-protocol.git", rev = "470a7e8b7aed67d808defc473c6e46475dafc53f" }
 ui-toolkit = { package = "ui-toolkit-core", path = "../../../ui-toolkit/core" }

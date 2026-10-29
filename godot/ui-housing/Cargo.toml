@@ -15,5 +15,5 @@ game-engine-core = { path = "../core" }
 # Shared chrome, tooltips and map types retain their existing identities.
 game-engine-ui-model = { path = "../ui-model" }
 # Housing commands and authoritative snapshots retain wire type identity.
-shared = { git = "https://github.com/world-of-osso/shared-protocol.git", rev = "74e67cf" }
+shared = { git = "https://github.com/world-of-osso/shared-protocol.git", rev = "470a7e8b7aed67d808defc473c6e46475dafc53f" }
 ui-toolkit = { package = "ui-toolkit-core", path = "../../../ui-toolkit/core" }
