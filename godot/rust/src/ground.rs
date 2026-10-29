@@ -83,19 +83,32 @@ impl TerrainGround<'_> {
         }
     }
 
-    fn m2_ground(&self, feet: Vec3) -> Option<Ground> {
+    fn m2_ground(&self, feet: Vec3, walkable_only: bool) -> Option<Ground> {
         self.terrain
             .map_wdt
             .as_ref()
             .into_iter()
-            .flat_map(|map| &map.m2_floors)
-            .chain(
-                self.terrain
-                    .parsed_tiles
-                    .values()
-                    .flat_map(|tile| &tile.m2_floors),
-            )
-            .filter_map(|tile| tile.floor_height(feet))
+            .flat_map(|map| {
+                if walkable_only {
+                    &map.m2_floors
+                } else {
+                    &map.m2_solids
+                }
+            })
+            .chain(self.terrain.parsed_tiles.values().flat_map(|tile| {
+                if walkable_only {
+                    &tile.m2_floors
+                } else {
+                    &tile.m2_solids
+                }
+            }))
+            .filter_map(|tile| {
+                if walkable_only {
+                    tile.floor_height(feet)
+                } else {
+                    tile.solid_height(feet)
+                }
+            })
             .max_by(f32::total_cmp)
             .map(|height| Ground {
                 height,
@@ -110,7 +123,7 @@ impl TerrainGround<'_> {
         });
         self.static_ground(feet, false)
             .into_iter()
-            .chain(self.m2_ground(feet))
+            .chain(self.m2_ground(feet, false))
             .chain(object)
             .max_by(|a, b| a.height.total_cmp(&b.height))
     }
@@ -182,7 +195,7 @@ impl TerrainGround<'_> {
     pub fn validate_move(&self, current: Vec3, proposed: Vec3, snap: bool) -> Vec3 {
         let target_feet = proposed.with_y(current.y);
         let target = self.sample(target_feet);
-        if snap && self.steep_wmo_blocks_ascent(current, target_feet, target) {
+        if snap && self.steep_solid_blocks_ascent(current, target_feet, target) {
             return current;
         }
         let candidate = self.apply_floor_rules(current, proposed, target, snap);
@@ -200,11 +213,27 @@ impl TerrainGround<'_> {
         self.apply_floor_rules(current, clamped, target, snap)
     }
 
-    fn steep_wmo_blocks_ascent(&self, current: Vec3, target: Vec3, solid: Option<Ground>) -> bool {
-        let Some(solid) = solid.filter(|ground| ground.surface == Surface::Wmo) else {
+    fn steep_solid_blocks_ascent(
+        &self,
+        current: Vec3,
+        target: Vec3,
+        solid: Option<Ground>,
+    ) -> bool {
+        let Some(solid) =
+            solid.filter(|ground| matches!(ground.surface, Surface::Wmo | Surface::M2))
+        else {
             return false;
         };
-        let walkable = self.static_ground(target, true);
+        if solid.surface == Surface::M2
+            && (self.game_object_floor)(target).is_some_and(|height| height >= solid.height)
+        {
+            return false;
+        }
+        let walkable = self
+            .static_ground(target, true)
+            .into_iter()
+            .chain(self.m2_ground(target, true))
+            .max_by(|a, b| a.height.total_cmp(&b.height));
         if walkable.is_some_and(|ground| ground.height >= solid.height) {
             return false;
         }
@@ -300,6 +329,82 @@ mod tests {
     };
 
     use super::*;
+
+    #[test]
+    fn solid_m2_support_prevents_fall_and_blocks_steep_ascent() {
+        use crate::terrain::assets::NativeTerrainTile;
+        use shared::los::LosTile;
+        let mut terrain = StreamedTerrain::new(PathBuf::new());
+        let floor = LosTile::build(
+            32,
+            32,
+            vec![
+                Vec3::new(-4.0, 12.0, -4.0),
+                Vec3::new(4.0, 12.0, -4.0),
+                Vec3::new(0.0, 12.0, 4.0),
+            ],
+            vec![[0, 1, 2]],
+        );
+        let solid = LosTile::build(
+            32,
+            32,
+            vec![
+                Vec3::new(-4.0, 12.0, -4.0),
+                Vec3::new(4.0, 12.0, -4.0),
+                Vec3::new(0.0, 12.0, 4.0),
+                Vec3::new(-0.2, 11.0, -4.0),
+                Vec3::new(0.2, 17.0, -4.0),
+                Vec3::new(0.0, 14.0, 4.0),
+            ],
+            vec![[0, 1, 2], [3, 4, 5]],
+        );
+        terrain.parsed_tiles.insert(
+            (32, 32),
+            NativeTerrainTile {
+                root_path: PathBuf::new(),
+                tex_path: None,
+                obj_path: None,
+                root: game_engine_core::adt::Root {
+                    chunks: Vec::new(),
+                    height_grids: Vec::new(),
+                    center_surface: [0.0; 3],
+                    chunk_positions: vec![[0.0; 3]],
+                    blend_mesh: None,
+                    flight_bounds: None,
+                    water: None,
+                    water_error: None,
+                },
+                tex: None,
+                obj: None,
+                textures: Default::default(),
+                chunk_surfaces: Default::default(),
+                wmo_floors: Vec::new(),
+                m2_floors: vec![floor],
+                m2_solids: vec![solid],
+                wmo_surfaces: Vec::new(),
+                liquid_materials: Default::default(),
+            },
+        );
+        let ground = TerrainGround {
+            terrain: &terrain,
+            walls: &|_, _, _| None,
+            step_wall_blocked: &|_, _, _| false,
+            game_object_floor: &|_| None,
+        };
+        let feet = Vec3::new(0.0, 14.0, 0.0);
+        assert_eq!(ground.probe(feet), GroundState::Supported(14.0));
+        let mut movement = crate::gameplay::PlayerMovement::default();
+        let frame = crate::gameplay::MovementFrame {
+            direction: [1.0, 0.0, 0.0],
+            speed: 7.0,
+            vertical: 0.0,
+        };
+        let next = movement.predict(feet, frame, false, &ground, &mut |_, to, _| to, 1.0 / 60.0);
+        assert_eq!(
+            next, feet,
+            "steep M2 ascent must remain blocked and supported"
+        );
+    }
 
     fn load_floor_map(map: &str, tile: (u32, u32)) -> StreamedTerrain {
         let data_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");

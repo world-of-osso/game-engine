@@ -109,6 +109,7 @@ pub(crate) struct NativeMapWdt {
     pub tiles: wdt::WdtTiles,
     pub global_wmo: Option<PlacedWmo>,
     pub m2_floors: Vec<shared::los::LosTile>,
+    pub m2_solids: Vec<shared::los::LosTile>,
     pub lighting: Arc<LightingCatalog>,
 }
 
@@ -128,6 +129,7 @@ pub(crate) struct NativeTerrainTile {
     /// Authored M2 hulls, including the neighbouring centroid tiles. Loaded on the
     /// worker before ground prediction, independent of render-node spawning/culling.
     pub m2_floors: Vec<shared::los::LosTile>,
+    pub m2_solids: Vec<shared::los::LosTile>,
     pub wmo_surfaces: Vec<(WmoSurfaceBounds, FootstepSurface)>,
     /// Liquid material of each MH2O `(liquid_type, liquid_object)` on the tile.
     pub liquid_materials: BTreeMap<(u16, u16), Result<Arc<NativeLiquidMaterial>, String>>,
@@ -182,15 +184,19 @@ impl NativeTerrainAssets {
                 Ok::<_, String>(PlacedWmo::new(placement, asset, surface))
             })
             .transpose()?;
-        let m2_floors = if global_wmo.is_some() {
-            self.read_m2_floor_tiles(identity.id, None)?
+        let (m2_floors, m2_solids) = if global_wmo.is_some() {
+            (
+                self.read_m2_tiles(identity.id, None, false)?,
+                self.read_m2_tiles(identity.id, None, true)?,
+            )
         } else {
-            Vec::new()
+            (Vec::new(), Vec::new())
         };
         Ok(NativeMapWdt {
             source_product: identity.source_product,
             map_id: identity.id,
             m2_floors,
+            m2_solids,
             path,
             flags,
             tiles,
@@ -237,22 +243,47 @@ impl NativeTerrainAssets {
             textures,
             chunk_surfaces,
             wmo_floors,
-            m2_floors: self.read_m2_floor_tiles(wdt.map_id, Some((tile_y, tile_x)))?,
+            m2_floors: self.read_m2_tiles(wdt.map_id, Some((tile_y, tile_x)), false)?,
+            m2_solids: self.read_m2_tiles(wdt.map_id, Some((tile_y, tile_x)), true)?,
             wmo_surfaces,
             liquid_materials,
         })
     }
 
-    fn read_m2_floor_tiles(
+    fn read_m2_tiles(
         &self,
         map_id: u32,
         tile: Option<(u32, u32)>,
+        solid: bool,
     ) -> Result<Vec<shared::los::LosTile>, String> {
-        let dir = self.data_root.join(format!("los/{map_id}/m2"));
+        let directory = if solid { "m2-solid" } else { "m2" };
+        let dir = self.data_root.join(format!("los/{map_id}/{directory}"));
+        if solid && !dir.is_dir() && self.data_root.join(format!("los/{map_id}/m2")).is_dir() {
+            return Err(format!("missing solid M2 companion {}", dir.display()));
+        }
         let paths = match tile {
             Some(tile) => build_m2_floor_neighbour_paths(&dir, tile),
             None => read_m2_floor_paths(&dir)?,
         };
+        if solid {
+            let walkable_dir = self.data_root.join(format!("los/{map_id}/m2"));
+            let walkable_paths = match tile {
+                Some(tile) => build_m2_floor_neighbour_paths(&walkable_dir, tile),
+                None => read_m2_floor_paths(&walkable_dir)?,
+            };
+            for path in walkable_paths
+                .into_iter()
+                .filter(|path| path.extension().is_some_and(|ext| ext == "los"))
+            {
+                let companion = dir.join(path.file_name().expect("tile path has a filename"));
+                if path.is_file() && !companion.is_file() {
+                    return Err(format!(
+                        "missing solid M2 companion {}",
+                        companion.display()
+                    ));
+                }
+            }
+        }
         let mut floors = Vec::new();
         for path in paths
             .into_iter()
@@ -765,6 +796,20 @@ pub(crate) fn wmo_surface_bounds(placement: &adt::WmoPlacement, global: bool) ->
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn missing_m2_solid_companion_is_explicit() {
+        let scratch = std::env::temp_dir().join(format!("missing-m2-solid-{}", std::process::id()));
+        let floor = scratch.join("los/2519/m2");
+        fs::create_dir_all(&floor).unwrap();
+        fs::write(floor.join("32_32.los"), []).unwrap();
+        let assets = NativeTerrainAssets::new(scratch.clone());
+        let error = assets
+            .read_m2_tiles(2519, Some((32, 32)), true)
+            .unwrap_err();
+        assert!(error.contains("missing solid M2 companion"), "{error}");
+        fs::remove_dir_all(scratch).unwrap();
+    }
 
     #[test]
     fn zephras_missing_forever_liquid_texture_is_explicit_without_retail_extraction() {

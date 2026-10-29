@@ -623,6 +623,7 @@ mod tests {
             chunk_surfaces: BTreeMap::new(),
             wmo_floors: Vec::new(),
             m2_floors: Vec::new(),
+            m2_solids: Vec::new(),
             wmo_surfaces: Vec::new(),
             liquid_materials: BTreeMap::new(),
         }
