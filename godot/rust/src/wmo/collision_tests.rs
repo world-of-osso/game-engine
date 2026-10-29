@@ -296,6 +296,48 @@ fn neltharus_return_crosses_recorded_gorek_lip() {
 }
 
 #[test]
+fn neltharus_return_keeps_support_at_recorded_upper_drop() {
+    let terrain = load("2519", (32, 32), |terrain| {
+        terrain.parsed_tiles.contains_key(&(32, 32))
+    });
+    let start = Vec3::new(-116.3634, 122.8751, 580.7299);
+    let target = Vec3::new(-116.46331, 123.0, 579.68677);
+    let triangles = world_triangles(
+        terrain
+            .parsed_tiles
+            .values()
+            .flat_map(|tile| tile.wmo_floors.iter().map(|(_, wmo)| wmo)),
+        start,
+        20.0,
+    );
+    let walls = |origin, direction, length| ray_hit(&triangles, origin, direction, length);
+    let ground = TerrainGround {
+        terrain: &terrain,
+        walls: &walls,
+        step_wall_blocked: &|from, to, top| triangles_block_step(&triangles, from, to, top),
+        game_object_floor: &|_| None,
+    };
+    let direction = (target - start).with_y(0.0).normalize();
+    let mut movement = crate::gameplay::PlayerMovement::default();
+    let mut feet = start;
+    for _ in 0..12 {
+        let frame = crate::gameplay::MovementFrame {
+            direction: direction.to_array(),
+            speed: 7.0,
+            vertical: 0.0,
+        };
+        let next = movement.predict(feet, frame, false, &ground, &mut |_, to, _| to, 1.0 / 60.0);
+        eprintln!(
+            "drop before={feet:?} support={:?} after={next:?} support={:?}",
+            ground.trace_support(feet),
+            ground.trace_support(next)
+        );
+        assert!(next.y > 120.0, "fell from upper route at {next}");
+        feet = next;
+    }
+}
+
+#[test]
 fn neltharus_steep_face_supports_player_across_lip() {
     let terrain = load("2519", (32, 32), |terrain| {
         terrain.parsed_tiles.contains_key(&(32, 32))
