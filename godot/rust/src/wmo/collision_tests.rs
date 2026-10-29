@@ -321,14 +321,6 @@ fn neltharus_return_crosses_recorded_waypoint_147() {
         game_object_floor: &|_| None,
     };
     let direction = (target - start).with_y(0.0).normalize();
-    for d in [0.0, 0.12, 0.3, 0.7] {
-        let point = start + direction * d;
-        eprintln!(
-            "distance={d} support={:?} wall={:?}",
-            ground.trace_support(point),
-            walls(start + Vec3::Y * 0.6, direction, d + 0.05)
-        );
-    }
     let mut movement = crate::gameplay::PlayerMovement::default();
     let mut feet = start;
     for _ in 0..8 {
