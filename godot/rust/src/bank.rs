@@ -736,8 +736,23 @@ impl GameClient {
         );
         state.set("guild_tab", self.banks.guild.state.tab as i64);
         state.set("guild_slots", &guild_slot_items(guild.contents.as_ref()));
+        state.set("guild_tabs", &guild_tab_rights(guild.contents.as_ref()));
         state
     }
+}
+
+/// Each purchased tab's rights for this member; `remaining` is -1 when unlimited.
+fn guild_tab_rights(contents: Option<&GuildBankContents>) -> VarArray {
+    let tabs = contents.map_or(&[][..], |contents| contents.tabs.as_slice());
+    tabs.iter()
+        .map(|tab| {
+            let mut entry = VarDictionary::new();
+            entry.set("viewable", tab.viewable);
+            entry.set("can_deposit", tab.can_deposit);
+            entry.set("remaining", tab.remaining_withdrawals.map_or(-1, i64::from));
+            entry.to_variant()
+        })
+        .collect()
 }
 
 /// Occupied slots of every viewable tab, exactly as the server last sent them.
