@@ -35,8 +35,8 @@ EXCLUDED_DIRS = {".git", "target", "data", ".godot"}
 ARTIFACT = "libgame_engine_godot.so"
 CLI = "game-engine-cli"
 FIXTURE_DIR = Path("godot/network/examples")
-TEST_ASSETS = Path("godot/depot-test-assets.txt")
-TEST_LOG = Path("target/depot-test.log")
+TEST_ASSETS = Path("godot/test-assets.txt")
+TEST_LOG = Path("target/engine-test.log")
 HOSTS = ("local", "native")
 CONTAINER_HOSTS = ("local",)
 FICLONE = 0x40049409
@@ -220,7 +220,7 @@ def read_asset_manifest(root):
 
 
 def stage_assets(root, staging):
-    """Place listed data/ files in the build context, which Depot syncs incrementally by path and metadata."""
+    """Place listed data/ files in the build context, which the container build syncs incrementally by path and metadata."""
     wanted = read_asset_manifest(root)
     for relative in wanted:
         (staging / relative).parent.mkdir(parents=True, exist_ok=True)
@@ -252,10 +252,10 @@ def snapshot(root, context):
             repo, context / name, ROOT_PATHS if name == ROOT_NAME else (".",), name
         )
     validate_sources(context)
-    depot_scripts = Path(__file__).resolve().parent / "depot"
-    shutil.copyfile(depot_scripts / "Dockerfile", context / "Dockerfile")
+    container_scripts = Path(__file__).resolve().parent / "container"
+    shutil.copyfile(container_scripts / "Dockerfile", context / "Dockerfile")
     shutil.copyfile(
-        depot_scripts / "refresh-source-mtimes.py", context / "refresh-source-mtimes.py"
+        container_scripts / "refresh-source-mtimes.py", context / "refresh-source-mtimes.py"
     )
 
 
@@ -308,7 +308,7 @@ def prepare_checkout_cache(root):
     cache = (
         Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache"))
         / "game-engine"
-        / "depot-build"
+        / "engine-build"
     )
     cache.mkdir(parents=True, exist_ok=True)
     checkout_key = hashlib.sha256(os.fsencode(root)).hexdigest()[:20]
@@ -337,7 +337,7 @@ def stable_context(cache, mode, checkout_key):
 
 
 def native_source_root(root, project_name="game-engine", siblings=SIBLINGS):
-    """The checkout path Cargo should read. Without DEPOT_SIBLING_* overrides it is `root`;
+    """The checkout path Cargo should read. Without SIBLING_* overrides it is `root`;
     with any, a directory of symlinks places `root` beside the overridden siblings, since
     Cargo resolves the relative path dependencies through it as written. The directory is
     keyed by the sibling targets too: Cargo reuses a path dependency's build while its

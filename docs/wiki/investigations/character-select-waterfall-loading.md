@@ -60,7 +60,7 @@ Do not discard shadow flags/data, broadly expand prop loading, replace alpha com
 
 - `godot/rust/src/character_select/background.rs` — current primary-only request and actual loader-boundary regression.
 - `godot/rust/src/terrain/assets.rs` — authoritative WDT MAIN/MAID validation, unchanged by the preview fix.
-- `godot/depot-test-assets.txt` — explicit cached fixture files for host-isolated CPU tests.
+- `godot/test-assets.txt` — explicit cached fixture files for host-isolated CPU tests.
 
 - `data/diagnostics/waterfall-missing-20260911/particle-raw-parser/report.md` — actual field values and parser RED/GREEN.
 - `data/diagnostics/waterfall-missing-20260911/particle-raw-flags/{red2,green}/` — six raw-flag behavioral regressions.

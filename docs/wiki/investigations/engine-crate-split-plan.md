@@ -350,7 +350,7 @@ The build driver calls `depot.build(root, host="native")`, the real dev helper p
 - [Generated module graph](engine-crate-split-graph.md), [baseline receipts](engine-crate-split-baseline.json), `scripts/engine-crate-graph.py`, `scripts/test_engine_crate_graph.py` — exact SCC membership, adjacency/churn, fixture proof and edit timings.
 - game-server `0d8542f46:docs/wiki/investigations/server-crate-split-plan.md` and `scripts/server-crate-graph.py` — reference method and staged move/wiring discipline.
 - [Workspace manifest](../../../godot/Cargo.toml), [ui-model root](../../../godot/ui-model/src/lib.rs), [extension root](../../../godot/rust/src/lib.rs) and their manifests — actual module/type/profile ownership.
-- [Build helper](../../../scripts/depot-build.py), [remote/native build contract](../../remote-builds.md) — commands, snapshot/target/slot behavior.
+- [Build helper](../../../scripts/engine-build.py), [remote/native build contract](../../remote-builds.md) — commands, snapshot/target/slot behavior.
 - [Historical touch timings](native-dev-build-timings.md) — unchanged-file touch evidence, not a true code-edit baseline or current split speedup.
 
 ## See Also

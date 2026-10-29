@@ -24,7 +24,7 @@ Guest deletion/trim and offline VHD compaction were distinct recovery stages; gu
 
 - Windows `Get-PSDrive C`, VHD file size and `%LOCALAPPDATA%\Temp\wsl-crashes` inventory; Linux `df -hT /`; `docker buildx du --builder game-engine` — live capacity and crash evidence on Windows local date 2026-10-06.
 - `docker buildx prune --builder game-engine --all --force --max-used-space 100GB`, `/usr/sbin/fstrim -v /`, then `wsl.exe --shutdown` and DiskPart `compact vdisk` — recovery commands; post-compaction file size and free space were measured after DiskPart exited.
-- [BuildKit configuration](../../../scripts/depot/buildkitd.toml) — persistent aggregate GC policy.
+- [BuildKit configuration](../../../scripts/container/buildkitd.toml) — persistent aggregate GC policy.
 
 ## See Also
 

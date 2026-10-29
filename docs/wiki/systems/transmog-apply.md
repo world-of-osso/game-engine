@@ -60,7 +60,7 @@ Historical78×104 Wardrobe frame: Modern/Forever source821/1181 produced359/463 
 
 ## Fixture readiness
 
-Wait for item metadata before native bag actions: the prior absent-metadata branch sent Use instead of Equip. `container_item_request` now reports unresolved metadata explicitly. Soft interaction and Z must be configured in isolated fixture homes; otherwise Z toggles Run/Walk. Authenticate owned fixture credentials and never reuse another account's token. The helper builds with `DEPOT_SIBLING_SHARED_PROTOCOL` selecting the matching protocol slot; tracked sibling patches remain intact.
+Wait for item metadata before native bag actions: the prior absent-metadata branch sent Use instead of Equip. `container_item_request` now reports unresolved metadata explicitly. Soft interaction and Z must be configured in isolated fixture homes; otherwise Z toggles Run/Walk. Authenticate owned fixture credentials and never reuse another account's token. The helper builds with `SIBLING_SHARED_PROTOCOL` selecting the matching protocol slot; tracked sibling patches remain intact.
 
 ## Sources
 

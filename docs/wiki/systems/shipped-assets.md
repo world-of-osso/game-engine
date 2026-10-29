@@ -89,7 +89,7 @@ The [player bundle contract](../../specs/player-bundle.md#template-proof--2026-1
 - [Startup boundary and cold-worker regressions](../../../godot/rust/src/asset_startup.rs)
 - [Detached completion state](../../../godot/core/src/asset_loader.rs)
 - [Ground-detail worker](../../../godot/rust/src/terrain/ground_detail.rs)
-- [Depot fixtures](../../../godot/depot-test-assets.txt)
+- [Depot fixtures](../../../godot/test-assets.txt)
 
 ## See Also
 

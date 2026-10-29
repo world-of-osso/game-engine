@@ -15,7 +15,7 @@ Approved scope: inventory current behavior and freeze independent CPU/GPU/icon r
 ```text
 WOW_BLP_INPUTS=/home/osso/.worktrees/logs/wow_formats-phase7/inputs.json
 WOW_BLP_ENGINE_OUTPUT=/home/osso/.worktrees/logs/wow_formats-phase7/engine
-agent-run wow_formats python3 scripts/depot-build.py --root <engine-slot> --test -p game-engine-core --test blp_qualification -- --ignored --exact capture_cpu_gpu_before_only
+agent-run wow_formats python3 scripts/engine-build.py --root <engine-slot> --test -p game-engine-core --test blp_qualification -- --ignored --exact capture_cpu_gpu_before_only
 ```
 
 Use normal capacity ADD and the existing protocol sibling. Before-only corpus/receipt manifests and run logs live under `/home/osso/.worktrees/logs/wow_formats-phase7*`; no assets are copied into this repository. Frozen source hashes and complete input hashes must be checked after capture. The missing authored180071 test remains a named gap, not an ignored success or synthetic replacement.

@@ -30,7 +30,7 @@ def upload(host, source, target):
 
 
 def load_builder():
-    spec = importlib.util.spec_from_file_location('depot_build', Path(__file__).with_name('depot-build.py'))
+    spec = importlib.util.spec_from_file_location('engine_build', Path(__file__).with_name('engine-build.py'))
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module

@@ -7,5 +7,5 @@ here=$(cd "$(dirname "$0")" && pwd)
 docker buildx rm --keep-state game-engine 2>/dev/null || true
 docker buildx create --name game-engine --driver docker-container \
   --driver-opt cpu-period=100000 --driver-opt cpu-quota=800000 --driver-opt memory=10g \
-  --buildkitd-config "$here/depot/buildkitd.toml" --bootstrap
+  --buildkitd-config "$here/container/buildkitd.toml" --bootstrap
 docker buildx inspect game-engine | sed -n '/GC Policy/,$p'

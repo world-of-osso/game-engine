@@ -1,6 +1,6 @@
 # Local and native Godot extension builds
 
-Root `cargo run` and `rd` compile only the tiny std-only launcher locally. The launcher runs `python3 scripts/depot-build.py --root <checkout>` on the selected `local` container or `native` host, then launches/imports Godot locally. The helper retains its filename; Depot is no longer required.
+Root `cargo run` and `rd` compile only the tiny std-only launcher locally. The launcher runs `python3 scripts/engine-build.py --root <checkout>` on the selected `local` container or `native` host, then launches/imports Godot locally.
 
 `--build-host local|native` selects a host for one helper or launcher invocation; the launcher consumes it rather than forwarding it to Godot. Without an explicit host, the helper reads `~/.config/game-engine/build-host`, independent of runtime `XDG_CONFIG_HOME` isolation. Missing or invalid defaults, including the retired `desktop` setting, fail explicitly; no host fallback.
 
@@ -8,7 +8,7 @@ Client options `--screen`, `--state`, `--server`, `--char`, and `--run-js-ui-scr
 
 ## Windows player release
 
-`python3 scripts/windows-release.py --root <checkout>` is a Linux-side driver for the native Windows worker `scripts/windows-worker.py`, not the retired OssoBuild backend. It uses a fresh `~/Projects/woo-windows-build` directory and uploads the helper's engine/sibling source snapshot. `target/windows-release/revisions.json` records engine, asset-resolver, shared-protocol, ui-toolkit and ui-toolkit-macros revisions. Siblings must be committed; their source overrides match `depot-build.py`.
+`python3 scripts/windows-release.py --root <checkout>` is a Linux-side driver for the native Windows worker `scripts/windows-worker.py`, not the retired OssoBuild backend. It uses a fresh `~/Projects/woo-windows-build` directory and uploads the helper's engine/sibling source snapshot. `target/windows-release/revisions.json` records engine, asset-resolver, shared-protocol, ui-toolkit and ui-toolkit-macros revisions. Siblings must be committed; their source overrides match `engine-build.py`.
 
 Desktop prerequisites: SSH, Git, existing MinGW x86_64 GNU/UCRT tools on PATH, and LLVM `libclang.dll` at `C:/Program Files/LLVM/bin`. The driver installs only user-local uv0.9.2, Python3.12.12 and Rust1.98.1 with `x86_64-pc-windows-gnu`; the runtime build uses uv-managed SCons4.10.1. GNU is intentional: bundled QuickJS has the recorded MSVC failure and the KTX compiler-cache probe invokes `--version`, unsupported by MSVC `cl`. No Linux package or Windows system-wide installation is needed.
 
@@ -16,7 +16,7 @@ The KTX cache is `~/.woo-ktx`: its compiler-keyed directory names plus CMake scr
 
 The Linux caller also needs existing `tar` and `zstd`. Bundle staging streams a zstd-compressed tar directly to Windows' native tar, into the owned NTFS-compressed `player/` directory. A second archive copy on desktop is deliberately avoided. The October11 staged allowlist was172GB; adding the omitted product-qualified assets adds3.17GB. Retired OssoBuild WSL was removed by the lead, restoring storage; native Windows builds do not depend on WSL. This does not change runtime files or the downloadable player format. `player/` is replaced during assembly; never assemble while its client is running.
 
-The extension retains main-thread diagnostics using local-only `\\\\.\\pipe\\game-engine-<pid>` named pipes. `--phase ipc-test` on the worker runs the real Windows framing/process fixture independently of Godot. The Linux IPC CLI is not built for Windows. `windows-release.py --phase launcher-test|launcher` snapshots the sibling game-launcher and tests/builds it with native MSVC (launcher has neither QuickJS nor KTX); `DEPOT_SIBLING_GAME_LAUNCHER` selects an explicit checkout. `--phase launcher-lock` updates the native lockfile and copies it back to that checkout; `--phase launcher` exports `target/windows-release/artifacts/game-launcher-windows-x86_64.exe`. Launcher publishing/releasing remains separate from player deployment. [Deployment](deploy.md#windows-x86_64-native-gnu) owns the bundle and publication boundary.
+The extension retains main-thread diagnostics using local-only `\\\\.\\pipe\\game-engine-<pid>` named pipes. `--phase ipc-test` on the worker runs the real Windows framing/process fixture independently of Godot. The Linux IPC CLI is not built for Windows. `windows-release.py --phase launcher-test|launcher` snapshots the sibling game-launcher and tests/builds it with native MSVC (launcher has neither QuickJS nor KTX); `SIBLING_GAME_LAUNCHER` selects an explicit checkout. `--phase launcher-lock` updates the native lockfile and copies it back to that checkout; `--phase launcher` exports `target/windows-release/artifacts/game-launcher-windows-x86_64.exe`. Launcher publishing/releasing remains separate from player deployment. [Deployment](deploy.md#windows-x86_64-native-gnu) owns the bundle and publication boundary.
 
 ## Requirements
 
@@ -28,43 +28,43 @@ The extension retains main-thread diagnostics using local-only `\\\\.\\pipe\\gam
 
 ```sh
 # Save the default:
-python3 scripts/depot-build.py --save-build-host local
+python3 scripts/engine-build.py --save-build-host local
 # One-shot override; does not change the saved default:
 cargo run -- --build-host native --screen charselect
-python3 scripts/depot-build.py --root "$PWD" --build-host local
+python3 scripts/engine-build.py --root "$PWD" --build-host local
 # Build/install only, without launching:
-python3 scripts/depot-build.py --root "$PWD"
+python3 scripts/engine-build.py --root "$PWD"
 # Build the extension and one owned UDP fixture executable (any godot/network/examples/*.rs stem):
-python3 scripts/depot-build.py --root "$PWD" --fixture native_input_fixture
+python3 scripts/engine-build.py --root "$PWD" --fixture native_input_fixture
 # Optimized library, into target/release/ (used by ./deploy.sh; not combinable with --cli/--test):
-python3 scripts/depot-build.py --root "$PWD" --release
+python3 scripts/engine-build.py --root "$PWD" --release
 # Same release profile for extension and support peer, into target/release/examples/:
-python3 scripts/depot-build.py --root "$PWD" --release --fixture native_battleground_peers --build-host local
+python3 scripts/engine-build.py --root "$PWD" --release --fixture native_battleground_peers --build-host local
 # Also export the IPC client to target/debug/game-engine-cli (with or without --fixture):
-python3 scripts/depot-build.py --root "$PWD" --cli
+python3 scripts/engine-build.py --root "$PWD" --cli
 ```
 
 `--fixture` accepts every top-level `godot/network/examples/*.rs` file stem (`native_input_fixture`, `native_npc_visual_fixture`, `native_reconnect_fixture`, `native_transfer_fixture`, and any new one); the helper validates the name and the Dockerfile builds it. Debug fixtures install under `target/debug/examples/<name>`; `--release --fixture` builds and exports both the extension and named example in the release profile under `target/release/`, without replacing debug artifacts. Fixtures locate their checkout relative to their installed examples path. `native_input_fixture` and `native_npc_visual_fixture` stage authored root CSVs while preserving generated fixture catalogs; SQL setup and WAL-safe listfile snapshots use bundled rusqlite, not a host `sqlite3` executable. Their private data trees live under canonical `data/`.
 
-For CPU tests, use `python3 scripts/depot-build.py --root "$PWD" --build-host local --test -p game-engine-core`. Release artifacts require `local`. Host selection does not make GDScript or GPU tests part of `--test`.
+For CPU tests, use `python3 scripts/engine-build.py --root "$PWD" --build-host local --test -p game-engine-core`. Release artifacts require `local`. Host selection does not make GDScript or GPU tests part of `--test`.
 
 ## UI-model integration tests
 
-UI-model suites share `tests/integration.rs` instead of separate Cargo binaries. Add new suites to that harness. Select one suite with `python3 scripts/depot-build.py --root "$PWD" --test -p game-engine-ui-model --test integration <suite>::`; the old `--test <suite>` target names no longer exist. [Measured rebuild impact and unchanged test inventory](wiki/investigations/native-dev-build-timings.md).
+UI-model suites share `tests/integration.rs` instead of separate Cargo binaries. Add new suites to that harness. Select one suite with `python3 scripts/engine-build.py --root "$PWD" --test -p game-engine-ui-model --test integration <suite>::`; the old `--test <suite>` target names no longer exist. [Measured rebuild impact and unchanged test inventory](wiki/investigations/native-dev-build-timings.md).
 
-Housing owns its separate `game-engine-ui-housing` crate and `integration` harness. Run its affected tests with `python3 scripts/depot-build.py --root "$PWD" --test -p game-engine-ui-housing --lib --test integration -j4`; shared primitives remain in ui-model. The moved suites retain their original module/test names and data-relative fixture paths. See the [Housing split census and paired timing](wiki/investigations/engine-crate-split-plan.md#housing-pilot-implementation).
+Housing owns its separate `game-engine-ui-housing` crate and `integration` harness. Run its affected tests with `python3 scripts/engine-build.py --root "$PWD" --test -p game-engine-ui-housing --lib --test integration -j4`; shared primitives remain in ui-model. The moved suites retain their original module/test names and data-relative fixture paths. See the [Housing split census and paired timing](wiki/investigations/engine-crate-split-plan.md#housing-pilot-implementation).
 
-Adventure Guide similarly owns `game-engine-ui-adventure`; its seven suites share that crate's `integration` harness. Run `python3 scripts/depot-build.py --root "$PWD" --test -p game-engine-ui-adventure --lib --test integration -j4`. Native actor/model-scene code remains in GDExtension; [exact conserved census](wiki/investigations/engine-crate-split-plan.md#adventure-guide-extraction).
+Adventure Guide similarly owns `game-engine-ui-adventure`; its seven suites share that crate's `integration` harness. Run `python3 scripts/engine-build.py --root "$PWD" --test -p game-engine-ui-adventure --lib --test integration -j4`. Native actor/model-scene code remains in GDExtension; [exact conserved census](wiki/investigations/engine-crate-split-plan.md#adventure-guide-extraction).
 
-`game-engine-ui-collections` owns the shared Collections shell, transmog, Trading Post, mount/pet journals, toybox, stable and wild-pet UI. Run `python3 scripts/depot-build.py --root "$PWD" --test -p game-engine-ui-collections --lib --test integration --test active_db2 -j4`. `active_db2` deliberately stays separate from ordinary integration to isolate once-only source flags/data roots; `item_catalog_pending` remains in ui-model. Shared item catalogs/chrome/data-root state stay in ui-model; native actor/render behavior stays in GDExtension. [Exact staged census and gates](wiki/investigations/engine-crate-split-plan.md#collections-stage4-implementation).
+`game-engine-ui-collections` owns the shared Collections shell, transmog, Trading Post, mount/pet journals, toybox, stable and wild-pet UI. Run `python3 scripts/engine-build.py --root "$PWD" --test -p game-engine-ui-collections --lib --test integration --test active_db2 -j4`. `active_db2` deliberately stays separate from ordinary integration to isolate once-only source flags/data roots; `item_catalog_pending` remains in ui-model. Shared item catalogs/chrome/data-root state stay in ui-model; native actor/render behavior stays in GDExtension. [Exact staged census and gates](wiki/investigations/engine-crate-split-plan.md#collections-stage4-implementation).
 
-`game-engine-ui-professions` owns presentation and RecipeCatalog; run `python3 scripts/depot-build.py --root "$PWD" --test -p game-engine-ui-professions --lib --test integration -j4`. Shared ProfessionBook/Recipe/quality/reagent-count models and actual CSV readers stay in ui-model. The two moved mixed-suite integration cases and four mixed unit cases keep exact original names; [initial ownership/census](wiki/investigations/engine-crate-split-plan.md#professions-extraction-implementation). The [catalog residual](wiki/investigations/engine-crate-split-plan.md#recipecatalog-residual--approved-mixed-file-cut) additionally moves three mixed units/four trainer cases;parser/quality implementation bodies and native cache owners remain unchanged,no paired timing.
+`game-engine-ui-professions` owns presentation and RecipeCatalog; run `python3 scripts/engine-build.py --root "$PWD" --test -p game-engine-ui-professions --lib --test integration -j4`. Shared ProfessionBook/Recipe/quality/reagent-count models and actual CSV readers stay in ui-model. The two moved mixed-suite integration cases and four mixed unit cases keep exact original names; [initial ownership/census](wiki/investigations/engine-crate-split-plan.md#professions-extraction-implementation). The [catalog residual](wiki/investigations/engine-crate-split-plan.md#recipecatalog-residual--approved-mixed-file-cut) additionally moves three mixed units/four trainer cases;parser/quality implementation bodies and native cache owners remain unchanged,no paired timing.
 
-`game-engine-ui-player-spells` owns Player Spells/talent presentation and offline previews; run `python3 scripts/depot-build.py --root "$PWD" --test -p game-engine-ui-player-spells --lib --test integration -j4`. The data-only classbook audit stays ignored. Base `player_spells_data` uniquely owns PlayerSpellsTab and SpellbookItemView; talent/editor/loadout/search/override implementations remain base. [Exact moved/residual census and timing controls](wiki/investigations/engine-crate-split-plan.md#player-spells-presentation--approved-next-slice).
+`game-engine-ui-player-spells` owns Player Spells/talent presentation and offline previews; run `python3 scripts/engine-build.py --root "$PWD" --test -p game-engine-ui-player-spells --lib --test integration -j4`. The data-only classbook audit stays ignored. Base `player_spells_data` uniquely owns PlayerSpellsTab and SpellbookItemView; talent/editor/loadout/search/override implementations remain base. [Exact moved/residual census and timing controls](wiki/investigations/engine-crate-split-plan.md#player-spells-presentation--approved-next-slice).
 
-`game-engine-ui-pvp` owns queue/arena/bonus/honor/match/scoreboard presentation; run `python3 scripts/depot-build.py --root "$PWD" --test -p game-engine-ui-pvp --lib --test integration -j4`. The two existing Player Spells cross-panel cases stay in that peer harness through a test-only ui-pvp dependency; run `--test -p game-engine-ui-player-spells --test integration pvp_progression:: -j4` through the helper. No base or Player Spells production reverse dependency. [Exact census and timing controls](wiki/investigations/engine-crate-split-plan.md#pvp-presentation-implementation).
+`game-engine-ui-pvp` owns queue/arena/bonus/honor/match/scoreboard presentation; run `python3 scripts/engine-build.py --root "$PWD" --test -p game-engine-ui-pvp --lib --test integration -j4`. The two existing Player Spells cross-panel cases stay in that peer harness through a test-only ui-pvp dependency; run `--test -p game-engine-ui-player-spells --test integration pvp_progression:: -j4` through the helper. No base or Player Spells production reverse dependency. [Exact census and timing controls](wiki/investigations/engine-crate-split-plan.md#pvp-presentation-implementation).
 
-`game-engine-ui-achievements` owns frame/toast rendering only;run `python3 scripts/depot-build.py --root "$PWD" --test -p game-engine-ui-achievements --lib --test integration -j4`. AchievementWindow/query/apply/tracking,comparison cache,static ancestry and chat/tracker consumers remain base-owned. One unit and27 integration cases move with exact names;one catalog unit and ten state/tracker/chat cases stay base. [Approved boundary,census and13-package check](wiki/investigations/engine-crate-split-plan.md#achievements-presentation--approved-boundary).
+`game-engine-ui-achievements` owns frame/toast rendering only;run `python3 scripts/engine-build.py --root "$PWD" --test -p game-engine-ui-achievements --lib --test integration -j4`. AchievementWindow/query/apply/tracking,comparison cache,static ancestry and chat/tracker consumers remain base-owned. One unit and27 integration cases move with exact names;one catalog unit and ten state/tracker/chat cases stay base. [Approved boundary,census and13-package check](wiki/investigations/engine-crate-split-plan.md#achievements-presentation--approved-boundary).
 
 ## UI icons prepared before shipping
 
@@ -76,7 +76,7 @@ The shipped UI only reads these files. Missing/invalid required images stop rele
 
 Verified source review: 2026-10-06, master `2f5f3e79`. Agents must reuse their assigned fixed worktree slots and switch branches in those slots. Never create new client/server worktrees, delete `target/`, prune builder caches, or recreate bulk target caches. Temporary **shared-protocol** worktrees are allowed: they supply source only and have no checkout target cache of their own.
 
-The path is the cache identity, not the branch: `scripts/depot-build.py:261–269` hashes `os.fsencode(root)` with SHA-256 and keeps the first 20 hex characters; `scripts/build_hosts.py:32–46` passes `godot-target-<hash>` to BuildKit. The server helper adds `server-` to that checkout key and passes `server-target-<key>`, giving **`server-target-server-<hash>`** (`scripts/desktop-server-build.py:70–88,154–170`). A new slot path therefore starts another cache; switching branches at the same path preserves the warm slot. [Build boundary](#build-boundary) owns snapshot freshness, per-checkout locking and artifact export details.
+The path is the cache identity, not the branch: `scripts/engine-build.py:261–269` hashes `os.fsencode(root)` with SHA-256 and keeps the first 20 hex characters; `scripts/build_hosts.py:32–46` passes `godot-target-<hash>` to BuildKit. The server helper adds `server-` to that checkout key and passes `server-target-<key>`, giving **`server-target-server-<hash>`** (`scripts/desktop-server-build.py:70–88,154–170`). A new slot path therefore starts another cache; switching branches at the same path preserves the warm slot. [Build boundary](#build-boundary) owns snapshot freshness, per-checkout locking and artifact export details.
 
 ### Required server runtime catalogs
 
@@ -84,7 +84,7 @@ Server test mirrors and out-of-checkout native runtime directories stage `conten
 
 ## Native host (`native`, agent-server default since 2026-10-09)
 
-Server agents use `scripts/desktop-server-build.py --root <server-slot> --build-host native --test --workspace --no-fail-fast -- --skip query_300k_listings_under_200ms`, or the server's `scripts/build-host.py --build-host native --test ...`. Both run host Cargo in the original server checkout with `CARGO_TARGET_DIR=<server-slot>/target` and the same native slots as the engine. Native tests read real checkout `data/`, not `desktop-server/test-data.txt` staging; server slots need a valid `data/world.db` link and the other fixtures they consume. Use `BUILD_HOST_SCRIPTS=<engine-slot>/scripts` for the server adapter when the engine checkout is not its sibling. Both server helpers reuse the engine's `native_source_root()` for `DEPOT_SIBLING_SHARED_PROTOCOL`: a checkout-keyed symlink root supplies overridden path dependencies through Cargo's manifest path, while working directory, data and target remain in the actual checkout.
+Server agents use `scripts/desktop-server-build.py --root <server-slot> --build-host native --test --workspace --no-fail-fast -- --skip query_300k_listings_under_200ms`, or the server's `scripts/build-host.py --build-host native --test ...`. Both run host Cargo in the original server checkout with `CARGO_TARGET_DIR=<server-slot>/target` and the same native slots as the engine. Native tests read real checkout `data/`, not `desktop-server/test-data.txt` staging; server slots need a valid `data/world.db` link and the other fixtures they consume. Use `BUILD_HOST_SCRIPTS=<engine-slot>/scripts` for the server adapter when the engine checkout is not its sibling. Both server helpers reuse the engine's `native_source_root()` for `SIBLING_SHARED_PROTOCOL`: a checkout-keyed symlink root supplies overridden path dependencies through Cargo's manifest path, while working directory, data and target remain in the actual checkout.
 
 Server release exports stay bookworm-only: `desktop-server-build.py --build-host local --release` (also used by server `deploy.sh`). `build-host.py --release` delegates exports to that helper; test/check/features/run are not release-export options. `native --release` fails before Cargo: NixOS glibc 2.42 cannot load Arch-linked glibc 2.43 artifacts.
 
@@ -94,10 +94,10 @@ Wrap every agent build/test using the shared container builder with `~/.worktree
 
 ```sh
 scripts/agent/agent-run <run_name> ~/.worktrees/build-lock.sh \
-  python3 scripts/depot-build.py --root "$PWD" --build-host local --cli
+  python3 scripts/engine-build.py --root "$PWD" --build-host local --cli
 ```
 
-Use the corresponding server helper for an assigned server slot. BuildKit GC limits live only in [`scripts/depot/buildkitd.toml`](../scripts/depot/buildkitd.toml); [builder GC policy](wiki/systems/build-hosts.md#builder-gc-policy) owns the eviction diagnosis and provisioning guidance. Do not change GC policy or rebuild the builder as part of ordinary slot use.
+Use the corresponding server helper for an assigned server slot. BuildKit GC limits live only in [`scripts/container/buildkitd.toml`](../scripts/container/buildkitd.toml); [builder GC policy](wiki/systems/build-hosts.md#builder-gc-policy) owns the eviction diagnosis and provisioning guidance. Do not change GC policy or rebuild the builder as part of ordinary slot use.
 
 The [builder GC policy](wiki/systems/build-hosts.md#builder-gc-policy) records the user-approved aggregate budget superseding the former warm-every-slot policy; the historical OssoBuild configuration is recorded there. [Desktop disk exhaustion](wiki/investigations/desktop-disk-exhaustion.md) records observed cache pruning and completed offline VHD compaction, distinguishing Windows host capacity from WSL guest free space.
 
@@ -187,12 +187,12 @@ Server source snapshots preserve tracked `.cargo/config.toml` and the entire tra
 # Export target/debug/{game-server,game-server-admin,game-cli} into the server checkout (--release/--bin as needed):
 python3 scripts/desktop-server-build.py --root ../game-server
 # Same, against a shared-protocol branch worktree instead of ../shared-protocol:
-DEPOT_SIBLING_SHARED_PROTOCOL=/path/to/shared-protocol-branch python3 scripts/desktop-server-build.py --root ../game-server
+SIBLING_SHARED_PROTOCOL=/path/to/shared-protocol-branch python3 scripts/desktop-server-build.py --root ../game-server
 # `cargo test --locked` for the server workspace; every argument after --test goes to cargo:
 python3 scripts/desktop-server-build.py --root ../game-server --test -- --skip query_300k_listings_under_200ms
 ```
 
-`--test` cannot combine with `--release`, `--bin` or `--save-build-host`. It prints the log tail and summary, saves the full log to `<root>/target/server-test.log`, and exits with cargo's status. Tests read their data from the paths they use locally: `scripts/desktop-server/test-data.txt` lists files, directories and globs under the server checkout's `data/` and its sibling game-engine's `data/` (`DEPOT_SIBLING_GAME_ENGINE` overrides it). An entry matching nothing fails before the host is used; tests needing an unlisted file fail on the host with their own missing-path error. `rsync` mirrors the list (size+mtime quick check, unlisted files deleted) to one `server-test-data` directory per host (`~/.cache/game-engine/depot-build/` locally), which the Dockerfile `test` stage binds read-only as the `test-data` build context: the game-engine part sits at `<checkout parent>/game-engine/data`, beside the checkout (the image keeps the host checkout paths) where the server's ground and LOS load by default, and the server part is copied to `data/` because SQLite writes beside `world.db`. Every checkout shares that mirror, so server test runs serialize on its lock.
+`--test` cannot combine with `--release`, `--bin` or `--save-build-host`. It prints the log tail and summary, saves the full log to `<root>/target/server-test.log`, and exits with cargo's status. Tests read their data from the paths they use locally: `scripts/desktop-server/test-data.txt` lists files, directories and globs under the server checkout's `data/` and its sibling game-engine's `data/` (`SIBLING_GAME_ENGINE` overrides it). An entry matching nothing fails before the host is used; tests needing an unlisted file fail on the host with their own missing-path error. `rsync` mirrors the list (size+mtime quick check, unlisted files deleted) to one `server-test-data` directory per host (`~/.cache/game-engine/engine-build/` locally), which the Dockerfile `test` stage binds read-only as the `test-data` build context: the game-engine part sits at `<checkout parent>/game-engine/data`, beside the checkout (the image keeps the host checkout paths) where the server's ground and LOS load by default, and the server part is copied to `data/` because SQLite writes beside `world.db`. Every checkout shares that mirror, so server test runs serialize on its lock.
 
 On October 3, 2026, `--test --no-fail-fast -- --skip query_300k_listings_under_200ms` on desktop against game-server `a8d9c58` passed 1394 tests (53 ignored, exit 0). Against `04e65e0` (before the checkout-path image) it ran 1392 passed and failed `creature_aggro::tests::neutral_boar_attacked_by_a_players_pet_fights_the_pet` twice on different assertions. After the initial `world.db` upload, a rerun's sync took about 1-3 s.
 
@@ -238,23 +238,11 @@ target/debug/examples/native_input_fixture merchant-services
 
 MAIN independently accepted1513 **bounded PASS**, recorded in `158e523d`: direct Repair All and Sell All Junk without confirmation, exact decoded requests, client-before-authority barriers, authoritative results and quiet disabled repeats. See [authoritative acceptance, historical REDs, retained warnings and exclusions](wiki/systems/godot-conversion.md#native-direct-services--main-accepted-bounded-pass); that section owns the proof ledger. Cleanup deliberately kills/reaps the owned child: forced cleanup is not normal shutdown proof. Full conversion remains **OPEN**.
 
-## CPU tests and historical Depot evidence
+## CPU tests
 
-`python3 scripts/depot-build.py --root "$PWD" --test <cargo test args...>` runs `cargo test --locked` in the `godot/` workspace on the selected local/native host with every argument after `--test` (including `--`), prints the log tail and every `Running`/`test result`/`error`/`FAILED` line, saves the full log to `target/depot-test.log`, and exits with cargo's status; it installs nothing else. It uses the same snapshot, checkout lock and target cache as builds. This mode runs CPU Rust tests, not Godot/GPU runtime tests. The measurements and pass/failure records below are historical Depot evidence; they do not assert replacement-host passes.
+`python3 scripts/engine-build.py --root "$PWD" --test <cargo test args...>` runs `cargo test --locked` in the `godot/` workspace on the selected local/native host with every argument after `--test` (including `--`), prints the log tail and every `Running`/`test result`/`error`/`FAILED` line, saves the full log to `target/engine-test.log`, and exits with cargo's status; it installs nothing else. It uses the same snapshot, checkout lock and target cache as builds. This mode runs CPU Rust tests, not Godot/GPU runtime tests.
 
-Test data comes only from `godot/depot-test-assets.txt`: data/-relative file paths, validated locally (missing or escaping entries fail before upload), reflinked (else hardlinked, else copied) into the snapshot's `test-assets/`, excluded from the image `COPY`, bind-mounted read-only at `/test-assets`, and copied to the remote `data/` (plus the `godot/core/data` symlink) for the test run. Remote writes, such as the outfit tests' `data/cache/outfit_links.sqlite`, stay in the build container; local `data/` was byte-identical before and after two runs. A test needing an unlisted file fails remotely with its own missing-path error. Add files to the manifest rather than uploading `data/`. Measured September 29, 2026: staging 131 files (605 MiB) takes 0.3 s by reflink, and Depot re-uploads them in full every run (645 MB context, 21.5–23.2 s on consecutive runs, both as a stable named context and inside the main context). On September 30, 2026 the manifest grew to 1,801 files (1,271 MiB) so every `game-engine-godot --lib` test runs: staging took 1.7 s and the 1.36 GB context upload 108 s of a 179 s run. The added entries are the files those tests open, traced with `strace` from a Depot-built test binary run locally; the largest users are the `wmo` (431 MiB), `assets` (124 MiB), `terrain` (97 MiB), `ground` (83 MiB) and `animation` (74 MiB) test modules. `local-listfile-cache.sqlite` answers the resolver's FDID/path lookups; `community-listfile.csv` is read directly by the outfit model-path tests, and its presence makes the resolver build its community cache remotely. A local run of that binary with only the manifest's files and no CASC install passes all 294 tests. Since September 30, 2026 repeat uploads are incremental: the context is rebuilt at a fixed per-checkout path (`~/.cache/game-engine/depot-build/context-{build,test}-<checkout key>`), and the assets are no longer bind-mounted writable. BuildKit re-sent the whole context whenever its path changed (three runs from fresh temporary paths: 1.33 GB each) or after a writable bind of it (three runs of an unchanged fixed context: 1.36 GB each). Three consecutive `--test -p game-engine-godot --lib` runs then sent 1.36 GB (97.6 s), 16.3 MB (2.4 s) and 267 kB (0.3 s), finishing in 137 s, 48 s and 45 s.
-
-Results on September 29, 2026 (branch `depottest`):
-
-| Crate | Result | Not runnable remotely |
-|---|---|---|
-| `game-engine-core` (lib + 37 `tests/`) | 569 passed, 0 failed | none |
-| `game-engine-ui-model` | 114 passed, 1 failed | `authored_customize_mode_keeps_dropdown_choices_name_and_postsetup`: ui-toolkit loads FrizQuadrata from the absolute host path `/home/osso/Projects/wow/wow-ui-sim/fonts/FRIZQT__.TTF` (fixed September 30: `set_data_root` sets ui-toolkit's font directory to `data/fonts`) |
-| `game-engine-session` | 28 passed | none |
-| `game-engine-network` | 14 passed (loopback UDP only) | none |
-| `game-engine-godot --lib` | 203 passed, 64 failed | the 64 need the asset resolver (local CASC extraction from a WoW install), `community-listfile.csv` resolution, or streamed terrain/WMO data; not listed in the manifest (fixed September 30: 294 passed, 0 failed) |
-
-`game-engine-godot --lib` compiles and runs without the engine: no test hit godot-rust's "engine not available" panic. GDScript tests under `godot/tests/` need Godot and are not covered.
+Test data comes only from `godot/test-assets.txt`: data/-relative file paths, validated locally (missing or escaping entries fail before upload), reflinked (else hardlinked, else copied) into the snapshot's `test-assets/`, excluded from the image `COPY`, bind-mounted read-only at `/test-assets`, and copied to the remote `data/` (plus the `godot/core/data` symlink) for the test run. Remote writes, such as the outfit tests' `data/cache/outfit_links.sqlite`, stay in the build container; local `data/` was byte-identical before and after two runs. A test needing an unlisted file fails remotely with its own missing-path error. Add files to the manifest rather than uploading `data/`.
 
 ### Units-derived world flows
 
@@ -269,18 +257,9 @@ Use an owned private server and account. Substitute any of the inherited flow sc
 
 Selected-host build or artifact-transfer failures fail explicitly. `local` is an explicit build host, not a Cargo fallback. Godot import and launch stay local and unchanged.
 
-## Historical Depot cost and performance
-
-Verified September 29, 2026: `local-builds` uses the user-selected **200 GB per-architecture cache cleanup target** (214,748,364,800 bytes) and **14-day stale retention**. The cleanup target covers checkout-specific target caches (about 6 GB each, measured September 29, 2026). Depot evicts old cache above its target; this is not a hard storage or spending cap. Organization billing controls and the existing `default` project remain unchanged.
-
-The willingness to spend up to $100/month is conditional, not an automatic billing cap. This project uses the existing company account; the earlier $20 personal-plan estimate does not describe that account. Monitor attributable project usage and organization billing. The helper itself never changes account settings or cache limits.
-
-On September 29, 2026, one warm constant-change benchmark measured 13.321 s before the source-freshness update; it is not a cross-worktree correctness or post-refresh latency guarantee. The first full refreshed Options build passed in 49.274 s on project `003c4ttwqh`, build `cpw7crx3ww`, installing `target/debug/libgame_engine_godot.so` (272,736,240 bytes; SHA-256 `a7ca8a89798d8024a66be9cc9044f200cedb077329047a1af7d1fc3cdbcd0b0b`). Verifier 954 then ran pinned Godot 4.7.2 headlessly with isolated XDG paths: `GameClient` registered through `ClassDB`, instantiated as `Node3D`, and attached to a scene tree. This is bounded extension-load proof, not full conversion proof. Cleanup reported 98.28 GB allocated cache removed, but immediately available disk space fell by 0.754 GB because of concurrent activity/shared extents; it is not evidence of 98 GB physical space reclaimed. These are observations, not latency, storage, or cost guarantees. Build output prints the target cache's current byte size.
-
 ## Agent rule
 
 Build the Godot extension through the launcher/helper with `local` or `native`. Do not bypass it with direct extension Cargo or recreate a bulk target cache unless explicitly asked. Every agent-started local build/server/client/extraction still requires `agent-run`; existing resource and data-safety rules remain unchanged. Lightweight launcher tests remain allowed.
 
-Historical Depot migration proof: `/tmp/claude/verify-depot-options-migration.md`.
 
 See [Godot conversion](specs/godot-conversion.md) and the [conversion wiki](wiki/systems/godot-conversion.md).

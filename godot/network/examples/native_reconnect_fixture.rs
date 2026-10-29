@@ -1,6 +1,6 @@
 //! Owned loopback UDP server and real Godot process for ordinary reconnect.
 //! Build it with the GDExtension, then run it from the originating checkout:
-//! python3 scripts/depot-build.py --root "$PWD" --fixture native_reconnect_fixture
+//! python3 scripts/engine-build.py --root "$PWD" --fixture native_reconnect_fixture
 //! GODOT_BIN=<godot> target/debug/examples/native_reconnect_fixture
 
 #[path = "fixture_support/mod.rs"]

@@ -25,7 +25,7 @@ class ReleaseRuntimeTest(unittest.TestCase):
             (root / 'godot/project.godot').write_text('project')
             subprocess.run(['git', 'init', '-q', str(root)], check=True)
             subprocess.run(['git', '-C', str(root), 'add', 'godot'], check=True)
-            (scripts / 'depot-build.py').write_text('''from pathlib import Path
+            (scripts / 'engine-build.py').write_text('''from pathlib import Path
 p = Path(__file__).resolve().parents[1] / 'target/release/libgame_engine_godot.so'
 p.parent.mkdir(parents=True, exist_ok=True)
 p.write_bytes(b'extension')

@@ -22,7 +22,7 @@ No decompiled or leaked source inspected. No files under `data/` changed. No gam
 | Engine `76d301bec` | `cd godot && cargo fmt --check` | Pass |
 | Engine `bdf1c8636` (documentation-only changes since `76d301bec`) | build helper's `locked_checkout` / `native_slot` / `native_cargo(..., 'check', ['-p', 'game-engine-core', '-p', 'game-engine-godot'])`, via `agent-run wow_formats` | Pass, no warnings |
 
-All builds/tests run through `agent-run wow_formats`, with `CAPACITY_OWNER=wow_formats` and capacity admission; engine tests use `DEPOT_SIBLING_SHARED_PROTOCOL=/home/osso/.worktrees/shared-protocol python3 scripts/depot-build.py --root /home/osso/.worktrees/game-engine-s13 ...`. Standalone Cargo is permitted in the new repository.
+All builds/tests run through `agent-run wow_formats`, with `CAPACITY_OWNER=wow_formats` and capacity admission; engine tests use `SIBLING_SHARED_PROTOCOL=/home/osso/.worktrees/shared-protocol python3 scripts/engine-build.py --root /home/osso/.worktrees/game-engine-s13 ...`. Standalone Cargo is permitted in the new repository.
 
 **Test conservation:** the 259 original format-module tests split into225 synthetic standalone tests +34 retained authored-asset fixtures. Combined after totals equal baseline1063/1/4. Comparing the full1068-name multiset (including failed/ignored), independent of changed module prefixes: zero lost and zero added tests. All259 original format test bodies also match after normalizing namespace paths, whitespace and optional trailing argument commas. The242 passing Godot consumer/adapter tests are disjoint filter sets; one additional ignored test remains ignored.
 

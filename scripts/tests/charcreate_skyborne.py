@@ -2,7 +2,7 @@
 """Run offline Skyborne Vulkan acceptance in cage; retain child exit and captures.
 
 Requires host Pillow solely to write the independent raw-BLP icon oracle PNG.
-Build the native extension with depot-build.py before invoking this runner.
+Build the native extension with engine-build.py before invoking this runner.
 Invoke through scripts/agent/agent-run skyborne-charcreate.
 """
 

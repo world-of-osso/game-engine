@@ -10,7 +10,7 @@ pub fn require_asset<P: AsRef<Path>>(path: P) -> P {
         shown.exists(),
         "missing test asset {}: extract it from local CASC per docs/casc-extraction.md \
          (`cargo run --manifest-path ../asset-resolver/Cargo.toml --bin casc-local -- <fdid> -o <dir>`; \
-         DB2 CSVs: `scripts/export_db2_csv.py`); Depot runs also need it in godot/depot-test-assets.txt",
+         DB2 CSVs: `scripts/export_db2_csv.py`); engine-build.py --test runs also need it in godot/test-assets.txt",
         shown.display()
     );
     path

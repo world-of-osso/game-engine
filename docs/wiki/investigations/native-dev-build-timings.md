@@ -12,7 +12,7 @@ Each timed run touches `godot/core/src/lib.rs` without changing its contents. Te
 PATH=/home/osso/.local/bin:/home/osso/.cargo/bin:$PATH CARGO_TARGET_DIR=<slot>/target CARGO_BUILD_JOBS=20 scripts/agent/agent-run buildtime cargo test --locked --manifest-path godot/Cargo.toml --workspace --no-run --timings
 ```
 
-Extension runs use `scripts/agent/agent-run buildtime python3 scripts/depot-build.py --root <slot>`; the helper removes inherited job overrides. Both commands execute from the checkout. Full output was captured to files, not rerun to recover logs. Wall times include command startup/helper overhead. One warm measurement per loop before and after the change. Baseline and final test-count runs warm the corresponding test harnesses before timing. Initial relocated-cache runs are separately retained, not credited as improvements.
+Extension runs use `scripts/agent/agent-run buildtime python3 scripts/engine-build.py --root <slot>`; the helper removes inherited job overrides. Both commands execute from the checkout. Full output was captured to files, not rerun to recover logs. Wall times include command startup/helper overhead. One warm measurement per loop before and after the change. Baseline and final test-count runs warm the corresponding test harnesses before timing. Initial relocated-cache runs are separately retained, not credited as improvements.
 
 | Loop | Relocated cache / first profile (excluded) | Warm before | Warm after |
 |---|---:|---:|---:|
@@ -56,7 +56,7 @@ Changed harness rustfmt check and UI-model `cargo check --tests` pass. The nativ
 
 - `data/diagnostics/buildtime-2026-10-10/` (untracked shared diagnostic data): before/after logs and wall JSON, Cargo HTML and per-target CSV, process samples, concurrency summary, test-count logs and normalized inventory comparison.
 - [UI-model manifest](../../../godot/ui-model/Cargo.toml) and [integration harness](../../../godot/ui-model/tests/integration.rs).
-- [Native build helper](../../../scripts/depot-build.py).
+- [Native build helper](../../../scripts/engine-build.py).
 
 ## See Also
 

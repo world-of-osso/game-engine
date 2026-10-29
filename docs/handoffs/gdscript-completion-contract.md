@@ -53,11 +53,11 @@ Built extension SHA256: `9690d3fd608f9fb5c95e8472f045c0504011c13c167c0502dc7c44a
 
 ## Commands
 
-Worktree `W=/home/osso/.worktrees/game-engine-gdcontract`; evidence root `D` as above. Every command below runs with `CAPACITY_OWNER=gdcontract`; build/test commands also use `DEPOT_SIBLING_SHARED_PROTOCOL=/home/osso/.worktrees/shared-protocol`. Native admission used capacity.sh before builds. Godot binary `GODOT_BIN=/home/osso/.cache/game-engine/godot/4.7.2-pr123946-pr123546/godot-4.7.2-pr123946-pr123546`.
+Worktree `W=/home/osso/.worktrees/game-engine-gdcontract`; evidence root `D` as above. Every command below runs with `CAPACITY_OWNER=gdcontract`; build/test commands also use `SIBLING_SHARED_PROTOCOL=/home/osso/.worktrees/shared-protocol`. Native admission used capacity.sh before builds. Godot binary `GODOT_BIN=/home/osso/.cache/game-engine/godot/4.7.2-pr123946-pr123546/godot-4.7.2-pr123946-pr123546`.
 
 ```text
-$W/scripts/agent/agent-run gdcontract python3 $W/scripts/depot-build.py --root $W --test -p game-engine-network --lib fixture_completion::tests -- --nocapture
-$W/scripts/agent/agent-run gdcontract python3 $W/scripts/depot-build.py --root $W --fixture gdscript_completion_fixture
+$W/scripts/agent/agent-run gdcontract python3 $W/scripts/engine-build.py --root $W --test -p game-engine-network --lib fixture_completion::tests -- --nocapture
+$W/scripts/agent/agent-run gdcontract python3 $W/scripts/engine-build.py --root $W --fixture gdscript_completion_fixture
 $W/scripts/agent/agent-run gdcontract python3 $D/check-helper.py
 $W/scripts/agent/agent-run gdcontract cargo fmt --manifest-path $W/godot/network/Cargo.toml --check
 $W/scripts/agent/agent-run gdcontract timeout 180 $GODOT_BIN --headless --path $W/godot --editor --import

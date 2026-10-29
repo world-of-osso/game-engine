@@ -32,7 +32,7 @@ def find_ktx_build_script(root):
     if not scripts:
         raise AssertionError(
             f'no ktx2-rw build script under {root}/target/debug/build is newer than '
-            'vendor/ktx2-rw/build.rs; build the extension once (scripts/depot-build.py) '
+            'vendor/ktx2-rw/build.rs; build the extension once (scripts/engine-build.py) '
             'before this test'
         )
     return scripts[-1]

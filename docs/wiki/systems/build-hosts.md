@@ -4,7 +4,7 @@ OssoBuild was unregistered; `desktop` is no longer a build host. Local Docker an
 
 ## Architecture
 
-The root launcher consumes host selection and invokes `scripts/depot-build.py`; that filename remains unchanged. `scripts/build_hosts.py` supplies local Docker transport to the named `game-engine` Linux amd64 buildx builder. Explicit selection overrides the saved user default; neither configuration errors nor host failures select another host.
+The root launcher consumes host selection and invokes `scripts/engine-build.py`; that filename remains unchanged. `scripts/build_hosts.py` supplies local Docker transport to the named `game-engine` Linux amd64 buildx builder. Explicit selection overrides the saved user default; neither configuration errors nor host failures select another host.
 
 The helper retains source-only snapshots, explicit test assets, checkout-specific locked target caches, and artifact export/install rather than exposing a shared Cargo target to worktrees. The local builder keeps its own caches. Runtime Godot import/launch remains on the caller; choosing a build host does not move the server or client there.
 
@@ -18,8 +18,8 @@ October 3, 2026: main observed real extension export from both hosts, desktop CL
 
 - [Build guide](../../remote-builds.md) — host workflow, observed capability, rerun prerequisites and open gates.
 - [Build contract](../../specs/godot-conversion.md) — requirements and proof status.
-- `scripts/depot-build.py`, `scripts/build_hosts.py`, `launcher/` — host transport and launcher implementation.
-- [BuildKit config](../../../scripts/depot/buildkitd.toml) — current aggregate GC policy.
+- `scripts/engine-build.py`, `scripts/build_hosts.py`, `launcher/` — host transport and launcher implementation.
+- [BuildKit config](../../../scripts/container/buildkitd.toml) — current aggregate GC policy.
 - [Private live-run recipe](../../headless-live-run.md) — operational isolation and capture workflow.
 
 ## See Also
@@ -31,7 +31,7 @@ October 3, 2026: main observed real extension export from both hosts, desktop CL
 
 ## Builder GC policy
 
-Verified source review: 2026-10-06. [`scripts/depot/buildkitd.toml`](../../../scripts/depot/buildkitd.toml) defines one aggregate `all = true` GC policy: `reservedSpace = "10GB"`, `maxUsedSpace = 100000000000` (100 GB in bytes), `minFreeSpace = "80GB"`, with no retention duration. This user-approved budget supersedes the former 400/450 GB warm-every-slot policy. GC is periodic, not a hard instantaneous cap. Applied on OssoBuild on Windows local date 2026-10-06 through the existing locked setup script, preserving the cache volume. Buildx inspection reports one `all = true` rule with a 93.13 GiB maximum (100,000,000,000 bytes), 10 GiB reserved and 80 GiB minimum free. Long-term stability remains unverified.
+Verified source review: 2026-10-06. [`scripts/container/buildkitd.toml`](../../../scripts/container/buildkitd.toml) defines one aggregate `all = true` GC policy: `reservedSpace = "10GB"`, `maxUsedSpace = 100000000000` (100 GB in bytes), `minFreeSpace = "80GB"`, with no retention duration. This user-approved budget supersedes the former 400/450 GB warm-every-slot policy. GC is periodic, not a hard instantaneous cap. Applied on OssoBuild on Windows local date 2026-10-06 through the existing locked setup script, preserving the cache volume. Buildx inspection reports one `all = true` rule with a 93.13 GiB maximum (100,000,000,000 bytes), 10 GiB reserved and 80 GiB minimum free. Long-term stability remains unverified.
 
 Historical October 5 diagnosis: default GC evicted per-slot Cargo target caches, fingerprints reported ENOENT, and gates rebuilt about 484 crates. Fixed slot reuse still avoids unnecessary cache identities; preserving every slot's warm cache is no longer the budget objective. [[desktop-disk-exhaustion]] records the subsequent observed host exhaustion and completed recovery.
 

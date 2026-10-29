@@ -1,6 +1,6 @@
 # Native development rebuilds
 
-Native extension and CPU-test builds run through `scripts/depot-build.py`.
+Native extension and CPU-test builds run through `scripts/engine-build.py`.
 The requested outcome is a few seconds in every slot, including newly prepared
 slots. [Measured implementation and current limits](../wiki/investigations/native-compile-speed.md)
 own the evidence; that outcome is not yet achieved.
@@ -35,8 +35,8 @@ own the evidence; that outcome is not yet achieved.
 | `vendor/ktx2-rw/build.rs`, `cache.rs` | Shared source/archive, native library and binding population, locks and compatible entry identity. |
 | `vendor/ktx2-rw/Cargo.toml`, root/Godot `Cargo.lock` | Pinned binding generator and compatible formatter dependency. |
 | `godot/Cargo.toml` | Common `glob` debug profile for normal/build dependency use. |
-| `scripts/depot-build.py` | Native linker, job count, cwd and target-dir invocation. |
-| `scripts/depot/Dockerfile` | Separate Bookworm cache and explicit checksum-pinned offline source archive. |
+| `scripts/engine-build.py` | Native linker, job count, cwd and target-dir invocation. |
+| `scripts/container/Dockerfile` | Separate Bookworm cache and explicit checksum-pinned offline source archive. |
 
 ## Tests asserting this spec
 

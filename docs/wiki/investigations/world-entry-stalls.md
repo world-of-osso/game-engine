@@ -100,7 +100,7 @@ Single runs at low load (GAME_PROFILE_MS on, branch before the merge):
 - **Memory:** the parsed-model cache (`creature::MODELS`) and the doodad/WMO asset caches are kept for the whole process, across world changes. In round 3 the branch peaked at 2.73-2.80 GB VmHWM and base at 3.66-4.09 GB, with every object spawned in R3 base 2 and both branch runs. The caches' size across world changes is not measured.
 - **Shutdown:** in R2 branch 3, Godot's main thread stayed in `pthread_join` on one of Godot's own threads after the fixture failed. No `unit-visuals`, `world-objects` or `spell-assets` threads were left, and the process was stopped by PID.
 - **No retail source:** none was found for the loading-screen wait set, or for how retail streams assets on its threads (see Fix).
-- **Tests not run on Depot:** `world_models` and `wmo::scene` unit tests need `data/` files that are not in `godot/depot-test-assets.txt`. They fail there with missing-file errors, as on master. `m2_submesh_arrays` (core) and the `loading` tests pass.
+- **Tests not run on Depot:** `world_models` and `wmo::scene` unit tests need `data/` files that are not in `godot/test-assets.txt`. They fail there with missing-file errors, as on master. `m2_submesh_arrays` (core) and the `loading` tests pass.
 
 ## Retained integrated performance — 2026-10-01
 

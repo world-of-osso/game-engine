@@ -1,4 +1,4 @@
-"""Developer/depot asset preparation; never imported by the shipped client.
+"""Developer/build asset preparation; never imported by the shipped client.
 
 Enumerate all positive spell/trait icon metadata, not guessed learned builds, plus
 source-local item icons and class/spec portraits. Runtime reads extracted BLP only.

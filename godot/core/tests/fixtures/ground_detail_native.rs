@@ -1,6 +1,6 @@
 //! solarityclient `crates/rendering/tests/fixtures/ground-detail-native.txt` and
 //! `ground-detail-mesh-native.txt`: the original client's detail-doodad placements and
-//! vertices. Rust source so the Depot test snapshot carries them.
+//! vertices. Rust source so the build-context snapshot carries them.
 
 pub const PLACEMENTS: &str = r#"# 7D3390 original instructions: seed density effect_density holes stencil slope colors shadow count
 case 33554944 16 2 0 0 0 0 0 28

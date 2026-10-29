@@ -10,7 +10,7 @@ Retail `PortraitFrameTexturedBaseTemplate` intentionally paints the tiled backgr
 
 ## Authored character names
 
-Runtime and the existing selectable-race invariant require both `data/NameGen.csv` (Retail) and `data/db2/1.60.1.70205/NameGen.csv` (Forever); both are listed in `godot/depot-test-assets.txt`. Do not replace Retail names with the Forever table.
+Runtime and the existing selectable-race invariant require both `data/NameGen.csv` (Retail) and `data/db2/1.60.1.70205/NameGen.csv` (Forever); both are listed in `godot/test-assets.txt`. Do not replace Retail names with the Forever table.
 
 Provision only the names export, without CASC extraction or the full asset importer:
 

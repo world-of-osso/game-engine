@@ -64,13 +64,13 @@ Class colours remain `RAID_CLASS_COLORS` (`damage_meter_data::class_color`); no 
 - `godot/ui-model/src/ui/screens/damage_meter_component.rs`: Forever header and rows; Modern unchanged.
 - `godot/ui-model/src/damage_meter_data.rs`: class identity retained for icon selection.
 - `godot/ui-model/src/ui/screens/chat_frame_component.rs`: Forever text tabs and header icons.
-- `godot/depot-test-assets.txt`: existing art included in CPU fixture snapshot.
+- `godot/test-assets.txt`: existing art included in CPU fixture snapshot.
 
 ## Tests asserting this spec
 
 `godot/ui-model/tests/forever_chat_meter.rs`; Modern serialized fixture in `tests/fixtures/modern_chat_meter.rs` captured before production edits at `5c1e2db5` (88,806 bytes). Targeted Depot run at `423dbf7b`: 5 passed, 0 failed, exit 0. Behavioral RED at `5c1e2db5`: missing chat/meter headers and Retail row rectangle instead of reference rectangle.
 
-Icon alignment/crop regression at `20c1a505`: 3 passed, 4 failed (old chat/meter tops and untrimmed art). GREEN at `46d8af19`: 7 passed, 0 failed, exit 0, including the unchanged Modern byte fixture, exact button/glyph rectangles, common vertical centres, separator clearance and uniform spacing. Which sheet and crop a glyph uses is not asserted (2026-10-04); live capture `data/diagnostics/hudfixes-2026-10-04/` shows them. Same targeted Depot command: `python3 scripts/depot-build.py --root <worktree> --test -p game-engine-ui-model --test forever_chat_meter`. No live run.
+Icon alignment/crop regression at `20c1a505`: 3 passed, 4 failed (old chat/meter tops and untrimmed art). GREEN at `46d8af19`: 7 passed, 0 failed, exit 0, including the unchanged Modern byte fixture, exact button/glyph rectangles, common vertical centres, separator clearance and uniform spacing. Which sheet and crop a glyph uses is not asserted (2026-10-04); live capture `data/diagnostics/hudfixes-2026-10-04/` shows them. Same targeted Depot command: `python3 scripts/engine-build.py --root <worktree> --test -p game-engine-ui-model --test forever_chat_meter`. No live run.
 
 ### Meter gap proof — 2026-10-06
 

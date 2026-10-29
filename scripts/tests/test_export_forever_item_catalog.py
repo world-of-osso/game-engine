@@ -107,7 +107,7 @@ class ForeverItemExportTests(unittest.TestCase):
             text=True,
             capture_output=True,
             check=False,
-            env={**os.environ, "DEPOT_SIBLING_GAME_SERVER": str(self.server)},
+            env={**os.environ, "SIBLING_GAME_SERVER": str(self.server)},
         )
 
     def rows(self, name):

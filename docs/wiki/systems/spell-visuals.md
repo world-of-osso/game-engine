@@ -294,7 +294,7 @@ Each time is checked within two of the longest frames since the press.
     - Dummy reactions must come after the landing.
     - The precast sounds must start with the replicated `CastState`.
     - Every tolerance is two of the longest frames since the press.
-- **Tests (Depot `--test -p game-engine-godot --lib`, `depot-godot-lib-tests.log`):** `action_tests.rs` (8, with the two release tests), `spell_effects_tests.rs` (2) and `spell_sounds_tests.rs` (2) pass. The library run has 64 other failures, all reading `data/` files the Depot snapshot does not stage (e.g. `Emotes.csv`, `NameGen.csv`). `--test -p game-engine-core --test spell_visual --test m2_events` passes 5/5 + 1/1 (`depot-core-tests.log`), including `frostbolt_kits_play_the_frostbolt_precast_cast_and_impact_sound_kits`, once SoundKit/SoundKitEntry are staged in `godot/depot-test-assets.txt`.
+- **Tests (Depot `--test -p game-engine-godot --lib`, `depot-godot-lib-tests.log`):** `action_tests.rs` (8, with the two release tests), `spell_effects_tests.rs` (2) and `spell_sounds_tests.rs` (2) pass. The library run has 64 other failures, all reading `data/` files the Depot snapshot does not stage (e.g. `Emotes.csv`, `NameGen.csv`). `--test -p game-engine-core --test spell_visual --test m2_events` passes 5/5 + 1/1 (`depot-core-tests.log`), including `frostbolt_kits_play_the_frostbolt_precast_cast_and_impact_sound_kits`, once SoundKit/SoundKitEntry are staged in `godot/test-assets.txt`.
 
 ## Polymorph (2026-09-29)
 

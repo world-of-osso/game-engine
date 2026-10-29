@@ -150,7 +150,7 @@ def load_server_reader(root):
     if Path(reader.db2_casc.__file__).resolve() != scripts / "db2_casc.py":
         raise ValueError(
             f"db2_casc loaded from {reader.db2_casc.__file__}, not {scripts}; "
-            "set DEPOT_SIBLING_GAME_SERVER to the server root"
+            "set SIBLING_GAME_SERVER to the server root"
         )
     return reader
 

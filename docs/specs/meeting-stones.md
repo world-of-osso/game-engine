@@ -47,4 +47,4 @@ The center-only portal mouse probe did not find a pickable point with both chara
 Own server :5080, three headless clients (Stonecaller, Ritebearer, Wayfarer, level 30) at Blackrock Mountain stone 179584: Stonecaller targeted Wayfarer (88 yd away) and used the stone, the portal opened after 5 s, Ritebearer clicked it, Wayfarer's `CONFIRM_SUMMON` read "Stonecaller wants to summon you to Unknown. The spell will be canceled in 2 Minutes.", Accept moved Wayfarer from (-7622, -1222, 232) to Stonecaller at (-7588.7, -1139.8, 260.8). Screenshots in `data/diagnostics/summonstone/`.
 
 ## Tests asserting this spec
-Use `scripts/depot-build.py --build-host local --test -p game-engine-godot -p game-engine-ui-model -p game-engine-network --lib --no-fail-fast meetingstones` through build-lock + `agent-run meetingstones`. Never use retired root-bin selectors.
+Use `scripts/engine-build.py --build-host local --test -p game-engine-godot -p game-engine-ui-model -p game-engine-network --lib --no-fail-fast meetingstones` through build-lock + `agent-run meetingstones`. Never use retired root-bin selectors.

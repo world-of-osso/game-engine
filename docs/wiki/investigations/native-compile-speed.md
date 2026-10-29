@@ -116,7 +116,7 @@ claimed. These blockers and the unmet speed target prevent a ready/completed cla
 
 ## Sources
 
-- [Build invocation](../../../scripts/depot-build.py), [container build](../../../scripts/depot/Dockerfile).
+- [Build invocation](../../../scripts/engine-build.py), [container build](../../../scripts/container/Dockerfile).
 - [Fork provenance](../../../vendor/README.md), [KTX build/cache](../../../vendor/ktx2-rw/build.rs).
 - Evidence: `data/diagnostics/compile-speed-2026-10-10/` in the canonical checkout; full logs, wall JSONs, fingerprint inventories and cache statistics.
 - Earlier evidence: `data/diagnostics/buildtime-2026-10-10/`, `/home/osso/.worktrees/handoff-build-timings.md`.

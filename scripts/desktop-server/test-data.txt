@@ -1,6 +1,6 @@
 # Data synced for `scripts/desktop-server-build.py --test`; see docs/remote-builds.md.
 # <repo>/<path under that repo's data/>: a file, a directory ending in `/`, or a glob.
-# game-engine is the server checkout's sibling (DEPOT_SIBLING_GAME_ENGINE overrides it),
+# game-engine is the server checkout's sibling (SIBLING_GAME_ENGINE overrides it),
 # where the server's ground and line of sight load by default.
 # Tests needing files absent here fail on the build host with their own missing-path error.
 

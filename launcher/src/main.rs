@@ -147,7 +147,7 @@ fn build_native_extension(root: &Path, build_host: Option<&OsStr>) -> Result<Exi
     let mut command = Command::new("python3");
     command
         .current_dir(root)
-        .arg(root.join("scripts/depot-build.py"))
+        .arg(root.join("scripts/engine-build.py"))
         .arg("--root")
         .arg(root);
     if let Some(host) = build_host {

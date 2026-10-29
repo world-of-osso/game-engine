@@ -12,7 +12,7 @@ The earlier 13.321 s warm constant-change result predates the refresh and does n
 
 ## Optional fixture export proof
 
-At `be6aeedb`, Depot project `003c4ttwqh` build `5nqxfxrzpt` ran `scripts/depot-build.py --root <checkout> --fixture native_input_fixture` successfully in 206.042 s. It installed the default library plus `target/debug/examples/native_input_fixture` in the originating checkout; no target cache was installed. The directly launched installed fixture passed local owned-UDP `sound-click` in 30.787 s. This is one optional export and fixture-path result only. Default builds remain library-only; `native_npc_visual_fixture` is allowlisted but was not built or run. Verifier 963 remains pending.
+At `be6aeedb`, Depot project `003c4ttwqh` build `5nqxfxrzpt` ran `scripts/engine-build.py --root <checkout> --fixture native_input_fixture` successfully in 206.042 s. It installed the default library plus `target/debug/examples/native_input_fixture` in the originating checkout; no target cache was installed. The directly launched installed fixture passed local owned-UDP `sound-click` in 30.787 s. This is one optional export and fixture-path result only. Default builds remain library-only; `native_npc_visual_fixture` is allowlisted but was not built or run. Verifier 963 remains pending.
 
 ## Sources
 

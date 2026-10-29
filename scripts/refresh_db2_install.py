@@ -92,7 +92,7 @@ def export_tables(args):
     tables = table_fdids(args.engine / 'data/community-listfile.csv', consumed_tables(args.engine, args.server, definitions))
     if SERVER_SCRIPTS != (args.server / 'scripts').resolve():
         raise ValueError(f'--server {args.server} is not the DB2 decoder checkout {SERVER_SCRIPTS.parent}; '
-                         'set DEPOT_SIBLING_GAME_SERVER')
+                         'set SIBLING_GAME_SERVER')
     receipt = {'identity': identity, 'schema_commit': args.schema_commit, 'tables': {}, 'unavailable': {}}
     pending = []
     for fdid in tables.values():

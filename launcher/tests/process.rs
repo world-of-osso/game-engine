@@ -36,7 +36,7 @@ impl Fixture {
             fs::set_permissions(binary, fs::Permissions::from_mode(0o755)).unwrap();
         }
         fs::create_dir(directory.join("scripts")).unwrap();
-        fs::write(directory.join("scripts/depot-build.py"), FAKE_PROCESS).unwrap();
+        fs::write(directory.join("scripts/engine-build.py"), FAKE_PROCESS).unwrap();
         Self {
             directory,
             cargo,
@@ -129,7 +129,7 @@ fn successful_build_then_launch_forwards_arguments_and_environment() {
     let cargo = records[0].split('\t').collect::<Vec<_>>();
     let godot = records[1].split('\t').collect::<Vec<_>>();
     let root = &fixture.directory;
-    assert_eq!(cargo[0], "depot-build.py");
+    assert_eq!(cargo[0], "engine-build.py");
     assert_eq!(cargo[1], hex(root));
     assert_eq!(
         cargo[4],
@@ -252,7 +252,7 @@ fn build_host_missing_value_fails_before_any_process() {
 
 #[test]
 fn build_host_invalid_value_fails_before_any_process() {
-    for host in ["desktop", "depot", "Desktop", "", "remote"] {
+    for host in ["desktop", "Desktop", "", "remote"] {
         let fixture = Fixture::new();
         let output = fixture.launch(&["--build-host", host]);
         assert_eq!(output.status.code(), Some(1), "{output:?}");
@@ -538,13 +538,13 @@ fn build_failure_preserves_status_and_prevents_godot() {
         .env("GODOT_BIN", &fixture.godot)
         .env("FAKE_LOG", fixture.directory.join("log"))
         .env("GAME_ENGINE_ROOT", &fixture.directory)
-        .env("FAKE_DEPOT-BUILD.PY_STATUS", "37")
+        .env("FAKE_ENGINE-BUILD.PY_STATUS", "37")
         .output()
         .unwrap();
     assert_eq!(output.status.code(), Some(37));
     let log = fixture.log();
     assert_eq!(log.lines().count(), 1);
-    assert!(log.starts_with("depot-build.py\t"));
+    assert!(log.starts_with("engine-build.py\t"));
     assert_eq!(
         log.lines().next().unwrap().split('\t').nth(4).unwrap(),
         [
@@ -634,7 +634,7 @@ fn launches_without_local_cargo_context() {
         .unwrap();
     assert!(output.status.success(), "{output:?}");
     assert_eq!(fixture.log().lines().count(), 2);
-    assert!(fixture.log().starts_with("depot-build.py\t"));
+    assert!(fixture.log().starts_with("engine-build.py\t"));
 }
 
 impl Fixture {
@@ -702,7 +702,7 @@ fn fresh_checkout_imports_once_after_build_before_launch() {
         .map(|line| line.split('\t').map(str::to_owned).collect())
         .collect();
     let roles: Vec<_> = records.iter().map(|record| record[0].as_str()).collect();
-    assert_eq!(roles, ["depot-build.py", "godot", "godot"]);
+    assert_eq!(roles, ["engine-build.py", "godot", "godot"]);
     let project = fixture.directory.join("godot");
     assert_eq!(
         records[1][4],

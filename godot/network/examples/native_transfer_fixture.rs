@@ -1,6 +1,6 @@
 //! Owned loopback server and real Godot process for the native world-transfer fixture.
 //! Build it with the GDExtension, then run it from the originating checkout:
-//! python3 scripts/depot-build.py --root "$PWD" --fixture native_transfer_fixture
+//! python3 scripts/engine-build.py --root "$PWD" --fixture native_transfer_fixture
 //! GODOT_BIN=<godot> target/debug/examples/native_transfer_fixture [--global-wmo]
 
 #[path = "fixture_support/mod.rs"]

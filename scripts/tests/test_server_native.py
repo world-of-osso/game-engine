@@ -41,7 +41,7 @@ raise SystemExit(int(os.environ.get('CARGO_STATUS', '0')))
         self.env = dict(os.environ, HOME=str(self.base), XDG_CACHE_HOME=str(self.base / "cache"), PATH=str(self.bin) + os.pathsep + os.environ['PATH'], RECORD=str(self.record), CARGO_BUILD_JOBS="8")
         self.env.pop('BUILD_HOST_SCRIPTS', None)
         for name in list(self.env):
-            if name.startswith('DEPOT_SIBLING_'):
+            if name.startswith('SIBLING_'):
                 del self.env[name]
         setting = self.base / '.config/game-engine/build-host'
         setting.parent.mkdir(parents=True)
@@ -77,7 +77,7 @@ raise SystemExit(int(os.environ.get('CARGO_STATUS', '0')))
         protocol = self.base / 'protocol-branch'
         protocol.mkdir()
         (protocol / 'value').write_text('branch protocol')
-        self.env.update(DEPOT_SIBLING_SHARED_PROTOCOL=str(protocol), EXPECT_PROTOCOL='branch protocol')
+        self.env.update(SIBLING_SHARED_PROTOCOL=str(protocol), EXPECT_PROTOCOL='branch protocol')
         result = self.invoke('export', '--build-host', 'native', '--test', '-p', 'server')
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
@@ -103,7 +103,7 @@ raise SystemExit(int(os.environ.get('CARGO_STATUS', '0')))
             '[package]\nname="shared-protocol"\nversion="0.1.0"\nedition="2024"\n'
         )
         (protocol / 'src/lib.rs').write_text('pub const VALUE: u32 = 42;\n')
-        self.env.update(DEPOT_SIBLING_SHARED_PROTOCOL=str(protocol))
+        self.env.update(SIBLING_SHARED_PROTOCOL=str(protocol))
         self.env['PATH'] = os.environ['PATH']
         result = self.invoke('export', '--build-host', 'native', '--test')
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)

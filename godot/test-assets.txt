@@ -1,4 +1,4 @@
-# data/-relative files uploaded for `scripts/depot-build.py --test`; see docs/remote-builds.md.
+# data/-relative files uploaded for `scripts/engine-build.py --test`; see docs/remote-builds.md.
 # Real map2991 terrain M2/SFID product-isolation regression (current authenticated index).
 model:wow_classic_beta:579120:m2
 model:wow_classic_beta:579121:skin
@@ -588,7 +588,7 @@ db2/active/UiMapArtTile.csv
 db2/active/TaxiNodes.csv
 
 # game-engine-godot --lib: every data/ file its tests open, traced (strace openat) from a
-# Depot-built test binary run locally; a run with only these files and no CASC passes.
+# Container-built test binary run locally; a run with only these files and no CASC passes.
 # local-listfile-cache.sqlite answers resolver lookups; community-listfile.csv is read by
 # the outfit model-path tests (and makes the resolver build its cache remotely).
 db2/active/Emotes.csv

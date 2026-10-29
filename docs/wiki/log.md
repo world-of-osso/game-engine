@@ -2621,7 +2621,7 @@ The Bevy combat anim constants (51/46/...) were wrong for Retail. Warrior (Slam,
 
 ## [2026-09-29] system | Depot-native Godot extension build documented
 
-Root `cargo run`/`rd` retains a local std-only launcher and normal local Godot import/launch while `scripts/depot-build.py --root <checkout>` builds the Linux x86_64 GDExtension remotely. The documented boundary includes source-only snapshots, shared remote caches with locked target sharing, atomic worktree-local library install, explicit no-local-Cargo failure behavior, and prerequisite tools. The $100 monthly figure is conditional budget planning, not a configured billing cap; provider limits and cache GC require main verification. No gameplay, renderer, or conversion-parity claim follows.
+Root `cargo run`/`rd` retains a local std-only launcher and normal local Godot import/launch while `scripts/engine-build.py --root <checkout>` builds the Linux x86_64 GDExtension remotely. The documented boundary includes source-only snapshots, shared remote caches with locked target sharing, atomic worktree-local library install, explicit no-local-Cargo failure behavior, and prerequisite tools. The $100 monthly figure is conditional budget planning, not a configured billing cap; provider limits and cache GC require main verification. No gameplay, renderer, or conversion-parity claim follows.
 
 Added [Remote Godot builds](../remote-builds.md); updated [[godot-conversion]] and the [Godot conversion specification](../specs/godot-conversion.md).
 
@@ -2639,7 +2639,7 @@ One missing cursor BLP disconnected the Godot client: every frame-step error sto
 
 ## [2026-09-29] investigation | Optional Depot fixture export
 
-At `be6aeedb`, `scripts/depot-build.py --root <checkout> --fixture native_input_fixture` completed on Depot project `003c4ttwqh`, build `5nqxfxrzpt`, in 206.042 s. It exported the default library and installed `target/debug/examples/native_input_fixture` beneath the originating checkout. The directly launched downloaded fixture then passed local owned-UDP `sound-click` in 30.787 s. Default builds remain library-only; allowlisted `native_npc_visual_fixture` was not remotely built or run. Verifier 963 is pending. This is bounded build/export and fixture proof, not a performance or parity claim. Evidence: `data/diagnostics/options-depot-20260929/{fixture-build,exported-fixture-runtime}.log`.
+At `be6aeedb`, `scripts/engine-build.py --root <checkout> --fixture native_input_fixture` completed on Depot project `003c4ttwqh`, build `5nqxfxrzpt`, in 206.042 s. It exported the default library and installed `target/debug/examples/native_input_fixture` beneath the originating checkout. The directly launched downloaded fixture then passed local owned-UDP `sound-click` in 30.787 s. Default builds remain library-only; allowlisted `native_npc_visual_fixture` was not remotely built or run. Verifier 963 is pending. This is bounded build/export and fixture proof, not a performance or parity claim. Evidence: `data/diagnostics/options-depot-20260929/{fixture-build,exported-fixture-runtime}.log`.
 
 Updated [Remote Godot builds](../remote-builds.md), [[godot-conversion]], and [[depot-cross-worktree-freshness]].
 
@@ -4713,7 +4713,7 @@ Updated [godot-inworld-frame-time](investigations/godot-inworld-frame-time.md): 
 
 ## 2026-10-02 — Bevy client retired
 
-User decision: the Godot client is the only client. The root Bevy package `game-engine` (src/, Bevy tests, shaders, release Dockerfile/deploy.sh) is deleted; the 312 root files godot crates compiled through `#[path]` moved into their owning `godot/<crate>/` (shared ones in `game-engine-core`), `game-engine-cli` moved to `godot/cli` (`depot-build.py --cli`), and `png_to_ktx2` plus the cache importers the client reads moved to root `tools/` (`game-engine-tools`). Wiki pages citing `src/` paths describe the pre-retirement tree. Deleted (git history keeps them): zone_name, sound_music_zone and particle_color cache importers, `lightdata_convert`, `blp_to_pam`, `blp_to_ppm`, `debug_blp`, `benches/parser_benches.rs`, `examples/ui_demo.rs`, `scripts/run_screenshot_regression.sh`, `scripts/run_skybox_screenshot_regression.sh`, `scripts/capture_skybox_validation.sh`. Root `deploy.sh`, `Dockerfile` and `scripts/windows-dev.ps1` are kept pending a user decision; they build the deleted Bevy package and are broken until then. See [godot-conversion spec](../specs/godot-conversion.md#retired-bevy-client-user-decision-2026-10-02).
+User decision: the Godot client is the only client. The root Bevy package `game-engine` (src/, Bevy tests, shaders, release Dockerfile/deploy.sh) is deleted; the 312 root files godot crates compiled through `#[path]` moved into their owning `godot/<crate>/` (shared ones in `game-engine-core`), `game-engine-cli` moved to `godot/cli` (`engine-build.py --cli`), and `png_to_ktx2` plus the cache importers the client reads moved to root `tools/` (`game-engine-tools`). Wiki pages citing `src/` paths describe the pre-retirement tree. Deleted (git history keeps them): zone_name, sound_music_zone and particle_color cache importers, `lightdata_convert`, `blp_to_pam`, `blp_to_ppm`, `debug_blp`, `benches/parser_benches.rs`, `examples/ui_demo.rs`, `scripts/run_screenshot_regression.sh`, `scripts/run_skybox_screenshot_regression.sh`, `scripts/capture_skybox_validation.sh`. Root `deploy.sh`, `Dockerfile` and `scripts/windows-dev.ps1` are kept pending a user decision; they build the deleted Bevy package and are broken until then. See [godot-conversion spec](../specs/godot-conversion.md#retired-bevy-client-user-decision-2026-10-02).
 
 ## 2026-10-02 — Elastic tree prototype source audit
 
@@ -4721,7 +4721,7 @@ User decision: the Godot client is the only client. The root Bevy package `game-
 
 ## 2026-10-03 — Godot client deploy
 
-Root `deploy.sh` now ships the Godot client instead of the Bevy binary: `depot-build.py --release` builds the optimized extension, and the Linux x86_64 bundle holds the pinned patched Godot runtime, project files with a pre-imported `.godot/` cache, and an allowlisted `data/` (38 GB). It publishes through the live S3-backed file server. The removed Bevy files are `Dockerfile`, `scripts/windows-dev.ps1` and `docs/windows-development.md`. A cold `--import` that hot-loads the extension aborts at exit, so the bundle registers the extension first. See [deploy](../deploy.md).
+Root `deploy.sh` now ships the Godot client instead of the Bevy binary: `engine-build.py --release` builds the optimized extension, and the Linux x86_64 bundle holds the pinned patched Godot runtime, project files with a pre-imported `.godot/` cache, and an allowlisted `data/` (38 GB). It publishes through the live S3-backed file server. The removed Bevy files are `Dockerfile`, `scripts/windows-dev.ps1` and `docs/windows-development.md`. A cold `--import` that hot-loads the extension aborts at exit, so the bundle registers the extension first. See [deploy](../deploy.md).
 
 ## 2026-10-03 — Desktop/local build trial contract
 

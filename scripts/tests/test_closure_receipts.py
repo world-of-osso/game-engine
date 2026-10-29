@@ -200,10 +200,10 @@ class ReceiptClosureTests(unittest.TestCase):
         self.assertEqual(manifest["summary"]["missing"], 0)
 
     def test_authentic_579120_collision_keeps_each_products_primary_skin(self):
-        data_root = os.environ.get("DEPOT_GAME_ENGINE_DATA")
+        data_root = os.environ.get("GAME_ENGINE_DATA_ROOT")
         self.assertTrue(
             data_root,
-            "Set DEPOT_GAME_ENGINE_DATA to the data root containing authenticated products/ fixtures; no implicit source is selected",
+            "Set GAME_ENGINE_DATA_ROOT to the data root containing authenticated products/ fixtures; no implicit source is selected",
         )
         sources = [
             (

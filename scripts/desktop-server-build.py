@@ -22,9 +22,9 @@ from native_cargo import native_slot, run_cargo
 from native_build_hosts import SERVER_RUNTIME_CATALOGS
 
 SCRIPTS = Path(__file__).resolve().parent
-spec = importlib.util.spec_from_file_location("depot_build", SCRIPTS / "depot-build.py")
-depot = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(depot)
+spec = importlib.util.spec_from_file_location("engine_build", SCRIPTS / "engine-build.py")
+engine_build = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(engine_build)
 
 BINARIES = ("game-server", "game-server-admin", "game-cli")
 TEST_DATA = SCRIPTS / "desktop-server/test-data.txt"
@@ -36,12 +36,12 @@ TEST_DATA_MIRROR = "server-test-data"
 def snapshot(root, context):
     repositories = (
         ("game-server", root),
-        ("shared-protocol", depot.sibling_repo(root, "shared-protocol")),
+        ("shared-protocol", engine_build.sibling_repo(root, "shared-protocol")),
     )
     for name, repo in repositories:
         if not repo.is_dir():
             raise FileNotFoundError(f"missing build dependency: {repo}")
-        depot.snapshot_repo(repo, context / name, (".",), name)
+        engine_build.snapshot_repo(repo, context / name, (".",), name)
     for name in ("game-server", "shared-protocol"):
         if not (context / name / "Cargo.toml").is_file():
             raise FileNotFoundError(f"missing build dependency: {name}/Cargo.toml")
@@ -49,7 +49,7 @@ def snapshot(root, context):
         raise FileNotFoundError("missing build dependency: game-server/Cargo.lock")
     shutil.copyfile(SCRIPTS / "desktop-server/Dockerfile", context / "Dockerfile")
     shutil.copyfile(
-        SCRIPTS / "depot/refresh-source-mtimes.py", context / "refresh-source-mtimes.py"
+        SCRIPTS / "container/refresh-source-mtimes.py", context / "refresh-source-mtimes.py"
     )
 
 
@@ -60,12 +60,12 @@ def build(root, host=None, release=False, binary=None, features=None):
         raise ValueError(f"invalid cargo feature list: {features!r}")
     binaries = (binary,) if binary else BINARIES
     root = Path(root).resolve()
-    host = depot.select_build_host(host)
+    host = engine_build.select_build_host(host)
     if release and host == "native":
         raise ValueError(
             "release artifacts use the bookworm container: --build-host local"
         )
-    lock, cache, checkout_key = depot.locked_checkout(root)
+    lock, cache, checkout_key = engine_build.locked_checkout(root)
     key = "server-" + checkout_key
     with lock:
         if host == "native":
@@ -80,7 +80,7 @@ def build(root, host=None, release=False, binary=None, features=None):
             if features:
                 arguments.extend(["--features", features])
             with native_slot():
-                source = depot.native_source_root(root, "game-server", ("shared-protocol",))
+                source = engine_build.native_source_root(root, "game-server", ("shared-protocol",))
                 code = run_cargo(root, arguments, source_root=source)
             if code:
                 raise subprocess.CalledProcessError(code, ["cargo", *arguments])
@@ -93,7 +93,7 @@ def build(root, host=None, release=False, binary=None, features=None):
                 f"target symlink cannot guarantee checkout-local artifact: {target}"
             )
         with (
-            depot.stable_context(cache, "server", checkout_key) as context,
+            engine_build.stable_context(cache, "server", checkout_key) as context,
             tempfile.TemporaryDirectory(
                 prefix="server-output-", dir=cache
             ) as temporary,
@@ -119,7 +119,7 @@ def build(root, host=None, release=False, binary=None, features=None):
             ]
             execute(context, output, key, "artifact", arguments, host=host)
             for name in binaries:
-                depot.install_artifact(
+                engine_build.install_artifact(
                     output / (name + ".gz"), target / name, executable=True
                 )
                 print(target / name)
@@ -128,7 +128,7 @@ def build(root, host=None, release=False, binary=None, features=None):
 def test_data_filters(root):
     """`{repo: (data dir, rsync filter rules)}` from TEST_DATA; an entry matching
     nothing fails."""
-    repos = {"game-server": root, "game-engine": depot.sibling_repo(root, "game-engine")}
+    repos = {"game-server": root, "game-engine": engine_build.sibling_repo(root, "game-engine")}
     rules = {name: [] for name in repos}
     for line in TEST_DATA.read_text().splitlines():
         entry = line.split("#", 1)[0].strip()
@@ -174,18 +174,18 @@ def run_tests(root, cargo_args, host=None):
     """Run `cargo test --locked` for the server workspace on `host` and return cargo's
     exit status."""
     root = Path(root).resolve()
-    host = depot.select_build_host(host)
-    lock, cache, checkout_key = depot.locked_checkout(root)
+    host = engine_build.select_build_host(host)
+    lock, cache, checkout_key = engine_build.locked_checkout(root)
     key = "server-" + checkout_key
     start = time.monotonic()
     if host == "native":
         saved = root / TEST_LOG
         saved.parent.mkdir(parents=True, exist_ok=True)
         with lock, native_slot(), saved.open("w") as log:
-            source = depot.native_source_root(root, "game-server", ("shared-protocol",))
+            source = engine_build.native_source_root(root, "game-server", ("shared-protocol",))
             code = run_cargo(root, ["test", *cargo_args], output=log, source_root=source)
-        depot.phase("native server test", start)
-        depot.print_test_summary(saved.read_text(errors="replace").splitlines())
+        engine_build.phase("native server test", start)
+        engine_build.print_test_summary(saved.read_text(errors="replace").splitlines())
         print(f"Full log: {saved}")
         print(f"cargo test {shlex.join(cargo_args)}: exit {code}", flush=True)
         return code
@@ -193,9 +193,9 @@ def run_tests(root, cargo_args, host=None):
     with lock, (cache / f"{TEST_DATA_MIRROR}-{host}.lock").open("w") as data_lock:
         fcntl.flock(data_lock, fcntl.LOCK_EX)
         mirror = sync_test_data(root, host, cache)
-        depot.phase(f"Test data synced to {host}", start)
+        engine_build.phase(f"Test data synced to {host}", start)
         with (
-            depot.stable_context(cache, "server-test", checkout_key) as context,
+            engine_build.stable_context(cache, "server-test", checkout_key) as context,
             tempfile.TemporaryDirectory(prefix="server-output-", dir=cache) as temporary,
         ):
             snapshot(root, context)
@@ -211,7 +211,7 @@ def run_tests(root, cargo_args, host=None):
                 "--build-arg", f"TEST_RUN={time.time_ns()}",
             ]
             execute(context, output, key, "test-result", arguments, host=host)
-            depot.phase(f"{host} test", start)
+            engine_build.phase(f"{host} test", start)
             log, status = output / "test.log", output / "status"
             if not log.is_file() or not status.is_file():
                 raise FileNotFoundError("Build host did not produce test.log and status")
@@ -219,7 +219,7 @@ def run_tests(root, cargo_args, host=None):
             saved = root / TEST_LOG
             saved.parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(log, saved)
-    depot.print_test_summary(saved.read_text(errors="replace").splitlines())
+    engine_build.print_test_summary(saved.read_text(errors="replace").splitlines())
     print(f"Full log: {saved}")
     print(f"cargo test {shlex.join(cargo_args)}: exit {code}", flush=True)
     return code
@@ -233,8 +233,8 @@ def main():
         default=SCRIPTS.parents[1] / "game-server",
         help="originating server checkout",
     )
-    parser.add_argument("--build-host", choices=depot.HOSTS)
-    parser.add_argument("--save-build-host", choices=depot.HOSTS)
+    parser.add_argument("--build-host", choices=engine_build.HOSTS)
+    parser.add_argument("--save-build-host", choices=engine_build.HOSTS)
     parser.add_argument("--release", action="store_true")
     parser.add_argument("--bin", choices=BINARIES, dest="binary")
     parser.add_argument("--features", help="Cargo feature CSV for the server build")
@@ -253,7 +253,7 @@ def main():
         if args.save_build_host:
             if args.build_host or args.release or args.binary:
                 parser.error("--save-build-host cannot combine with build options")
-            depot.save_build_host(args.save_build_host)
+            engine_build.save_build_host(args.save_build_host)
             return 0
         if args.test:
             return run_tests(args.root, argv[split:], args.build_host)

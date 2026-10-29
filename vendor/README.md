@@ -45,5 +45,5 @@ Retire the patch when the selected upstream release contains the fix.
 
 Standalone crate tests can run with `cargo test --manifest-path
 vendor/taffy/Cargo.toml --test rounding_gaps` (through `agent-run` for agents).
-Godot tests use `scripts/depot-build.py`; its source snapshot includes `vendor/`,
+Godot tests use `scripts/engine-build.py`; its source snapshot includes `vendor/`,
 including taffy's compile-time README input.

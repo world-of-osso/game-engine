@@ -238,7 +238,7 @@ ChatDraft stores visible Unicode text plus achievement ranges/IDs. The native Li
 
 Proof ledger: `ui-final-emitted-styles.log`20/20 focused UI cases; unchanged `draft-green.log`2/2 Unicode/link-edit cases remains valid. `native-emitted-styles-build.log`, `native-emitted-styles-check.log` and `cargo-fmt-final.log` exit0. No full suites, independent verifier, CI or shared-realm claim. Root causes caught by native runs: missing host pointer route and reconstructing texture selection in postsetup; styles now apply to emitted textures only. Remaining unsupported server quantities/comparison authority stay outside this art pass.
 
-Local CASC sheets are extracted into canonical textures and listed in `godot/depot-test-assets.txt`; no assets under `data/` are committed. Tests reproduce initial expanded-tree/plain-draft/no-scroll behavior before the fixes. The private harness freezes matching client/server wire dependencies; unrelated GroupLoot changes are not achievement work.
+Local CASC sheets are extracted into canonical textures and listed in `godot/test-assets.txt`; no assets under `data/` are committed. Tests reproduce initial expanded-tree/plain-draft/no-scroll behavior before the fixes. The private harness freezes matching client/server wire dependencies; unrelated GroupLoot changes are not achievement work.
 
 ## Retail categories and filters — verified 2026-10-11
 

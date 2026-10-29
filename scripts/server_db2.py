@@ -1,6 +1,6 @@
 """The game-server checkout's db2_casc: the one WDC5 decoder for both repositories.
 
-The checkout is the engine's sibling `game-server`, or DEPOT_SIBLING_GAME_SERVER.
+The checkout is the engine's sibling `game-server`, or SIBLING_GAME_SERVER.
 """
 
 import sys
@@ -13,7 +13,7 @@ SERVER_SCRIPTS = (
 ).resolve()
 if not (SERVER_SCRIPTS / "db2_casc.py").is_file():
     raise ImportError(
-        f"{SERVER_SCRIPTS / 'db2_casc.py'} is missing; set DEPOT_SIBLING_GAME_SERVER "
+        f"{SERVER_SCRIPTS / 'db2_casc.py'} is missing; set SIBLING_GAME_SERVER "
         "to the game-server checkout"
     )
 sys.path.append(str(SERVER_SCRIPTS))

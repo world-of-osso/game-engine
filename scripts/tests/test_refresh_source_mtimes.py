@@ -8,7 +8,7 @@ import tempfile
 import unittest
 
 
-REFRESH = Path(__file__).resolve().parents[1] / "depot/refresh-source-mtimes.py"
+REFRESH = Path(__file__).resolve().parents[1] / "container/refresh-source-mtimes.py"
 OLD = 1_600_000_000_000_000_000
 
 

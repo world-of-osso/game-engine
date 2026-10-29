@@ -15,11 +15,11 @@
 
 ## Current implementation
 
-`export_db2_csv.py TABLE INPUT OUTPUT --definitions PINNED_DEFINITIONS` selects the payload layout. Fixed and sparse records both decode through the game-server checkout's `scripts/db2_casc.py` (`scripts/server_db2.py`: the engine's sibling `game-server`, or `DEPOT_SIBLING_GAME_SERVER`); a missing checkout fails explicitly, and the refresh command's `--server` must be that checkout. Definition acquisition and source receipts belong to the refresh command.
+`export_db2_csv.py TABLE INPUT OUTPUT --definitions PINNED_DEFINITIONS` selects the payload layout. Fixed and sparse records both decode through the game-server checkout's `scripts/db2_casc.py` (`scripts/server_db2.py`: the engine's sibling `game-server`, or `SIBLING_GAME_SERVER`); a missing checkout fails explicitly, and the refresh command's `--server` must be that checkout. Definition acquisition and source receipts belong to the refresh command.
 
 ## Private refresh
 
-Build `db2_cache_import` through `scripts/depot-build.py --root CHECKOUT --fixture db2_cache_import` before invoking `scripts/refresh_db2_data.py`. Supply the built executable as `--cache-importer`, plus the private output, exact definitions checkout, resolver/cache, baseline, read-only world, and canonical repository paths. The refresh reads canonical Forever inputs but never writes them; failed housing regeneration leaves the previous catalog intact. Housing regeneration includes `DataTagInfo`, `DataTagGroup` and `DataTagGroupXDataTag` even when the previous cache omitted them, preserving their literal records and source receipts. An unavailable dependency remains an explicit zero-record source gap; this does not implement tag filtering or invent missing names. Prepared server SQL is reviewable output only, never automatically imported into TDB.
+Build `db2_cache_import` through `scripts/engine-build.py --root CHECKOUT --fixture db2_cache_import` before invoking `scripts/refresh_db2_data.py`. Supply the built executable as `--cache-importer`, plus the private output, exact definitions checkout, resolver/cache, baseline, read-only world, and canonical repository paths. The refresh reads canonical Forever inputs but never writes them; failed housing regeneration leaves the previous catalog intact. Housing regeneration includes `DataTagInfo`, `DataTagGroup` and `DataTagGroupXDataTag` even when the previous cache omitted them, preserving their literal records and source receipts. An unavailable dependency remains an explicit zero-record source gap; this does not implement tag filtering or invent missing names. Prepared server SQL is reviewable output only, never automatically imported into TDB.
 
 ## Lead publication
 

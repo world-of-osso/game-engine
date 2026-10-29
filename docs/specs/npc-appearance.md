@@ -159,7 +159,7 @@ Evidence:
 
 `godot/core/tests/forever_npc_sweep.rs::sweep_skyborn_forever_npc_appearances` is ignored by default. Source: local packet `data/skyborn-handoff/2026-10-07-c1cdf6e/server/world.db`, map2991, all `content_creature.id1/id2/id3` template variants plus explicit `modelid`, intersected with Forever70205 `CreatureDisplayInfo.csv`. This conservative union includes218 displays and136974; seven IDs also exist in Retail and retain the production catalog's Retail precedence. No probability/phase filtering narrows coverage.
 
-Run from the checkout root (full local assets are not staged by `godot/depot-test-assets.txt`):
+Run from the checkout root (full local assets are not staged by `godot/test-assets.txt`):
 
 ```sh
 NPCSWEEP_DATA="$PWD/data" NPCSWEEP_OUT=/home/osso/Projects/world-of-osso/game-engine/data/diagnostics/npcsweep-2026-10-08/baseline \

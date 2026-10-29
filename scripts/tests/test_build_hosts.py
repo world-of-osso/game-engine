@@ -328,7 +328,7 @@ class BuildHostTests(unittest.TestCase):
                     (self.base / "release").unlink(missing_ok=True)
 
     def test_invalid_host_and_key_fail_before_transport(self):
-        for host, key in (("depot", "checkout-a"), ("desktop", "../escape")):
+        for host, key in (("remote", "checkout-a"), ("desktop", "../escape")):
             with self.subTest(host=host, key=key), self.assertRaises(ValueError):
                 self.execute(host, key)
 

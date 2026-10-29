@@ -73,7 +73,7 @@ def refuse_open_files(directories):
     """Refuse while any of this user's processes holds a file under `directories`.
 
     Only the slot owner's processes (clients, extractors, agent-run builds) open slot
-    data; Depot builds read snapshot copies. Other users' descriptors are unreadable
+    data; container builds read snapshot copies. Other users' descriptors are unreadable
     without root, so they are skipped rather than blocking the repair."""
     roots = [str(path) for path in directories]
     uid = os.getuid()

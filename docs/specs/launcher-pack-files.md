@@ -55,7 +55,7 @@ Preserve `C:\Users\adeia\AppData\Local\World of Osso` and all unrelated user dat
 
 ### Publisher changes
 
-`scripts/depot-build.py` builds the extension; it is not the current publisher. `deploy.sh` assembles with `scripts/player_bundle.py`, invokes the file-server manifest generator and uses `scripts/manifest_diff.py` plus rclone for uploads. Add deterministic chunk/pack generation after staging in that publishing pipeline, with persisted chunk-to-pack index, staged-byte verification, and tests for reproducibility, corrupt records, old-manifest retention and reconstruction. `depot-build.py` should remain the build step unless an explicit orchestration interface is needed; it must not independently publish. Publish packs before v2 manifest, maintain legacy publication during migration, and make garbage collection a separate retention-aware operation.
+`scripts/engine-build.py` builds the extension; it is not the current publisher. `deploy.sh` assembles with `scripts/player_bundle.py`, invokes the file-server manifest generator and uses `scripts/manifest_diff.py` plus rclone for uploads. Add deterministic chunk/pack generation after staging in that publishing pipeline, with persisted chunk-to-pack index, staged-byte verification, and tests for reproducibility, corrupt records, old-manifest retention and reconstruction. `engine-build.py` should remain the build step unless an explicit orchestration interface is needed; it must not independently publish. Publish packs before v2 manifest, maintain legacy publication during migration, and make garbage collection a separate retention-aware operation.
 
 ## Implemented v2 format (work in progress)
 

@@ -79,8 +79,8 @@ class DesktopServerBuildTests(unittest.TestCase):
         )
         self.environment.start()
         self.addCleanup(self.environment.stop)
-        os.environ.pop("DEPOT_SIBLING_SHARED_PROTOCOL", None)
-        os.environ.pop("DEPOT_SIBLING_GAME_ENGINE", None)
+        os.environ.pop("SIBLING_SHARED_PROTOCOL", None)
+        os.environ.pop("SIBLING_GAME_ENGINE", None)
         self.engine = self.base / "game-engine"
         self.put(self.root, "data/world.db", "world rows")
         self.put(self.root, "data/game.redb", "live player storage")
@@ -108,7 +108,7 @@ class DesktopServerBuildTests(unittest.TestCase):
         self.setting = self.base / "config/game-engine/build-host"
         if not self.setting.exists():
             self.put(self.base, "config/game-engine/build-host", "local\n")
-        setting = patch.object(module.depot, "build_host_setting", lambda: self.setting)
+        setting = patch.object(module.engine_build, "build_host_setting", lambda: self.setting)
         setting.start()
         self.addCleanup(setting.stop)
         return module
@@ -471,7 +471,7 @@ class DesktopServerBuildTests(unittest.TestCase):
         self.put(branch, "src/lib.rs", "branch protocol")
         subprocess.run(["git", "-C", str(branch), "add", "."], check=True)
         with (
-            patch.dict(os.environ, {"DEPOT_SIBLING_SHARED_PROTOCOL": str(branch)}),
+            patch.dict(os.environ, {"SIBLING_SHARED_PROTOCOL": str(branch)}),
             patch.object(module, "execute", self.execute),
         ):
             module.build(self.root)
@@ -491,7 +491,7 @@ class DesktopServerBuildTests(unittest.TestCase):
         self.assertEqual(result["target"], "test-result")
         self.assertIn("TEST_ARGS=-p server -- --skip 'query 300k'", result["args"])
         self.assertIn(f"BUILD_ROOT={self.root.resolve()}", result["args"])
-        mirror = self.base / "cache/game-engine/depot-build/server-test-data"
+        mirror = self.base / "cache/game-engine/engine-build/server-test-data"
         self.assertIn(f"test-data={mirror}", result["args"])
         synced = sorted(str(p.relative_to(mirror)) for p in mirror.rglob("*") if p.is_file())
         self.assertEqual(
@@ -540,9 +540,9 @@ class DesktopServerBuildTests(unittest.TestCase):
         other = self.base / "elsewhere/game-engine"
         self.put(other, "data/terrain/2.adt", "other tile")
         self.put(other, "data/los/0/1.los", "other los")
-        with patch.dict(os.environ, {"DEPOT_SIBLING_GAME_ENGINE": str(other)}):
+        with patch.dict(os.environ, {"SIBLING_GAME_ENGINE": str(other)}):
             self.assertEqual(self.run_test_mode(module), 0)
-        mirror = self.base / "cache/game-engine/depot-build/server-test-data/game-engine"
+        mirror = self.base / "cache/game-engine/engine-build/server-test-data/game-engine"
         self.assertEqual(
             sorted(str(p.relative_to(mirror)) for p in mirror.rglob("*") if p.is_file()),
             ["los/0/1.los", "terrain/2.adt"],

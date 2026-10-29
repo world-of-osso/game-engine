@@ -1,4 +1,4 @@
-"""Behavioral tests for source-only Depot builds without network or Cargo."""
+"""Behavioral tests for source-only container builds without network or Cargo."""
 
 import json
 import os
@@ -9,8 +9,8 @@ import time
 import unittest
 from pathlib import Path
 
-SCRIPT = Path(__file__).resolve().parents[1] / "depot-build.py"
-REFRESH = SCRIPT.parent / "depot" / "refresh-source-mtimes.py"
+SCRIPT = Path(__file__).resolve().parents[1] / "engine-build.py"
+REFRESH = SCRIPT.parent / "container" / "refresh-source-mtimes.py"
 FIXTURES = (
     "native_input_fixture",
     "native_npc_visual_fixture",
@@ -23,7 +23,7 @@ SIBLINGS = (
     "ui-toolkit-macros",
     "shared-protocol",
 )
-FAKE_DEPOT = """#!/usr/bin/env python3
+FAKE_DOCKER = """#!/usr/bin/env python3
 import gzip, json, os, pathlib, sys, time
 args = sys.argv[1:]
 assert args[:2] == ['buildx', 'build'], args
@@ -32,37 +32,37 @@ output = pathlib.Path(args[args.index('--output') + 1].split('dest=', 1)[1])
 context = pathlib.Path(args[-1])
 files = {str(p.relative_to(context)): p.read_bytes().decode('latin1') for p in context.rglob('*') if p.is_file()}
 mtimes = {str(p.relative_to(context)): p.stat().st_mtime_ns for p in context.rglob('*') if p.is_file()}
-with open(os.environ['DEPOT_RECORD'], 'a') as record:
+with open(os.environ['FAKE_DOCKER_RECORD'], 'a') as record:
     record.write(json.dumps({'project': project, 'files': files, 'mtimes': mtimes, 'context': str(context), 'args': args,
-                             'xdg_config_home': os.environ.get('XDG_CONFIG_HOME'), 'has_token': 'DEPOT_TOKEN' in os.environ}) + '\\n')
-if os.environ.get('DEPOT_DELAY'):
-    time.sleep(float(os.environ['DEPOT_DELAY']))
-if os.environ.get('DEPOT_FAIL'):
+                             'xdg_config_home': os.environ.get('XDG_CONFIG_HOME')}) + '\\n')
+if os.environ.get('FAKE_DOCKER_DELAY'):
+    time.sleep(float(os.environ['FAKE_DOCKER_DELAY']))
+if os.environ.get('FAKE_DOCKER_FAIL'):
     sys.exit(7)
 output.mkdir(parents=True, exist_ok=True)
 if args[args.index('--target') + 1] == 'test-result':
     assets = context / 'test-assets'
     staged = {str(p.relative_to(assets)): p.read_text() for p in assets.rglob('*') if p.is_file()}
-    with open(os.environ['DEPOT_RECORD'], 'a') as record:
+    with open(os.environ['FAKE_DOCKER_RECORD'], 'a') as record:
         record.write(json.dumps({'assets': staged, 'asset_dir': str(assets)}) + '\\n')
-    if not os.environ.get('DEPOT_NO_LOG'):
-        (output / 'test.log').write_text('test result: ' + os.environ.get('DEPOT_TEST_LOG', 'ok') + '\\n')
-        (output / 'status').write_text(os.environ.get('DEPOT_TEST_STATUS', '0') + '\\n')
+    if not os.environ.get('FAKE_DOCKER_NO_LOG'):
+        (output / 'test.log').write_text('test result: ' + os.environ.get('FAKE_DOCKER_TEST_LOG', 'ok') + '\\n')
+        (output / 'status').write_text(os.environ.get('FAKE_DOCKER_TEST_STATUS', '0') + '\\n')
     sys.exit(0)
 artifact = output / 'libgame_engine_godot.so.gz'
-artifact.write_bytes(b'bad gzip' if os.environ.get('DEPOT_CORRUPT') else gzip.compress(os.environ.get('DEPOT_ARTIFACT', 'new binary').encode()))
+artifact.write_bytes(b'bad gzip' if os.environ.get('FAKE_DOCKER_CORRUPT') else gzip.compress(os.environ.get('FAKE_DOCKER_ARTIFACT', 'new binary').encode()))
 build_args = [args[index + 1] for index, arg in enumerate(args) if arg == '--build-arg']
 options = dict(option.split('=', 1) for option in build_args)
 assert len(options) == len(build_args), build_args
 if options.get('CLI') == '1':
     (output / 'game-engine-cli.gz').write_bytes(gzip.compress(b'cli binary'))
 fixture = options.get('FIXTURE')
-if fixture and not os.environ.get('DEPOT_MISSING_FIXTURE'):
-    (output / (fixture + '.gz')).write_bytes(b'bad gzip' if os.environ.get('DEPOT_CORRUPT_FIXTURE') else gzip.compress(os.environ.get('DEPOT_FIXTURE', 'fixture binary').encode()))
+if fixture and not os.environ.get('FAKE_DOCKER_MISSING_FIXTURE'):
+    (output / (fixture + '.gz')).write_bytes(b'bad gzip' if os.environ.get('FAKE_DOCKER_CORRUPT_FIXTURE') else gzip.compress(os.environ.get('FAKE_DOCKER_FIXTURE', 'fixture binary').encode()))
 """
 
 
-class DepotBuildTests(unittest.TestCase):
+class EngineBuildTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
@@ -103,7 +103,7 @@ class DepotBuildTests(unittest.TestCase):
         self._put(self.root, "data/Light.csv", "light rows")
         self._put(
             self.root,
-            "godot/depot-test-assets.txt",
+            "godot/test-assets.txt",
             "# core\nmodels/boar.m2\n\nLight.csv  # lighting\n",
         )
         self._put(self.root, "godot/.godot/imported.rs", "private")
@@ -131,22 +131,22 @@ class DepotBuildTests(unittest.TestCase):
             self._git(repo, "commit", "-qm", "initial")
         bin_dir = self.base / "bin"
         bin_dir.mkdir()
-        depot = bin_dir / "docker"
-        depot.write_text(FAKE_DEPOT)
-        depot.chmod(0o755)
+        docker = bin_dir / "docker"
+        docker.write_text(FAKE_DOCKER)
+        docker.chmod(0o755)
         self.record = self.base / "record.jsonl"
         self.home = self.base / "home"
         self._put(self.home, ".config/game-engine/build-host", "local\n")
         self.env = {
             key: value
             for key, value in os.environ.items()
-            if key not in ("XDG_CONFIG_HOME", "DEPOT_TOKEN")
+            if key != "XDG_CONFIG_HOME"
         }
         self.env.update(
             PATH=str(bin_dir) + os.pathsep + os.environ["PATH"],
             HOME=str(self.home),
             XDG_CACHE_HOME=str(self.base / "cache"),
-            DEPOT_RECORD=str(self.record),
+            FAKE_DOCKER_RECORD=str(self.record),
         )
 
     def _put(self, root, name, content):
@@ -216,7 +216,7 @@ class DepotBuildTests(unittest.TestCase):
             if arg == "--build-arg"
         )
 
-    def test_saved_host_builds_without_depot_credentials(self):
+    def test_saved_host_builds(self):
         result = self.build()
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(self.records()[0]["project"], "game-engine")
@@ -276,7 +276,7 @@ class DepotBuildTests(unittest.TestCase):
 
     def test_invalid_or_missing_saved_host_requires_explicit_selection(self):
         setting = self.home / ".config/game-engine/build-host"
-        setting.write_text("depot\n")
+        setting.write_text("remote\n")
         result = self.build()
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("build-host", result.stderr)
@@ -301,7 +301,7 @@ class DepotBuildTests(unittest.TestCase):
         self.assertNotIn("shared-protocol/scripts/reference/private.csv", files)
 
     def test_source_snapshot_and_originating_install(self):
-        result = self.build(DEPOT_PROJECT_ID="custom-id")
+        result = self.build()
         self.assertEqual(result.returncode, 0, result.stderr)
         snapshot = self.records()[0]
         files = snapshot["files"]
@@ -365,7 +365,7 @@ class DepotBuildTests(unittest.TestCase):
         override = self.base / "toolkit-branch"
         (self.base / "ui-toolkit").rename(override)
         self._put(override, "src/lib.rs", "override toolkit")
-        result = self.build(DEPOT_SIBLING_UI_TOOLKIT=str(override))
+        result = self.build(SIBLING_UI_TOOLKIT=str(override))
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(
             self.records()[0]["files"]["ui-toolkit/src/lib.rs"], "override toolkit"
@@ -374,7 +374,7 @@ class DepotBuildTests(unittest.TestCase):
     def test_ui_toolkit_snapshot_rejects_legacy_override(self):
         legacy = self.base / "ui-toolkit-godot-conversion"
         (self.base / "ui-toolkit").rename(legacy)
-        result = self.build(DEPOT_SIBLING_UI_TOOLKIT_GODOT_CONVERSION=str(legacy))
+        result = self.build(SIBLING_UI_TOOLKIT_GODOT_CONVERSION=str(legacy))
         self.assertNotEqual(result.returncode, 0)
         self.assertIn(
             f"missing build dependency: {self.base / 'ui-toolkit'}", result.stderr
@@ -383,7 +383,7 @@ class DepotBuildTests(unittest.TestCase):
 
     def test_requested_fixture_installs_only_named_executable_and_extension(self):
         for name in FIXTURES:
-            result = self.build(fixture=name, DEPOT_FIXTURE=name)
+            result = self.build(fixture=name, FAKE_DOCKER_FIXTURE=name)
             self.assertEqual(result.returncode, 0, result.stderr)
             executable = self.root / "target/debug/examples" / name
             self.assertEqual(executable.read_bytes(), name.encode())
@@ -443,7 +443,7 @@ class DepotBuildTests(unittest.TestCase):
         command = ["python3", str(SCRIPT), "--root", str(self.root), "--release"]
         result = subprocess.run(
             command,
-            env={**self.env, "DEPOT_ARTIFACT": "release binary"},
+            env={**self.env, "FAKE_DOCKER_ARTIFACT": "release binary"},
             text=True,
             capture_output=True,
             check=False,
@@ -486,7 +486,7 @@ class DepotBuildTests(unittest.TestCase):
         self._put(self.root, f"target/debug/examples/{name}", "old debug fixture")
         result = subprocess.run(
             ["python3", str(SCRIPT), "--root", str(self.root), "--release", "--fixture", name],
-            env={**self.env, "DEPOT_FIXTURE": "release fixture"},
+            env={**self.env, "FAKE_DOCKER_FIXTURE": "release fixture"},
             text=True, capture_output=True, check=False,
         )
         self.assertEqual(result.returncode, 0, result.stderr)
@@ -526,7 +526,7 @@ class DepotBuildTests(unittest.TestCase):
 
     def test_model_asset_selector_stages_current_receipt_without_historical_namespace(self):
         selector = "model:wow:42:blp\n"
-        self._put(self.root, "godot/depot-test-assets.txt", selector)
+        self._put(self.root, "godot/test-assets.txt", selector)
         for key in ("1" * 32, "2" * 32):
             path = f"products/wow/{key}/textures/42.blp"
             self._put(self.root, f"data/{path}", "unchanged texture")
@@ -541,7 +541,7 @@ class DepotBuildTests(unittest.TestCase):
             self.assertEqual(self.records()[-1]["assets"], {path: "unchanged texture"})
 
     def test_model_asset_selector_refuses_missing_receipt_even_with_old_file(self):
-        self._put(self.root, "godot/depot-test-assets.txt", "model:wow:42:blp\n")
+        self._put(self.root, "godot/test-assets.txt", "model:wow:42:blp\n")
         self._put(self.root, "data/products/wow/old/textures/42.blp", "historical")
         self._put(self.root, "data/cache/model-asset-index.json", '{"version":1,"assets":[]}')
         result = self.run_test_mode()
@@ -558,11 +558,11 @@ class DepotBuildTests(unittest.TestCase):
             "--",
             "--exact",
             "a b",
-            DEPOT_TEST_LOG="3 passed",
+            FAKE_DOCKER_TEST_LOG="3 passed",
         )
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("test result: 3 passed", result.stdout)
-        saved = self.root / "target/depot-test.log"
+        saved = self.root / "target/engine-test.log"
         self.assertIn(f"Full log: {saved}", result.stdout)
         self.assertEqual(saved.read_text(), "test result: 3 passed\n")
         build, staged = self.records()
@@ -614,14 +614,14 @@ class DepotBuildTests(unittest.TestCase):
 
     def test_test_mode_exits_with_cargo_status(self):
         result = self.run_test_mode(
-            "-p", "game-engine-core", DEPOT_TEST_STATUS="101", DEPOT_TEST_LOG="1 failed"
+            "-p", "game-engine-core", FAKE_DOCKER_TEST_STATUS="101", FAKE_DOCKER_TEST_LOG="1 failed"
         )
         self.assertEqual(result.returncode, 101)
         self.assertIn("test result: 1 failed", result.stdout)
-        result = self.run_test_mode(DEPOT_NO_LOG="1")
+        result = self.run_test_mode(FAKE_DOCKER_NO_LOG="1")
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("test.log", result.stderr)
-        result = self.run_test_mode(DEPOT_FAIL="1")
+        result = self.run_test_mode(FAKE_DOCKER_FAIL="1")
         self.assertNotEqual(result.returncode, 0)
 
     def test_test_mode_restages_changed_and_removed_assets(self):
@@ -629,7 +629,7 @@ class DepotBuildTests(unittest.TestCase):
         self.assertEqual(first.returncode, 0, first.stderr)
         self._put(self.root, "data/models/boar.m2", "boar model v2")
         os.utime(self.root / "data/models/boar.m2", ns=(1_800_000_000_000_000_000,) * 2)
-        self._put(self.root, "godot/depot-test-assets.txt", "models/boar.m2\n")
+        self._put(self.root, "godot/test-assets.txt", "models/boar.m2\n")
         second = self.run_test_mode()
         self.assertEqual(second.returncode, 0, second.stderr)
         staged = [record for record in self.records() if "assets" in record]
@@ -651,12 +651,12 @@ class DepotBuildTests(unittest.TestCase):
             self.records()[-1]["assets"]["models/boar.m2"], "replacement boar"
         )
 
-    def test_test_mode_rejects_missing_or_escaping_assets_before_depot(self):
+    def test_test_mode_rejects_missing_or_escaping_assets_before_container_build(self):
         for listed, message in (
             ("models/absent.m2", "data/models/absent.m2"),
             ("../.env", "inside data/"),
         ):
-            self._put(self.root, "godot/depot-test-assets.txt", listed + "\n")
+            self._put(self.root, "godot/test-assets.txt", listed + "\n")
             result = self.run_test_mode("-p", "game-engine-core")
             self.assertNotEqual(result.returncode, 0)
             self.assertIn(message, result.stderr)
@@ -678,7 +678,7 @@ class DepotBuildTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("not allowed", result.stderr)
 
-    def test_bad_fixture_choice_fails_before_depot(self):
+    def test_bad_fixture_choice_fails_before_container_build(self):
         for name in ("../../other", "fixture_support", "native_input_fixture/swimming"):
             result = self.build(fixture=name)
             self.assertNotEqual(result.returncode, 0)
@@ -689,7 +689,7 @@ class DepotBuildTests(unittest.TestCase):
         self._put(
             self.root, "godot/network/examples/native_water_fixture.rs", "fn main() {}"
         )
-        result = self.build(fixture="native_water_fixture", DEPOT_FIXTURE="water")
+        result = self.build(fixture="native_water_fixture", FAKE_DOCKER_FIXTURE="water")
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(
             (self.root / "target/debug/examples/native_water_fixture").read_bytes(),
@@ -711,7 +711,7 @@ class DepotBuildTests(unittest.TestCase):
         executable.parent.mkdir(parents=True, exist_ok=True)
         executable.write_bytes(b"old fixture")
         executable.chmod(0o755)
-        for failure in ({"DEPOT_MISSING_FIXTURE": "1"}, {"DEPOT_CORRUPT_FIXTURE": "1"}):
+        for failure in ({"FAKE_DOCKER_MISSING_FIXTURE": "1"}, {"FAKE_DOCKER_CORRUPT_FIXTURE": "1"}):
             result = self.build(fixture="native_input_fixture", **failure)
             self.assertNotEqual(result.returncode, 0)
             self.assertEqual(executable.read_bytes(), b"old fixture")
@@ -720,7 +720,7 @@ class DepotBuildTests(unittest.TestCase):
     def test_fixture_install_is_checkout_local(self):
         other = self.base / "game-engine-alt-worktree"
         self._git(self.base, "clone", "-q", str(self.root), str(other))
-        first = self.build(fixture="native_input_fixture", DEPOT_FIXTURE="first")
+        first = self.build(fixture="native_input_fixture", FAKE_DOCKER_FIXTURE="first")
         self.assertEqual(first.returncode, 0, first.stderr)
         second = subprocess.run(
             [
@@ -731,7 +731,7 @@ class DepotBuildTests(unittest.TestCase):
                 "--fixture",
                 "native_npc_visual_fixture",
             ],
-            env={**self.env, "DEPOT_FIXTURE": "second"},
+            env={**self.env, "FAKE_DOCKER_FIXTURE": "second"},
             capture_output=True,
             text=True,
             check=False,
@@ -845,14 +845,14 @@ class DepotBuildTests(unittest.TestCase):
         artifact = self.root / "target/debug/libgame_engine_godot.so"
         artifact.parent.mkdir(parents=True, exist_ok=True)
         artifact.write_bytes(b"old binary")
-        for failure in ({"DEPOT_FAIL": "1"}, {"DEPOT_CORRUPT": "1"}):
+        for failure in ({"FAKE_DOCKER_FAIL": "1"}, {"FAKE_DOCKER_CORRUPT": "1"}):
             result = self.build(**failure)
             self.assertNotEqual(result.returncode, 0)
             self.assertEqual(artifact.read_bytes(), b"old binary")
         for snapshot in self.records():
             self.assertFalse(Path(snapshot["context"]).exists())
 
-    def test_missing_dependency_and_source_symlink_fail_before_depot(self):
+    def test_missing_dependency_and_source_symlink_fail_before_container_build(self):
         (self.base / "ui-toolkit-macros/Cargo.toml").unlink()
         result = self.build()
         self.assertNotEqual(result.returncode, 0)
@@ -875,11 +875,11 @@ class DepotBuildTests(unittest.TestCase):
     def test_two_physical_checkout_names_install_separately(self):
         other = self.base / "game-engine-alt-worktree"
         self._git(self.base, "clone", "-q", str(self.root), str(other))
-        first = self.build(DEPOT_ARTIFACT="first")
+        first = self.build(FAKE_DOCKER_ARTIFACT="first")
         self.assertEqual(first.returncode, 0, first.stderr)
         second = subprocess.run(
             ["python3", str(SCRIPT), "--root", str(other)],
-            env={**self.env, "DEPOT_ARTIFACT": "second"},
+            env={**self.env, "FAKE_DOCKER_ARTIFACT": "second"},
             capture_output=True,
             text=True,
             check=False,
@@ -962,7 +962,7 @@ class DepotBuildTests(unittest.TestCase):
         cmd = ["python3", str(SCRIPT), "--root", str(self.root)]
         first = subprocess.Popen(
             cmd,
-            env={**self.env, "DEPOT_DELAY": "0.5", "DEPOT_ARTIFACT": "first"},
+            env={**self.env, "FAKE_DOCKER_DELAY": "0.5", "FAKE_DOCKER_ARTIFACT": "first"},
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
@@ -971,10 +971,10 @@ class DepotBuildTests(unittest.TestCase):
             deadline = time.monotonic() + 10
             while not self.records() and time.monotonic() < deadline:
                 time.sleep(0.02)
-            self.assertTrue(self.records(), "first build did not reach Depot")
+            self.assertTrue(self.records(), "first build did not reach the container build")
             second = subprocess.run(
                 cmd,
-                env={**self.env, "DEPOT_ARTIFACT": "second"},
+                env={**self.env, "FAKE_DOCKER_ARTIFACT": "second"},
                 capture_output=True,
                 text=True,
                 timeout=15,

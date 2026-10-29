@@ -238,7 +238,7 @@ def project_files(root):
     for path in files:
         if any(parent in crates for parent in path.parents):
             continue
-        if path.parts[1] == 'tests' or path.name in ('Cargo.toml', 'Cargo.lock', '.gitignore', 'depot-test-assets.txt', 'game_engine.gdextension'):
+        if path.parts[1] == 'tests' or path.name in ('Cargo.toml', 'Cargo.lock', '.gitignore', 'test-assets.txt', 'game_engine.gdextension'):
             continue
         yield path
 

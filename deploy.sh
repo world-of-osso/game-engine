@@ -74,7 +74,7 @@ assemble_generated() {
 }
 
 echo "=== Building Linux native extension (release, bookworm) ==="
-${DEPLOY_BUILD_WRAPPER:-} python3 "$ROOT/scripts/depot-build.py" --root "$ROOT" --release --build-host local
+${DEPLOY_BUILD_WRAPPER:-} python3 "$ROOT/scripts/engine-build.py" --root "$ROOT" --release --build-host local
 echo "=== Building Windows runtime, extension and entry (native desktop) ==="
 python3 "$ROOT/scripts/windows-release.py" --root "$ROOT" --phase build
 echo "=== Preparing project import ==="

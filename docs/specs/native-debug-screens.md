@@ -42,7 +42,7 @@ Offline `--screen` debug destinations of the Godot client, ported from the Bevy 
 - `godot/tests/{m2debug,selectiondebug,debugcharacter,nameplatedebug}_screen_flow.gd` — live node/input assertions, CLI reply contents, and CLI WebP pixels matching the live frame's model/screen pixels.
 - `godot/rust/src/selection_debug_tests.rs`, `debug_character_tests.rs` — candidate model, key bindings, configuration defaults/overrides/errors.
 
-Run: build with `python3 scripts/depot-build.py --root "$PWD" --fixture native_debug_screen_fixture`, then `GODOT_BIN=… GAME_ENGINE_CLI=… target/debug/examples/native_debug_screen_fixture <screen>` inside a headless compositor.
+Run: build with `python3 scripts/engine-build.py --root "$PWD" --fixture native_debug_screen_fixture`, then `GODOT_BIN=… GAME_ENGINE_CLI=… target/debug/examples/native_debug_screen_fixture <screen>` inside a headless compositor.
 
 ## Implementation inventory
 
