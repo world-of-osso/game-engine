@@ -183,6 +183,35 @@ fn neltharus_gorek_upper_route_stays_on_authored_floor() {
     }
 }
 
+#[test]
+fn neltharus_steep_face_supports_player_and_blocks_uphill_motion() {
+    let terrain = load("2519", (32, 32), |terrain| {
+        terrain.parsed_tiles.contains_key(&(32, 32))
+    });
+    let ground = TerrainGround {
+        terrain: &terrain,
+        walls: &|_, _, _| None,
+        step_wall_blocked: &|_, _, _| false,
+        game_object_floor: &|_| None,
+    };
+    let start = Vec3::new(-233.50781, 133.42572, 532.7626);
+    let mut movement = crate::gameplay::PlayerMovement::default();
+    let mut feet = start;
+    for _ in 0..30 {
+        let frame = crate::gameplay::MovementFrame {
+            direction: [-1.0, 0.0, 0.0],
+            speed: 7.0,
+            vertical: 0.0,
+        };
+        feet = movement.predict(feet, frame, false, &ground, &mut |_, to, _| to, 1.0 / 60.0);
+        assert!(feet.y > 133.0, "fell through steep WMO face: {feet}");
+    }
+    assert!(
+        feet.x > start.x - 0.2,
+        "walked uphill through steep face: {feet}"
+    );
+}
+
 /// Whether a solid face lies between the eye and the camera: the view is from outside a wall.
 fn wall_between(triangles: &[[Vec3; 3]], eye: Vec3, camera: Vec3) -> bool {
     let offset = camera - eye;

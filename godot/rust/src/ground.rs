@@ -1,7 +1,8 @@
 //! Ground queries for the terrain currently loaded by the native host.
 
 use game_engine_core::player_physics_data::{
-    GroundSample, GroundState, WALL_MARGIN, clamp_movement_to_walls, validate_movement_slope,
+    GroundSample, GroundState, WALL_MARGIN, clamp_movement_to_walls, is_walkable_slope,
+    validate_movement_slope,
 };
 use game_engine_core::terrain_height_data::bevy_to_tile_coords;
 use glam::Vec3;
@@ -61,23 +62,25 @@ impl TerrainGround<'_> {
                 .is_some_and(|ground| ground.height > feet.y)
     }
 
-    fn static_ground(&self, feet: Vec3) -> Option<Ground> {
-        shared::ground::ground_at(
-            feet,
-            self.terrain_height(feet),
-            self.terrain
-                .map_wdt
-                .as_ref()
-                .and_then(|map| map.global_wmo.as_ref())
-                .map(|wmo| &wmo.collision)
-                .into_iter()
-                .chain(
-                    self.terrain
-                        .parsed_tiles
-                        .values()
-                        .flat_map(|tile| tile.wmo_floors.iter().map(|(_, wmo)| wmo)),
-                ),
-        )
+    fn static_ground(&self, feet: Vec3, walkable_only: bool) -> Option<Ground> {
+        let wmos = self
+            .terrain
+            .map_wdt
+            .as_ref()
+            .and_then(|map| map.global_wmo.as_ref())
+            .map(|wmo| &wmo.collision)
+            .into_iter()
+            .chain(
+                self.terrain
+                    .parsed_tiles
+                    .values()
+                    .flat_map(|tile| tile.wmo_floors.iter().map(|(_, wmo)| wmo)),
+            );
+        if walkable_only {
+            shared::ground::ground_at(feet, self.terrain_height(feet), wmos)
+        } else {
+            shared::ground::collision_height(feet, self.terrain_height(feet), wmos)
+        }
     }
 
     fn m2_ground(&self, feet: Vec3) -> Option<Ground> {
@@ -105,7 +108,7 @@ impl TerrainGround<'_> {
             height,
             surface: Surface::M2,
         });
-        self.static_ground(feet)
+        self.static_ground(feet, false)
             .into_iter()
             .chain(self.m2_ground(feet))
             .chain(object)
@@ -117,7 +120,11 @@ impl TerrainGround<'_> {
     /// floor over a terrain hole) stops, as an underwater cliff stops a swimmer: walking on
     /// would put the feet under the world's surface, with nothing to land on.
     pub fn validate_move(&self, current: Vec3, proposed: Vec3, snap: bool) -> Vec3 {
-        let target = self.sample(proposed.with_y(current.y));
+        let target_feet = proposed.with_y(current.y);
+        let target = self.sample(target_feet);
+        if snap && self.steep_wmo_blocks_ascent(current, target_feet, target) {
+            return current;
+        }
         let candidate = self.apply_floor_rules(current, proposed, target, snap);
         let clamped = clamp_movement_to_walls(current, proposed, self.walls);
         let reached = clamped.x == proposed.x && clamped.z == proposed.z;
@@ -131,6 +138,19 @@ impl TerrainGround<'_> {
         // of a landing that the player did not actually reach.
         let target = self.sample(clamped.with_y(current.y));
         self.apply_floor_rules(current, clamped, target, snap)
+    }
+
+    fn steep_wmo_blocks_ascent(&self, current: Vec3, target: Vec3, solid: Option<Ground>) -> bool {
+        let Some(solid) = solid.filter(|ground| ground.surface == Surface::Wmo) else {
+            return false;
+        };
+        let walkable = self.static_ground(target, true);
+        if walkable.is_some_and(|ground| ground.height >= solid.height) {
+            return false;
+        }
+        let rise = solid.height - current.y;
+        let distance = (target - current).with_y(0.0).length();
+        rise > 0.0 && !is_walkable_slope(rise, distance, MAX_SLOPE_ANGLE)
     }
 
     /// Only a wall-blocked move attempts a step: unobstructed ramps keep their
