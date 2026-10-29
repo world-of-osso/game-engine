@@ -277,7 +277,7 @@ fn neltharus_return_crosses_recorded_gorek_lip() {
         game_object_floor: &|_| None,
     };
     let direction = (target - start).with_y(0.0).normalize();
-    for distance in [0.116667, 0.3, 0.75] {
+    for distance in [0.116667, 0.3, 0.75, 1.0, 1.25, 1.6, 2.0] {
         let point = start + direction * distance;
         let wmos = || {
             terrain
