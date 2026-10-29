@@ -84,31 +84,34 @@ impl TerrainGround<'_> {
     }
 
     fn m2_ground(&self, feet: Vec3, walkable_only: bool) -> Option<Ground> {
-        self.terrain
+        let walkable = self
+            .terrain
             .map_wdt
             .as_ref()
             .into_iter()
-            .flat_map(|map| {
-                if walkable_only {
-                    &map.m2_floors
-                } else {
-                    &map.m2_solids
-                }
-            })
-            .chain(self.terrain.parsed_tiles.values().flat_map(|tile| {
-                if walkable_only {
-                    &tile.m2_floors
-                } else {
-                    &tile.m2_solids
-                }
-            }))
-            .filter_map(|tile| {
-                if walkable_only {
-                    tile.floor_height(feet)
-                } else {
-                    tile.solid_height(feet)
-                }
-            })
+            .flat_map(|map| &map.m2_floors)
+            .chain(
+                self.terrain
+                    .parsed_tiles
+                    .values()
+                    .flat_map(|tile| &tile.m2_floors),
+            )
+            .filter_map(|tile| tile.floor_height(feet));
+        let solid = self
+            .terrain
+            .map_wdt
+            .as_ref()
+            .into_iter()
+            .flat_map(|map| &map.m2_solids)
+            .chain(
+                self.terrain
+                    .parsed_tiles
+                    .values()
+                    .flat_map(|tile| &tile.m2_solids),
+            )
+            .filter_map(|tile| (!walkable_only).then(|| tile.solid_height(feet)).flatten());
+        walkable
+            .chain(solid)
             .max_by(f32::total_cmp)
             .map(|height| Ground {
                 height,
@@ -349,14 +352,11 @@ mod tests {
             32,
             32,
             vec![
-                Vec3::new(-4.0, 12.0, -4.0),
-                Vec3::new(4.0, 12.0, -4.0),
-                Vec3::new(0.0, 12.0, 4.0),
                 Vec3::new(-4.0, 8.88, -4.0),
                 Vec3::new(4.0, 19.12, -4.0),
                 Vec3::new(0.0, 14.0, 4.0),
             ],
-            vec![[0, 1, 2], [3, 4, 5]],
+            vec![[0, 1, 2]],
         );
         terrain.parsed_tiles.insert(
             (32, 32),
@@ -393,6 +393,10 @@ mod tests {
         };
         let feet = Vec3::new(0.0, 14.0, 0.0);
         assert_eq!(ground.probe(feet), GroundState::Supported(14.0));
+        assert_eq!(
+            ground.probe(feet.with_y(12.0)),
+            GroundState::Supported(12.0)
+        );
         let mut movement = crate::gameplay::PlayerMovement::default();
         let frame = crate::gameplay::MovementFrame {
             direction: [1.0, 0.0, 0.0],
