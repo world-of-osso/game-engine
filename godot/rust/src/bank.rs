@@ -734,6 +734,31 @@ impl GameClient {
             "guild_error",
             self.banks.guild.error.as_deref().unwrap_or_default(),
         );
+        state.set("guild_tab", self.banks.guild.state.tab as i64);
+        state.set("guild_slots", &guild_slot_items(guild.contents.as_ref()));
         state
     }
+}
+
+/// Occupied slots of every viewable tab, exactly as the server last sent them.
+fn guild_slot_items(contents: Option<&GuildBankContents>) -> VarArray {
+    let tabs = contents.map_or(&[][..], |contents| contents.tabs.as_slice());
+    tabs.iter()
+        .enumerate()
+        .flat_map(|(tab, view)| {
+            view.slots
+                .iter()
+                .enumerate()
+                .filter_map(move |(slot, item)| Some((tab, slot, item.as_ref()?)))
+        })
+        .map(|(tab, slot, item)| {
+            let mut entry = VarDictionary::new();
+            entry.set("tab", tab as i64);
+            entry.set("slot", slot as i64);
+            entry.set("item_guid", item.item_guid as i64);
+            entry.set("item_id", i64::from(item.item_id));
+            entry.set("count", i64::from(item.count));
+            entry.to_variant()
+        })
+        .collect()
 }
