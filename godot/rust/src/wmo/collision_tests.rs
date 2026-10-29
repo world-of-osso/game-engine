@@ -184,6 +184,40 @@ fn neltharus_gorek_upper_route_stays_on_authored_floor() {
 }
 
 #[test]
+fn neltharus_guarded_route_crosses_recorded_second_drop() {
+    let terrain = load("2519", (33, 32), |terrain| {
+        terrain.parsed_tiles.contains_key(&(33, 32))
+    });
+    let wmos = &terrain.parsed_tiles[&(33, 32)].wmo_floors;
+    assert!(!wmos.is_empty(), "Neltharus WMO collision is missing");
+    let start = Vec3::new(-268.8306, 58.54118, 603.0437);
+    let target = Vec3::new(-268.5627, 58.54118, 602.3644);
+    let triangles = world_triangles(wmos.iter().map(|(_, wmo)| wmo), start, 20.0);
+    let walls = |origin, direction, length| ray_hit(&triangles, origin, direction, length);
+    let ground = TerrainGround {
+        terrain: &terrain,
+        walls: &walls,
+        step_wall_blocked: &|from, to, top| triangles_block_step(&triangles, from, to, top),
+        game_object_floor: &|_| None,
+    };
+    let mut movement = crate::gameplay::PlayerMovement::default();
+    let mut feet = start;
+    for _ in 0..7 {
+        let frame = crate::gameplay::MovementFrame {
+            direction: (target - start).normalize().to_array(),
+            speed: 7.0,
+            vertical: 0.0,
+        };
+        feet = movement.predict(feet, frame, false, &ground, &mut |_, to, _| to, 1.0 / 60.0);
+        assert!(feet.y > 57.0, "fell from guarded route at {feet}");
+    }
+    assert!(
+        (target - feet).with_y(0.0).length() < 0.2,
+        "blocked at {feet}"
+    );
+}
+
+#[test]
 fn neltharus_steep_face_supports_player_and_blocks_uphill_motion() {
     let terrain = load("2519", (32, 32), |terrain| {
         terrain.parsed_tiles.contains_key(&(32, 32))
