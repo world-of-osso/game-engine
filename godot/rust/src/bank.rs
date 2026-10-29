@@ -433,13 +433,21 @@ impl GameClient {
     /// Resolve the selected character tab before pickup so the drag keeps its origin
     /// even when another tab becomes selected (BankFrame.lua OnDragStart/OnReceiveDrag).
     pub(super) fn bank_cursor_target(&self, owner: i64, action: &str) -> Option<CursorTarget> {
-        if !Self::is_ui(&self.banks.bank_ui, owner) {
-            return None;
+        if Self::is_ui(&self.banks.guild_ui, owner) {
+            return self
+                .banks
+                .guild
+                .slot_target(action)
+                .map(|(tab, slot)| CursorTarget::GuildBank { tab, slot });
         }
-        self.banks
-            .bank
-            .slot_location(action)
-            .map(CursorTarget::Location)
+        if Self::is_ui(&self.banks.bank_ui, owner) {
+            return self
+                .banks
+                .bank
+                .slot_location(action)
+                .map(CursorTarget::Location);
+        }
+        None
     }
 
     /// A press on a bank canvas from the shared cursor queue; `false` for other canvases.
@@ -466,13 +474,6 @@ impl GameClient {
         owner: i64,
         action: &str,
     ) -> Result<bool, FrameError> {
-        if let Some(target) = self.bank_cursor_target(owner, action) {
-            self.send_cursor_click(target)?;
-            return Ok(true);
-        }
-        if Self::is_ui(&self.banks.bank_ui, owner) {
-            return self.drop_cursor_on_bank(action, Click::LEFT);
-        }
         if Self::is_ui(&self.banks.guild_ui, owner) {
             if matches!(self.bags.cursor.item, CursorItem::GuildBank { .. })
                 && let Some((tab, slot)) = self.banks.guild.slot_target(action)
@@ -485,6 +486,13 @@ impl GameClient {
                 return Ok(true);
             }
             return self.drop_cursor_on_guild_bank(action, Click::LEFT);
+        }
+        if let Some(target) = self.bank_cursor_target(owner, action) {
+            self.send_cursor_click(target)?;
+            return Ok(true);
+        }
+        if Self::is_ui(&self.banks.bank_ui, owner) {
+            return self.drop_cursor_on_bank(action, Click::LEFT);
         }
         Ok(false)
     }

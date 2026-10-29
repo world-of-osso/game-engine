@@ -55,6 +55,10 @@ pub enum CursorItem {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum CursorTarget {
     Location(ItemLocation),
+    GuildBank {
+        tab: u8,
+        slot: u8,
+    },
     /// A vendor item cell (`MerchantItemButton_OnClick`, cell index on the page).
     MerchantItem(usize),
     /// The MerchantFrame outside its cells (`OnMouseUp` → `PickupMerchantItem(0)`).
@@ -303,7 +307,8 @@ fn pick_up(
         CursorTarget::MerchantItem(index) if merchant.tab == MerchantTab::Merchant => {
             CursorItem::from_merchant(merchant, index, 1)
         }
-        CursorTarget::MerchantItem(_)
+        CursorTarget::GuildBank { .. }
+        | CursorTarget::MerchantItem(_)
         | CursorTarget::MerchantFrame
         | CursorTarget::TradeSlot(_)
         | CursorTarget::World => CursorItem::Empty,
@@ -337,7 +342,7 @@ fn drop_inventory_item(
         CursorTarget::MerchantItem(_) | CursorTarget::MerchantFrame => {
             return sell(held, inventory, merchant);
         }
-        CursorTarget::TradeSlot(_) => return None,
+        CursorTarget::TradeSlot(_) | CursorTarget::GuildBank { .. } => return None,
         CursorTarget::World => {
             let item = inventory.item_at(held.from)?;
             return Some(CursorEffect::ConfirmDestroy(DestroyConfirm {
