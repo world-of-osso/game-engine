@@ -73,6 +73,7 @@ mod minimap;
 mod mirror_timers;
 mod mount_journal;
 mod mount_journal_snapshot;
+mod movement_trace;
 mod mythic_mentor;
 mod nameplate_auras;
 mod nameplate_cast_bar;
@@ -307,6 +308,7 @@ pub struct GameClient {
     /// Ctrl+R (`TOGGLEFPS`) flips the saved FPS overlay preference for this session.
     framerate_toggled: bool,
     player_movement: gameplay::PlayerMovement,
+    movement_trace: movement_trace::MovementTrace,
     local_transport: Option<transport_motion::LocalTransport>,
     /// IPC `ScriptedMovementForward`: forward steps for a bounded time.
     scripted_movement: game_engine_network::movement_control::ScriptedMovement,
@@ -466,6 +468,7 @@ impl INode3D for GameClient {
             client_options,
             framerate_toggled: false,
             player_movement: gameplay::PlayerMovement::default(),
+            movement_trace: Default::default(),
             local_transport: None,
             scripted_movement: Default::default(),
             map_waypoint: None,

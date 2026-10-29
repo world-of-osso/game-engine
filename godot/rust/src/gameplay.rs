@@ -844,6 +844,12 @@ impl crate::GameClient {
             },
             game_object_floor: &|feet| crate::game_objects::floor_hit(&space, feet),
         };
+        let before = glam::Vec3::new(current.x, current.y, current.z);
+        let support_before = self
+            .movement_trace
+            .enabled()
+            .then(|| ground.trace_support(before))
+            .flatten();
         let mut contacts = |from, to, step_delta| flight_tree_contact(&space, from, to, step_delta);
         let next = self.player_movement.predict(
             glam::Vec3::new(current.x, current.y, current.z),
@@ -853,6 +859,24 @@ impl crate::GameClient {
             &mut contacts,
             delta,
         );
+        if self.movement_trace.enabled() {
+            let timestamp_ms = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map_err(|error| format!("movement trace clock: {error}"))?
+                .as_millis();
+            self.movement_trace.push(crate::movement_trace::Frame {
+                sequence: 0,
+                timestamp_ms,
+                before: before.to_array(),
+                after: next.to_array(),
+                support_before,
+                support_after: ground.trace_support(next),
+                vertical_velocity: self.player_movement.vertical_velocity,
+                grounded: self.player_movement.grounded,
+                falling: !self.player_movement.grounded
+                    && self.player_movement.vertical_velocity < 0.0,
+            });
+        }
         player.set_position(Vector3::new(next.x, next.y, next.z));
         player.set_rotation(Vector3::new(0.0, yaw - std::f32::consts::FRAC_PI_2, 0.0));
         if self.player_movement.take_takeoff_request() {

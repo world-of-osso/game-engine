@@ -115,6 +115,66 @@ impl TerrainGround<'_> {
             .max_by(|a, b| a.height.total_cmp(&b.height))
     }
 
+    /// Describe the selected ground and its WMO group for an enabled diagnostic trace.
+    pub fn trace_support(&self, feet: Vec3) -> Option<crate::movement_trace::Support> {
+        let ground = self.sample(feet)?;
+        let mut support = crate::movement_trace::Support {
+            height: ground.height,
+            source: match ground.surface {
+                Surface::Terrain => "terrain",
+                Surface::Wmo => "wmo",
+                Surface::M2
+                    if (self.game_object_floor)(feet)
+                        .is_some_and(|height| (height - ground.height).abs() < 0.001) =>
+                {
+                    "game_object"
+                }
+                Surface::M2 => "m2",
+            },
+            wmo_placement: None,
+            wmo_group: None,
+        };
+        if ground.surface != Surface::Wmo {
+            return Some(support);
+        }
+        let global = self
+            .terrain
+            .map_wdt
+            .as_ref()
+            .and_then(|map| map.global_wmo.as_ref());
+        let wmos = global
+            .map(|wmo| (wmo.placement.unique_id, &wmo.collision))
+            .into_iter()
+            .chain(self.terrain.parsed_tiles.values().flat_map(|tile| {
+                tile.wmo_floors
+                    .iter()
+                    .map(|(id, collision)| (*id, collision))
+            }));
+        for (id, wmo) in wmos {
+            for (index, group) in wmo.groups().iter().enumerate() {
+                let single =
+                    shared::ground::WmoCollision::new(wmo.world_from_local(), vec![group.clone()]);
+                let mut heights = Vec::new();
+                single.collision_heights(
+                    feet.x,
+                    feet.z,
+                    feet.y + STEP_UP_HEIGHT,
+                    feet.y - FLOOR_SEARCH_DEPTH,
+                    &mut heights,
+                );
+                if heights
+                    .iter()
+                    .any(|height| (height - ground.height).abs() < 0.001)
+                {
+                    support.wmo_placement = Some(id);
+                    support.wmo_group = Some(index);
+                    return Some(support);
+                }
+            }
+        }
+        Some(support)
+    }
+
     /// Admit the destination floor before casting the wall ray at the walking height.
     /// A move to where no ground is within reach but ground lies above (a hillside, or a WMO
     /// floor over a terrain hole) stops, as an underwater cliff stops a swimmer: walking on

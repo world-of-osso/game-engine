@@ -755,6 +755,10 @@ pub(crate) enum MovementCmd {
         yaw_degrees: Option<f32>,
     },
     Stop,
+    /// Start a bounded per-frame movement diagnostic trace.
+    TraceStart,
+    /// Read the retained movement diagnostic trace as JSON.
+    Trace,
 }
 
 #[derive(Subcommand)]

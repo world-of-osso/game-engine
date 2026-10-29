@@ -49,6 +49,11 @@ impl crate::GameClient {
             Request::SoundStatus => Ok(self.sound_status()),
             Request::TerrainStatus => Ok(self.terrain_status()),
             Request::MapPosition => self.map_position(),
+            Request::MovementTraceStart => {
+                self.movement_trace.start();
+                Ok("movement trace started".into())
+            }
+            Request::MovementTrace => self.movement_trace.json(),
             Request::SetCameraDirection {
                 yaw_degrees,
                 pitch_degrees,

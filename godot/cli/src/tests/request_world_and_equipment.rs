@@ -104,6 +104,18 @@ fn movement_stop_command_maps_to_request() {
 }
 
 #[test]
+fn movement_trace_commands_map_to_requests() {
+    assert_eq!(
+        movement_request(MovementCmd::TraceStart).unwrap(),
+        Request::MovementTraceStart
+    );
+    assert_eq!(
+        movement_request(MovementCmd::Trace).unwrap(),
+        Request::MovementTrace
+    );
+}
+
+#[test]
 fn map_waypoint_add_command_maps_to_request() {
     let request = map_request(MapCmd::Waypoint {
         command: WaypointCmd::Add { x: 42.1, y: 65.7 },

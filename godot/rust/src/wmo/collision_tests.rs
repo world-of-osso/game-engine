@@ -229,6 +229,11 @@ fn neltharus_steep_face_supports_player_and_blocks_uphill_motion() {
         game_object_floor: &|_| None,
     };
     let start = Vec3::new(-233.50781, 133.42572, 532.7626);
+    let support = ground.trace_support(start).expect("solid WMO support");
+    assert_eq!(support.source, "wmo");
+    assert_eq!(support.wmo_placement, Some(33788514));
+    assert_eq!(support.wmo_group, Some(8));
+    assert!((support.height - start.y).abs() < 0.02);
     let mut movement = crate::gameplay::PlayerMovement::default();
     let mut feet = start;
     for _ in 0..30 {

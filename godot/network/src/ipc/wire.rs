@@ -35,6 +35,8 @@ pub enum Request {
     Ping,
     Screenshot,
     Performance,
+    MovementTraceStart,
+    MovementTrace,
     DumpTree {
         filter: Option<String>,
     },

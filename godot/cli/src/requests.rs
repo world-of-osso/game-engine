@@ -388,6 +388,8 @@ pub fn movement_request(command: MovementCmd) -> Result<Request, String> {
             heading_degrees: yaw_degrees,
         },
         MovementCmd::Stop => Request::ScriptedMovementStop,
+        MovementCmd::TraceStart => Request::MovementTraceStart,
+        MovementCmd::Trace => Request::MovementTrace,
     };
     Ok(request)
 }
