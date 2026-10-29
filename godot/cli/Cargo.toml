@@ -12,7 +12,7 @@ glob = "0.3"
 peercred-ipc = { git = "https://github.com/Osso/peercred-ipc.git", tag = "v0.2.0" }
 serde = "1"
 serde_json = "1"
-shared = { git = "https://github.com/world-of-osso/shared-protocol.git", rev = "470a7e8b7aed67d808defc473c6e46475dafc53f" }
+shared = { git = "https://github.com/world-of-osso/shared-protocol.git", rev = "e05cebba044cbbd90922bbc9876a434d6616d0d9" }
 
 [dev-dependencies]
 tokio = { version = "1", features = ["rt", "net", "macros"] }

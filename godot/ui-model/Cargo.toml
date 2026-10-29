@@ -23,7 +23,7 @@ chrono = { version = "0.4", default-features = false, features = ["clock"] }
 game-engine-core = { path = "../core" }
 # Shared unit-resource snapshots derive serialization for native unit-frame state.
 serde = { version = "1", features = ["derive"] }
-shared = { git = "https://github.com/world-of-osso/shared-protocol.git", rev = "470a7e8b7aed67d808defc473c6e46475dafc53f" }
+shared = { git = "https://github.com/world-of-osso/shared-protocol.git", rev = "e05cebba044cbbd90922bbc9876a434d6616d0d9" }
 ui-toolkit = { package = "ui-toolkit-core", path = "../../../ui-toolkit/core" }
 
 [dev-dependencies]
