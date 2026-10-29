@@ -30,6 +30,12 @@ func run_tab_editor() -> bool:
 		return false
 	if not await wait_until(func(): return shown("GuildBankTab1Button"), "purchased tab"):
 		return false
+	var expected_name := OS.get_environment("GUILD_TEST_TAB_NAME")
+	var expected_icon := int(OS.get_environment("GUILD_TEST_ICON_FDID"))
+	if not completion.require(expected_name.length() == 16 and expected_icon > 0, "Explicit 16-character name and icon required"):
+		return false
+	if not completion.require(text("GuildBankFrameTabTitle") != expected_name and int(client.bank_state().guild_tab0_icon) != expected_icon, "Test must change actual tab metadata"):
+		return false
 	if role == "a":
 		await click_at(control("GuildBankTab1Button").get_global_rect().get_center(), MOUSE_BUTTON_RIGHT)
 		if not await wait_until(func(): return shown("GuildBankPopupName"), "tab editor"):
@@ -39,10 +45,10 @@ func run_tab_editor() -> bool:
 			return false
 		editor.select_all()
 		await tap(KEY_BACKSPACE)
-		await type_text("SixteenLetters!!")
-		if not completion.require(editor.text == "SixteenLetters!!", "The full 16-character name must be entered"):
+		await type_text(expected_name)
+		if not completion.require(editor.text == expected_name, "The full 16-character name must be entered"):
 			return false
-		if not await press_checked("GuildBankIcon1"):
+		if not await press_checked("GuildBankIcon" + OS.get_environment("GUILD_TEST_ICON_INDEX")):
 			return false
 		if not await capture_checked("tab-editor"):
 			return false
@@ -50,7 +56,7 @@ func run_tab_editor() -> bool:
 			return false
 	if not await barrier("tab-edit-submitted"):
 		return false
-	if not await wait_until(func(): return text("GuildBankFrameTabTitle") == "SixteenLetters!!", "authoritative tab name broadcast"):
+	if not await wait_until(func(): return text("GuildBankFrameTabTitle") == expected_name and int(client.bank_state().guild_tab0_icon) == expected_icon, "authoritative tab name and icon broadcast"):
 		return false
 	if not await capture_checked("tab-edited"):
 		return false

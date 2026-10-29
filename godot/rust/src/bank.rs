@@ -682,6 +682,15 @@ impl GameClient {
         let guild = &self.banks.guild.state;
         state.set("guild_open", guild.is_open());
         state.set(
+            "guild_tab0_icon",
+            guild
+                .contents
+                .as_ref()
+                .and_then(|contents| contents.tabs.first())
+                .map(|tab| i64::from(tab.icon))
+                .unwrap_or(0),
+        );
+        state.set(
             "guild_object",
             &guild
                 .object
