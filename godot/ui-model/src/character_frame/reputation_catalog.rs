@@ -21,6 +21,18 @@ struct Factions {
 
 static FACTIONS: OnceLock<Result<Factions, String>> = OnceLock::new();
 
+/// `Faction.Description_lang` of one faction.
+pub fn faction_description(faction_id: u32) -> Result<Option<&'static str>, String> {
+    let data = FACTIONS
+        .get_or_init(|| read_factions(&crate::paths::resolve_data_path("db2/active")))
+        .as_ref()
+        .map_err(Clone::clone)?;
+    Ok(data
+        .factions
+        .get(&faction_id)
+        .map(|faction| faction.description.as_str()))
+}
+
 /// Join descriptions and the player's race/class reputation rule, reporting corrupt or
 /// missing tables rather than silently making eligible factions disappear.
 pub fn enrich_reputation_rows(

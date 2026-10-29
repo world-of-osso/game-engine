@@ -73,6 +73,7 @@ pub fn shell(session: &GuildRanksSession, shared: &SharedContext) -> Element {
         }
         CommunitiesTab::Benefits => {
             children.extend(crate::guild_perks::frame(session, shared));
+            children.extend(crate::guild_rewards::frame(session, shared));
         }
     }
     children

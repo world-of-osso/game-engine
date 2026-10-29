@@ -13,5 +13,5 @@ path = "tests/integration.rs"
 # Shared chrome, unit rows, tooltip/map/faction data retain their base owners.
 game-engine-ui-model = { path = "../ui-model" }
 # Queue/match/arena authority remains the original shared wire snapshots.
-shared = { git = "https://github.com/world-of-osso/shared-protocol.git", rev = "e05cebba044cbbd90922bbc9876a434d6616d0d9" }
+shared = { git = "https://github.com/world-of-osso/shared-protocol.git", rev = "7773df472ceaf0595ea4ba5962fa7d2363b55e45" }
 ui-toolkit = { package = "ui-toolkit-core", path = "../../../ui-toolkit/core" }

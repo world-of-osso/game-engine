@@ -15,7 +15,7 @@ chrono = { version = "0.4", default-features = false, features = ["clock"] }
 # Authority, pending query state, comparison cache and static ancestry stay base-owned.
 game-engine-ui-model = { path = "../ui-model" }
 # Existing achievement snapshots and rows retain their original wire identities.
-shared = { git = "https://github.com/world-of-osso/shared-protocol.git", rev = "e05cebba044cbbd90922bbc9876a434d6616d0d9" }
+shared = { git = "https://github.com/world-of-osso/shared-protocol.git", rev = "7773df472ceaf0595ea4ba5962fa7d2363b55e45" }
 ui-toolkit = { package = "ui-toolkit-core", path = "../../../ui-toolkit/core" }
 
 [dev-dependencies]

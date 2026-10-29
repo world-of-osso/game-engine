@@ -192,6 +192,8 @@ impl GameClient {
             "guild_perk" => self.guild_perk_tooltip(hit),
             "pvp_honor" => self.pvp_honor_tooltip(hit),
             "guild_news" => self.guild_news_tooltip(hit),
+            "guild_reward" => self.guild_reward_tooltip(hit),
+            "guild_reputation" => self.guild_reputation_tooltip(),
             "trading_post_button" => self.trading_post_button_tooltip(hit),
             "trading_post_refund" => self.trading_post_refund_tooltip(hit),
             "trading_post" => self.trading_post_tooltip(hit),

@@ -278,6 +278,60 @@ impl GameClient {
         Ok(())
     }
 
+    pub(super) fn receive_guild_rewards(&mut self, rewards: shared::protocol::GuildRewardsState) {
+        self.guild_ranks.session.rewards.apply(rewards);
+    }
+
+    /// `C_Reputation.GetGuildFactionData` and `GetMoney` for the rewards list.
+    fn feed_guild_rewards(&mut self) {
+        let rewards = &mut self.guild_ranks.session.rewards;
+        rewards.reputation = self.reputation.as_ref().and_then(|snapshot| {
+            snapshot
+                .entries
+                .iter()
+                .find(|entry| {
+                    entry.faction_id == game_engine_ui_model::guild_rewards::GUILD_FACTION
+                })
+                .map(|entry| entry.value)
+        });
+        rewards.money = self
+            .world
+            .local_player_id()
+            .and_then(|id| self.replica.unit(id)?.gold())
+            .unwrap_or(0);
+    }
+
+    pub(crate) fn guild_reward_tooltip(
+        &mut self,
+        hit: &crate::tooltips::HoveredFrame,
+    ) -> Option<crate::tooltips::HoveredTooltip> {
+        use game_engine_ui_model::guild_rewards::{ROW_PREFIX, reward_tooltip};
+        let ui = hit.ui.bind();
+        let item_id = ui
+            .registry()?
+            .get(hit.frame)?
+            .name
+            .as_deref()?
+            .strip_prefix(ROW_PREFIX)?
+            .parse::<u32>()
+            .ok()?;
+        drop(ui);
+        let rewards = &self.guild_ranks.session.rewards;
+        let tooltip = reward_tooltip(rewards.reward(item_id)?, rewards.standing())?;
+        Some(crate::tooltips::HoveredTooltip::text(tooltip))
+    }
+
+    pub(crate) fn guild_reputation_tooltip(&mut self) -> Option<crate::tooltips::HoveredTooltip> {
+        use game_engine_ui_model::guild_rewards::{GUILD_FACTION, reputation_tooltip};
+        let description =
+            game_engine_ui_model::character_frame::faction_description(GUILD_FACTION).ok()??;
+        let value = self.guild_ranks.session.rewards.reputation.unwrap_or(0);
+        Some(crate::tooltips::HoveredTooltip::text(reputation_tooltip(
+            value,
+            description,
+        )))
+    }
+
     pub(crate) fn guild_news_tooltip(
         &mut self,
         hit: &crate::tooltips::HoveredFrame,
@@ -548,6 +602,7 @@ impl GameClient {
         {
             game_engine_ui_model::guild_perks::load_catalog()?;
         }
+        self.feed_guild_rewards();
         let scale = self.effective_ui_scale();
         let state = self.guild_ranks.session.clone();
         if self.guild_ranks.ui.is_none() {

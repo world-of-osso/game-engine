@@ -2478,6 +2478,7 @@ impl GameClient {
             AccountEvent::GuildRanks(state) => self.receive_guild_ranks(state)?,
             AccountEvent::GuildEventLog(log) => self.receive_guild_event_log(log)?,
             AccountEvent::GuildNews(news) => self.receive_guild_news(news)?,
+            AccountEvent::GuildRewards(rewards) => self.receive_guild_rewards(rewards),
             AccountEvent::GuildInvitation(invite) => self.receive_guild_invitation(invite),
             AccountEvent::GuildInviteResult(result) => self.receive_guild_invite_result(result)?,
             AccountEvent::GuildAccepted(result) => self.receive_guild_accepted(result)?,

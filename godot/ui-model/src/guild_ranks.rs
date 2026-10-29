@@ -40,6 +40,7 @@ pub enum GuildCommand {
     Query,
     QueryEventLog,
     News(GuildNewsRequest),
+    Rewards(GuildRewardsRequest),
     ChatHistory,
     Chat { officer: bool, text: String },
 }
@@ -89,6 +90,7 @@ pub struct GuildRanksSession {
     pub log_waiting: bool,
     pub event_log: Option<GuildEventLog>,
     pub news: crate::guild_news_state::GuildNewsSession,
+    pub rewards: crate::guild_rewards::GuildRewardsSession,
     state: Option<GuildRanksState>,
     selected_rank: usize,
 }
@@ -197,6 +199,7 @@ impl GuildRanksSession {
             self.log_waiting = false;
             self.event_log = None;
             self.news = Default::default();
+            self.rewards.state = None;
             self.chat = Default::default();
         }
         if state.error.is_some() {
@@ -379,7 +382,13 @@ impl GuildRanksSession {
                     self.commands.push(command);
                 }
             }
-            "guild:benefits_open" => self.communities_tab = CommunitiesTab::Benefits,
+            "guild:benefits_open" => {
+                self.communities_tab = CommunitiesTab::Benefits;
+                // CommunitiesGuildRewardsFrameMixin:OnShow calls RequestGuildRewards.
+                if let Some(request) = self.rewards.query() {
+                    self.commands.push(GuildCommand::Rewards(request));
+                }
+            }
             "guild:roster-sort:name" => self.sort_roster(GuildRosterSort::Name),
             "guild:roster-sort:rank" => self.sort_roster(GuildRosterSort::Rank),
             "guild:roster-sort:level" => self.sort_roster(GuildRosterSort::Level),

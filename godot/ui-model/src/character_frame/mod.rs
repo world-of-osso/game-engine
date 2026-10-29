@@ -16,7 +16,7 @@ pub use currency::{
     ACTION_CURRENCY_COLLAPSE, CurrencyRow, TOKEN_SCROLL, currency_rows, currency_tooltip,
     token_pan_extent,
 };
-pub use reputation_catalog::enrich_reputation_rows;
+pub use reputation_catalog::{enrich_reputation_rows, faction_description};
 pub use reputation_detail::{
     ACTION_REPUTATION_DETAIL_CLOSE, REPUTATION_DESCRIPTION_SCROLL,
     reputation_description_pan_extent, reputation_selection,

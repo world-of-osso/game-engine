@@ -2154,16 +2154,15 @@ fn guild_communities_retail_scroll_reaches_last_member_both_skins() {
         ] {
             assert_eq!(action(&reg, name), tab_action);
             session.click(tab_action, &Default::default());
+            // Chat queries its history; GuildRewards.lua OnShow calls RequestGuildRewards.
             let expected = if tab_action == "guild:chat_open" {
-                vec![game_engine_ui_model::guild_ranks::GuildCommand::ChatHistory]
+                game_engine_ui_model::guild_ranks::GuildCommand::ChatHistory
             } else {
-                vec![]
+                game_engine_ui_model::guild_ranks::GuildCommand::Rewards(
+                    shared::protocol::GuildRewardsRequest,
+                )
             };
-            assert_eq!(
-                std::mem::take(&mut session.commands),
-                expected,
-                "Only Chat queries its real history service"
-            );
+            assert_eq!(std::mem::take(&mut session.commands), vec![expected]);
         }
         for (index, title) in ["Lvl", "Class", "Name", "Zone", "Rank", "Note"]
             .iter()
@@ -2835,6 +2834,147 @@ fn guild_perks_benefits_lists_the_five_installed_perk_spells_both_skins() {
             mounted(&session)
                 .get_by_name("CommunitiesGuildPerksTitle")
                 .is_none()
+        );
+    }
+}
+
+#[test]
+fn guild_rewards_list_shows_standing_and_achievement_locks_with_reputation_bar_both_skins() {
+    use shared::protocol::{
+        GuildRewardAchievement, GuildRewardItem, GuildRewardsRequest, GuildRewardsState,
+    };
+    use shared::reputation::Standing;
+    use ui_toolkit::frame::WidgetData;
+    game_engine_ui_model::item_catalog::wait_for_item_catalog();
+    let _lock = SKIN.lock().unwrap_or_else(|p| p.into_inner());
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut session = GuildRanksSession::default();
+        session.open();
+        session.apply(state(0));
+        session.profile = Some(GuildSnapshot {
+            guild_id: 7,
+            guild_name: "Guild Testers".into(),
+            tabard: None,
+            created_at: None,
+            motd: String::new(),
+            info_text: String::new(),
+            members: vec![],
+        });
+        session.commands.clear();
+        session.click("guild:benefits_open", &Default::default());
+        assert_eq!(
+            session.commands,
+            vec![game_engine_ui_model::guild_ranks::GuildCommand::Rewards(
+                GuildRewardsRequest
+            )],
+            "RequestGuildRewards on show"
+        );
+        // TDB1210 rows: Gargoyle Cape Friendly, Golden King Exalted, Shroud Honored + A Class Act.
+        session.rewards.apply(GuildRewardsState {
+            rewards: vec![
+                GuildRewardItem {
+                    item_id: 62038,
+                    min_standing: Standing::Friendly,
+                    cost: 12_000_000,
+                    achievements: vec![],
+                },
+                GuildRewardItem {
+                    item_id: 62298,
+                    min_standing: Standing::Exalted,
+                    cost: 15_000_000,
+                    achievements: vec![],
+                },
+                GuildRewardItem {
+                    item_id: 63352,
+                    min_standing: Standing::Honored,
+                    cost: 1_500_000,
+                    achievements: vec![GuildRewardAchievement {
+                        id: 4989,
+                        name: "A Class Act".into(),
+                    }],
+                },
+            ],
+            error: None,
+        });
+        // Friendly 1500/6000 (signed scale: Friendly starts at 3000).
+        session.rewards.reputation = Some(4500);
+        session.rewards.money = 13_000_000;
+        let registry = mounted(&session);
+        let texture = |name: &str| match registry
+            .get_by_name(name)
+            .and_then(|id| registry.get(id))
+            .and_then(|frame| frame.widget_data.clone())
+        {
+            Some(WidgetData::Texture(texture)) => texture,
+            other => panic!("{name}: {other:?}"),
+        };
+        assert_eq!(
+            text(&registry, "CommunitiesGuildRewardsTitle"),
+            "Guild Rewards"
+        );
+        assert_eq!(
+            text(&registry, "CommunitiesGuildReward62038Name"),
+            "Worn Stoneskin Gargoyle Cape"
+        );
+        assert!(
+            registry
+                .get_by_name("CommunitiesGuildReward62038SubText")
+                .is_none()
+        );
+        assert_eq!(
+            texture("CommunitiesGuildReward62038Icon").vertex_color,
+            [1.0; 4]
+        );
+        assert_eq!(
+            text(&registry, "CommunitiesGuildReward62298SubTextStanding"),
+            "Exalted"
+        );
+        assert_eq!(
+            texture("CommunitiesGuildReward62298Icon").vertex_color,
+            [1.0, 0.0, 0.0, 1.0]
+        );
+        assert_eq!(
+            text(&registry, "CommunitiesGuildReward63352SubTextAchievement"),
+            "A Class Act"
+        );
+        assert!(texture("CommunitiesGuildReward63352Icon").desaturated);
+        assert!(
+            registry
+                .get_by_name("CommunitiesGuildReward63352Lock")
+                .is_some()
+        );
+        assert_eq!(
+            text(&registry, "CommunitiesGuildFactionLabel"),
+            "Guild Reputation:"
+        );
+        assert_eq!(
+            text(&registry, "CommunitiesGuildFactionBarLabel"),
+            "Friendly"
+        );
+        let progress = registry
+            .get(
+                registry
+                    .get_by_name("CommunitiesGuildFactionBarProgress")
+                    .unwrap(),
+            )
+            .unwrap()
+            .width;
+        assert_eq!(
+            progress,
+            ui_toolkit::frame::Dimension::Fixed(180.0 * 0.25 + 1.0)
+        );
+        let tooltip = game_engine_ui_model::guild_rewards::reward_tooltip(
+            session.rewards.reward(62298).unwrap(),
+            session.rewards.standing(),
+        )
+        .unwrap();
+        assert!(
+            tooltip
+                .content
+                .lines
+                .iter()
+                .any(|line| line.left_text == "Requires Exalted with guild")
         );
     }
 }

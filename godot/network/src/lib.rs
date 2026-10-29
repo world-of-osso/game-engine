@@ -363,6 +363,7 @@ impl NetworkBridge {
             .receive::<protocol::GuildRanksState>()
             .receive::<protocol::GuildEventLog>()
             .receive::<protocol::GuildNewsState>()
+            .receive::<protocol::GuildRewardsState>()
             .receive::<protocol::GuildInvitation>()
             .receive::<protocol::GuildInviteResponse>()
             .receive::<protocol::GuildAcceptInviteResponse>()

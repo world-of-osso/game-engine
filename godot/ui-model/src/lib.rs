@@ -245,6 +245,7 @@ pub mod guild_perks;
 mod guild_presence;
 pub mod guild_rank_frame;
 pub mod guild_ranks;
+pub mod guild_rewards;
 mod guild_zone_sort;
 #[path = "ipc/format_shared.rs"]
 pub mod ipc_format;
