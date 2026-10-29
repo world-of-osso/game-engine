@@ -242,7 +242,34 @@ impl TerrainGround<'_> {
         }
         let rise = solid.height - current.y;
         let distance = (target - current).with_y(0.0).length();
-        rise > 0.0 && !is_walkable_slope(rise, distance, MAX_SLOPE_ANGLE)
+        rise > 0.0
+            && !is_walkable_slope(rise, distance, MAX_SLOPE_ANGLE)
+            && !self.has_step_landing(current, target)
+    }
+
+    fn has_step_landing(&self, current: Vec3, target: Vec3) -> bool {
+        let direction = (target - current).with_y(0.0).normalize_or_zero();
+        let reach = direction * (2.0 * shared::los::body::BODY_RADIUS);
+        let probe = current + reach;
+        let walkable = self
+            .static_ground(probe, true)
+            .into_iter()
+            .chain(self.m2_ground(probe, true))
+            .max_by(|a, b| a.height.total_cmp(&b.height));
+        let Some(landing) = walkable else {
+            return false;
+        };
+        if landing.height <= current.y
+            || self
+                .sample(probe)
+                .is_none_or(|solid| solid.height > landing.height)
+        {
+            return false;
+        }
+        let raised = current.with_y(landing.height);
+        let destination = probe.with_y(landing.height);
+        let clear = clamp_movement_to_walls(raised, destination, self.walls) == destination;
+        clear && !(self.step_wall_blocked)(raised, destination, current.y + STEP_UP_HEIGHT)
     }
 
     /// Only a wall-blocked move attempts a step: unobstructed ramps keep their
