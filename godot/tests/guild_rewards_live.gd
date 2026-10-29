@@ -232,7 +232,6 @@ func buy_helm(sold: bool) -> bool:
 		return await wait_until(func(): return bag_count(helm.id) == 1 and money() == before.money - HELM_COST, "helm bought for its guild reward cost")
 	if not await wait_until(func(): return error_shown(REFUSED), "helm refused below Friendly"):
 		return false
-	await wait_frames(30)
 	return completion.require(bag_count(helm.id) == 0 and money() == before.money, "refusal kept the helm and the gold")
 
 func error_shown(value: String) -> bool:
