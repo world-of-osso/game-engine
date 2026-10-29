@@ -84,5 +84,11 @@ Inspected full-HD originals and actor/build receipts: `/syncthing/AgentShared/20
 - [x] Native tab Info uses TextEdit, preserves newlines and enforces Retail's 500-character limit (GB.xml:758). `godot/tests/guild_bank_info_live.gd` types two lines, saves, switches modes and checks server-rehydrated text.
 - [x] Logs retain Retail's latest 128 lines, newest first, with wheel/stepper/thumb scrolling. Scroll position survives authoritative view refreshes on the combined vault/backpack canvas. A wheel notch or stepper press advances one transaction line, not one pixel. The current server retains 25 transactions per log; the client scrolls every supplied record.
 
+## Tab name and icon editor
+
+- Right-click a purchased tab as Guild Master to edit its name and icon; Cancel and Escape send no update. Okay sends the existing `GuildBankSetTabInfo` request and waits for server contents rather than changing the displayed tab optimistically. Mainline `Blizzard_GuildBankUI.lua:621–645,820–901` supplies the interaction and quote removal/empty-name rule; `SharedUIPanelTemplates.xml:1764–1767` supplies the 16-letter edit box.
+- The icon list uses installed `ManifestInterfaceActionIcon.csv` and `ManifestInterfaceItemIcon.csv`. Their exact equivalence and order relative to Retail's native `GetLooseMacroIcons`, `GetLooseMacroItemIcons`, `GetMacroIcons` and `GetMacroItemIcons` are not yet established. The server currently rejects 16-character tab names; full parity is not claimed until that boundary and actual native behavior are tested.
+- Automated tests: `godot/ui-model/tests/native_guild_bank.rs::guild_tab_edit_*` and `guild_tab_editor_*`. Both-skin live proof is pending.
+
 ## Out of scope
-- Tab name/icon editing UI (the icon picker is deferred), item moves inside the bank and search. Guild Control UI is tracked separately in [guild ranks](guild-ranks.md). Guild repairs are made at a merchant ([merchant-frame](merchant-frame.md)); player-managed repair rights use the same daily allowance as gold withdrawals. Native rank settings integration remains pending.
+- Item moves inside the bank and search are not yet implemented. Guild Control UI is tracked separately in [guild ranks](guild-ranks.md). Guild repairs are made at a merchant ([merchant-frame](merchant-frame.md)); player-managed repair rights use the same daily allowance as gold withdrawals. Native rank settings integration remains pending.

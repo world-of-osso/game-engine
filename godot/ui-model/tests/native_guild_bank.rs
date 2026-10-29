@@ -499,3 +499,94 @@ fn ui_template_blend_guild_bank_selected_tab_checked_art_is_authored_additive_fr
     );
     assert_eq!(blend("GuildBankTab1Background"), BlendMode::Blend);
 }
+
+#[test]
+fn guild_tab_edit_requires_leader_and_sends_selected_metadata_without_optimism() {
+    let mut session = opened();
+    session.tab_icons = vec![134400, 132374];
+    let before = session.state.contents.clone();
+    assert!(
+        session
+            .click("guild_bank_tab:0", Click::RIGHT, &Default::default())
+            .is_empty()
+    );
+    assert!(session.tab_edit.is_some());
+    assert!(
+        session
+            .click("guild_bank_icon:132374", Click::LEFT, &Default::default())
+            .is_empty()
+    );
+    let texts = [("GuildBankPopupName".to_string(), "Ra\"id".to_string())].into();
+    assert_eq!(
+        session.click("guild_bank_edit_accept", Click::LEFT, &texts),
+        vec![request(GuildBankRequest::SetTabInfo {
+            tab: 0,
+            name: "Raid".into(),
+            icon: 132374
+        })]
+    );
+    assert_eq!(session.state.contents, before);
+    assert!(session.tab_edit.is_none());
+    let mut member = contents(42);
+    member.is_leader = false;
+    session.apply_contents(member);
+    session.click("guild_bank_tab:0", Click::RIGHT, &Default::default());
+    assert!(session.tab_edit.is_none());
+}
+
+#[test]
+fn guild_tab_editor_renders_name_icons_and_actions_in_both_skins() {
+    use game_engine_ui_model::guild_bank_frame_component::guild_bank_frame_screen;
+    use ui_toolkit::atlas::{ActiveSkin, set_thread_skin};
+    use ui_toolkit::registry::FrameRegistry;
+    use ui_toolkit::screen::{Screen, SharedContext};
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut session = opened();
+        session.tab_icons = vec![134400, 132374];
+        session.click("guild_bank_tab:0", Click::RIGHT, &Default::default());
+        let mut shared = SharedContext::new();
+        shared.insert(session.frame_state());
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        Screen::new(guild_bank_frame_screen).sync(&shared, &mut registry);
+        for name in [
+            "GuildBankPopupName",
+            "GuildBankIcon0",
+            "GuildBankIcon1",
+            "GuildBankPopupOkay",
+            "GuildBankPopupCancel",
+        ] {
+            assert!(
+                registry.get_by_name(name).is_some(),
+                "{skin:?}: missing {name}"
+            );
+        }
+    }
+}
+
+#[test]
+fn guild_tab_edit_cancel_and_empty_name_follow_source_behavior() {
+    let mut session = opened();
+    session.tab_icons = vec![134400];
+    session.click("guild_bank_tab:0", Click::RIGHT, &Default::default());
+    assert!(
+        session
+            .click("guild_bank_edit_cancel", Click::LEFT, &Default::default())
+            .is_empty()
+    );
+    assert!(session.tab_edit.is_none());
+    session.click("guild_bank_tab:0", Click::RIGHT, &Default::default());
+    let texts = [("GuildBankPopupName".to_string(), "".to_string())].into();
+    assert_eq!(
+        session.click("guild_bank_edit_accept", Click::LEFT, &texts),
+        vec![request(GuildBankRequest::SetTabInfo {
+            tab: 0,
+            name: "Tab 1".into(),
+            icon: 132074
+        })]
+    );
+}

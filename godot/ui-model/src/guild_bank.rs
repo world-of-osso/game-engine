@@ -23,6 +23,35 @@ use crate::popup::PopupSpec;
 
 pub const BUY_GUILD_BANK_TAB_POPUP: &str = "CONFIRM_BUY_GUILDBANK_TAB";
 
+#[derive(Clone, Debug)]
+pub struct GuildTabEdit {
+    pub tab: usize,
+    pub icon: u32,
+    pub page: usize,
+}
+
+/// Installed interface icon manifests; native macro API ordering is not available.
+pub fn load_guild_tab_icons() -> Result<Vec<u32>, String> {
+    let mut icons = vec![134_400];
+    for file in [
+        "ManifestInterfaceActionIcon.csv",
+        "ManifestInterfaceItemIcon.csv",
+    ] {
+        let path = crate::paths::resolve_data_path("db2/active").join(file);
+        let text = std::fs::read_to_string(&path)
+            .map_err(|error| format!("read {}: {error}", path.display()))?;
+        for (index, line) in text.lines().enumerate().skip(1) {
+            let icon: u32 = line.trim().parse().map_err(|error| {
+                format!("invalid icon in {}:{}: {error}", path.display(), index + 1)
+            })?;
+            if icon != 134_400 {
+                icons.push(icon);
+            }
+        }
+    }
+    Ok(icons)
+}
+
 /// The GuildBankFrame and the backpack it deposits from.
 #[derive(Clone, Debug, PartialEq)]
 pub struct NativeGuildBankView {
@@ -69,6 +98,8 @@ pub struct GuildBankSession {
     pub purchase_confirmation: Option<PopupSpec>,
     /// Edit box texts the host must set (cleared money boxes, the tab info).
     pub text_edits: Vec<(&'static str, String)>,
+    pub tab_edit: Option<GuildTabEdit>,
+    pub tab_icons: Vec<u32>,
 }
 
 impl GuildBankSession {
@@ -150,6 +181,7 @@ impl GuildBankSession {
         self.state.close();
         self.error = None;
         self.purchase_confirmation = None;
+        self.tab_edit = None;
         self.text_edits.clear();
     }
 
@@ -251,6 +283,34 @@ impl GuildBankSession {
                 None
             }
             frame::ACTION_SAVE_INFO => self.save_info_request(texts),
+            frame::ACTION_TAB_EDIT_CANCEL => {
+                self.tab_edit = None;
+                None
+            }
+            frame::ACTION_TAB_EDIT_ACCEPT => self.save_tab_edit(texts),
+            _ if action.starts_with(frame::ACTION_TAB_ICON_PREFIX) => {
+                if let Some(icon) = index(action, frame::ACTION_TAB_ICON_PREFIX)
+                    && self.tab_icons.contains(&(icon as u32))
+                    && let Some(edit) = &mut self.tab_edit
+                {
+                    edit.icon = icon as u32;
+                }
+                None
+            }
+            frame::ACTION_TAB_ICON_PREVIOUS => {
+                if let Some(edit) = &mut self.tab_edit {
+                    edit.page = edit.page.saturating_sub(1);
+                }
+                None
+            }
+            frame::ACTION_TAB_ICON_NEXT => {
+                if let Some(edit) = &mut self.tab_edit
+                    && (edit.page + 1) * frame::TAB_ICONS_PER_PAGE < self.tab_icons.len()
+                {
+                    edit.page += 1;
+                }
+                None
+            }
             _ => return self.indexed_click(action, click),
         };
         self.effects(request)
@@ -308,7 +368,33 @@ impl GuildBankSession {
             return self.set_mode(mode);
         }
         if let Some(side) = index(action, frame::ACTION_TAB_PREFIX) {
-            return self.select_tab(side);
+            let effects = self.select_tab(side);
+            if click.right
+                && let Some(contents) = &self.state.contents
+                && contents.is_leader
+                && let Some(tab) = contents.tabs.get(side)
+                && !self.tab_icons.is_empty()
+            {
+                let icon = if tab.icon == 0 {
+                    self.tab_icons[0]
+                } else {
+                    tab.icon
+                };
+                let page = self
+                    .tab_icons
+                    .iter()
+                    .position(|id| *id == icon)
+                    .unwrap_or(0)
+                    / frame::TAB_ICONS_PER_PAGE;
+                self.tab_edit = Some(GuildTabEdit {
+                    tab: side,
+                    icon,
+                    page,
+                });
+                self.text_edits
+                    .push((frame::TAB_EDIT_NAME, tab.name.clone()));
+            }
+            return effects;
         }
         match index(action, frame::ACTION_SLOT_PREFIX) {
             Some(id) if click.right && id > 0 && self.state.mode == GuildBankMode::Bank => {
@@ -328,6 +414,21 @@ impl GuildBankSession {
             }
             _ => Vec::new(),
         }
+    }
+
+    fn save_tab_edit(&mut self, texts: &InputTexts) -> Option<GuildBankRequest> {
+        let edit = self.tab_edit.take()?;
+        let name = texts.get(frame::TAB_EDIT_NAME)?.replace('"', "");
+        let name = if name.is_empty() {
+            format!("Tab {}", edit.tab + 1)
+        } else {
+            name
+        };
+        Some(GuildBankRequest::SetTabInfo {
+            tab: edit.tab as u8,
+            name,
+            icon: edit.icon,
+        })
     }
 
     pub fn frame_state(&self) -> GuildBankFrameState {
@@ -350,6 +451,18 @@ impl GuildBankSession {
             money: contents.money,
             withdraw_limit: contents.withdraw_money_remaining,
             can_withdraw: contents.withdraw_money_remaining != Some(0) && contents.money > 0,
+            tab_edit: self.tab_edit.as_ref().map(|edit| frame::TabEditView {
+                icon: edit.icon,
+                icons: self
+                    .tab_icons
+                    .iter()
+                    .skip(edit.page * frame::TAB_ICONS_PER_PAGE)
+                    .take(frame::TAB_ICONS_PER_PAGE)
+                    .copied()
+                    .collect(),
+                previous: edit.page > 0,
+                next: (edit.page + 1) * frame::TAB_ICONS_PER_PAGE < self.tab_icons.len(),
+            }),
             money_prompt: match guild.prompt {
                 Some(BankPrompt::DepositMoney) => Some(true),
                 Some(BankPrompt::WithdrawMoney) => Some(false),

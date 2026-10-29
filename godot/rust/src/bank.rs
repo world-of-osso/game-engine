@@ -114,11 +114,12 @@ const BANK_INPUTS: [&str; 4] = [
     MONEY_BOXES.copper,
     TAB_NAME_BOX,
 ];
-const GUILD_INPUTS: [&str; 4] = [
+const GUILD_INPUTS: [&str; 5] = [
     guild_frame::MONEY_BOXES.gold,
     guild_frame::MONEY_BOXES.silver,
     guild_frame::MONEY_BOXES.copper,
     INFO_BOX,
+    guild_frame::TAB_EDIT_NAME,
 ];
 
 fn read_texts(ui: &mut Gd<RegistryUi>, names: &[&str]) -> InputTexts {
@@ -345,6 +346,9 @@ impl GameClient {
         if !self.banks.guild.state.is_open() {
             return Ok(false);
         }
+        if self.banks.guild.tab_edit.take().is_some() {
+            return Ok(true);
+        }
         let effects = self.banks.guild.close();
         self.send_guild_effects(effects)?;
         Ok(true)
@@ -518,6 +522,12 @@ impl GameClient {
         }
         if self.drop_cursor_on_guild_bank(action, click)? {
             return Ok(());
+        }
+        if click.right
+            && action.starts_with(guild_frame::ACTION_TAB_PREFIX)
+            && self.banks.guild.tab_icons.is_empty()
+        {
+            self.banks.guild.tab_icons = game_engine_ui_model::guild_bank::load_guild_tab_icons()?;
         }
         let mut ui = self.banks.guild_ui.clone().ok_or("Guild bank UI missing")?;
         let texts = read_texts(&mut ui, &GUILD_INPUTS);

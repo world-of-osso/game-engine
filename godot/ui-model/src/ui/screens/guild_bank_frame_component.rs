@@ -12,7 +12,7 @@ use ui_toolkit::widgets::font_string::GameFont;
 
 use crate::ui::screens::bank_art::{
     HIGHLIGHT_FONT_COLOR, ITEM_BUTTON, MoneyBoxNames, MoneyPrompt, QUICKSLOT, SlotItem, WHITE,
-    cropped, item_slot, label, money_display, money_prompt, texture,
+    cropped, edit_box, item_slot, label, money_display, money_prompt, texture,
 };
 use crate::ui::screens::merchant_frame_component::{tab, tab_width};
 use crate::ui::screens::quest_art::{
@@ -39,6 +39,13 @@ pub const ACTION_WITHDRAW_MONEY: &str = "guild_bank_money_withdraw";
 pub const ACTION_MONEY_ACCEPT: &str = "guild_bank_money_accept";
 pub const ACTION_MONEY_CANCEL: &str = "guild_bank_money_cancel";
 pub const ACTION_SAVE_INFO: &str = "guild_bank_save_info";
+pub const ACTION_TAB_EDIT_ACCEPT: &str = "guild_bank_edit_accept";
+pub const ACTION_TAB_EDIT_CANCEL: &str = "guild_bank_edit_cancel";
+pub const ACTION_TAB_ICON_PREFIX: &str = "guild_bank_icon:";
+pub const ACTION_TAB_ICON_PREVIOUS: &str = "guild_bank_icon_previous";
+pub const ACTION_TAB_ICON_NEXT: &str = "guild_bank_icon_next";
+pub const TAB_EDIT_NAME: &str = "GuildBankPopupName";
+pub const TAB_ICONS_PER_PAGE: usize = 80;
 
 pub const MONEY_BOXES: MoneyBoxNames = MoneyBoxNames {
     gold: "GuildBankMoneyGold",
@@ -50,6 +57,13 @@ pub const INFO_BOX: &str = "GuildBankTabInfoEditBox";
 /// GB.xml:758: native multiline tab text with a 500-character limit.
 pub fn apply_guild_bank_postsetup(registry: &mut ui_toolkit::registry::FrameRegistry) {
     apply_guild_bank_info_postsetup(registry);
+    if let Some(id) = registry.get_by_name(TAB_EDIT_NAME)
+        && let Some(ui_toolkit::frame::WidgetData::EditBox(edit)) = registry
+            .get_mut(id)
+            .and_then(|frame| frame.widget_data.as_mut())
+    {
+        edit.max_letters = Some(16);
+    }
 }
 
 fn apply_guild_bank_info_postsetup(registry: &mut ui_toolkit::registry::FrameRegistry) {
@@ -127,6 +141,14 @@ pub struct BuyTabView {
     pub can_afford: bool,
 }
 
+#[derive(Clone, Debug, PartialEq)]
+pub struct TabEditView {
+    pub icon: u32,
+    pub icons: Vec<u32>,
+    pub previous: bool,
+    pub next: bool,
+}
+
 #[derive(Clone, Debug, PartialEq, Default)]
 pub struct GuildBankFrameState {
     pub visible: bool,
@@ -155,6 +177,7 @@ pub struct GuildBankFrameState {
     pub withdraw_limit: Option<u64>,
     pub can_withdraw: bool,
     pub money_prompt: Option<bool>,
+    pub tab_edit: Option<TabEditView>,
 }
 
 pub fn guild_bank_frame_screen(ctx: &SharedContext) -> Element {
@@ -204,6 +227,9 @@ pub fn guild_bank_frame(ctx: &SharedContext, state: &GuildBankFrameState) -> Ele
     }
     children.extend(money_bar(state));
     children.extend(mode_tabs(state.mode));
+    if let Some(edit) = &state.tab_edit {
+        children.extend(tab_editor(edit));
+    }
     if let Some(deposit) = state.money_prompt {
         children.extend(money_prompt(
             &MoneyPrompt {
@@ -238,6 +264,89 @@ pub fn guild_bank_frame(ctx: &SharedContext, state: &GuildBankFrameState) -> Ele
         },
         "guild_bank",
     )
+}
+
+fn tab_editor(edit: &TabEditView) -> Element {
+    let mut children = label(
+        "GuildBankPopupNameLabel".into(),
+        "Tab Name",
+        (24.0, 16.0, 180.0, 18.0),
+        (12.0, WHITE, "LEFT"),
+    );
+    children.extend(edit_box(TAB_EDIT_NAME, (29.0, 35.0, 182.0, 20.0)));
+    children.extend(label(
+        "GuildBankPopupIconLabel".into(),
+        "Choose an Icon",
+        (24.0, 75.0, 180.0, 18.0),
+        (12.0, WHITE, "LEFT"),
+    ));
+    children.extend(texture(
+        "GuildBankPopupSelectedIcon".into(),
+        edit.icon,
+        (471.0, 16.0, 36.0, 36.0),
+        WHITE,
+    ));
+    for (index, icon) in edit.icons.iter().enumerate() {
+        let x = 21.0 + (index % 10) as f32 * 47.0;
+        let y = 97.0 + (index / 10) as f32 * 44.0;
+        children.extend(texture(
+            format!("GuildBankIcon{index}Texture"),
+            *icon,
+            (x + 2.0, y + 2.0, 36.0, 36.0),
+            WHITE,
+        ));
+        let name = DynName(format!("GuildBankIcon{index}"));
+        let action = format!("{ACTION_TAB_ICON_PREFIX}{icon}");
+        children.extend(rsx! { button { name: {name}, width: 40.0, height: 40.0,
+        left: x, top: y, pos_type: "absolute", onclick: {action.as_str()},
+        button_default_skin: false } });
+    }
+    for (name, caption, action, x, width, enabled) in [
+        (
+            "GuildBankPopupPrevious",
+            "<",
+            ACTION_TAB_ICON_PREVIOUS,
+            21.0,
+            55.0,
+            edit.previous,
+        ),
+        (
+            "GuildBankPopupNext",
+            ">",
+            ACTION_TAB_ICON_NEXT,
+            86.0,
+            55.0,
+            edit.next,
+        ),
+        (
+            "GuildBankPopupOkay",
+            "Okay",
+            ACTION_TAB_EDIT_ACCEPT,
+            248.0,
+            128.0,
+            true,
+        ),
+        (
+            "GuildBankPopupCancel",
+            "Cancel",
+            ACTION_TAB_EDIT_CANCEL,
+            386.0,
+            128.0,
+            true,
+        ),
+    ] {
+        children.extend(panel_button(
+            name.into(),
+            caption,
+            action,
+            enabled,
+            (x, 465.0, width, 24.0),
+        ));
+    }
+    rsx! { r#frame { name: "GuildBankPopupFrame", width: 525.0, height: 495.0,
+    left: 215.0, top: 30.0, pos_type: "absolute", mouse_enabled: true,
+    style: crate::ui::screens::static_popup_component::STATIC_POPUP_PANEL_STYLE,
+    strata: FrameStrata::FullscreenDialog, frame_level: 500.0, {children} } }
 }
 
 /// `TabTitleBG` / `TabLimitBG`: UI-TabNameBorder caps around the text, TOP at `top`.
