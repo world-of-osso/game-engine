@@ -175,10 +175,15 @@ func officer_rights() -> bool:
 		if not await close_vault() or not await open_communities_chat():
 			return false
 		await press("CommunitiesStreamDropdown")
+		if not await wait_until(func(): return shown("CommunitiesGuildChatChoice"), "stream menu"):
+			return false
 		if not completion.require(not shown("CommunitiesOfficerChatChoice"), "Member starts without officer chat"):
 			return false
 		await press("CommunitiesStreamDropdown")
-	else:
+	# The Guild Master grants only after the Member has looked; the server pushes the grant at once.
+	if not await barrier("officer-absent"):
+		return false
+	if role == "a":
 		if not await toggle(OFFICER, true):
 			return false
 		await press("GuildControlUICloseButton")
