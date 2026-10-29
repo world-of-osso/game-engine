@@ -277,7 +277,7 @@ fn neltharus_return_crosses_recorded_gorek_lip() {
         game_object_floor: &|_| None,
     };
     let direction = (target - start).with_y(0.0).normalize();
-    for distance in [0.116667, 0.3, 0.75, 1.0, 1.25, 1.6, 2.0] {
+    for distance in [0.0, 0.116667, 0.3, 0.75, 1.0, 1.25, 1.6, 2.0] {
         let point = start + direction * distance;
         let wmos = || {
             terrain
@@ -322,7 +322,7 @@ fn neltharus_return_crosses_recorded_gorek_lip() {
 }
 
 #[test]
-fn neltharus_steep_face_supports_player_and_blocks_uphill_motion() {
+fn neltharus_steep_face_supports_player_across_lip() {
     let terrain = load("2519", (32, 32), |terrain| {
         terrain.parsed_tiles.contains_key(&(32, 32))
     });
@@ -333,20 +333,6 @@ fn neltharus_steep_face_supports_player_and_blocks_uphill_motion() {
         game_object_floor: &|_| None,
     };
     let start = Vec3::new(-233.50781, 133.42572, 532.7626);
-    for distance in [0.1, 0.3, 0.5, 0.776, 1.0, 1.6] {
-        let point = start + Vec3::new(-distance, 0.0, 0.0);
-        let wmos = || {
-            terrain
-                .parsed_tiles
-                .values()
-                .flat_map(|tile| tile.wmo_floors.iter().map(|(_, wmo)| wmo))
-        };
-        eprintln!(
-            "steep distance={distance} point={point:?} solid={:?} walkable={:?}",
-            shared::ground::collision_height(point, None, wmos()),
-            shared::ground::ground_at(point, None, wmos())
-        );
-    }
     let support = ground.trace_support(start).expect("solid WMO support");
     assert_eq!(support.source, "wmo");
     assert_eq!(support.wmo_placement, Some(33788514));
@@ -354,7 +340,7 @@ fn neltharus_steep_face_supports_player_and_blocks_uphill_motion() {
     assert!((support.height - start.y).abs() < 0.02);
     let mut movement = crate::gameplay::PlayerMovement::default();
     let mut feet = start;
-    for _ in 0..30 {
+    for _ in 0..6 {
         let frame = crate::gameplay::MovementFrame {
             direction: [-1.0, 0.0, 0.0],
             speed: 7.0,
@@ -363,9 +349,19 @@ fn neltharus_steep_face_supports_player_and_blocks_uphill_motion() {
         feet = movement.predict(feet, frame, false, &ground, &mut |_, to, _| to, 1.0 / 60.0);
         assert!(feet.y > 133.0, "fell through steep WMO face: {feet}");
     }
+    assert!(feet.x < start.x - 0.3, "failed to cross lip: {feet}");
+    let walkable = shared::ground::ground_at(
+        feet,
+        None,
+        terrain
+            .parsed_tiles
+            .values()
+            .flat_map(|tile| tile.wmo_floors.iter().map(|(_, wmo)| wmo)),
+    )
+    .expect("landing has walkable WMO support");
     assert!(
-        feet.x > start.x - 0.2,
-        "walked uphill through steep face: {feet}"
+        (feet.y - walkable.height).abs() < 0.02,
+        "feet={feet}, landing={walkable:?}"
     );
 }
 
