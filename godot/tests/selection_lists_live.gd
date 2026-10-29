@@ -103,6 +103,16 @@ func capture(suffix: String) -> void:
 		image.resize(1280, int(image.get_height() * 1280.0 / image.get_width()), Image.INTERPOLATE_LANCZOS)
 	if image.save_png(path) != OK: fail("Capture: " + path)
 
+## A pointer press leaves no keyboard focus (Retail); the row only activates from Enter
+## once it holds keyboard focus, which code gives it (no key enters a list from no focus).
+func keyboard_activate_next(row: String) -> bool:
+	if root.gui_get_focus_owner() != null:
+		fail("Pointer selection left keyboard focus on " + str(root.gui_get_focus_owner()))
+		return false
+	control(row).grab_focus()
+	await tap(KEY_ENTER)
+	return true
+
 func run_fixture() -> void:
 	if OS.get_environment("SELLIST_ENDPOINT") != "127.0.0.1:5933" or not OS.get_environment("SELLIST_ACCOUNT").begins_with("fb_sellist_"):
 		fail("Owned UDP5933 and fb_sellist_* required")
@@ -131,9 +141,7 @@ func run_fixture() -> void:
 	if stage == "after":
 		await pointer("HonorFrameSpecificBattlegroundButton1014")
 		if not await wait_until(func(): return control("HonorFrameDescription").text.contains("Warsong Gulch"), "selection changed"): return
-		await tap(KEY_DOWN)
-		if root.gui_get_focus_owner() != control("HonorFrameSpecificBattlegroundButton1018"): fail("Down did not focus next source row"); return
-		await tap(KEY_ENTER)
+		if not await keyboard_activate_next("HonorFrameSpecificBattlegroundButton1018"): return
 		if not await wait_until(func(): return control("HonorFrameDescription").text.contains("Arathi Basin"), "keyboard selection activates next row"): return
 		await pointer("HonorFrameSpecificScrollBox", MOUSE_BUTTON_WHEEL_DOWN)
 		await pointer("HonorFrameSpecificScrollBox", MOUSE_BUTTON_WHEEL_UP)
@@ -166,8 +174,7 @@ func run_fixture() -> void:
 	await pointer("GuildRankRow1")
 	if stage == "after":
 		var expected_rank: String = control("GuildRankRow2Name").text
-		await tap(KEY_DOWN)
-		await tap(KEY_ENTER)
+		if not await keyboard_activate_next("GuildRankRow2"): return
 		if not await wait_until(func(): return control("GuildRankName").text == expected_rank, "keyboard guild rank selection"): return
 		await pointer("GuildRankRow1")
 	if stage == "after" and not await selected_label_has_ink("GuildRankRow1Name"): return
@@ -186,8 +193,7 @@ func run_fixture() -> void:
 	if not await wait_until(func(): return client.transmog_state().viewed_outfit == 3, "viewed outfit"): return
 	if stage == "after":
 		await pointer("TransmogOutfitEntry2Button")
-		await tap(KEY_DOWN)
-		await tap(KEY_ENTER)
+		if not await keyboard_activate_next("TransmogOutfitEntry3Button"): return
 		if not await wait_until(func(): return client.transmog_state().viewed_outfit == 3, "keyboard outfit selection"): return
 	await motion(Vector2(1150, 680))
 	await capture("outfit-selected")
