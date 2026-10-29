@@ -633,6 +633,9 @@ impl GameClient {
         ui.bind_mut().set_state(view)?;
         for (name, text) in std::mem::take(&mut self.banks.guild.text_edits) {
             ui.bind_mut().set_editbox_text(name, &text)?;
+            if name == guild_frame::TAB_EDIT_NAME {
+                ui.bind_mut().focus_frame_named(name)?;
+            }
         }
         Ok(())
     }
