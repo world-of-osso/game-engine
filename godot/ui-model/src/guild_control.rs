@@ -54,9 +54,6 @@ pub fn refresh_button_art(registry: &mut ui_toolkit::registry::FrameRegistry) {
 }
 
 pub const PAGES: [&str; 3] = ["Guild Ranks", "Rank Permissions", "Bank Tab Permissions"];
-/// Above every Communities part (its deepest reach level 510): Retail draws the DIALOG
-/// Guild Control over the MEDIUM CommunitiesFrame, and every native panel here is Dialog.
-pub const CONTROL_LEVEL: f32 = 1000.0;
 pub const OFFICER_CHAT: u32 = GUILD_RIGHT_OFFICER_LISTEN | GUILD_RIGHT_OFFICER_SPEAK;
 /// Retail GlobalStrings option IDs; these are not TC bit positions.
 pub fn permission_right(id: usize) -> Option<u32> {
@@ -100,7 +97,7 @@ pub fn settings(
     if session.control_menu_open {
         children.extend(navigation_menu(session));
     }
-    rsx! { r#frame { name:"GuildControlUI",width:338.0,height:444.0,left:440.0,top:130.0,pos_type:"absolute",mouse_enabled:true,strata:FrameStrata::Dialog,frame_level:CONTROL_LEVEL,{children} } }
+    rsx! { r#frame { name:"GuildControlUI",width:338.0,height:444.0,left:440.0,top:130.0,pos_type:"absolute",mouse_enabled:true,strata:FrameStrata::Dialog,frame_level:crate::guild_rank_frame::DIALOG_LEVEL,{children} } }
 }
 
 pub(crate) fn dropdown(

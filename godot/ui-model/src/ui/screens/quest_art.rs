@@ -490,11 +490,12 @@ const FLAT_TITLE_LEFT: f32 = 30.0;
 /// `TitleContainer` (left, -1)..(-24, -1), `GameFontNormal` centred 5 below its top.
 /// Retail SharedUIPanelTemplates.xml:576 puts the title at frameLevel 510, above
 /// the portrait ring (401); narrow containers otherwise lose their leading glyphs.
+/// Template levels are relative to the panel, so a raised panel keeps its title.
 fn window_title(prefix: &str, width: f32, title: &str, left: f32) -> Element {
     rsx! {
         fontstring {
             name: {DynName(format!("{prefix}TitleText"))},
-            frame_level: 510.0,
+            frame_level_offset: 510.0,
             width: {width - left - 24.0},
             height: 14.0,
             text: title,
@@ -521,7 +522,9 @@ fn close_button_offset() -> (f32, f32) {
     }
 }
 
-/// `UIPanelCloseButtonDefaultAnchors`: 24×24 at the skin's TOPRIGHT offset.
+/// `UIPanelCloseButtonDefaultAnchors`: 24×24 at the skin's TOPRIGHT offset, at
+/// `UIPanelCloseButtonNoScripts` frameLevel 510 (SharedUIPanelTemplates.xml:134) above
+/// the panel's content, relative to the panel.
 pub fn close_button(prefix: &str, width: f32, action: &str) -> Element {
     let (offset_x, offset_top) = close_button_offset();
     rsx! {
@@ -533,6 +536,7 @@ pub fn close_button(prefix: &str, width: f32, action: &str) -> Element {
             pos_type: "absolute",
             left: {width + offset_x - 24.0},
             top: offset_top,
+            frame_level_offset: 510.0,
             button_template: "UIPanelCloseButton",
         }
     }

@@ -82,11 +82,10 @@ pub fn shell() -> Element {
         (12.0, NORMAL_FONT_COLOR, "LEFT"),
     ));
     // UIPanelCloseButton normal/pushed/highlight source atlases shared by native panels.
-    // SharedUIPanelTemplates.xml:134 frameLevel 510; WoW keeps it relative to the raised panel.
-    let close_level = crate::guild_control::CONTROL_LEVEL + 510.0;
+    // SharedUIPanelTemplates.xml:134 frameLevel 510, relative to the panel.
     out.extend(rsx! { button { name: "GuildControlUICloseButton", width: 24.0, height: 24.0, left: 307.0, top: 7.0, pos_type: "absolute",
         onclick: "guild:settings_close", button_default_skin: false,
-        frame_level: close_level, button_template: "UIPanelCloseButton" } });
+        frame_level_offset: 510.0, button_template: "UIPanelCloseButton" } });
     out.extend(horizontal_bar());
     out
 }

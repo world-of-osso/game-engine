@@ -81,6 +81,11 @@ pub fn guild_screen(shared: &SharedContext) -> Element {
     children
 }
 
+/// Retail draws Guild Control, the Invite Member popup and the MOTD/Info editor DIALOG over
+/// the MEDIUM CommunitiesFrame; every native panel here is Dialog, so these dialogs sit above
+/// every Communities part (its deepest reach level 510).
+pub const DIALOG_LEVEL: f32 = 1000.0;
+
 fn disband_confirmation(session: &GuildRanksSession) -> Element {
     if !session.disband_open {
         return vec![];
@@ -325,7 +330,7 @@ fn invite_member_dialog(session: &GuildRanksSession) -> Element {
         (176.0, 108.0, 110.0, 22.0),
     ));
     rsx! { r#frame { name: {DynName("GuildInviteMember".into())}, width: 310.0, height: 150.0,
-    left: "50%", top: "50%", translate_x: "-50%", translate_y: "-50%", pos_type: "absolute", mouse_enabled: true, strata: FrameStrata::Dialog, {children} } }
+    left: "50%", top: "50%", translate_x: "-50%", translate_y: "-50%", pos_type: "absolute", mouse_enabled: true, strata: FrameStrata::Dialog, frame_level: DIALOG_LEVEL, {children} } }
 }
 fn profile_editor(session: &GuildRanksSession) -> Element {
     let Some(field) = session.profile_editor else {
@@ -360,7 +365,7 @@ fn profile_editor(session: &GuildRanksSession) -> Element {
         (196.0, height - 38.0, 90.0, 22.0),
     ));
     rsx! { r#frame { name: {DynName("CommunitiesGuildTextEditFrame".into())}, width: 310.0, height,
-    left: "50%", top: "50%", translate_x: "-50%", translate_y: "-50%", pos_type: "absolute", mouse_enabled: true, strata: FrameStrata::Dialog, {children} } }
+    left: "50%", top: "50%", translate_x: "-50%", translate_y: "-50%", pos_type: "absolute", mouse_enabled: true, strata: FrameStrata::Dialog, frame_level: DIALOG_LEVEL, {children} } }
 }
 
 fn member_menu(session: &GuildRanksSession) -> Element {

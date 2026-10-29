@@ -145,31 +145,75 @@ fn subtree_layers(
     layers
 }
 
-/// Retail declares GuildControlUI DIALOG over the MEDIUM CommunitiesFrame
-/// (Blizzard_GuildControlUI.xml, CommunitiesFrame.xml:304); every Guild Control part draws
-/// above every Communities part.
+/// Retail declares GuildControlUI, the Invite Member popup and CommunitiesGuildTextEditFrame
+/// DIALOG over the MEDIUM CommunitiesFrame (Blizzard_GuildControlUI.xml, GuildInfo.xml:290,
+/// CommunitiesFrame.xml:304): every dialog part draws above every Communities part, and the
+/// dialog's title and close button (template level 510 within the panel) above its content.
 #[test]
-fn guild_control_draws_above_communities_both_skins() {
+fn guild_dialogs_draw_above_communities_and_keep_chrome_on_top_both_skins() {
     let _lock = SKIN.lock().unwrap_or_else(|p| p.into_inner());
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         set_thread_skin(skin);
-        let mut session = GuildRanksSession::default();
-        session.open();
-        session.apply(state(0));
-        session.click("guild:settings", &Default::default());
-        let reg = mounted(&session);
-        let lowest = subtree_layers(&reg, "GuildControlUI")
-            .into_iter()
-            .min()
-            .unwrap();
-        let highest = subtree_layers(&reg, "CommunitiesFrame")
-            .into_iter()
-            .max()
-            .unwrap();
-        assert!(
-            lowest > highest,
-            "{skin:?} Guild Control lowest {lowest:?} must draw above Communities {highest:?}"
-        );
+        for (dialog, actions) in [
+            ("GuildControlUI", &["guild:settings"][..]),
+            (
+                "GuildInviteMember",
+                &["guild:chat_open", "guild:invite_open"],
+            ),
+            (
+                "CommunitiesGuildTextEditFrame",
+                &["guild:info_open", "guild:edit_motd"],
+            ),
+        ] {
+            let mut session = GuildRanksSession::default();
+            session.open();
+            session.apply(state(0));
+            session.profile = Some(GuildSnapshot {
+                guild_id: 7,
+                guild_name: "Raid Team".into(),
+                created_at: None,
+                tabard: None,
+                motd: "Meeting tonight".into(),
+                info_text: "Raid Tuesdays".into(),
+                members: vec![],
+            });
+            for action in actions {
+                session.click(action, &Default::default());
+            }
+            let reg = mounted(&session);
+            let parts = subtree_layers(&reg, dialog);
+            let lowest = parts.iter().min().unwrap();
+            let highest = subtree_layers(&reg, "CommunitiesFrame")
+                .into_iter()
+                .max()
+                .unwrap();
+            assert!(
+                *lowest > highest,
+                "{skin:?} {dialog} lowest {lowest:?} must draw above Communities {highest:?}"
+            );
+            let chrome: Vec<_> = ["TitleText", "CloseButton"]
+                .iter()
+                .map(|suffix| format!("{dialog}{suffix}"))
+                .filter(|name| reg.get_by_name(name).is_some())
+                .collect();
+            assert!(!chrome.is_empty(), "{dialog} has a close button");
+            let chrome_layers: Vec<_> = chrome
+                .iter()
+                .flat_map(|name| subtree_layers(&reg, name))
+                .collect();
+            let content = parts
+                .iter()
+                .filter(|layer| !chrome_layers.contains(layer))
+                .max()
+                .unwrap();
+            for name in &chrome {
+                let own = subtree_layers(&reg, name).into_iter().min().unwrap();
+                assert!(
+                    own > *content,
+                    "{skin:?} {name} {own:?} must draw above {dialog} content {content:?}"
+                );
+            }
+        }
     }
 }
 
