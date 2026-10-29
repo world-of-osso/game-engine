@@ -536,7 +536,11 @@ fn guild_tab_edit_requires_leader_and_sends_selected_metadata_without_optimism()
 
 #[test]
 fn guild_tab_editor_renders_name_icons_and_actions_in_both_skins() {
-    use game_engine_ui_model::guild_bank_frame_component::guild_bank_frame_screen;
+    use game_engine_ui_model::guild_bank_frame_component::{
+        guild_bank_frame_screen, tab_editor_position,
+    };
+    assert_eq!(tab_editor_position(1280.0), (215.0, 30.0));
+    assert_eq!(tab_editor_position(1920.0), (788.0, -9.0));
     use ui_toolkit::atlas::{ActiveSkin, set_thread_skin};
     use ui_toolkit::registry::FrameRegistry;
     use ui_toolkit::screen::{Screen, SharedContext};
@@ -554,6 +558,7 @@ fn guild_tab_editor_renders_name_icons_and_actions_in_both_skins() {
         let mut registry = FrameRegistry::new(1920.0, 1080.0);
         Screen::new(guild_bank_frame_screen).sync(&shared, &mut registry);
         for name in [
+            "GuildBankPopupBackground",
             "GuildBankPopupName",
             "GuildBankIcon0",
             "GuildBankIcon1",

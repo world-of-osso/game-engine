@@ -462,6 +462,7 @@ impl GuildBankSession {
                     .collect(),
                 previous: edit.page > 0,
                 next: (edit.page + 1) * frame::TAB_ICONS_PER_PAGE < self.tab_icons.len(),
+                position: frame::tab_editor_position(1280.0),
             }),
             money_prompt: match guild.prompt {
                 Some(BankPrompt::DepositMoney) => Some(true),

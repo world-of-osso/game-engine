@@ -147,6 +147,7 @@ pub struct TabEditView {
     pub icons: Vec<u32>,
     pub previous: bool,
     pub next: bool,
+    pub position: (f32, f32),
 }
 
 #[derive(Clone, Debug, PartialEq, Default)]
@@ -266,13 +267,24 @@ pub fn guild_bank_frame(ctx: &SharedContext, state: &GuildBankFrameState) -> Ele
     )
 }
 
+/// `GuildBankPopupFrameMixin.OnShow`: choose the side only when it fits.
+pub fn tab_editor_position(viewport_width: f32) -> (f32, f32) {
+    if viewport_width - (16.0 + FRAME_W) < 525.0 + 40.0 {
+        (FRAME_W - 10.0 - 525.0, 30.0)
+    } else {
+        (FRAME_W + 38.0, -9.0)
+    }
+}
+
 fn tab_editor(edit: &TabEditView) -> Element {
-    let mut children = label(
+    let mut children = rsx! { r#frame { name: "GuildBankPopupBackground", width: 511.0,
+    height: 481.0, left: 7.0, top: 7.0, pos_type: "absolute", background_color: "0,0,0,0.8" } };
+    children.extend(label(
         "GuildBankPopupNameLabel".into(),
         "Tab Name",
         (24.0, 16.0, 180.0, 18.0),
         (12.0, WHITE, "LEFT"),
-    );
+    ));
     children.extend(edit_box(TAB_EDIT_NAME, (29.0, 35.0, 182.0, 20.0)));
     children.extend(label(
         "GuildBankPopupIconLabel".into(),
@@ -343,8 +355,9 @@ fn tab_editor(edit: &TabEditView) -> Element {
             (x, 465.0, width, 24.0),
         ));
     }
+    let (left, top) = edit.position;
     rsx! { r#frame { name: "GuildBankPopupFrame", width: 525.0, height: 495.0,
-    left: 215.0, top: 30.0, pos_type: "absolute", mouse_enabled: true,
+    left, top, pos_type: "absolute", mouse_enabled: true,
     style: crate::ui::screens::static_popup_component::STATIC_POPUP_PANEL_STYLE,
     strata: FrameStrata::FullscreenDialog, frame_level: 500.0, {children} } }
 }

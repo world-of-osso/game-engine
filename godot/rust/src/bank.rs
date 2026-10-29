@@ -608,11 +608,20 @@ impl GameClient {
         for bag in &mut bags.bags {
             bag.visible = bag.bag_index == 0;
         }
-        let view = NativeGuildBankView {
-            frame: self.banks.guild.frame_state(),
-            bags,
-        };
         let scale = self.effective_ui_scale();
+        let viewport_width = self
+            .base()
+            .get_viewport()
+            .ok_or("Guild bank viewport missing")?
+            .get_visible_rect()
+            .size
+            .x
+            / scale;
+        let mut frame = self.banks.guild.frame_state();
+        if let Some(edit) = &mut frame.tab_edit {
+            edit.position = guild_frame::tab_editor_position(viewport_width);
+        }
+        let view = NativeGuildBankView { frame, bags };
         if self.banks.guild_ui.is_none() {
             let mut ui = RegistryUi::new_alloc();
             ui.set_name("GuildBankUI");
