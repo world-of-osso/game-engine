@@ -120,6 +120,21 @@ impl TerrainGround<'_> {
     }
 
     fn sample(&self, feet: Vec3) -> Option<Ground> {
+        let center = self.sample_point(feet);
+        let tolerance = shared::movement::GROUND_SNAP_THRESHOLD;
+        if center.is_some_and(|ground| ground.height >= feet.y - tolerance) {
+            return center;
+        }
+        let radius = shared::los::body::BODY_RADIUS;
+        [Vec3::X, Vec3::NEG_X, Vec3::Z, Vec3::NEG_Z]
+            .into_iter()
+            .filter_map(|direction| self.sample_point(feet + direction * radius))
+            .filter(|ground| (ground.height - feet.y).abs() <= tolerance)
+            .max_by(|a, b| a.height.total_cmp(&b.height))
+            .or(center)
+    }
+
+    fn sample_point(&self, feet: Vec3) -> Option<Ground> {
         let object = (self.game_object_floor)(feet).map(|height| Ground {
             height,
             surface: Surface::M2,

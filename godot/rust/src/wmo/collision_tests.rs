@@ -5,7 +5,10 @@ use std::{
     time::{Duration, Instant},
 };
 
-use game_engine_core::{camera_control_data::CameraState, camera_follow_data::EYE_HEIGHT};
+use game_engine_core::{
+    camera_control_data::CameraState, camera_follow_data::EYE_HEIGHT,
+    player_physics_data::GroundState,
+};
 use glam::Vec3;
 use shared::ground::WmoCollision;
 
@@ -327,12 +330,14 @@ fn neltharus_return_keeps_support_at_recorded_upper_drop() {
             vertical: 0.0,
         };
         let next = movement.predict(feet, frame, false, &ground, &mut |_, to, _| to, 1.0 / 20.0);
-        eprintln!(
-            "drop before={feet:?} support={:?} after={next:?} support={:?}",
-            ground.trace_support(feet),
-            ground.trace_support(next)
+        assert!(
+            (next.y - start.y).abs() < 0.3,
+            "lost upper route support at {next}"
         );
-        assert!(next.y > 120.0, "fell from upper route at {next}");
+        assert!(
+            matches!(ground.probe(next), GroundState::Supported(height) if (height - start.y).abs() < 0.3),
+            "no footprint support at {next}"
+        );
         feet = next;
     }
 }
