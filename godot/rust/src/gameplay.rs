@@ -404,6 +404,11 @@ impl PlayerMovement {
             build_proposed_ground_movement(position, frame.direction.into(), frame.speed, delta)
         {
             position = ground.validate_move(position, proposed, self.grounded && !self.jumping);
+            self.grounded &= update_grounded(
+                position.y,
+                ground.probe(position),
+                shared::movement::GROUND_SNAP_THRESHOLD,
+            );
         }
         self.update_jump(position, jump_pressed, ground);
         // `JumpOrAscendStart` in the air: a player who can fly takes off. A skyrider's
