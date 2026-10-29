@@ -284,6 +284,7 @@ impl GameClient {
 
     /// `C_Reputation.GetGuildFactionData` and `GetMoney` for the rewards list.
     fn feed_guild_rewards(&mut self) {
+        use crate::replicated::UnitFields;
         let rewards = &mut self.guild_ranks.session.rewards;
         rewards.reputation = self.reputation.as_ref().and_then(|snapshot| {
             snapshot
