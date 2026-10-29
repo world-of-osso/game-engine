@@ -6,6 +6,7 @@ use game_engine_session::SessionScreen;
 use game_engine_ui_model::objective_tracker_component::{
     BossFrameCount, ObjectiveTrackerState, TRACKER_FRAME,
 };
+use game_engine_ui_model::quest_runtime::NpcInteractionRequest;
 use godot::prelude::*;
 use ui_toolkit::frame::WidgetData;
 use ui_toolkit::registry::FrameRegistry;
@@ -196,18 +197,57 @@ impl GameClient {
     /// named `npc_name` without the quest frame (`CMSG_QUEST_GIVER_ACCEPT_QUEST`).
     #[func]
     fn accept_quest_from(&self, npc_name: GString, quest_id: i64) -> GString {
-        let name = npc_name.to_string();
-        let Some(npc) = self.replica.units().find(|unit| {
-            unit.get::<shared::components::Npc>()
-                .is_some_and(|npc| npc.name == name)
-        }) else {
-            return GString::from(format!("No mirrored NPC named {name}").as_str());
-        };
-        let request = game_engine_ui_model::quest_runtime::NpcInteractionRequest::Accept {
-            npc: npc.server_id,
+        self.send_to_npc_named(npc_name, |npc| NpcInteractionRequest::Accept {
+            npc,
             quest_id: quest_id as u32,
+        })
+    }
+
+    /// Fixture hook (`guild_rewards_live.gd`): turn `quest_id` in at the mirrored NPC
+    /// named `npc_name` without the quest frame (`CMSG_QUEST_GIVER_CHOOSE_REWARD`, no choice).
+    #[func]
+    fn turn_in_quest_to(&self, npc_name: GString, quest_id: i64) -> GString {
+        self.send_to_npc_named(npc_name, |npc| NpcInteractionRequest::ChooseReward {
+            npc,
+            quest_id: quest_id as u32,
+            choice: None,
+        })
+    }
+
+    /// Fixture hook (`guild_rewards_live.gd`): the right-click `InteractNpc` on the mirrored
+    /// NPC named `npc_name`, without world picking.
+    #[func]
+    fn interact_npc_named(&self, npc_name: GString) -> GString {
+        let Some(npc) = self.npc_named(&npc_name.to_string()) else {
+            return GString::from(format!("No mirrored NPC named {npc_name}").as_str());
         };
-        match self.account.send_quest_request(request) {
+        match self.account.send_interact(npc) {
+            Ok(()) => GString::new(),
+            Err(error) => error.0.as_str().into(),
+        }
+    }
+}
+
+impl GameClient {
+    fn npc_named(&self, name: &str) -> Option<u64> {
+        self.replica
+            .units()
+            .find(|unit| {
+                unit.get::<shared::components::Npc>()
+                    .is_some_and(|npc| npc.name == name)
+            })
+            .map(|unit| unit.server_id)
+    }
+
+    fn send_to_npc_named(
+        &self,
+        npc_name: GString,
+        request: impl FnOnce(u64) -> NpcInteractionRequest,
+    ) -> GString {
+        let Some(npc) = self.npc_named(&npc_name.to_string()) else {
+            return GString::from(format!("No mirrored NPC named {npc_name}").as_str());
+        };
+        match self.account.send_quest_request(request(npc)) {
             Ok(()) => GString::new(),
             Err(error) => error.0.as_str().into(),
         }
