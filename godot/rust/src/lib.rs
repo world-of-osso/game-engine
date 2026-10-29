@@ -2388,11 +2388,11 @@ impl GameClient {
                 if let Some(snapshot) = update.snapshot {
                     self.reputation = Some(snapshot);
                 }
-                // `CHAT_MSG_COMBAT_FACTION_CHANGE`: the standing change as a chat line.
-                if let Some(message) = update.message {
+                // `CHAT_MSG_COMBAT_FACTION_CHANGE`: one chat line per changed faction.
+                for line in update.message.iter().flat_map(|message| message.lines()) {
                     game_engine_ui_model::chat_frame::add_system_line(
                         &mut self.chat.model.log,
-                        &message,
+                        line,
                     );
                 }
                 if let Some(error) = update.error {
