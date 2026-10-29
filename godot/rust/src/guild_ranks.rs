@@ -55,6 +55,21 @@ impl GameClient {
                 .as_str(),
         )
     }
+
+    /// The server's last rank settings and whether a Guild Control write awaits its reply.
+    #[func]
+    pub fn guild_ranks_observation(&self) -> GString {
+        let session = &self.guild_ranks.session;
+        let receipt = serde_json::json!({
+            "awaiting": session.awaiting_state,
+            "ranks": session.state().map(|state| &state.ranks),
+        });
+        GString::from(
+            serde_json::to_string(&receipt)
+                .expect("serialize guild rank settings")
+                .as_str(),
+        )
+    }
 }
 
 #[derive(Default)]
