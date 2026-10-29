@@ -125,6 +125,64 @@ fn ramp_lip_full_stockade_walks_from_captured_feet_onto_landing() {
     );
 }
 
+#[test]
+fn neltharus_gorek_upper_route_stays_on_authored_floor() {
+    let terrain = load("2519", (32, 32), |terrain| {
+        terrain.parsed_tiles.contains_key(&(32, 32))
+    });
+    let wmos = &terrain.parsed_tiles[&(32, 32)].wmo_floors;
+    assert!(!wmos.is_empty(), "Neltharus WMO collision is missing");
+    let start = Vec3::new(-220.0404, 133.3703, 556.2401);
+    let triangles = world_triangles(wmos.iter().map(|(_, wmo)| wmo), start, 100.0);
+    let walls = |origin, direction, length| ray_hit(&triangles, origin, direction, length);
+    let ground = TerrainGround {
+        terrain: &terrain,
+        walls: &walls,
+        step_wall_blocked: &|from, to, top| triangles_block_step(&triangles, from, to, top),
+        game_object_floor: &|_| None,
+    };
+    let route = [
+        (-229.17159, 540.3221),
+        (-229.54646, 539.6685),
+        (-230.1866, 538.5526),
+        (-230.541, 537.9348),
+        (-233.18022, 533.3333),
+        (-234.18103, 531.5893),
+        (-234.6583, 530.32135),
+        (-234.836, 529.7375),
+        (-235.5357, 527.4384),
+        (-235.72304, 526.82294),
+        (-236.07706, 525.6597),
+        (-235.67775, 525.26044),
+    ];
+    let mut movement = crate::gameplay::PlayerMovement::default();
+    let mut feet = start;
+    for (x, z) in route {
+        let target = Vec3::new(x, feet.y, z);
+        for _ in 0..400 {
+            let offset = (target - feet).with_y(0.0);
+            if offset.length() < 0.55 {
+                break;
+            }
+            let direction = offset.normalize();
+            let frame = crate::gameplay::MovementFrame {
+                direction: direction.to_array(),
+                speed: 7.0,
+                vertical: 0.0,
+            };
+            feet = movement.predict(feet, frame, false, &ground, &mut |_, to, _| to, 1.0 / 60.0);
+            assert!(
+                feet.y > 131.0,
+                "fell from upper route at {feet}, target {target}"
+            );
+        }
+        assert!(
+            (target - feet).with_y(0.0).length() < 0.55,
+            "blocked at {feet}, target {target}"
+        );
+    }
+}
+
 /// Whether a solid face lies between the eye and the camera: the view is from outside a wall.
 fn wall_between(triangles: &[[Vec3; 3]], eye: Vec3, camera: Vec3) -> bool {
     let offset = camera - eye;
