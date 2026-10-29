@@ -277,6 +277,21 @@ fn neltharus_return_crosses_recorded_gorek_lip() {
         game_object_floor: &|_| None,
     };
     let direction = (target - start).with_y(0.0).normalize();
+    for distance in [0.116667, 0.3, 0.75] {
+        let point = start + direction * distance;
+        let wmos = || {
+            terrain
+                .parsed_tiles
+                .values()
+                .flat_map(|tile| tile.wmo_floors.iter().map(|(_, wmo)| wmo))
+        };
+        let solid = shared::ground::collision_height(point, None, wmos());
+        let walkable = shared::ground::ground_at(point, None, wmos());
+        eprintln!(
+            "probe distance={distance} point={point:?} solid={solid:?} walkable={walkable:?} wall={:?}",
+            walls(start + Vec3::Y * 0.6, direction, distance + 0.05)
+        );
+    }
     let mut movement = crate::gameplay::PlayerMovement::default();
     let mut feet = start;
     for tick in 0..12 {
