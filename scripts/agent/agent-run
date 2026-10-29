@@ -19,6 +19,15 @@ shift
 # errors, 2026-10-21). Keep agent temp files on disk. IPC sockets stay in /tmp (hardcoded paths).
 export TMPDIR=/var/tmp/agents
 mkdir -p "$TMPDIR"
+# Concurrent opt-level-2 server_combat compiles (~11 GiB rustc each) OOM-killed the slice on
+# 2026-10-29, so cargo waits for a capacity ADD verdict before starting. Other commands
+# (servers, clients) start immediately.
+capacity=/home/osso/.worktrees/logs/capacity.sh
+runs_cargo=""
+for arg in "$@"; do [ "$(basename -- "$arg")" = cargo ] && runs_cargo=1 && break; done
+if [ -n "$runs_cargo" ] && [ -x "$capacity" ]; then
+    until CAPACITY_ID="agent-${name}" "$capacity" | tee /dev/stderr | grep -q '| ADD:'; do :; done
+fi
 exec systemd-run --user --scope --quiet --collect \
     --slice="agents-${name}.slice" \
     --unit="agent-${name}-$$-${RANDOM}" \
