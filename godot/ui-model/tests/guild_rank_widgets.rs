@@ -120,6 +120,59 @@ fn action(reg: &FrameRegistry, name: &str) -> String {
         .unwrap_or_default()
 }
 
+/// Native draw order: strata, then frame level, raise order and draw layer.
+fn subtree_layers(
+    reg: &FrameRegistry,
+    name: &str,
+) -> Vec<(
+    ui_toolkit::strata::FrameStrata,
+    i32,
+    i32,
+    ui_toolkit::strata::DrawLayer,
+)> {
+    let mut pending = vec![reg.get_by_name(name).expect(name)];
+    let mut layers = Vec::new();
+    while let Some(id) = pending.pop() {
+        let frame = reg.get(id).unwrap();
+        layers.push((
+            frame.strata,
+            frame.frame_level,
+            frame.raise_order,
+            frame.draw_layer,
+        ));
+        pending.extend(reg.children_of(id));
+    }
+    layers
+}
+
+/// Retail declares GuildControlUI DIALOG over the MEDIUM CommunitiesFrame
+/// (Blizzard_GuildControlUI.xml, CommunitiesFrame.xml:304); every Guild Control part draws
+/// above every Communities part.
+#[test]
+fn guild_control_draws_above_communities_both_skins() {
+    let _lock = SKIN.lock().unwrap_or_else(|p| p.into_inner());
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut session = GuildRanksSession::default();
+        session.open();
+        session.apply(state(0));
+        session.click("guild:settings", &Default::default());
+        let reg = mounted(&session);
+        let lowest = subtree_layers(&reg, "GuildControlUI")
+            .into_iter()
+            .min()
+            .unwrap();
+        let highest = subtree_layers(&reg, "CommunitiesFrame")
+            .into_iter()
+            .max()
+            .unwrap();
+        assert!(
+            lowest > highest,
+            "{skin:?} Guild Control lowest {lowest:?} must draw above Communities {highest:?}"
+        );
+    }
+}
+
 #[test]
 fn guild_control_retail_shell_and_officer_flag_use_source_geometry_both_skins() {
     use ui_toolkit::layout_values::Val;
