@@ -32,7 +32,9 @@ both already exist in the workspace lockfiles.
 Retire the patch when upstream includes the Windows/bindgen changes and equivalent
 cross-OUT_DIR native caching, and native GNU Windows linking plus concurrent offline
 cache reuse pass. Root tools tests exercise KTX conversion; native Windows linking
-is a separate verification boundary.
+is a separate verification boundary. CI temporarily pins Ubuntu 24.04 because
+KTX 4.4.0's SSE encoder fails to compile on the Ubuntu 26.04 runner. Retire the
+runner pin when the KTX build passes on Ubuntu 26.04 with SSE enabled.
 
 ## taffy (MIT)
 

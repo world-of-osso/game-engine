@@ -2,8 +2,6 @@ name: CI
 
 on:
   push:
-    branches:
-      - master
   pull_request:
 
 concurrency:
@@ -13,7 +11,9 @@ concurrency:
 # Root workspace tests; Godot workspace uses the build helper (docs/remote-builds.md).
 jobs:
   test:
-    runs-on: ubuntu-latest
+    # KTX 4.4.0 fails to build its SSE encoder on ubuntu-26.04. Return to
+    # ubuntu-latest when the KTX build succeeds there with SSE enabled.
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Checkout game-engine
