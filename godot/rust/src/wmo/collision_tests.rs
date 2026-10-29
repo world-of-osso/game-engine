@@ -333,6 +333,20 @@ fn neltharus_steep_face_supports_player_and_blocks_uphill_motion() {
         game_object_floor: &|_| None,
     };
     let start = Vec3::new(-233.50781, 133.42572, 532.7626);
+    for distance in [0.1, 0.3, 0.5, 0.776, 1.0, 1.6] {
+        let point = start + Vec3::new(-distance, 0.0, 0.0);
+        let wmos = || {
+            terrain
+                .parsed_tiles
+                .values()
+                .flat_map(|tile| tile.wmo_floors.iter().map(|(_, wmo)| wmo))
+        };
+        eprintln!(
+            "steep distance={distance} point={point:?} solid={:?} walkable={:?}",
+            shared::ground::collision_height(point, None, wmos()),
+            shared::ground::ground_at(point, None, wmos())
+        );
+    }
     let support = ground.trace_support(start).expect("solid WMO support");
     assert_eq!(support.source, "wmo");
     assert_eq!(support.wmo_placement, Some(33788514));
