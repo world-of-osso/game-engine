@@ -250,6 +250,9 @@ func toggle(name: String, checked: bool) -> bool:
 ## Type a whole number and press Enter, then wait until the server's Member
 ## settings hold `saved` (copper for gold, stacks for a tab).
 func enter_number(name: String, value: int, field: String, saved: int) -> bool:
+	# Guild Control draws a read-only Label under the same name until the rank may edit it.
+	if not await wait_until(func(): return control(name) is LineEdit and shown(name), name + " editable"):
+		return false
 	await press(name)
 	var edit := control(name) as LineEdit
 	edit.select_all()
