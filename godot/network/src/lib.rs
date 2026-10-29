@@ -549,6 +549,7 @@ fn connect_transport(
     server_addr: SocketAddr,
     client_id: u64,
 ) -> Result<(), String> {
+    let timeout = network_timeout(std::env::var_os("GAME_ENGINE_TEST_TIMEOUT_SECS"))?;
     let auth = network::Authentication::Manual {
         server_addr,
         client_id,
@@ -558,7 +559,7 @@ fn connect_transport(
     let netcode = client_network::NetcodeClient::new(
         auth,
         client_network::NetcodeConfig {
-            client_timeout_secs: CLIENT_TIMEOUT_SECS,
+            client_timeout_secs: timeout.map_or(CLIENT_TIMEOUT_SECS, |seconds| seconds as i32),
             ..default()
         },
     )
@@ -572,20 +573,38 @@ fn connect_transport(
         ))
         .id();
     let started = world.resource::<Time<Real>>().elapsed();
-    world
-        .entity_mut(entity)
-        .insert(HandshakeDeadline(started + HANDSHAKE_TIMEOUT));
+    world.entity_mut(entity).insert(HandshakeDeadline {
+        deadline: started + timeout.map_or(HANDSHAKE_TIMEOUT, Duration::from_secs),
+        timeout: timeout.map_or(HANDSHAKE_TIMEOUT, Duration::from_secs),
+    });
     world.trigger(client_network::Connect { entity });
     Ok(())
 }
 
+/// An explicit private-test timeout applies to the handshake and connect token.
+fn network_timeout(value: Option<std::ffi::OsString>) -> Result<Option<u64>, String> {
+    let Some(value) = value else { return Ok(None) };
+    let seconds = value
+        .into_string()
+        .map_err(|_| "network test timeout is not UTF-8")?
+        .parse::<u64>()
+        .map_err(|error| format!("invalid network test timeout: {error}"))?;
+    if seconds == 0 || seconds > i32::MAX as u64 {
+        return Err("network test timeout must be between 1 and 2147483647 seconds".into());
+    }
+    Ok(Some(seconds))
+}
+
 /// `Time<Real>` elapsed by which the Netcode handshake must have connected.
 #[derive(Component)]
-struct HandshakeDeadline(Duration);
+struct HandshakeDeadline {
+    deadline: Duration,
+    timeout: Duration,
+}
 
 /// The handshake ran out of time; the link was dropped for it.
 #[derive(Component)]
-struct HandshakeTimedOut;
+struct HandshakeTimedOut(Duration);
 
 /// Drop a link whose Netcode handshake has not connected by its deadline.
 fn expire_handshake(
@@ -596,11 +615,11 @@ fn expire_handshake(
     for (entity, deadline, connected) in &pending {
         if connected {
             commands.entity(entity).remove::<HandshakeDeadline>();
-        } else if time.elapsed() >= deadline.0 {
+        } else if time.elapsed() >= deadline.deadline {
             commands
                 .entity(entity)
                 .remove::<HandshakeDeadline>()
-                .insert(HandshakeTimedOut);
+                .insert(HandshakeTimedOut(deadline.timeout));
             commands.trigger(client_network::Disconnect { entity });
         }
     }
@@ -613,7 +632,7 @@ fn install_lifecycle(app: &mut App, events: Sender<Event>) {
         move |verified: Query<(), Added<protocol::ProtocolVerified>>,
               rejected: Query<&protocol::ProtocolRejected, Added<protocol::ProtocolRejected>>,
               disconnected: Query<
-            (&client_network::Disconnected, Has<HandshakeTimedOut>),
+            (&client_network::Disconnected, Option<&HandshakeTimedOut>),
             Added<client_network::Disconnected>,
         >| {
             for () in &verified {
@@ -627,12 +646,15 @@ fn install_lifecycle(app: &mut App, events: Sender<Event>) {
                     .expect("host event receiver closed");
             }
             for (state, timed_out) in &disconnected {
-                let reason = if timed_out {
-                    Some(HANDSHAKE_TIMEOUT_REASON.to_owned())
+                let reason = if let Some(timeout) = timed_out {
+                    Some(format!(
+                        "Failed to connect: the server did not answer within {} seconds.",
+                        timeout.0.as_secs()
+                    ))
                 } else {
                     state.reason.clone()
                 };
-                battleground_trace::record_disconnect(reason.as_deref(), timed_out);
+                battleground_trace::record_disconnect(reason.as_deref(), timed_out.is_some());
                 events
                     .send(Event::Disconnected(reason))
                     .expect("host event receiver closed");
@@ -1175,6 +1197,15 @@ mod tests {
         net::UdpSocket,
         time::{Duration, Instant},
     };
+
+    #[test]
+    fn private_test_network_timeout_validates_explicit_values() {
+        assert_eq!(network_timeout(None).unwrap(), None);
+        assert_eq!(network_timeout(Some("90".into())).unwrap(), Some(90));
+        assert!(network_timeout(Some("0".into())).is_err());
+        assert!(network_timeout(Some("invalid".into())).is_err());
+        assert!(network_timeout(Some("2147483648".into())).is_err());
+    }
 
     #[test]
     fn protocol_event_downcasts_to_authoritative_type() {
