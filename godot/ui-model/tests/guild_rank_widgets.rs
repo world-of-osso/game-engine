@@ -2964,6 +2964,13 @@ fn guild_rewards_list_shows_standing_and_achievement_locks_with_reputation_bar_b
             progress,
             ui_toolkit::frame::Dimension::Fixed(180.0 * 0.25 + 1.0)
         );
+        session.rewards.bar_hovered = true;
+        assert_eq!(
+            text(&mounted(&session), "CommunitiesGuildFactionBarLabel"),
+            "1,500 / 6,000",
+            "GUILD_EXPERIENCE_LABEL while hovered"
+        );
+        session.rewards.bar_hovered = false;
         let tooltip = game_engine_ui_model::guild_rewards::reward_tooltip(
             session.rewards.reward(62298).unwrap(),
             session.rewards.standing(),

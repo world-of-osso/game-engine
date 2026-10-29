@@ -283,9 +283,11 @@ impl GameClient {
     }
 
     /// `C_Reputation.GetGuildFactionData` and `GetMoney` for the rewards list.
-    fn feed_guild_rewards(&mut self) {
+    fn feed_guild_rewards(&mut self) -> Result<(), String> {
         use crate::replicated::UnitFields;
+        let bar_hovered = self.guild_faction_bar_hovered()?;
         let rewards = &mut self.guild_ranks.session.rewards;
+        rewards.bar_hovered = bar_hovered;
         rewards.reputation = self.reputation.as_ref().and_then(|snapshot| {
             snapshot
                 .entries
@@ -300,6 +302,26 @@ impl GameClient {
             .local_player_id()
             .and_then(|id| self.replica.unit(id)?.gold())
             .unwrap_or(0);
+        Ok(())
+    }
+
+    /// Whether the pointer is on the reputation bar or one of its parts.
+    fn guild_faction_bar_hovered(&mut self) -> Result<bool, String> {
+        let Some(hit) = self.hovered_ui_frame()? else {
+            return Ok(false);
+        };
+        let ui = hit.ui.bind();
+        let Some(registry) = ui.registry() else {
+            return Ok(false);
+        };
+        let mut frame = registry.get(hit.frame);
+        while let Some(current) = frame {
+            if current.name.as_deref() == Some(game_engine_ui_model::guild_rewards::FACTION_BAR) {
+                return Ok(true);
+            }
+            frame = current.parent_id.and_then(|id| registry.get(id));
+        }
+        Ok(false)
     }
 
     pub(crate) fn guild_reward_tooltip(
@@ -603,7 +625,7 @@ impl GameClient {
         {
             game_engine_ui_model::guild_perks::load_catalog()?;
         }
-        self.feed_guild_rewards();
+        self.feed_guild_rewards()?;
         let scale = self.effective_ui_scale();
         let state = self.guild_ranks.session.clone();
         if self.guild_ranks.ui.is_none() {

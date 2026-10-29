@@ -15,6 +15,7 @@ use ui_toolkit::{rsx, screen::SharedContext, widget_def::Element};
 pub const SCROLL_BOX: &str = "CommunitiesGuildRewardsScrollBox";
 pub const ROW_PREFIX: &str = "CommunitiesGuildReward";
 pub const GUILD_FACTION: u32 = 1168;
+pub const FACTION_BAR: &str = "CommunitiesGuildFactionBar";
 const ROW_HEIGHT: f32 = 47.0; // COMMUNITIES_GUILD_REWARDS_BUTTON_HEIGHT
 const ROW_WIDTH: f32 = 293.0; // ScrollBox TOPLEFT 5,-6 / BOTTOMRIGHT -4,0 in 302.
 const VIEW_HEIGHT: f32 = 327.0;
@@ -50,6 +51,8 @@ pub struct GuildRewardsSession {
     pub reputation: Option<i32>,
     /// `GetMoney`.
     pub money: u64,
+    /// The pointer is on the reputation bar (`CommunitiesGuildFactionBarMixin:OnEnter`).
+    pub bar_hovered: bool,
 }
 
 impl GuildRewardsSession {
@@ -428,14 +431,24 @@ fn faction_frame(rewards: &GuildRewardsSession) -> Element {
         "0.60742188,0.62500000,0.82617188,0.86132813",
         (BAR_WIDTH - 18.0, 2.0, 18.0, 18.0),
     ));
+    // OnEnter: GUILD_EXPERIENCE_LABEL "%s / %s"; OnLeave: FACTION_STANDING_LABEL.
+    let bar_text = if rewards.bar_hovered {
+        format!(
+            "{} / {}",
+            crate::character_frame::break_up_large_numbers(current as i64),
+            crate::character_frame::break_up_large_numbers(maximum as i64),
+        )
+    } else {
+        standing_label(standing).to_owned()
+    };
     bar.extend(label(
         "CommunitiesGuildFactionBarLabel".into(),
-        standing_label(standing),
+        &bar_text,
         (0.0, 6.0, BAR_WIDTH, 10.0),
         (SIZE, WHITE, "CENTER"),
     ));
     out.extend(
-        rsx! { r#frame { name: "CommunitiesGuildFactionBar", left: {LEFT + caption_width + 4.0},
+        rsx! { r#frame { name: {DynName(FACTION_BAR.into())}, left: {LEFT + caption_width + 4.0},
         top: {LABEL_TOP - 6.5}, width: BAR_WIDTH, height: 20.0, pos_type: "absolute",
         mouse_enabled: true, tooltip_provider: "guild_reputation", {bar} } },
     );
