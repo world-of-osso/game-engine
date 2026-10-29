@@ -452,6 +452,80 @@ mod tests {
         );
     }
 
+    #[test]
+    fn player_walks_off_real_ledge_after_leaving_footprint_support() {
+        use crate::terrain::NativeTerrainTile;
+        use shared::los::LosTile;
+        let mut terrain = StreamedTerrain::new(PathBuf::new());
+        let upper = LosTile::build(
+            32,
+            32,
+            vec![
+                Vec3::new(-20.0, 12.0, -10.0),
+                Vec3::new(-20.0, 12.0, 10.0),
+                Vec3::new(-10.0, 12.0, 0.0),
+            ],
+            vec![[0, 1, 2]],
+        );
+        let lower = LosTile::build(
+            32,
+            32,
+            vec![
+                Vec3::new(-20.0, 0.0, -10.0),
+                Vec3::new(0.0, 0.0, -10.0),
+                Vec3::new(-10.0, 0.0, 10.0),
+            ],
+            vec![[0, 1, 2]],
+        );
+        terrain.parsed_tiles.insert(
+            (32, 32),
+            NativeTerrainTile {
+                root_path: PathBuf::new(),
+                tex_path: None,
+                obj_path: None,
+                root: game_engine_core::adt::Root {
+                    chunks: Vec::new(),
+                    height_grids: Vec::new(),
+                    center_surface: [0.0; 3],
+                    chunk_positions: vec![[0.0; 3]],
+                    blend_mesh: None,
+                    flight_bounds: None,
+                    water: None,
+                    water_error: None,
+                },
+                tex: None,
+                obj: None,
+                textures: Default::default(),
+                chunk_surfaces: Default::default(),
+                wmo_floors: Vec::new(),
+                m2_floors: vec![upper, lower],
+                m2_solids: Vec::new(),
+                wmo_surfaces: Vec::new(),
+                liquid_materials: Default::default(),
+            },
+        );
+        let ground = TerrainGround {
+            terrain: &terrain,
+            walls: &|_, _, _| None,
+            step_wall_blocked: &|_, _, _| false,
+            game_object_floor: &|_| None,
+        };
+        let mut movement = crate::gameplay::PlayerMovement::default();
+        let mut feet = Vec3::new(-10.5, 12.0, 0.0);
+        for _ in 0..30 {
+            let frame = crate::gameplay::MovementFrame {
+                direction: [1.0, 0.0, 0.0],
+                speed: 7.0,
+                vertical: 0.0,
+            };
+            feet = movement.predict(feet, frame, false, &ground, &mut |_, to, _| to, 1.0 / 60.0);
+        }
+        assert!(
+            feet.x > -9.0 && feet.y < 11.0 && feet.y > 0.0,
+            "real ledge must start a fall, not snap: {feet}"
+        );
+    }
+
     fn load_floor_map(map: &str, tile: (u32, u32)) -> StreamedTerrain {
         let data_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
         let mut terrain = StreamedTerrain::new(data_root);
