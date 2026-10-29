@@ -332,7 +332,7 @@ mod tests {
 
     #[test]
     fn solid_m2_support_prevents_fall_and_blocks_steep_ascent() {
-        use crate::terrain::assets::NativeTerrainTile;
+        use crate::terrain::NativeTerrainTile;
         use shared::los::LosTile;
         let mut terrain = StreamedTerrain::new(PathBuf::new());
         let floor = LosTile::build(
