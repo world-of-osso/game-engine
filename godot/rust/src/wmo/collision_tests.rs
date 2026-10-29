@@ -292,6 +292,13 @@ fn neltharus_return_crosses_recorded_gorek_lip() {
             walls(start + Vec3::Y * 0.6, direction, distance + 0.05)
         );
     }
+    let landing = (start + direction * 0.75).with_y(124.090256);
+    let raised = start.with_y(landing.y);
+    eprintln!(
+        "raised clearance wall={:?} step_blocked={}",
+        walls(raised + Vec3::Y * 0.6, direction, 0.8),
+        triangles_block_step(&triangles, raised, landing, start.y + 1.6)
+    );
     let mut movement = crate::gameplay::PlayerMovement::default();
     let mut feet = start;
     for tick in 0..12 {
