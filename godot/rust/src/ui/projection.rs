@@ -401,6 +401,11 @@ impl UiProjection {
             if !current.contains(&id) {
                 self.visuals.remove(&id);
                 if let Some(mut node) = self.nodes.remove(&id) {
+                    // Detach now: a queued node keeps its name until the frame ends, so a
+                    // replacement frame of the same name would be renamed by Godot.
+                    if let Some(mut parent) = node.get_parent() {
+                        parent.remove_child(&node);
+                    }
                     node.queue_free();
                 }
             }
