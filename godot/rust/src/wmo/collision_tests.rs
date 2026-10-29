@@ -277,41 +277,15 @@ fn neltharus_return_crosses_recorded_gorek_lip() {
         game_object_floor: &|_| None,
     };
     let direction = (target - start).with_y(0.0).normalize();
-    for distance in [0.0, 0.116667, 0.3, 0.75, 1.0, 1.25, 1.6, 2.0] {
-        let point = start + direction * distance;
-        let wmos = || {
-            terrain
-                .parsed_tiles
-                .values()
-                .flat_map(|tile| tile.wmo_floors.iter().map(|(_, wmo)| wmo))
-        };
-        let solid = shared::ground::collision_height(point, None, wmos());
-        let walkable = shared::ground::ground_at(point, None, wmos());
-        eprintln!(
-            "probe distance={distance} point={point:?} solid={solid:?} walkable={walkable:?} wall={:?}",
-            walls(start + Vec3::Y * 0.6, direction, distance + 0.05)
-        );
-    }
-    let landing = (start + direction * 0.75).with_y(124.090256);
-    let raised = start.with_y(landing.y);
-    eprintln!(
-        "raised clearance wall={:?} step_blocked={}",
-        walls(raised + Vec3::Y * 0.6, direction, 0.8),
-        triangles_block_step(&triangles, raised, landing, start.y + 1.6)
-    );
     let mut movement = crate::gameplay::PlayerMovement::default();
     let mut feet = start;
-    for tick in 0..12 {
+    for _ in 0..12 {
         let frame = crate::gameplay::MovementFrame {
             direction: direction.to_array(),
             speed: 7.0,
             vertical: 0.0,
         };
         let next = movement.predict(feet, frame, false, &ground, &mut |_, to, _| to, 1.0 / 60.0);
-        eprintln!(
-            "tick={tick} before={feet:?} after={next:?} support={:?}",
-            ground.trace_support(feet)
-        );
         assert!(next.y > 120.0, "fell at {next:?}");
         feet = next;
     }
@@ -348,6 +322,11 @@ fn neltharus_steep_face_supports_player_across_lip() {
         };
         feet = movement.predict(feet, frame, false, &ground, &mut |_, to, _| to, 1.0 / 60.0);
         assert!(feet.y > 133.0, "fell through steep WMO face: {feet}");
+        let support = ground.trace_support(feet).expect("solid support along lip");
+        assert!(
+            (feet.y - support.height).abs() < 0.02,
+            "feet={feet}, support={support:?}"
+        );
     }
     assert!(feet.x < start.x - 0.3, "failed to cross lip: {feet}");
     let walkable = shared::ground::ground_at(
