@@ -1411,16 +1411,25 @@ fn connect_frame_click(pending: &PendingInputs, id: u64, node: &mut Gd<Control>)
     node.connect("gui_input", &callback);
 }
 
+/// Keyboard focus reaches a row only from the keyboard. As in Retail, a pointer press leaves
+/// no focus behind (Godot grabs it before `gui_input`), so Enter still opens chat afterwards.
 fn connect_selection_activation(pending: &PendingInputs, id: u64, node: &mut Gd<Control>) {
     let pending = pending.clone();
     let mut control = node.clone();
     node.connect(
         "gui_input",
         &Callable::from_fn("selection-row-activate", move |args| {
-            let Some(key) = args
-                .first()
-                .and_then(|event| event.try_to::<Gd<godot::classes::InputEventKey>>().ok())
-            else {
+            let Some(event) = args.first() else {
+                return;
+            };
+            if event
+                .try_to::<Gd<InputEventMouseButton>>()
+                .is_ok_and(|button| button.is_pressed())
+            {
+                control.release_focus();
+                return;
+            }
+            let Ok(key) = event.try_to::<Gd<godot::classes::InputEventKey>>() else {
                 return;
             };
             if key.is_pressed()

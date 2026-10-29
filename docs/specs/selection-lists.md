@@ -4,7 +4,7 @@ Selectable list rows must not use the default UIPanelButton skin. Every row uses
 
 Retail Mainline defines structure, sizes and interaction for both skins. Atlas art resolves through the active skin: Forever draws its authored member for the same atlas name and otherwise the Retail member. File art is the Retail file in both skins. No generated or invented artwork.
 
-Hover art lives on the HIGHLIGHT layer and shows while the row is hovered or keyboard-focused, never while disabled. Rows support pointer selection, keyboard focus, Enter/Space activation and scroll-to-reveal; keyboard eligibility comes from being a row, not from which hover art its template draws. Scrolling or state refresh must not reset selection. Disabled rows cannot activate.
+Hover art lives on the HIGHLIGHT layer and shows while the row is hovered or keyboard-focused, never while disabled. Rows support pointer selection, keyboard focus, Enter/Space activation and scroll-to-reveal; keyboard eligibility comes from being a row, not from which hover art its template draws. As in Retail, a pointer press never leaves keyboard focus on a row, so Enter afterwards reaches the game and opens chat; Enter/Space activate a row only while it holds keyboard focus (`godot/tests/selection_row_pointer_focus.gd`, both skins). Known gap: with no focused control, no key moves focus into a list, so a row gains keyboard focus only when code focuses it. Scrolling or state refresh must not reset selection. Disabled rows cannot activate.
 
 User choice: generic search-style rows keep idle text flat on the panel instead of the template's `_search-rowbg` normal texture.
 
