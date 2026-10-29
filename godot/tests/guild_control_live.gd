@@ -12,6 +12,9 @@ extends "res://tests/guild_chat_live.gd"
 
 const GUILD_NAME := "Vault Keepers"
 const MEMBER_RANK := 3
+## The rank Guild Control edits; fixtures that manage another rank override both.
+var managed_rank := MEMBER_RANK
+var managed_rank_name := "Member"
 const GRANT := 10
 const PERMISSIONS := "You don't have permission to do that."
 const WITHDRAW_LIMIT := "You cannot withdraw that much from the guild bank."
@@ -220,7 +223,7 @@ func officer_rights() -> bool:
 
 # --- Guild Control ---------------------------------------------------------
 
-## Communities → Guild Settings → page, with the Member rank selected.
+## Communities → Guild Settings → page, with the managed rank selected.
 func open_guild_control(page: int) -> bool:
 	if not shown("CommunitiesFrame"):
 		await open_communities()
@@ -240,10 +243,10 @@ func select_page(page: int) -> bool:
 	if not await wait_until(func(): return shown(prefix + "RankDropdown"), "page %d" % page):
 		return false
 	await press(prefix + "RankDropdown")
-	if not await wait_until(func(): return shown("GuildControlRankChoice%d" % MEMBER_RANK), "rank menu"):
+	if not await wait_until(func(): return shown("GuildControlRankChoice%d" % managed_rank), "rank menu"):
 		return false
-	await press("GuildControlRankChoice%d" % MEMBER_RANK)
-	return await wait_until(func(): return text(prefix + "RankDropdownText") == "Member", "Member rank selected")
+	await press("GuildControlRankChoice%d" % managed_rank)
+	return await wait_until(func(): return text(prefix + "RankDropdownText") == managed_rank_name, managed_rank_name + " rank selected")
 
 ## Click a checkbox and wait for the server's state to show it.
 func toggle(name: String, checked: bool) -> bool:
