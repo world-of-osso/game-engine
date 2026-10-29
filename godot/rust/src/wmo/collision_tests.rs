@@ -236,12 +236,12 @@ fn neltharus_player_keeps_ground_at_recorded_upper_route() {
     let start = Vec3::new(-200.8241, 133.4988, 589.739);
     let mut movement = crate::gameplay::PlayerMovement::default();
     let mut current = start;
-    let frame = crate::gameplay::MovementFrame {
-        direction: (feet - start).normalize().to_array(),
-        speed: 7.0,
-        vertical: 0.0,
-    };
     for _ in 0..12 {
+        let frame = crate::gameplay::MovementFrame {
+            direction: (feet - start).normalize().to_array(),
+            speed: 7.0,
+            vertical: 0.0,
+        };
         current = movement.predict(
             current,
             frame,
