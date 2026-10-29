@@ -273,13 +273,38 @@ impl GuildBankState {
 /// A guild bank frame action for the server, sent to the open vault.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum GuildBankRequest {
-    Deposit { tab: u8, item_guid: u64 },
-    Withdraw { tab: u8, slot: u8 },
-    Money { copper: u64, deposit: bool },
+    Deposit {
+        tab: u8,
+        item_guid: u64,
+    },
+    Withdraw {
+        tab: u8,
+        slot: u8,
+    },
+    Move {
+        from_tab: u8,
+        from_slot: u8,
+        to_tab: u8,
+        to_slot: u8,
+        count: u32,
+    },
+    Money {
+        copper: u64,
+        deposit: bool,
+    },
     BuyTab,
-    SetTabInfo { tab: u8, name: String, icon: u32 },
-    SetTabText { tab: u8, text: String },
-    QueryLog { tab: Option<u8> },
+    SetTabInfo {
+        tab: u8,
+        name: String,
+        icon: u32,
+    },
+    SetTabText {
+        tab: u8,
+        text: String,
+    },
+    QueryLog {
+        tab: Option<u8>,
+    },
 }
 
 /// Retail `GetMoneyString` without coin textures: "12g 3s 5c", zero parts left out.
@@ -320,7 +345,11 @@ pub fn log_age(seconds: u64) -> String {
 /// `GUILDBANK_WITHDRAW_FORMAT` "%s withdrew %s", `GUILDBANK_BUYTAB_MONEY_FORMAT`
 /// "%s purchased a guild bank tab for %s", `GUILDBANK_REPAIR_MONEY_FORMAT`
 /// "%s withdrew %s for repairs" (GB.lua:797-798); items read "name x count".
-pub fn log_line(entry: &shared::protocol::GuildBankLogEntry) -> String {
+pub fn log_line(
+    entry: &shared::protocol::GuildBankLogEntry,
+    source_tab: Option<&str>,
+    destination_tab: Option<&str>,
+) -> String {
     let item = if entry.count > 1 {
         format!("{} x {}", entry.item_name, entry.count)
     } else {
@@ -336,6 +365,13 @@ pub fn log_line(entry: &shared::protocol::GuildBankLogEntry) -> String {
             format!("{} purchased a guild bank tab for {money}", entry.actor)
         }
         GuildBankLogKind::RepairMoney => format!("{} withdrew {money} for repairs", entry.actor),
+        GuildBankLogKind::MoveItem { .. } => match (source_tab, destination_tab) {
+            (Some(from), Some(to)) => format!(
+                "{} moved {} x {} from {from} to {to}",
+                entry.actor, entry.item_name, entry.count
+            ),
+            _ => "Guild bank move log references an unknown tab".into(),
+        },
     };
     format!("{text} {}", log_age(entry.seconds_ago))
 }

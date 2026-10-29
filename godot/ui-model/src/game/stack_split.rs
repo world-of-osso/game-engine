@@ -9,6 +9,8 @@ use shared::protocol::ItemLocation;
 pub enum StackSplitOwner {
     /// `SplitContainerItem` on Okay.
     Bag(ItemLocation),
+    /// `SplitGuildBankItem` on the open vault's selected tab.
+    GuildBank { tab: u8, slot: u8 },
     /// `BuyMerchantItem(index, split)` on Okay (cell index on the page).
     Merchant(usize),
 }

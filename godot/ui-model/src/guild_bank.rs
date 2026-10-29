@@ -15,6 +15,7 @@ use crate::bank::{
     BagStacks, InputTexts, ItemIcons, cleared, confirm_purchase, index, money_input,
 };
 use crate::bank_data::{BankPrompt, GuildBankMode, GuildBankRequest, GuildBankState, log_line};
+use crate::cursor_item::CursorItem;
 use crate::guild_bank_frame_component::{
     self as frame, BuyTabView, GuildBankFrameState, GuildBankModeView, GuildSideTab,
 };
@@ -249,6 +250,98 @@ impl GuildBankSession {
         self.effects(Some(request))
     }
 
+    /// Resolve a slot action against the authoritative selected tab.
+    pub fn slot_target(&self, action: &str) -> Option<(u8, u8)> {
+        if !self.state.is_open() || self.state.mode != GuildBankMode::Bank {
+            return None;
+        }
+        let index = index(action, frame::ACTION_SLOT_PREFIX)?.checked_sub(1)?;
+        let tab = self.selected_tab()?;
+        if !tab.viewable || index >= tab.slots.len() {
+            return None;
+        }
+        Some((
+            u8::try_from(self.state.tab).ok()?,
+            u8::try_from(index).ok()?,
+        ))
+    }
+
+    pub fn slot_stack(&self, tab: u8, slot: u8) -> Option<&shared::protocol::ItemStack> {
+        self.state
+            .contents
+            .as_ref()?
+            .tabs
+            .get(usize::from(tab))?
+            .slots
+            .get(usize::from(slot))?
+            .as_ref()
+    }
+
+    pub fn pick_up_slot(&self, tab: u8, slot: u8, count: u32) -> CursorItem {
+        let Some(object) = self.state.object else {
+            return CursorItem::Empty;
+        };
+        let Some(item) = self.slot_stack(tab, slot) else {
+            return CursorItem::Empty;
+        };
+        if count == 0 || count > item.count {
+            return CursorItem::Empty;
+        }
+        CursorItem::GuildBank {
+            object,
+            tab,
+            slot,
+            item_guid: item.item_guid,
+            item_id: item.item_id,
+            definition_source: item.definition_source,
+            icon_fdid: self.icons.slot_item(item).icon_fdid,
+            count,
+            split: count < item.count,
+        }
+    }
+
+    /// Pickup or drop without optimistic changes to the server-supplied slots.
+    pub fn click_slot(&self, cursor: &mut CursorItem, tab: u8, slot: u8) -> Vec<GuildBankEffect> {
+        match cursor.clone() {
+            CursorItem::Empty => {
+                if let Some(item) = self.slot_stack(tab, slot) {
+                    *cursor = self.pick_up_slot(tab, slot, item.count);
+                }
+                Vec::new()
+            }
+            CursorItem::GuildBank {
+                object,
+                tab: from_tab,
+                slot: from_slot,
+                item_guid,
+                count,
+                split,
+                ..
+            } => {
+                if self.state.object != Some(object)
+                    || self
+                        .slot_stack(from_tab, from_slot)
+                        .is_none_or(|item| item.item_guid != item_guid || item.count < count)
+                {
+                    *cursor = CursorItem::Empty;
+                    return Vec::new();
+                }
+                *cursor = CursorItem::Empty;
+                if (from_tab, from_slot) == (tab, slot) {
+                    return Vec::new();
+                }
+                self.effects(Some(GuildBankRequest::Move {
+                    from_tab,
+                    from_slot,
+                    to_tab: tab,
+                    to_slot: slot,
+                    count: if split { count } else { 0 },
+                }))
+            }
+            _ => Vec::new(),
+        }
+    }
+
     /// Yes / No on `CONFIRM_BUY_GUILDBANK_TAB`.
     pub fn confirm_purchase(&mut self, accepted: bool) -> Vec<GuildBankEffect> {
         if self.purchase_confirmation.take().is_none() || !accepted {
@@ -473,7 +566,9 @@ impl GuildBankSession {
         };
         match guild.mode {
             GuildBankMode::Bank => self.bank_mode(&mut state, contents, tab, buying),
-            GuildBankMode::Log | GuildBankMode::MoneyLog => self.log_mode(&mut state, tab),
+            GuildBankMode::Log | GuildBankMode::MoneyLog => {
+                self.log_mode(&mut state, contents, tab)
+            }
             GuildBankMode::Info => {
                 if let Some(tab) = tab.filter(|tab| tab.viewable) {
                     state.tab_title = Some((format!("{} Info", tab.name), String::new(), ""));
@@ -485,16 +580,35 @@ impl GuildBankSession {
     }
 
     /// The selected tab's item log or the money log, oldest line first.
-    fn log_mode(&self, state: &mut GuildBankFrameState, tab: Option<&GuildBankTabView>) {
+    fn log_mode(
+        &self,
+        state: &mut GuildBankFrameState,
+        contents: &GuildBankContents,
+        tab: Option<&GuildBankTabView>,
+    ) {
         if let Some(tab) = tab.filter(|_| self.state.mode == GuildBankMode::Log) {
             state.tab_title = Some((format!("{} Log", tab.name), String::new(), ""));
         }
+        let names = &contents.tabs;
         state.log_lines = self
             .state
             .log
             .iter()
-            .flat_map(|log| &log.entries)
-            .map(log_line)
+            .flat_map(|log| {
+                let source = log
+                    .tab
+                    .and_then(|tab| names.get(usize::from(tab)))
+                    .map(|tab| tab.name.as_str());
+                log.entries.iter().map(move |entry| {
+                    let destination = match entry.kind {
+                        shared::protocol::GuildBankLogKind::MoveItem { to_tab } => {
+                            names.get(usize::from(to_tab)).map(|tab| tab.name.as_str())
+                        }
+                        _ => None,
+                    };
+                    log_line(entry, source, destination)
+                })
+            })
             .collect();
     }
 

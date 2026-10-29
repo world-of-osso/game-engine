@@ -155,15 +155,31 @@ fn log_lines_use_retail_formats() {
         seconds_ago,
     };
     assert_eq!(
-        log_line(&entry(GuildBankLogKind::DepositItem, 20, 0, 30)),
+        log_line(&entry(GuildBankLogKind::DepositItem, 20, 0, 30), None, None),
         "Bankalt deposited Linen Cloth x 20 ( 1 min ago )"
     );
     assert_eq!(
-        log_line(&entry(GuildBankLogKind::WithdrawMoney, 0, 12_345, 7_300)),
+        log_line(
+            &entry(GuildBankLogKind::WithdrawMoney, 0, 12_345, 7_300),
+            None,
+            None
+        ),
         "Bankalt withdrew 1g 23s 45c ( 2 hours ago )"
     );
     assert_eq!(
-        log_line(&entry(GuildBankLogKind::BuyTab, 0, 1_000_000, 90_000)),
+        log_line(
+            &entry(GuildBankLogKind::BuyTab, 0, 1_000_000, 90_000),
+            None,
+            None
+        ),
         "Bankalt purchased a guild bank tab for 100g ( 1 day ago )"
+    );
+    assert_eq!(
+        log_line(
+            &entry(GuildBankLogKind::MoveItem { to_tab: 1 }, 3, 0, 30),
+            Some("Cloth"),
+            Some("Herbs")
+        ),
+        "Bankalt moved Linen Cloth x 3 from Cloth to Herbs ( 1 min ago )"
     );
 }

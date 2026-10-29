@@ -44,7 +44,7 @@ pub(crate) struct Banks {
     pub(crate) warbank_seen: Option<BankContents>,
     pub(crate) guild_vault_seen: Option<GuildBankContents>,
     pub(crate) bank_ui: Option<Gd<RegistryUi>>,
-    guild_ui: Option<Gd<RegistryUi>>,
+    pub(crate) guild_ui: Option<Gd<RegistryUi>>,
 }
 
 impl Banks {
@@ -474,6 +474,16 @@ impl GameClient {
             return self.drop_cursor_on_bank(action, Click::LEFT);
         }
         if Self::is_ui(&self.banks.guild_ui, owner) {
+            if matches!(self.bags.cursor.item, CursorItem::GuildBank { .. })
+                && let Some((tab, slot)) = self.banks.guild.slot_target(action)
+            {
+                let effects = self
+                    .banks
+                    .guild
+                    .click_slot(&mut self.bags.cursor.item, tab, slot);
+                self.send_guild_effects(effects)?;
+                return Ok(true);
+            }
             return self.drop_cursor_on_guild_bank(action, Click::LEFT);
         }
         Ok(false)
@@ -521,6 +531,21 @@ impl GameClient {
             return self.guild_bag_click(action, click);
         }
         if self.drop_cursor_on_guild_bank(action, click)? {
+            return Ok(());
+        }
+        if !click.right
+            && let Some((tab, slot)) = self.banks.guild.slot_target(action)
+        {
+            self.clear_bag_split();
+            if click.shift && self.bags.cursor.item.is_empty() {
+                self.open_guild_bank_split(tab, slot);
+            } else {
+                let effects = self
+                    .banks
+                    .guild
+                    .click_slot(&mut self.bags.cursor.item, tab, slot);
+                self.send_guild_effects(effects)?;
+            }
             return Ok(());
         }
         if click.right

@@ -81,7 +81,7 @@ use shared::protocol::{
     BankAutoDeposit, BankChannel, BankContents, BankDeposit, BankFailed, BankMoneyTransfer,
     BankPurchaseTab, BankUpdateTabSettings, BankWithdraw, GuildBankBuyTab, GuildBankChannel,
     GuildBankContents, GuildBankDeposit, GuildBankFailed, GuildBankLog, GuildBankMoneyTransfer,
-    GuildBankQueryLog, GuildBankSetTabInfo, GuildBankSetTabText, GuildBankWithdraw,
+    GuildBankMove, GuildBankQueryLog, GuildBankSetTabInfo, GuildBankSetTabText, GuildBankWithdraw,
 };
 use shared::protocol::{
     BuyItem, BuybackItemRequest, BuybackList, CloseInteraction, DurabilityStateUpdate,
@@ -1174,6 +1174,20 @@ impl Account {
             GuildBankRequest::Withdraw { tab, slot } => {
                 bridge.send::<_, GuildBankChannel>(GuildBankWithdraw { object, tab, slot })
             }
+            GuildBankRequest::Move {
+                from_tab,
+                from_slot,
+                to_tab,
+                to_slot,
+                count,
+            } => bridge.send::<_, GuildBankChannel>(GuildBankMove {
+                object,
+                from_tab,
+                from_slot,
+                to_tab,
+                to_slot,
+                count,
+            }),
             GuildBankRequest::Money { copper, deposit } => {
                 bridge.send::<_, GuildBankChannel>(GuildBankMoneyTransfer {
                     object,

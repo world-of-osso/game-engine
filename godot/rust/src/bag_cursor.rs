@@ -304,6 +304,20 @@ impl GameClient {
         Ok(())
     }
 
+    pub(super) fn open_guild_bank_split(&mut self, tab: u8, slot: u8) {
+        let count = self
+            .banks
+            .guild
+            .slot_stack(tab, slot)
+            .map_or(0, |item| item.count);
+        self.bags.cursor.split = (count > 1)
+            .then(|| StackSplitState::open(StackSplitOwner::GuildBank { tab, slot }, count, 1))
+            .flatten();
+        if self.bags.cursor.split.is_some() {
+            self.physical_input.clear_gameplay();
+        }
+    }
+
     fn open_bag_split(&mut self, location: ItemLocation) {
         let count = self
             .merchant
@@ -387,12 +401,16 @@ impl GameClient {
         let Some(split) = self.bags.cursor.split.take() else {
             return;
         };
-        if accepted
-            && self.bags.cursor.item.is_empty()
-            && let StackSplitOwner::Bag(location) = split.owner
-        {
-            self.bags.cursor.item =
-                CursorItem::split_from(&self.merchant.session.inventory, location, split.split);
+        if accepted && self.bags.cursor.item.is_empty() {
+            self.bags.cursor.item = match split.owner {
+                StackSplitOwner::Bag(location) => {
+                    CursorItem::split_from(&self.merchant.session.inventory, location, split.split)
+                }
+                StackSplitOwner::GuildBank { tab, slot } => {
+                    self.banks.guild.pick_up_slot(tab, slot, split.split)
+                }
+                StackSplitOwner::Merchant(_) => return,
+            };
         }
     }
 
@@ -483,6 +501,17 @@ impl GameClient {
                 ui.bind()
                     .frame_control(&name)
                     .ok_or_else(|| format!("Split owner bank slot {name} missing"))?
+            }
+            StackSplitOwner::GuildBank { slot, .. } => {
+                let name = format!("GuildBankFrameItem{}", slot + 1);
+                let ui = self
+                    .banks
+                    .guild_ui
+                    .as_ref()
+                    .ok_or("Split owner Guild Bank UI missing")?;
+                ui.bind()
+                    .frame_control(&name)
+                    .ok_or_else(|| format!("Split owner guild bank slot {name} missing"))?
             }
             _ => return Err("Standalone split owner is not a container slot".into()),
         };

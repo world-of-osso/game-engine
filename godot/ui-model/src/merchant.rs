@@ -406,7 +406,7 @@ impl MerchantSession {
         };
         let owner = match split.owner {
             StackSplitOwner::Merchant(index) => format!("MerchantItem{}", index + 1),
-            StackSplitOwner::Bag(_) => return state,
+            StackSplitOwner::Bag(_) | StackSplitOwner::GuildBank { .. } => return state,
         };
         if let Some(rect) = registry
             .get_by_name(&owner)

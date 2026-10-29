@@ -595,3 +595,52 @@ fn guild_tab_edit_cancel_and_empty_name_follow_source_behavior() {
         })]
     );
 }
+
+#[test]
+fn guild_bank_cursor_moves_and_splits_without_optimistic_state_changes() {
+    use game_engine_ui_model::cursor_item::CursorItem;
+    let mut session = opened();
+    let mut snapshot = contents(42);
+    snapshot.tabs[0].slots.push(None);
+    let mut other = snapshot.tabs[0].clone();
+    other.name = "Other".into();
+    other.slots = vec![None, None];
+    snapshot.tabs.push(other);
+    session.apply_contents(snapshot.clone());
+    let mut cursor = CursorItem::Empty;
+    assert!(session.click_slot(&mut cursor, 0, 0).is_empty());
+    assert!(matches!(
+        cursor,
+        CursorItem::GuildBank {
+            count: 20,
+            split: false,
+            ..
+        }
+    ));
+    assert_eq!(
+        session.click_slot(&mut cursor, 0, 1),
+        vec![request(GuildBankRequest::Move {
+            from_tab: 0,
+            from_slot: 0,
+            to_tab: 0,
+            to_slot: 1,
+            count: 0
+        })]
+    );
+    assert_eq!(cursor, CursorItem::Empty);
+    assert_eq!(session.state.contents.as_ref(), Some(&snapshot));
+    cursor = session.pick_up_slot(0, 0, 3);
+    assert_eq!(
+        session.click_slot(&mut cursor, 1, 0),
+        vec![request(GuildBankRequest::Move {
+            from_tab: 0,
+            from_slot: 0,
+            to_tab: 1,
+            to_slot: 0,
+            count: 3
+        })]
+    );
+    cursor = session.pick_up_slot(0, 0, 3);
+    assert!(session.click_slot(&mut cursor, 0, 0).is_empty());
+    assert_eq!(cursor, CursorItem::Empty);
+}

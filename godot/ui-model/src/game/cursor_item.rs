@@ -30,6 +30,18 @@ pub enum CursorItem {
         count: u32,
         split: bool,
     },
+    /// A guild-bank stack remains authoritative until a destination is chosen.
+    GuildBank {
+        object: u64,
+        tab: u8,
+        slot: u8,
+        item_guid: u64,
+        item_id: u32,
+        definition_source: ItemDefinitionSource,
+        icon_fdid: u32,
+        count: u32,
+        split: bool,
+    },
     /// `purchases` of vendor slot `slot`; dropped on a bag slot it is bought there.
     Merchant {
         slot: u32,
@@ -109,6 +121,9 @@ impl CursorItem {
             Self::Inventory {
                 definition_source, ..
             } => Some(*definition_source),
+            Self::GuildBank {
+                definition_source, ..
+            } => Some(*definition_source),
             Self::Merchant { .. } => Some(ItemDefinitionSource::Retail),
             Self::Empty => None,
         }
@@ -117,9 +132,9 @@ impl CursorItem {
     pub fn icon_fdid(&self) -> Option<u32> {
         match self {
             Self::Empty => None,
-            Self::Inventory { icon_fdid, .. } | Self::Merchant { icon_fdid, .. } => {
-                Some(*icon_fdid)
-            }
+            Self::Inventory { icon_fdid, .. }
+            | Self::GuildBank { icon_fdid, .. }
+            | Self::Merchant { icon_fdid, .. } => Some(*icon_fdid),
         }
     }
 
@@ -200,6 +215,10 @@ impl CursorItem {
                 }
                 effect
             }
+            held @ Self::GuildBank { .. } => {
+                *self = held;
+                None
+            }
             Self::Merchant {
                 slot,
                 item_id,
@@ -245,6 +264,7 @@ impl CursorItem {
             } => inventory.item_at(*from).is_none_or(|item| {
                 item.item_id != *item_id || item.definition_source != *definition_source
             }),
+            Self::GuildBank { .. } => false,
             Self::Merchant { .. } => !merchant.is_open(),
         };
         if stale {
