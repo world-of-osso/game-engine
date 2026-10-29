@@ -9,6 +9,8 @@ func capture() -> bool:
 	var directory := OS.get_environment("GUILD_CAPTURES")
 	if not completion.require(not directory.is_empty()):
 		return false
+	# Pixel samples and captures use 1920x1080; the project window defaults to 1280x720.
+	root.size = Vector2i(1920, 1080)
 	for skin in ["modern", "forever"]:
 		var ui: Node = ClassDB.instantiate("RegistryUi")
 		root.add_child(ui)
