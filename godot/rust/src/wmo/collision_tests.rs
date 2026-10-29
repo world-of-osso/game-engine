@@ -218,6 +218,43 @@ fn neltharus_guarded_route_crosses_recorded_second_drop() {
 }
 
 #[test]
+fn neltharus_player_keeps_ground_at_recorded_upper_route() {
+    let terrain = load("2519", (33, 32), |terrain| {
+        terrain.parsed_tiles.contains_key(&(33, 32))
+    });
+    let ground = TerrainGround {
+        terrain: &terrain,
+        walls: &|_, _, _| None,
+        step_wall_blocked: &|_, _, _| false,
+        game_object_floor: &|_| None,
+    };
+    let feet = Vec3::new(-201.5208, 133.4988, 588.5245);
+    let support = ground
+        .trace_support(feet)
+        .expect("recorded upper route has collision support");
+    assert!((support.height - 133.3707).abs() < 0.1, "{support:?}");
+    let start = Vec3::new(-200.8241, 133.4988, 589.739);
+    let mut movement = crate::gameplay::PlayerMovement::default();
+    let mut current = start;
+    let frame = crate::gameplay::MovementFrame {
+        direction: (feet - start).normalize().to_array(),
+        speed: 7.0,
+        vertical: 0.0,
+    };
+    for _ in 0..12 {
+        current = movement.predict(
+            current,
+            frame,
+            false,
+            &ground,
+            &mut |_, to, _| to,
+            1.0 / 60.0,
+        );
+        assert!(current.y > 130.0, "player fell at {current}");
+    }
+}
+
+#[test]
 fn neltharus_steep_face_supports_player_and_blocks_uphill_motion() {
     let terrain = load("2519", (32, 32), |terrain| {
         terrain.parsed_tiles.contains_key(&(32, 32))
