@@ -640,6 +640,7 @@ impl UiProjection {
             WidgetType::Button
                 if frame.onclick.as_deref().is_some_and(|action| {
                     action.starts_with("bank_slot:")
+                        || action.starts_with(game_engine_ui_model::guild_bank_frame_component::ACTION_TAB_PREFIX)
                         || action.starts_with("guild:member:")
                         || action.starts_with("guild:news_entry:")
                         || action.starts_with("guild:perk:")
