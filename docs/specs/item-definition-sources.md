@@ -14,7 +14,7 @@ Owned item metadata pairs the unchanged authored item ID with `shared::item_data
 
 - [x] Select equipped component models by source-local `ItemDisplayInfo.ModelResourcesID` → `ModelFileData` FDID, filtered by `ComponentModelFileData` wearer/position metadata; a listfile filename is not required to attach a selected model. The first model of an attachment slot uses that slot's attachment; additional models and body-slot models share character joints.
 
-- [x] Modern and Forever mount Retail's player portrait slot (60×60 at24,19) using the same equipped-player renderer. Forever retains its existing bronze bars, percentages and power bar; portrait pixels must not cover bar content. Other unit-frame layouts are unchanged.
+- [x] Modern mounts Retail's player portrait slot (60×60 at24,19) using the equipped-player renderer. Forever's FlareUI player frame has no portrait (user 2026-10-30).
 
 ## How it works
 

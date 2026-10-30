@@ -517,33 +517,13 @@ fn forever_partial_bars_show_dark_background_without_an_opaque_frame_backdrop() 
 }
 
 #[test]
-fn forever_player_has_retail_portrait_without_covering_flare_bars() {
-    let registry = unit_frames(ActiveSkin::Forever);
-    assert!(
-        registry.get_by_name("PlayerPortrait").is_some(),
-        "Forever must mount the Retail player portrait"
-    );
-    assert_eq!(
-        fixed_rect(&registry, "PlayerPortrait"),
-        (24.0, 19.0, 60.0, 60.0)
-    );
-    let portrait = fixed_rect(&registry, "PlayerPortrait");
-    let bars = fixed_rect(&registry, "PlayerFrameBars");
-    let health = fixed_rect(&registry, "PlayerHealthBar");
-    assert!(portrait.0 + portrait.2 <= bars.0 + health.0);
-    assert_eq!((health.2, health.3), (232.0, 38.0));
-    assert_eq!(fixed_rect(&registry, "PlayerManaBar").3, 14.0);
-}
-
-#[test]
 fn forever_player_frame_is_flareui_thin_frame_with_bronze_border() {
     let registry = unit_frames(ActiveSkin::Forever);
     let player = frame(&registry, "PlayerFrame");
     assert_eq!(
         (player.width, player.height),
-        (Dimension::Fixed(321.0), Dimension::Fixed(79.0))
+        (Dimension::Fixed(240.0), Dimension::Fixed(60.0))
     );
-    // Original240×60 bars remain beside the Retail60×60 portrait.
     // INSET 4 (UnitFrames.lua:40,1705-1722): health above a 14-high power bar.
     assert_eq!(
         fixed_rect(&registry, "PlayerHealthBar"),
@@ -568,12 +548,13 @@ fn forever_player_frame_is_flareui_thin_frame_with_bronze_border() {
         matches!(background, TextureSource::FileDataId(fdid) if fdid != 0),
         "PlayerFrameBackground draws {background:?}"
     );
-    // Existing health-percentage behavior remains unchanged beside the portrait.
+    // Health as a percentage (`healthText = "percent"`), no portrait (user 2026-10-30).
     let text = frame(&registry, "PlayerHealthBarText");
     let Some(WidgetData::FontString(text)) = text.widget_data.as_ref() else {
         panic!("PlayerHealthBarText is not a FontString");
     };
     assert_eq!(text.text, "75%");
+    assert!(registry.get_by_name("PlayerPortrait").is_none());
     assert!(registry.get_by_name("PlayerFrameArt").is_none());
     // Target 240×60 without power, ToT 120×28, focus 160×36, pet 160×28.
     for (name, size) in [

@@ -45,8 +45,8 @@ pub use inworld_unit_frames_aura::{
     target_frame_auras,
 };
 use inworld_unit_frames_flare::{
-    FLARE_FOCUS, FLARE_TARGET, FLARE_TARGET_OF_TARGET, FlareFrame, FlareUnit, flare_frame,
-    flare_player_frame,
+    FLARE_FOCUS, FLARE_PLAYER, FLARE_TARGET, FLARE_TARGET_OF_TARGET, FlareFrame, FlareUnit,
+    flare_frame,
 };
 pub use inworld_unit_frames_layout::*;
 use inworld_unit_frames_parts::{
@@ -395,7 +395,7 @@ fn player_frame(
             aura_state: Some(state),
             ..state.into()
         };
-        flare_player_frame(unit, !visible, anchor)
+        flare_frame(&FLARE_PLAYER, Some(unit), !visible, anchor)
     } else {
         let content = rsx! {
             {unit_frame_contents("Player", state, &PLAYER_SLOTS, HEALTH_BAR)}

@@ -1,7 +1,6 @@
 //! FlareUI 1.3 unit frames, the Forever preset's player, target, target-of-target, focus
 //! and pet frames: a thin health bar (and the player's power bar) under a bronze
-//! `UI-Tooltip-Border`, health as a percentage. The player additionally keeps Retail's
-//! portrait slot; other Flare frames remain portrait-off. Sizes and options from
+//! `UI-Tooltip-Border`, no portrait, health as a percentage. Sizes and options from
 //! FlareUI `Core.lua:281-302`, layout from `Modules/UnitFrames.lua` (`LayoutBars`,
 //! `LayoutFrame`). Only Blizzard art is drawn; FlareUI's own media is not licensed.
 
@@ -11,8 +10,7 @@ use ui_toolkit::atlas::ActiveSkin;
 use ui_toolkit::rsx;
 use ui_toolkit::widget_def::Element;
 
-use super::inworld_unit_frames_layout::{PLAYER_PORTRAIT, PLAYER_SLOTS};
-use super::inworld_unit_frames_parts::{WHITE, art_root, portrait_slot};
+use super::inworld_unit_frames_parts::WHITE;
 use super::{
     DynName, PetFrameState, PowerBarState, Rect, SmallUnitFrameState, UNIT_FONT, UnitFrameState,
     dyn_name, fraction, power_bar_rgb,
@@ -193,29 +191,6 @@ fn health_rgb(unit: &FlareUnit<'_>) -> [f32; 3] {
         Some(Reaction::Neutral) => [0.93, 0.78, 0.25],
         Some(Reaction::Friendly) | None => [0.30, 0.78, 0.30],
     }
-}
-
-/// Retain the player's Flare bars and reserve Retail's 60×60 portrait beside them.
-/// Bar LEFT85 and portrait (24,19) come from Mainline PlayerFrame.xml:27-42,108-111.
-pub fn flare_player_frame(unit: FlareUnit<'_>, hidden: bool, anchor: &HudAnchor) -> Element {
-    let bar_left = PLAYER_SLOTS.health.0 - FLARE_INSET;
-    let (bar_width, bar_height) = FLARE_PLAYER.size;
-    let portrait_bottom = PLAYER_PORTRAIT.rect.1 + PLAYER_PORTRAIT.rect.3;
-    let size = (bar_left + bar_width, bar_height.max(portrait_bottom));
-    let bars = flare_layer(
-        "PlayerFrameBars".into(),
-        (bar_left, 0.0, bar_width, bar_height),
-        flare_contents(&FLARE_PLAYER, &unit),
-    );
-    art_root(
-        dyn_name(FLARE_PLAYER.root.into()),
-        size,
-        anchor,
-        hidden,
-        Element::new(),
-        portrait_slot(&PLAYER_PORTRAIT),
-        bars,
-    )
 }
 
 /// `spec`'s frame at its preset `anchor`: dark background, bars, bronze border, texts.

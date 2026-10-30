@@ -418,13 +418,13 @@ fn forever_preset_moves_the_hud_and_modern_restores_it() {
     sync(&mut hud, ActiveSkin::Modern);
     sync(&mut hud, ActiveSkin::Forever);
     // FlareUI UnitFrames.lua:1888-1894: CENTER (∓330, -270), canvas centre (683,384).
-    // Approved Retail portrait mount: PlayerFrame.xml portrait (24,19,60,60), bar
-    // LEFT85 minus Flare INSET4 gives group x81; 240×60 bars yield outer321×79.
-    assert_rect(&hud, "PlayerFrame", (192.5, 614.5, 321.0, 79.0));
-    assert_rect(&hud, "PlayerFrameBars", (273.5, 614.5, 240.0, 60.0));
-    assert_rect(&hud, "PlayerPortrait", (216.5, 633.5, 60.0, 60.0));
+    // Forever's player frame has no portrait (user 2026-10-30).
+    assert_rect(&hud, "PlayerFrame", (233.0, 624.0, 240.0, 60.0));
+    assert!(
+        hud.iter()
+            .all(|m| m.registry.get_by_name("PlayerPortrait").is_none())
+    );
     assert_rect(&hud, "TargetFrame", (893.0, 624.0, 240.0, 60.0));
-    // Pet retains its original Flare anchor; the portrait mount does not move it.
     assert_eq!(top_left(&hud, "PetFrame"), (313.0, 690.0));
     // The 292×26 cast bar plus flush 26px icon inside its 326×34 holder at BOTTOM (0,268).
     assert_eq!(top_left(&hud, "PlayerCastingBarFrame"), (520.0, 466.0));
