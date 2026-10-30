@@ -60,10 +60,33 @@ impl crate::GameClient {
                 )?);
             }
         }
-        serde_json::to_string(
-            &json!({"admission": ground.probe_admission(feet, direction), "rays": rays}),
-        )
-        .map_err(|error| format!("probe-ground JSON: {error}"))
+        let mut admission = ground.probe_admission(feet, direction);
+        if let Some(probes) = admission.get_mut("probes").and_then(Value::as_array_mut) {
+            for probe in probes {
+                let values = (
+                    probe["distance"].as_f64(),
+                    probe["top"].as_f64(),
+                    probe["landing_height"].as_f64(),
+                );
+                if let (Some(distance), Some(top), Some(landing_height)) = values {
+                    let point = feet + direction * distance as f32;
+                    let raised = feet.with_y((top as f32).max(landing_height as f32));
+                    let destination = point.with_y(raised.y);
+                    let landing = point.with_y(landing_height as f32);
+                    probe["sweep_triangles"] = crate::wmo::step_clearance::diagnose_step_wall(
+                        &space,
+                        raised,
+                        destination,
+                        feet.y + shared::ground::STEP_UP_HEIGHT,
+                    );
+                    probe["headroom_triangles"] = crate::wmo::step_clearance::diagnose_step_wall(
+                        &space, landing, landing, landing.y,
+                    );
+                }
+            }
+        }
+        serde_json::to_string(&json!({"admission": admission, "rays": rays}))
+            .map_err(|error| format!("probe-ground JSON: {error}"))
     }
 }
 

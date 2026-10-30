@@ -337,7 +337,7 @@ impl TerrainGround<'_> {
                 let landing = point.with_y(floor.height);
                 serde_json::json!({"raised_y": raised.y, "wall_reaches": clamp_movement_to_walls(raised, destination, self.walls) == destination, "sweep_blocked": (self.step_wall_blocked)(raised, destination, current.y + STEP_UP_HEIGHT), "headroom_blocked": (self.step_wall_blocked)(landing, landing, floor.height)})
             });
-            serde_json::json!({"distance": distance, "point": point.to_array(), "walkable": format!("{floor:?}"), "solid": format!("{solid:?}"), "top": top, "clearance": clearance})
+            serde_json::json!({"distance": distance, "point": point.to_array(), "walkable": format!("{floor:?}"), "landing_height": floor.map(|floor| floor.height), "solid": format!("{solid:?}"), "top": top, "clearance": clearance})
         }).collect();
         let (allowed, reason) = self.validate_move_with_reason(current, proposed, true);
         serde_json::json!({"feet":current.to_array(), "direction":direction.to_array(), "proposed":proposed.to_array(), "support":format!("{:?}", self.sample(current)), "target":format!("{target:?}"), "probes":probes, "allowed":allowed.to_array(), "rejection":reason})
