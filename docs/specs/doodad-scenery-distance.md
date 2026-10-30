@@ -12,6 +12,7 @@ Placed ADT doodads are drawn only near the camera and fade out before their far 
 - [x] A doodad at opacity 0 is not drawn and does not animate.
 - [x] A fading doodad's opaque materials blend by its opacity alone (ignoring texture alpha); its blended materials multiply their own alpha by it.
 - [x] A doodad at opacity 1 keeps its opaque materials in the opaque pass.
+- [ ] Shared materials preserve each placement's lighting, animation and independent fade; restoring full opacity restores its authored shadow state.
 - [ ] A fading doodad keeps its depth writes and casts no shadow (retail admits scenery shadows only within the fade-start radius, solarityclient `SceneryDistance::admits_shadow`).
 - [ ] Moving through a fade band changes a doodad's drawn opacity continuously, with no pop between drawn and undrawn.
 
@@ -30,6 +31,7 @@ Placed ADT doodads are drawn only near the camera and fade out before their far 
 
 - `godot/rust/src/terrain/scenery.rs`: class limits and radii, per-class band edges and snaps, placement scale and rotation, and the box-center origin.
 - `godot/tests/m2_scenery_fade_pixels.gd`: opaque authored variant, opaque fade at 0.5 and 0.25, and alpha-blend fade over a known background.
+- `godot/tests/scenery_material_sharing.gd`: equivalent and unequal materials, animation isolation, fade copy-on-write, shader defaults, and shadow restoration.
 
 ## Known gaps
 

@@ -280,6 +280,38 @@ impl AnimTime<'_> {
     }
 }
 
+/// A single unanimated root bone leaves every weighted vertex in its bind pose.
+pub fn has_single_bind_pose(model: &Model) -> bool {
+    let [bone] = model.bones.as_slice() else {
+        return false;
+    };
+    bone.parent_bone_id == -1
+        && bone.flags == 0
+        && model.attachments.is_empty()
+        && model.bone_tracks.iter().all(|track| {
+            track
+                .translation
+                .sequences
+                .iter()
+                .all(|(_, v)| v.is_empty())
+                && track.rotation.sequences.iter().all(|(_, v)| v.is_empty())
+                && track.scale.sequences.iter().all(|(_, v)| v.is_empty())
+        })
+        && model.vertices.iter().all(|vertex| {
+            vertex
+                .bone_weights
+                .iter()
+                .map(|&weight| u16::from(weight))
+                .sum::<u16>()
+                == 255
+                && vertex
+                    .bone_indices
+                    .iter()
+                    .zip(vertex.bone_weights)
+                    .all(|(&bone, weight)| weight == 0 || bone == 0)
+        })
+}
+
 /// No bone track of `model` changes its pose over time.
 pub fn bones_are_static(model: &Model) -> bool {
     model.bone_tracks.iter().all(|bone| {

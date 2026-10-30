@@ -201,6 +201,7 @@ impl CulledDoodad {
         scenery: SceneryDistance,
         unique_id: u32,
         wmo_groups: Option<(usize, Vec<u16>)>,
+        light_bound: bool,
     ) -> Self {
         Self {
             // A model whose tracks are all constant keeps its first sample and is never
@@ -211,7 +212,7 @@ impl CulledDoodad {
             materials: node
                 .try_get_node_as::<WowMaterialAnimation>("M2MaterialAnimation")
                 .filter(|materials| materials.bind().animates()),
-            fade: crate::assets::material::SceneryFade::from_model(&node),
+            fade: crate::assets::material::SceneryFade::from_model(&node, light_bound),
             node,
             scenery,
             opacity: 1.0,
@@ -819,8 +820,8 @@ impl TerrainObjects {
                 let (built, scenery) = self.load_placed_doodad(doodad, tile, terrain)?;
                 self.spawned_doodads.insert(doodad.unique_id);
                 let model = built.node.clone();
-                self.push_doodad(built, scenery, doodad.unique_id, None);
                 self.attach(parent, &model);
+                self.push_doodad(built, scenery, doodad.unique_id, None);
                 Ok(())
             }
             Pending::Wmo(tile, index) => {
@@ -954,7 +955,13 @@ impl TerrainObjects {
         unique_id: u32,
         wmo_groups: Option<(usize, Vec<u16>)>,
     ) {
-        let mut doodad = CulledDoodad::new(built.node, scenery, unique_id, wmo_groups);
+        let mut doodad = CulledDoodad::new(
+            built.node,
+            scenery,
+            unique_id,
+            wmo_groups,
+            self.light.is_some(),
+        );
         if let (Some(pools), Some(particles)) = (&mut self.particles, &built.particles) {
             let (placed, errors) =
                 pools.place(particles, &doodad.node, unique_id, &built.texture_dir);
@@ -1009,6 +1016,13 @@ impl TerrainObjects {
         if !missing.is_empty() {
             model.free();
             return Err(format!("model {fdid} missing textures {missing:?}"));
+        }
+        if game_engine_core::m2::has_single_bind_pose(&parsed.model.model) {
+            for child in model.get_children().iter_shared() {
+                if let Ok(mut mesh) = child.try_cast::<MeshInstance3D>() {
+                    mesh.set_skeleton_path(&NodePath::from(""));
+                }
+            }
         }
         // Annotated trees replace static authored collision with trunk/limb capsules.
         if !model.has_node("ElasticTree") {

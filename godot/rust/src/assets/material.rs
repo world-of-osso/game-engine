@@ -7,6 +7,7 @@ use texture_file::read_texture_file;
 use std::{
     cell::RefCell,
     collections::HashMap,
+    hash::{DefaultHasher, Hash, Hasher},
     path::{Path, PathBuf},
 };
 
@@ -18,8 +19,8 @@ use game_engine_core::{
 };
 use godot::{
     classes::{
-        Image, ImageTexture, MeshInstance3D, Node3D, ProjectSettings, ResourceLoader, Shader,
-        ShaderMaterial, geometry_instance_3d::ShadowCastingSetting, image,
+        Image, ImageTexture, MeshInstance3D, Node3D, ProjectSettings, RenderingServer,
+        ResourceLoader, Shader, ShaderMaterial, geometry_instance_3d::ShadowCastingSetting, image,
     },
     prelude::*,
 };
@@ -44,6 +45,8 @@ thread_local! {
         RefCell::new(HashMap::new());
     /// `batch_shaders` by pipeline state.
     static BATCH_SHADERS: RefCell<HashMap<Pipeline, (Gd<Shader>, Option<Gd<Shader>>)>> =
+        RefCell::new(HashMap::new());
+    static SCENERY_MATERIALS: RefCell<HashMap<u64, Vec<SharedSceneryMaterial>>> =
         RefCell::new(HashMap::new());
 }
 
@@ -110,6 +113,7 @@ pub(crate) fn clear_shared_shaders() {
     SHADERS.with_borrow_mut(HashMap::clear);
     TEXTURES.with_borrow_mut(HashMap::clear);
     BATCH_SHADERS.with_borrow_mut(HashMap::clear);
+    SCENERY_MATERIALS.with_borrow_mut(HashMap::clear);
 }
 
 /// Compiles `pipeline`'s shader and, when opaque, its scenery-fade shader: Godot
@@ -387,20 +391,90 @@ struct FadedBatch {
     mesh: Gd<MeshInstance3D>,
     shadows: ShadowCastingSetting,
     material: Gd<ShaderMaterial>,
+    shared: Option<Gd<ShaderMaterial>>,
     authored: Gd<Shader>,
     fade: Option<Gd<Shader>>,
 }
 
+struct SharedSceneryMaterial {
+    signature: Vec<Variant>,
+    material: Gd<ShaderMaterial>,
+}
+
+/// Intern only immutable scenery materials, comparing full values after hashing.
+fn share_scenery_material(
+    material: &Gd<ShaderMaterial>,
+    shader: &Gd<Shader>,
+) -> Gd<ShaderMaterial> {
+    let mut signature = vec![
+        shader.to_variant(),
+        material.get_render_priority().to_variant(),
+        material.get_next_pass().to_variant(),
+    ];
+    for uniform in shader.get_shader_uniform_list().iter_shared() {
+        let info = uniform.to::<VarDictionary>();
+        let name = info
+            .get("name")
+            .expect("shader uniform has a name")
+            .to::<GString>()
+            .to_string();
+        let value = material.get_shader_parameter(name.as_str());
+        signature.push(if value.is_nil() {
+            RenderingServer::singleton()
+                .shader_get_parameter_default(shader.get_rid(), name.as_str())
+        } else {
+            value
+        });
+    }
+    for name in [SCENERY_FADE_SHADER_META, "m2_texture_count"] {
+        signature.push(if material.has_meta(name) {
+            material.get_meta(name)
+        } else {
+            Variant::nil()
+        });
+    }
+    let mut hash = DefaultHasher::new();
+    for value in &signature {
+        value.hash_u32().hash(&mut hash);
+    }
+    SCENERY_MATERIALS.with_borrow_mut(|cache| {
+        let entries = cache.entry(hash.finish()).or_default();
+        if let Some(entry) = entries.iter().find(|entry| entry.signature == signature) {
+            return entry.material.clone();
+        }
+        entries.push(SharedSceneryMaterial {
+            signature,
+            material: material.clone(),
+        });
+        material.clone()
+    })
+}
+
 impl SceneryFade {
     /// The `Batch*` mesh materials under a `build_model` root.
-    pub fn from_model(root: &Gd<Node3D>) -> Self {
+    pub fn from_model(root: &Gd<Node3D>, light_bound: bool) -> Self {
+        // Changing material animation and elastic trees retain and mutate their handles.
+        let animated = root
+            .get_node_or_null("M2MaterialAnimation")
+            .is_some_and(|node| {
+                node.try_cast::<super::uv_animation::WowMaterialAnimation>()
+                    .map_or(true, |animation| animation.bind().animates())
+            });
+        let share = light_bound && !animated && !root.has_node("ElasticTree");
         let batches = root
             .get_children()
             .iter_shared()
             .filter_map(|child| child.try_cast::<MeshInstance3D>().ok())
-            .filter_map(|mesh| {
-                let material: Gd<ShaderMaterial> = mesh.get_active_material(0)?.try_cast().ok()?;
+            .filter_map(|mut mesh| {
+                let mut material: Gd<ShaderMaterial> =
+                    mesh.get_active_material(0)?.try_cast().ok()?;
                 let authored = material.get_shader()?;
+                let shared = share.then(|| {
+                    let shared = share_scenery_material(&material, &authored);
+                    mesh.set_material_override(&shared);
+                    material = shared.clone();
+                    shared
+                });
                 let fade = material
                     .has_meta(SCENERY_FADE_SHADER_META)
                     .then(|| material.get_meta(SCENERY_FADE_SHADER_META).try_to().ok())
@@ -409,6 +483,7 @@ impl SceneryFade {
                     shadows: mesh.get_cast_shadows_setting(),
                     mesh,
                     material,
+                    shared,
                     authored,
                     fade,
                 })
@@ -431,6 +506,18 @@ impl SceneryFade {
         let swap = fading != (self.opacity < 1.0);
         for batch in &mut self.batches {
             if swap {
+                if let Some(shared) = &batch.shared {
+                    batch.material = if fading {
+                        shared.duplicate_resource()
+                    } else {
+                        shared.clone()
+                    };
+                    batch.mesh.set_material_override(&batch.material);
+                    if !fading {
+                        batch.mesh.set_cast_shadows_setting(batch.shadows);
+                        continue;
+                    }
+                }
                 if let Some(fade) = &batch.fade {
                     batch
                         .material
@@ -447,6 +534,37 @@ impl SceneryFade {
                 .set_shader_parameter("scenery_opacity", &opacity.to_variant());
         }
         self.opacity = opacity;
+    }
+}
+
+/// Drives the same scenery fade path from an isolated native fixture.
+#[derive(GodotClass)]
+#[class(base = RefCounted)]
+struct WowSceneryFadeProbe {
+    base: Base<godot::classes::RefCounted>,
+    fade: Option<SceneryFade>,
+}
+
+#[godot_api]
+impl godot::classes::IRefCounted for WowSceneryFadeProbe {
+    fn init(base: Base<godot::classes::RefCounted>) -> Self {
+        Self { base, fade: None }
+    }
+}
+
+#[godot_api]
+impl WowSceneryFadeProbe {
+    #[func]
+    fn track(&mut self, root: Gd<Node3D>) {
+        self.fade = Some(SceneryFade::from_model(&root, true));
+    }
+
+    #[func]
+    fn set_opacity(&mut self, opacity: f32) {
+        self.fade
+            .as_mut()
+            .expect("scenery probe is not tracking a model")
+            .set_opacity(opacity);
     }
 }
 

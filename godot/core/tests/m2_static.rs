@@ -25,6 +25,28 @@ fn jail_cobweb_bones_are_static_and_the_portal_animates() {
 }
 
 #[test]
+fn bind_pose_requires_an_unanimated_root_and_full_weights() {
+    let mut wall = model(372894);
+    assert!(m2::has_single_bind_pose(&wall));
+
+    wall.vertices[0].bone_weights = [254, 0, 0, 0];
+    assert!(!m2::has_single_bind_pose(&wall));
+    wall.vertices[0].bone_weights = [255, 0, 0, 0];
+    wall.vertices[0].bone_indices[0] = 1;
+    assert!(!m2::has_single_bind_pose(&wall));
+    wall.vertices[0].bone_indices[0] = 0;
+    wall.bones[0].flags = 8;
+    assert!(!m2::has_single_bind_pose(&wall));
+    wall.bones[0].flags = 0;
+    std::sync::Arc::make_mut(&mut wall.bone_tracks)[0]
+        .translation
+        .sequences
+        .push((vec![0], vec![[1.0, 0.0, 0.0]]));
+    assert!(!m2::has_single_bind_pose(&wall));
+    assert!(!m2::has_single_bind_pose(&model(197007)));
+}
+
+#[test]
 fn a_track_is_constant_only_when_every_sequence_holds_one_value() {
     assert!(m2::track_is_constant(&track(vec![])));
     assert!(m2::track_is_constant(&track(vec![

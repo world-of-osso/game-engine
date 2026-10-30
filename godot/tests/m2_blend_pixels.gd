@@ -39,7 +39,7 @@ func make_m2(flags: int, blend_mode: int) -> PackedByteArray:
 		put_float(md20, 0x2a4 + index * 12, key.g)
 		put_float(md20, 0x2a8 + index * 12, key.b)
 	var model := chunk("MD21", md20)
-	model.append_array(original.slice(8 + original.decode_u32(4))) # TXID from base fixture.
+	model.append_array(original.slice(8 + original.decode_u32(4))) # SFID and TXID from base fixture.
 	return model
 
 func prepare_fixture(flags: int, shader_id: int, texture_count: int, blend_mode: int = 0) -> bool:

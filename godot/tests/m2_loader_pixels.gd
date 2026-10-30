@@ -64,7 +64,11 @@ func make_m2(flags: int, blend_mode: int) -> PackedByteArray:
 	txid.resize(8)
 	put_u32(txid, 0, 910001)
 	put_u32(txid, 4, 910002)
+	var sfid := PackedByteArray()
+	sfid.resize(4)
+	put_u32(sfid, 0, 910003)
 	var model := chunk("MD21", md20)
+	model.append_array(chunk("SFID", sfid))
 	model.append_array(chunk("TXID", txid))
 	return model
 
@@ -161,7 +165,7 @@ func prepare_fixture(flags: int, shader_id: int, texture_count: int, blend_mode:
 		push_error("Cannot create BLP fixture: " + error_string(created))
 		return false
 	return write_fixture(FIXTURE + "/models/quad.m2", make_m2(flags, blend_mode)) \
-		and write_fixture(FIXTURE + "/models/quad00.skin", make_skin(shader_id, texture_count)) \
+		and write_fixture(FIXTURE + "/models/910003.skin", make_skin(shader_id, texture_count)) \
 		and write_fixture(FIXTURE + "/textures/910001.blp", make_blp(BASE)) \
 		and write_fixture(FIXTURE + "/textures/910002.blp", make_blp(SECOND))
 
@@ -229,7 +233,7 @@ func cleanup() -> void:
 		loaded.free()
 	if viewport != null and is_instance_valid(viewport):
 		viewport.free()
-	for filename in ["models/quad.m2", "models/quad00.skin", "textures/910001.blp", "textures/910002.blp"]:
+	for filename in ["models/quad.m2", "models/910003.skin", "textures/910001.blp", "textures/910002.blp"]:
 		DirAccess.remove_absolute(ProjectSettings.globalize_path(FIXTURE + "/" + filename))
 	for folder in ["models", "textures", ""]:
 		DirAccess.remove_absolute(ProjectSettings.globalize_path(FIXTURE + "/" + folder))
