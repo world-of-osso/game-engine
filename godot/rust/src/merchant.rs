@@ -365,15 +365,17 @@ impl GameClient {
 
     /// Update the cursor after world motion and culling, using the shared hover pick.
     pub(crate) fn update_hover_cursor(&mut self) {
-        let interactive = self.account.session.screen == SessionScreen::InWorld
-            && self.game_menu_ui.is_none()
-            && self.account.session.gameplay_input_allowed();
-        let cursor = if !interactive {
+        let in_world = self.account.session.screen == SessionScreen::InWorld;
+        let interactive =
+            self.game_menu_ui.is_none() && self.account.session.gameplay_input_allowed();
+        let cursor = if !in_world {
             None
         } else if self.merchant.session.repair_mode {
             Some(ActiveWowCursor::Repair)
-        } else {
+        } else if interactive {
             self.hover_cursor()
+        } else {
+            None
         };
         self.set_world_cursor(cursor);
     }
