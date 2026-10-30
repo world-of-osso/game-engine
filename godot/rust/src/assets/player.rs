@@ -26,7 +26,7 @@ use game_engine_core::{
 };
 use godot::{classes::Node3D, prelude::*};
 use osso_asset_resolver::CascListfileResolver;
-use shared::components::{CharacterAppearance, EquipmentAppearance, Player};
+use shared::components::{CharacterAppearance, CharacterVisual, EquipmentAppearance, Player};
 
 use super::{
     appearance::{AppearanceParts, PreparedAppearance, load_authored_appearance_texture},
@@ -244,7 +244,6 @@ fn select_player_head_pixels(
 /// A player's body model parsed, its customization composed and equipment resolved,
 /// and their textures decoded, off the main thread.
 pub(crate) struct PlayerParts {
-    name: String,
     model: Arc<CachedModel>,
     appearance: PlayerAppearanceParts,
     equipment: ResolvedEquipmentAppearance,
@@ -283,7 +282,7 @@ pub(crate) fn warm_player_outfits(data_root: &Path) -> Result<(), String> {
 /// Worker: everything `build_player_model` needs from files.
 pub(crate) fn prepare_player_parts(
     data_root: &Path,
-    player: &Player,
+    player: &CharacterVisual,
     equipment: &EquipmentAppearance,
     tabard: Option<shared::guild_creation::GuildTabardDesign>,
 ) -> Result<PlayerParts, String> {
@@ -331,7 +330,6 @@ pub(crate) fn prepare_player_parts(
         }
     }
     Ok(PlayerParts {
-        name: player.name.clone(),
         model,
         appearance,
         equipment,
@@ -358,10 +356,7 @@ pub(crate) fn build_player_model(
     drop(span);
     let _span = crate::profile::span(|| "player.attachments".to_owned());
     if !missing.is_empty() {
-        godot_warn!(
-            "Player {} missing authored texture FDIDs: {missing:?}",
-            parts.name
-        );
+        godot_warn!("Character missing authored texture FDIDs: {missing:?}");
     }
     let attached = attach_equipment(
         &mut model,
@@ -391,13 +386,13 @@ pub(crate) fn load_player_model(
     player: &Player,
     equipment: &EquipmentAppearance,
 ) -> Result<Gd<Node3D>, String> {
-    let parts = prepare_player_parts(data_root, player, equipment, None)?;
+    let parts = prepare_player_parts(data_root, &CharacterVisual::from(player), equipment, None)?;
     build_player_model(data_root, parts)
 }
 
 fn load_player_body(
     data_root: &Path,
-    player: &Player,
+    player: &CharacterVisual,
 ) -> Result<(CascListfileResolver, Arc<CachedModel>), String> {
     let race = player.race;
     let sex = player.appearance.sex;
@@ -462,7 +457,7 @@ impl PlayerAppearanceParts {
 
 fn prepare_player_appearance(
     data_root: &Path,
-    player: &Player,
+    player: &CharacterVisual,
     equipment: &ResolvedEquipmentAppearance,
 ) -> Result<PlayerAppearanceParts, String> {
     let race = player.race;
@@ -604,10 +599,11 @@ mod catalog_lifetime_tests {
                 hidden: false,
             }],
         };
-        let initial = prepare_player_parts(&root, &player, &equipment, None).unwrap();
+        let initial =
+            prepare_player_parts(&root, &CharacterVisual::from(&player), &equipment, None).unwrap();
         assert!(!initial.equipment.outfit.item_textures.is_empty());
         std::fs::remove_file(root.join(retail_dir).join("ItemDisplayInfo.csv")).unwrap();
-        let next = prepare_player_parts(&root, &player, &equipment, None)
+        let next = prepare_player_parts(&root, &CharacterVisual::from(&player), &equipment, None)
             .expect("prepared outfit rows must survive in the player catalog");
         assert_eq!(
             next.equipment.outfit.item_textures,

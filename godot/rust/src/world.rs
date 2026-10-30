@@ -34,8 +34,8 @@ use godot::{
     prelude::*,
 };
 use shared::components::{
-    CombatStatus, CreatureMotion, EquipmentAppearance, Health, ModelDisplay, Mounted,
-    MovementControl, MovementSpeed, Npc, Player, PlayerMotion, PlayerStandState, Position,
+    CharacterVisual, CombatStatus, CreatureMotion, EquipmentAppearance, Health, ModelDisplay,
+    Mounted, MovementControl, MovementSpeed, Npc, Player, PlayerMotion, PlayerStandState, Position,
     Rotation, SheathState, StandState, UnitFlags, UnitPose,
 };
 use shared::death::DeathState;
@@ -385,7 +385,7 @@ fn unit_appearance(snapshot: Unit, native_display: Option<u32>) -> Option<UnitAp
             .cloned()
             .unwrap_or_default()
     };
-    if let Some(player) = snapshot.get::<Player>() {
+    if let Some(player) = snapshot.get::<CharacterVisual>() {
         if let Some(model) = snapshot
             .get::<ModelDisplay>()
             .filter(|model| model.display_id != 0 && Some(model.display_id) != native_display)
@@ -427,7 +427,7 @@ fn load_unit_appearance(
     snapshot: Unit,
     models: &mut WorldModels,
 ) -> Result<Option<UnitAppearance>, String> {
-    let native_display = match snapshot.get::<Player>().filter(|_| {
+    let native_display = match snapshot.get::<CharacterVisual>().filter(|_| {
         snapshot
             .get::<ModelDisplay>()
             .is_some_and(|model| model.display_id != 0)
@@ -443,7 +443,7 @@ fn request_unit_visual(unit: &mut UnitNode, snapshot: Unit, models: &mut WorldMo
     let appearance = match load_unit_appearance(snapshot, models) {
         Ok(appearance) => appearance,
         Err(error) => {
-            godot_error!("Player {} native display: {error}", snapshot.server_id);
+            godot_error!("Character {} native display: {error}", snapshot.server_id);
             return;
         }
     };
@@ -1864,6 +1864,9 @@ mod tests {
                 appearance: Default::default(),
             },
         );
+        let visual =
+            CharacterVisual::from(replica.unit(PLAYER_ID).unwrap().get::<Player>().unwrap());
+        replica.insert(PLAYER_ID, visual);
         replica.insert(
             PLAYER_ID,
             Position {
@@ -1873,6 +1876,59 @@ mod tests {
             },
         );
         replica
+    }
+
+    #[test]
+    fn character_visual_selects_equipped_model_for_npc_and_player() {
+        use shared::components::{EquipmentVisualSlot, EquippedAppearanceEntry};
+
+        let mut replica = player_replica();
+        let visual = replica
+            .unit(PLAYER_ID)
+            .unwrap()
+            .get::<CharacterVisual>()
+            .unwrap()
+            .clone();
+        let equipment = EquipmentAppearance {
+            entries: vec![EquippedAppearanceEntry {
+                slot: EquipmentVisualSlot::MainHand,
+                item_id: Some(19019),
+                definition_source: Some(shared::item_data::ItemDefinitionSource::Retail),
+                display_info_id: None,
+                inventory_type: 13,
+                hidden: false,
+            }],
+        };
+        replica.insert(PLAYER_ID, equipment.clone());
+        let follower_id = 43;
+        replica.insert(
+            follower_id,
+            Npc {
+                template_id: 123,
+                name: "Follower".into(),
+            },
+        );
+        replica.insert(follower_id, visual.clone());
+        replica.insert(follower_id, equipment.clone());
+        let native = 57899;
+        replica.insert(follower_id, ModelDisplay { display_id: native });
+        let expected = Some(UnitAppearance::Player(visual, equipment, None));
+        assert_eq!(
+            unit_appearance(replica.unit(PLAYER_ID).unwrap(), None),
+            expected
+        );
+        assert_eq!(
+            unit_appearance(replica.unit(follower_id).unwrap(), Some(native)),
+            expected
+        );
+        replica.insert(follower_id, ModelDisplay { display_id: 115603 });
+        assert_eq!(
+            unit_appearance(replica.unit(follower_id).unwrap(), Some(native)),
+            Some(UnitAppearance::Creature {
+                display_id: 115603,
+                items: EquipmentAppearance::default()
+            })
+        );
     }
 
     #[test]

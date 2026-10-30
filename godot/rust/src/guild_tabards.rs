@@ -295,7 +295,7 @@ pub(crate) fn dress_draft_preview(
         inventory_type: 19,
         hidden: false,
     });
-    UnitAppearance::Player(player, equipment, Some(design))
+    UnitAppearance::Player((&player).into(), equipment, Some(design))
 }
 
 pub(crate) fn held_button(ui: &Gd<RegistryUi>, name: &str) -> Result<bool, String> {

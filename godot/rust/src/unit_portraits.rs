@@ -497,8 +497,7 @@ fn describe(appearance: &UnitAppearance) -> String {
             )
         }
         UnitAppearance::Player(player, equipment, _) => format!(
-            "player {} race {} items {}",
-            player.name,
+            "character race {} items {}",
             player.race,
             equipment.entries.len()
         ),
