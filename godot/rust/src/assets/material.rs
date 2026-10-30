@@ -388,11 +388,13 @@ pub(crate) struct SceneryFade {
     /// and, when opaque, its fade shader.
     batches: Vec<FadedBatch>,
     opacity: f32,
+    camera_admitted: bool,
 }
 
 struct FadedBatch {
     mesh: Gd<MeshInstance3D>,
     shadows: ShadowCastingSetting,
+    visible_before_cull: Option<bool>,
     material: Gd<ShaderMaterial>,
     shared: Option<Gd<ShaderMaterial>>,
     authored: Gd<Shader>,
@@ -499,6 +501,7 @@ impl SceneryFade {
                     .flatten();
                 Some(FadedBatch {
                     shadows: mesh.get_cast_shadows_setting(),
+                    visible_before_cull: None,
                     mesh,
                     material,
                     shared,
@@ -510,6 +513,27 @@ impl SceneryFade {
         Self {
             batches,
             opacity: 1.0,
+            camera_admitted: true,
+        }
+    }
+
+    /// Hide camera-rejected batches without discarding their admitted shadows.
+    /// Godot cannot combine shadows-only and double-sided casting, so keep those
+    /// batches visible until a representation that preserves both is available.
+    pub fn set_camera_admitted(&mut self, admitted: bool) {
+        if self.camera_admitted == admitted {
+            return;
+        }
+        self.camera_admitted = admitted;
+        for batch in &mut self.batches {
+            if admitted {
+                if let Some(visible) = batch.visible_before_cull.take() {
+                    batch.mesh.set_visible(visible);
+                }
+            } else {
+                batch.visible_before_cull = Some(batch.mesh.is_visible());
+            }
+            batch.apply_camera_admission(admitted, self.opacity);
         }
     }
 
@@ -552,6 +576,36 @@ impl SceneryFade {
                 .set_shader_parameter("scenery_opacity", &opacity.to_variant());
         }
         self.opacity = opacity;
+        if !self.camera_admitted {
+            for batch in &mut self.batches {
+                batch.apply_camera_admission(false, opacity);
+            }
+        }
+    }
+}
+
+impl FadedBatch {
+    fn apply_camera_admission(&mut self, admitted: bool, opacity: f32) {
+        let shadows = if opacity < 1.0 {
+            ShadowCastingSetting::OFF
+        } else {
+            self.shadows
+        };
+        if admitted || shadows == ShadowCastingSetting::DOUBLE_SIDED {
+            self.mesh.set_cast_shadows_setting(shadows);
+            if let Some(visible) = self.visible_before_cull {
+                self.mesh.set_visible(visible);
+            }
+        } else if shadows == ShadowCastingSetting::OFF {
+            self.mesh.set_visible(false);
+            self.mesh.set_cast_shadows_setting(shadows);
+        } else {
+            if let Some(visible) = self.visible_before_cull {
+                self.mesh.set_visible(visible);
+            }
+            self.mesh
+                .set_cast_shadows_setting(ShadowCastingSetting::SHADOWS_ONLY);
+        }
     }
 }
 
@@ -575,6 +629,14 @@ impl WowSceneryFadeProbe {
     #[func]
     fn track(&mut self, root: Gd<Node3D>) {
         self.fade = Some(SceneryFade::from_model(&root, true));
+    }
+
+    #[func]
+    fn set_camera_admitted(&mut self, admitted: bool) {
+        self.fade
+            .as_mut()
+            .expect("scenery probe is not tracking a model")
+            .set_camera_admitted(admitted);
     }
 
     #[func]
