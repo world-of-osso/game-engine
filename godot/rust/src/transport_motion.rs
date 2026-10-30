@@ -12,8 +12,13 @@ pub(crate) struct TransportView {
 
 impl TransportView {
     pub fn new(source: &TransportState) -> Result<Self, String> {
-        let route = TransportRoute::new(source.knots.clone(), source.speed)
-            .map_err(|error| format!("transport {} route: {error:?}", source.spawn_id))?;
+        let route = TransportRoute::with_nodes(
+            source.knots.clone(),
+            source.speed,
+            source.acceleration,
+            source.nodes.clone(),
+        )
+        .map_err(|error| format!("transport {} route: {error:?}", source.spawn_id))?;
         Ok(Self {
             source: source.clone(),
             route,
@@ -23,6 +28,8 @@ impl TransportView {
     pub fn observe(&mut self, source: &TransportState) -> Result<(), String> {
         if source.path_id != self.source.path_id
             || source.speed != self.source.speed
+            || source.acceleration != self.source.acceleration
+            || source.nodes != self.source.nodes
             || source.knots != self.source.knots
         {
             *self = Self::new(source)?;
@@ -82,6 +89,8 @@ mod tests {
                 [30.0, 0.0, 297.0],
             ],
             speed: 4.0,
+            acceleration: 1.0,
+            nodes: vec![shared::transport_route::TransportNodeEvents::default(); 4],
             elapsed_ms,
         }
     }
@@ -100,6 +109,39 @@ mod tests {
             (view.pose().position[0] - 13.0).abs() < 0.0001,
             "a stalled server clock must not let the rendered ship run ahead"
         );
+    }
+    #[test]
+    fn replicated_stops_and_acceleration_drive_the_client_pose() {
+        let mut source = state(5000);
+        source.nodes[2].stop = true;
+        source.nodes[2].delay_ms = 5000;
+        let expected = TransportRoute::with_nodes(
+            source.knots.clone(),
+            source.speed,
+            source.acceleration,
+            source.nodes.clone(),
+        )
+        .unwrap();
+        let mut view = TransportView::new(&source).unwrap();
+        assert_eq!(view.pose().position, expected.pose_at(5000).position);
+        assert_eq!(view.pose().position, expected.pose_at(6000).position);
+
+        source.elapsed_ms = 10_000;
+        source.acceleration = 2.0;
+        source.nodes[2].delay_ms = 8000;
+        let changed = TransportRoute::with_nodes(
+            source.knots.clone(),
+            source.speed,
+            source.acceleration,
+            source.nodes.clone(),
+        )
+        .unwrap();
+        assert_ne!(
+            expected.pose_at(10_000).position,
+            changed.pose_at(10_000).position
+        );
+        view.observe(&source).unwrap();
+        assert_eq!(view.pose().position, changed.pose_at(10_000).position);
     }
     #[test]
     fn idle_and_predicted_walking_feet_follow_ship_translation_and_rotation() {
