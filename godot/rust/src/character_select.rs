@@ -169,7 +169,7 @@ pub(crate) fn prepare_character_parts(
     };
     prepare_player_parts(
         data_root,
-        &player,
+        &(&player).into(),
         &entry.equipment_appearance,
         entry.tabard,
     )
