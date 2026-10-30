@@ -48,22 +48,29 @@ class FrozenModelClosureTests(unittest.TestCase):
         header[:4] = b"MD20"
         self.model = (
             chunk(b"MD21", header)
-            + chunk(b"SFID", struct.pack("<I", 202))
+            + chunk(b"SFID", struct.pack("<II", 202, 204))
             + chunk(b"TXID", struct.pack("<I", 303))
         )
         self.skin = b"SKIN authenticated fixture"
+        self.owned_skin = b"SKIN already owned fixture"
         self.texture = b"BLP2 authenticated fixture"
         model_receipt = receipt(100, "m2", self.old, self.model)
+        skin_receipt = receipt(204, "skin", self.old, self.owned_skin)
         texture_receipt = receipt(303, "blp", self.current, self.texture)
-        for row, raw in [(model_receipt, self.model), (texture_receipt, self.texture)]:
+        for row, raw in [
+            (model_receipt, self.model),
+            (skin_receipt, self.owned_skin),
+            (texture_receipt, self.texture),
+        ]:
             path = self.data / row["path"]
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_bytes(raw)
         (self.data / "models/202.skin").write_bytes(self.skin)
+        (self.data / "models/204.skin").write_bytes(self.owned_skin)
         (self.data / "textures/303.blp").write_bytes(self.texture)
         index = {
             "version": 1,
-            "assets": [model_receipt, texture_receipt],
+            "assets": [model_receipt, skin_receipt, texture_receipt],
             "aliases": [],
             "chains": [],
         }
@@ -86,6 +93,7 @@ class FrozenModelClosureTests(unittest.TestCase):
                 [
                     (100, hashlib.md5(self.model).digest()),
                     (202, hashlib.md5(self.skin).digest()),
+                    (204, hashlib.md5(self.owned_skin).digest()),
                     (303, hashlib.md5(self.texture).digest()),
                 ],
             )
@@ -131,6 +139,9 @@ class FrozenModelClosureTests(unittest.TestCase):
         ]:
             self.assertEqual((self.output / row["path"]).read_bytes(), raw)
         self.assertEqual(index.read_bytes(), before)
+        self.assertFalse(
+            (self.output / f"products/wow/{self.old}/models/204.skin").exists()
+        )
 
     def test_rejects_wrong_frozen_child_bytes_before_creating_fragment(self):
         (self.data / "models/202.skin").write_bytes(b"SKIN incorrect bytes")

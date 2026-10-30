@@ -162,7 +162,10 @@ def stage_closure(
     )
     publication.validate_staged_fragment(index_data, fragment)
     output.mkdir(parents=True)
-    chains.write_asset_files(output, pairs)
+    published_paths = {row["path"] for row in fragment["assets"] + fragment["aliases"]}
+    chains.write_asset_files(
+        output, [(row, raw) for row, raw in pairs if row["path"] in published_paths]
+    )
     path = output / "cache" / f"model-asset-index-{name}.json"
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(fragment, indent=2))
