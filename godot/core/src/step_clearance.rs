@@ -26,6 +26,47 @@ pub fn step_wall_blocked(
     })
 }
 
+/// Find the top of the solid faces in a horizontal step corridor.
+/// A face extending above `max_top` cannot be stepped over.
+pub fn step_obstacle_top(
+    triangles: impl IntoIterator<Item = [Vec3; 3]>,
+    from: Vec3,
+    to: Vec3,
+    max_top: f32,
+) -> Option<f32> {
+    let movement = (to - from).with_y(0.0);
+    let distance = movement.length();
+    if distance == 0.0 {
+        return None;
+    }
+    let direction = movement / distance;
+    let mut top = from.y;
+    for triangle in triangles {
+        let section = intersect_wall_plane(triangle, from, direction);
+        let section = clip_section(&section, 0, 0.0, 1.0);
+        let section = clip_section(&section, 0, distance, -1.0);
+        if section.is_empty() {
+            continue;
+        }
+        let bottom = section
+            .iter()
+            .map(|point| point.y)
+            .fold(f32::INFINITY, f32::min);
+        let height = section
+            .iter()
+            .map(|point| point.y)
+            .fold(f32::NEG_INFINITY, f32::max);
+        if bottom > max_top - from.y || height <= 0.0 {
+            continue;
+        }
+        top = top.max(from.y + height);
+        if top > max_top {
+            return None;
+        }
+    }
+    Some(top)
+}
+
 /// Whether an authored triangle enters the interval below the existing low wall ray.
 fn blocks_step_sweep(triangle: [Vec3; 3], from: Vec3, to: Vec3) -> bool {
     let movement = (to - from).with_y(0.0);

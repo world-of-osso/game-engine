@@ -227,6 +227,14 @@ impl TerrainGround<'_> {
         let target_feet = proposed.with_y(current.y);
         let target = self.sample(target_feet);
         if snap && self.steep_solid_blocks_ascent(current, target_feet, target) {
+            if target.is_some_and(|solid| solid.surface == Surface::Wmo)
+                && self.wmo_step_is_clear(current, target_feet, target.unwrap().height)
+            {
+                return (
+                    self.apply_floor_rules(current, proposed, target, snap),
+                    None,
+                );
+            }
             return (current, Some("steep_solid_without_reachable_landing"));
         }
         let candidate = self.apply_floor_rules(current, proposed, target, snap);
@@ -295,39 +303,74 @@ impl TerrainGround<'_> {
                 .into_iter()
                 .chain(self.m2_ground(probe, true))
                 .max_by(|a, b| a.height.total_cmp(&b.height));
-            let solid = self.sample(probe);
-            let landing = landing
-                .filter(|floor| solid.is_some_and(|surface| surface.height <= floor.height))
-                .or_else(|| {
-                    solid.filter(|surface| {
-                        surface.surface == Surface::Wmo
-                            && is_walkable_slope(
-                                surface.height - current.y,
-                                probe_distance,
-                                MAX_SLOPE_ANGLE,
-                            )
-                    })
-                });
             let Some(landing) = landing else {
                 return false;
             };
             if (landing.height - current.y).abs() > STEP_UP_HEIGHT
                 || (obstacle_height - landing.height).abs() > STEP_UP_HEIGHT
+                || self
+                    .sample(probe)
+                    .is_none_or(|solid| solid.height > landing.height)
             {
                 return false;
             }
-            let top = [0.25, 0.5, 0.75, 1.0]
-                .into_iter()
-                .filter_map(|fraction| self.sample(current + direction * probe_distance * fraction))
-                .map(|surface| surface.height)
-                .fold(obstacle_height.max(landing.height), f32::max);
-            if top - current.y > STEP_UP_HEIGHT {
-                return false;
-            }
-            let raised = current.with_y(top);
-            let destination = probe.with_y(top);
+            let raised = current.with_y(landing.height);
+            let destination = probe.with_y(landing.height);
             let clear = clamp_movement_to_walls(raised, destination, self.walls) == destination;
             clear && !(self.step_wall_blocked)(raised, destination, current.y + STEP_UP_HEIGHT)
+        })
+    }
+
+    fn wmo_step_is_clear(&self, current: Vec3, target: Vec3, obstacle_height: f32) -> bool {
+        let movement = (target - current).with_y(0.0);
+        let direction = movement.normalize_or_zero();
+        (1..=8).any(|index| {
+            let distance = index as f32 * 0.25;
+            if distance < movement.length() {
+                return false;
+            }
+            let probe = current + direction * distance;
+            let Some(landing) = self.static_ground(probe, true) else {
+                return false;
+            };
+            if landing.surface != Surface::Wmo
+                || landing.height < obstacle_height
+                || landing.height > current.y + STEP_UP_HEIGHT
+            {
+                return false;
+            }
+            let wmos = self
+                .terrain
+                .map_wdt
+                .as_ref()
+                .and_then(|map| map.global_wmo.as_ref())
+                .map(|wmo| &wmo.collision)
+                .into_iter()
+                .chain(
+                    self.terrain
+                        .parsed_tiles
+                        .values()
+                        .flat_map(|tile| tile.wmo_floors.iter().map(|(_, wmo)| wmo)),
+                );
+            let faces = wmos.flat_map(|wmo| {
+                wmo.groups().iter().flat_map(move |group| {
+                    group.collidable_triangles().map(move |face| {
+                        face.map(|point| wmo.world_from_local().transform_point3(point))
+                    })
+                })
+            });
+            let Some(top) = game_engine_core::step_clearance::step_obstacle_top(
+                faces,
+                current,
+                probe,
+                current.y + STEP_UP_HEIGHT,
+            ) else {
+                return false;
+            };
+            let raised = current.with_y(top.max(landing.height));
+            let destination = probe.with_y(raised.y);
+            clamp_movement_to_walls(raised, destination, self.walls) == destination
+                && !(self.step_wall_blocked)(raised, destination, current.y + STEP_UP_HEIGHT)
         })
     }
 
@@ -523,6 +566,7 @@ mod tests {
             },
             game_object_floor: &|_| None,
         };
+        let mut blocked = Vec::new();
         for (start, goal) in [
             (
                 Vec3::new(109.95476, 228.2389, 1012.58875),
@@ -541,8 +585,8 @@ mod tests {
                 Vec3::new(85.416664, 229.40001, 813.5423),
             ),
             (
-                Vec3::new(59.928703, 217.99553, 680.35706),
-                Vec3::new(59.66912, 218.245, 667.44855),
+                Vec3::new(59.87105, 217.99553, 680.7181),
+                Vec3::new(59.87105, 217.99553, 680.7181) + Vec3::new(-0.017417591, 0.0, -0.9998483),
             ),
             (
                 Vec3::new(30.893808, 231.24559, 983.4601),
@@ -556,11 +600,11 @@ mod tests {
             let direction = (goal - start).with_y(0.0).normalize();
             let proposed = start + direction * 0.1;
             let (moved, reason) = ground.validate_move_with_reason(start, proposed, true);
-            assert!(
-                (moved - start).with_y(0.0).length() > 0.01,
-                "Uldaman movement blocked: {start:?} -> {proposed:?}, {reason:?}"
-            );
+            if (moved - start).with_y(0.0).length() <= 0.01 {
+                blocked.push((start, proposed, reason));
+            }
         }
+        assert!(blocked.is_empty(), "Uldaman movement blocked: {blocked:?}");
     }
 
     #[test]
