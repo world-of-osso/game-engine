@@ -604,6 +604,8 @@ mod tests {
         let tile = bevy_to_tile_coords(feet.x, feet.z);
         terrain.map_wdt = Some(assets.read_map_wdt("2527").unwrap());
         let mut data = assets.read_tile("2527", tile.0, tile.1).unwrap();
+        data.wmo_floors.clear();
+        data.m2_floors.clear();
         let triangle = |height| {
             [
                 Vec3::new(feet.x - 5.0, height, feet.z - 5.0),
