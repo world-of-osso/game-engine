@@ -365,8 +365,17 @@ impl GameObjects {
         ));
         object.node.set_scale(Vector3::ONE * info.scale);
         apply_object_collision(object, collision.0);
+        object
+            .node
+            .set_meta("game_object_collision", &collision.0.to_variant());
         if let Some(animation) = unit.get::<GameObjectAnimation>() {
+            object.node.set_meta(
+                "game_object_animation",
+                &(animation.animation_id as i64).to_variant(),
+            );
             apply_object_animation(object, *animation)?;
+        } else if object.node.has_meta("game_object_animation") {
+            object.node.remove_meta("game_object_animation");
         }
         if let Some(state) = unit.get::<shared::components::TransportState>() {
             match self.transports.get_mut(&id) {

@@ -2,7 +2,9 @@
 
 use game_engine_network::ipc_wire::Response;
 use godot::{
-    classes::{Camera3D, CanvasItem, Control, Light3D, MeshInstance3D, Node, Node2D, Node3D},
+    classes::{
+        Camera3D, CanvasItem, Control, Light3D, MeshInstance3D, Node, Node2D, Node3D, StaticBody3D,
+    },
     prelude::*,
 };
 
@@ -137,6 +139,9 @@ fn semantic_label(node: &Gd<Node>) -> Option<String> {
         return Some(format_mesh_label(&name, mesh));
     }
     let spatial = node.clone().try_cast::<Node3D>().ok()?;
+    if node.has_meta("game_object_server_id") {
+        return Some(game_object_label(node, &spatial));
+    }
     if node.has_meta(crate::assets::M2_BOUNDS_META) {
         return Some(format!(
             "Model \"{name}\"{} bounds={} is_displayed={}",
@@ -147,6 +152,45 @@ fn semantic_label(node: &Gd<Node>) -> Option<String> {
     }
     // Live spatial group names retain the native scene's ownership hierarchy.
     Some(format!("{name}{}", semantic_position(&spatial)))
+}
+
+fn game_object_label(node: &Gd<Node>, spatial: &Gd<Node3D>) -> String {
+    let name = node.get_meta("game_object_name").to::<String>();
+    let id = node.get_meta("game_object_server_id").to::<i64>();
+    let entry = node.get_meta("game_object_entry").to::<i64>();
+    let collision = node
+        .has_meta("game_object_collision")
+        .then(|| node.get_meta("game_object_collision").to::<bool>());
+    let animation = node
+        .has_meta("game_object_animation")
+        .then(|| node.get_meta("game_object_animation").to::<i64>());
+    let layer = node
+        .get_node_or_null("GameObjectModel/M2Collision")
+        .and_then(|body| body.try_cast::<StaticBody3D>().ok())
+        .map(|body| body.get_collision_layer());
+    format_game_object_label(
+        &name,
+        id,
+        entry,
+        &semantic_position(spatial),
+        collision,
+        layer,
+        animation,
+    )
+}
+
+fn format_game_object_label(
+    name: &str,
+    id: i64,
+    entry: i64,
+    position: &str,
+    collision: Option<bool>,
+    layer: Option<u32>,
+    animation: Option<i64>,
+) -> String {
+    format!(
+        "GameObject \"{name}\" id={id} entry={entry}{position} replicated_collision={collision:?} collision_layer={layer:?} animation={animation:?}"
+    )
 }
 
 fn format_camera_label(name: &str, camera: Gd<Camera3D>) -> String {
@@ -174,6 +218,28 @@ fn format_mesh_label(name: &str, mesh: Gd<MeshInstance3D>) -> String {
         semantic_position(&mesh.clone().upcast()),
         mesh.is_visible_in_tree(),
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::format_game_object_label;
+
+    #[test]
+    fn scene_reports_replicated_and_actual_door_collision() {
+        let line = format_game_object_label(
+            "Door",
+            42,
+            377366,
+            " @ (59.4, 217.8, 690.9)",
+            Some(false),
+            Some(32),
+            Some(148),
+        );
+        assert_eq!(
+            line,
+            "GameObject \"Door\" id=42 entry=377366 @ (59.4, 217.8, 690.9) replicated_collision=Some(false) collision_layer=Some(32) animation=Some(148)"
+        );
+    }
 }
 
 fn semantic_position(node: &Gd<Node3D>) -> String {
