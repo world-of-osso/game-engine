@@ -48,6 +48,8 @@ thread_local! {
         RefCell::new(HashMap::new());
     static SCENERY_MATERIALS: RefCell<HashMap<u64, Vec<SharedSceneryMaterial>>> =
         RefCell::new(HashMap::new());
+    static SCENERY_SHADER_DEFAULTS: RefCell<HashMap<i64, Vec<(String, Variant)>>> =
+        RefCell::new(HashMap::new());
 }
 
 /// A batch's base texture: the file itself, or the file with its character overlays
@@ -114,6 +116,7 @@ pub(crate) fn clear_shared_shaders() {
     TEXTURES.with_borrow_mut(HashMap::clear);
     BATCH_SHADERS.with_borrow_mut(HashMap::clear);
     SCENERY_MATERIALS.with_borrow_mut(HashMap::clear);
+    SCENERY_SHADER_DEFAULTS.with_borrow_mut(HashMap::clear);
 }
 
 /// Compiles `pipeline`'s shader and, when opaque, its scenery-fade shader: Godot
@@ -401,6 +404,32 @@ struct SharedSceneryMaterial {
     material: Gd<ShaderMaterial>,
 }
 
+/// Read each immutable shader's uniform names and defaults once.
+fn scenery_shader_defaults(shader: &Gd<Shader>) -> Vec<(String, Variant)> {
+    SCENERY_SHADER_DEFAULTS.with_borrow_mut(|cache| {
+        cache
+            .entry(shader.instance_id().to_i64())
+            .or_insert_with(|| {
+                shader
+                    .get_shader_uniform_list()
+                    .iter_shared()
+                    .map(|uniform| {
+                        let info = uniform.to::<VarDictionary>();
+                        let name = info
+                            .get("name")
+                            .expect("shader uniform has a name")
+                            .to::<GString>()
+                            .to_string();
+                        let value = RenderingServer::singleton()
+                            .shader_get_parameter_default(shader.get_rid(), name.as_str());
+                        (name, value)
+                    })
+                    .collect()
+            })
+            .clone()
+    })
+}
+
 /// Intern only immutable scenery materials, comparing full values after hashing.
 fn share_scenery_material(
     material: &Gd<ShaderMaterial>,
@@ -411,20 +440,9 @@ fn share_scenery_material(
         material.get_render_priority().to_variant(),
         material.get_next_pass().to_variant(),
     ];
-    for uniform in shader.get_shader_uniform_list().iter_shared() {
-        let info = uniform.to::<VarDictionary>();
-        let name = info
-            .get("name")
-            .expect("shader uniform has a name")
-            .to::<GString>()
-            .to_string();
+    for (name, default) in scenery_shader_defaults(shader) {
         let value = material.get_shader_parameter(name.as_str());
-        signature.push(if value.is_nil() {
-            RenderingServer::singleton()
-                .shader_get_parameter_default(shader.get_rid(), name.as_str())
-        } else {
-            value
-        });
+        signature.push(if value.is_nil() { default } else { value });
     }
     for name in [SCENERY_FADE_SHADER_META, "m2_texture_count"] {
         signature.push(if material.has_meta(name) {
