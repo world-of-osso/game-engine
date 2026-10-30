@@ -7,6 +7,7 @@ World entry and map transfers hide loading once the player's local entry bubble 
 - [x] Require the selected local player and their settled model, a successful map WDT, and attached center terrain. Preserve explicit terrain failure and missing-asset reporting.
 - [x] Require attached terrain for every tile intersecting the conservative X/Z square extending 100 yards from the player. Queue those tiles' objects before evaluating their readiness; an undiscovered neighbouring tile must not create a false-ready frame.
 - [x] Require ADT/MODD doodad origins within a 100-yard sphere of the player, WMO roots whose authored MODF extents intersect that sphere, and WMO collision groups whose transformed bounds intersect it. A large WMO is required by its extent even if its origin is distant. WMO roots still build all their render batches; only their distant doodads and collision groups are nonblocking.
+- [x] Place ADT doodads at their authored MDDF height, independent of terrain-tile load order.
 - [x] Register a WMO's active MODD doodads before marking its root complete. Nearby children remain gate prerequisites even when discovered after the initial ADT queue.
 - [x] Prioritize nearby queued/ready placements and their asset loads, including newly discovered WMO doodads. Build local terrain tiles center-first. Far placements are retained, not omitted or marked complete to release loading.
 

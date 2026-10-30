@@ -817,7 +817,7 @@ impl TerrainObjects {
                 if self.spawned_doodads.contains(&doodad.unique_id) {
                     return Ok(());
                 }
-                let (built, scenery) = self.load_placed_doodad(doodad, tile, terrain)?;
+                let (built, scenery) = self.load_placed_doodad(doodad, tile)?;
                 self.spawned_doodads.insert(doodad.unique_id);
                 let model = built.node.clone();
                 self.attach(parent, &model);
@@ -978,16 +978,11 @@ impl TerrainObjects {
         &mut self,
         doodad: &DoodadPlacement,
         tile: Tile,
-        terrain: &StreamedTerrain,
     ) -> Result<(BuiltDoodad, SceneryDistance), String> {
-        let model_path = self.doodad_model_path(doodad);
         let fdid = self.doodad_fdid(doodad)?;
         let mut built = self.build_doodad_model(fdid)?;
         let (model, render_box) = (&mut built.node, built.render_box);
-        let position = doodad_position(doodad, tile.0, tile.1);
-        let height = terrain.height_at(position.x, position.z);
-        let placement =
-            campsite_doodad_placement(doodad, model_path.as_deref(), tile.0, tile.1, height);
+        let placement = campsite_doodad_placement(doodad, tile.0, tile.1);
         let rotation = placement.rotation;
         model.set_name(&format!("Doodad{}", doodad.unique_id));
         model.set_position(Vector3::from_array(placement.translation.to_array()));

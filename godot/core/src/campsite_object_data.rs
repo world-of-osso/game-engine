@@ -115,21 +115,13 @@ pub struct CampsiteDoodadPlacement {
     pub scale: Vec3,
 }
 
-/// Apply the authored MDDF transform; terrain may lift ordinary props only.
-/// `terrain_y` is sampled by the caller at `doodad_position` (X, Z).
+/// Apply the authored MDDF transform without changing its height to terrain.
 pub fn campsite_doodad_placement(
     doodad: &DoodadPlacement,
-    model_name: Option<&str>,
     tile_y: u32,
     tile_x: u32,
-    terrain_y: Option<f32>,
 ) -> CampsiteDoodadPlacement {
-    let mut translation = doodad_position(doodad, tile_y, tile_x);
-    if !is_waterfall_backdrop_model(model_name)
-        && let Some(terrain_y) = terrain_y
-    {
-        translation.y = translation.y.max(terrain_y);
-    }
+    let translation = doodad_position(doodad, tile_y, tile_x);
     let [pitch, heading, bank] = doodad.rotation;
     let rotation = Quat::from_euler(
         EulerRot::YZX,

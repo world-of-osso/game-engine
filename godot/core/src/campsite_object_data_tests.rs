@@ -78,14 +78,13 @@ fn supplemental_only_keeps_waterfall_and_misty_ripple() {
 }
 
 #[test]
-fn placement_preserves_tile_conversion_rotation_scale_and_height_policy() {
+fn placement_preserves_tile_conversion_rotation_scale_and_authored_height() {
     let ordinary = doodad("world/props/tent.m2", [17_056.666, 400.0, 20_048.486]);
     let waterfall = doodad("world/props/waterfall.m2", ordinary.position);
     let position = doodad_position(&ordinary, 31, 37);
     assert!((position - Vec3::new(-2981.82, 400.0, -10.0)).length() < 0.01);
-    let placed =
-        campsite_doodad_placement(&ordinary, ordinary.path.as_deref(), 31, 37, Some(430.0));
-    assert_eq!(placed.translation.y, 430.0);
+    let placed = campsite_doodad_placement(&ordinary, 31, 37);
+    assert_eq!(placed.translation.y, 400.0);
     assert_eq!(placed.scale, Vec3::splat(1.5));
     let expected = Quat::from_euler(
         EulerRot::YZX,
@@ -95,12 +94,8 @@ fn placement_preserves_tile_conversion_rotation_scale_and_height_policy() {
     );
     assert!(placed.rotation.abs_diff_eq(expected, 1e-6));
 
-    let waterfall_placed =
-        campsite_doodad_placement(&waterfall, waterfall.path.as_deref(), 31, 37, Some(430.0));
+    let waterfall_placed = campsite_doodad_placement(&waterfall, 31, 37);
     assert_eq!(waterfall_placed.translation.y, 400.0);
-    let lower_ground =
-        campsite_doodad_placement(&ordinary, ordinary.path.as_deref(), 31, 37, Some(390.0));
-    assert_eq!(lower_ground.translation.y, 400.0);
 }
 
 #[test]
