@@ -28,9 +28,9 @@ pub use melee::{MeleeHand, SwingResult};
 pub use voice::{UnitSound, VoiceSource, player_displays};
 
 /// Bump when the cached catalog layout or its build rules change.
-const CACHE_FORMAT: u32 = 15;
+const CACHE_FORMAT: u32 = 16;
 
-const SOURCE_TABLES: [&str; 26] = [
+const SOURCE_TABLES: [&str; 29] = [
     "ChrSpecialization",
     "SpellXSpellVisual",
     "SpellVisual",
@@ -38,6 +38,9 @@ const SOURCE_TABLES: [&str; 26] = [
     "SpellVisualKitEffect",
     "SpellProceduralEffect",
     "SpellVisualKitModelAttach",
+    "Positioner",
+    "PositionerState",
+    "PositionerStateEntry",
     "SpellVisualEffectName",
     "SpellVisualAnim",
     "SpellVisualMissile",

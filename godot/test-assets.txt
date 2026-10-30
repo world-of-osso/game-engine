@@ -486,6 +486,9 @@ db2/active/SpellVisualEvent.csv
 db2/active/SpellVisualKitEffect.csv
 db2/active/SpellProceduralEffect.csv
 db2/active/SpellVisualKitModelAttach.csv
+db2/active/Positioner.csv
+db2/active/PositionerState.csv
+db2/active/PositionerStateEntry.csv
 db2/active/SpellVisualEffectName.csv
 db2/active/SpellVisualAnim.csv
 db2/active/SpellVisualMissile.csv

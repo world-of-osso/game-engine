@@ -23,9 +23,15 @@ Behavioral fixture: `godot/core/tests/spell_visual.rs::toyfx6_spitzy_inverted_au
 - [ ] Overlapping aura alpha modifiers use the minimum alpha, a project policy; removing the last modifier restores the mesh's prior transparency. New or replaced unit visuals receive active modifiers.
 - [ ] Cast→OneShot subtype-14 kits remain a named gap because their restore timing is unknown. Other procedural subtypes are unchanged.
 
+## Positioner attachment (2026-10-30)
+
+- [ ] Resolve a model's nonzero Positioner through its first state's position entry. For SrcValType 1, use SrcVal as the attachment override, including -1 for the origin. This mapping is inferred: Wowhead's viewer consumes a pre-resolved Positioner as an attachment index, and Champion's Spear's casthand model has SrcVal 22 (SpellRightHand). The viewer does not expose the raw SrcValType mapping.
+- [ ] Log and count positioners with unsupported or missing position entries; retain the model's AttachmentID for those cases. Other positioner transforms and state transitions are not implemented.
+- [ ] Prove the native placement and Forever before/after pixels for Champion's Spear and three other census cases.
+
 ## Owner attachment ordering (2026-10-10)
 
-- An available type2 kit model waits while its target unit's visual request is pending. Readiness requires the authored start delay and owner completion; DB2's explicit -1/unit-origin placement does not require a model.
+- An available type2 kit model waits while its target unit's visual request is pending. Readiness requires the authored start delay and owner completion; A resolved -1/unit-origin placement does not require a model.
 - Owner completion never restarts a kit: held effects join their elapsed phase; expired one-shots remain expired. Cast/aura end still removes pending held effects.
 - Distinguish an unavailable owner visual after loading from a loaded model missing its authored attachment. Never invent attachment points or reinterpret model load failure as an attachment-ID mapping gap.
 
