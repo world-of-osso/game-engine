@@ -1194,6 +1194,10 @@ impl TerrainObjects {
         }
     }
 
+    pub fn outdoor_visibility(&self) -> (Option<&[Vec<HalfSpace>]>, &[(Vec3, Vec3)]) {
+        (self.outdoor_windows.as_deref(), &self.interior_bounds)
+    }
+
     /// Fades each doodad by its retail scenery distance from `camera`, and
     /// advances its animation `delta_ms` at its animation LOD rate through `frustum`
     /// (world space); an undrawn doodad does not animate. A WMO doodad is drawn only

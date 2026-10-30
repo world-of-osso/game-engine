@@ -98,21 +98,41 @@ impl SceneryDistance {
 
     /// Whether this placement's world bounds overlap another world-space box.
     pub fn overlaps_box(&self, min: Vec3, max: Vec3) -> bool {
-        self.world_max.cmpge(min).all() && self.world_min.cmple(max).all()
+        boxes_overlap(self.world_min, self.world_max, min, max)
     }
 
     /// Whether any part of the world box can be inside every half space: the corner
     /// farthest along each plane normal must not be behind it.
     pub fn box_in_frustum(&self, frustum: &[HalfSpace]) -> bool {
-        frustum.iter().all(|plane| {
-            let corner = Vec3::select(
-                plane.normal.cmpge(Vec3::ZERO),
-                self.world_max,
-                self.world_min,
-            );
-            plane.normal.dot(corner) + plane.d >= 0.0
-        })
+        box_in_frustum(self.world_min, self.world_max, frustum)
     }
+}
+
+pub(crate) fn outdoor_box_admitted(
+    min: Vec3,
+    max: Vec3,
+    windows: Option<&[Vec<HalfSpace>]>,
+    interior_bounds: &[(Vec3, Vec3)],
+) -> bool {
+    windows.is_none_or(|windows| {
+        interior_bounds
+            .iter()
+            .any(|&(a, b)| boxes_overlap(min, max, a, b))
+            || windows
+                .iter()
+                .any(|window| box_in_frustum(min, max, window))
+    })
+}
+
+pub(crate) fn boxes_overlap(a_min: Vec3, a_max: Vec3, b_min: Vec3, b_max: Vec3) -> bool {
+    a_max.cmpge(b_min).all() && a_min.cmple(b_max).all()
+}
+
+pub(crate) fn box_in_frustum(min: Vec3, max: Vec3, frustum: &[HalfSpace]) -> bool {
+    frustum.iter().all(|plane| {
+        let corner = Vec3::select(plane.normal.cmpge(Vec3::ZERO), max, min);
+        plane.normal.dot(corner) + plane.d >= 0.0
+    })
 }
 
 #[cfg(test)]
