@@ -384,10 +384,16 @@ pub(crate) enum InventoryCmd {
 pub(crate) enum QuestCmd {
     List,
     Watch,
-    /// Right-click an NPC, game object or player by name
+    /// Right-click by name, or use a game object by template entry
     Interact {
-        #[arg(long)]
-        npc: String,
+        #[arg(
+            long,
+            required_unless_present = "gameobject",
+            conflicts_with = "gameobject"
+        )]
+        npc: Option<String>,
+        #[arg(long, required_unless_present = "npc")]
+        gameobject: Option<u32>,
     },
     Show {
         #[arg(long)]

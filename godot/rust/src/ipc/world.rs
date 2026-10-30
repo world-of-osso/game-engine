@@ -118,6 +118,7 @@ impl crate::GameClient {
             Request::SpellCast { spell, target } => self.spell_cast_ipc(&spell, target.as_deref()),
             Request::SpellStop => self.spell_stop_ipc(),
             Request::QuestInteract { npc } => self.quest_interact(&npc),
+            Request::QuestInteractGameObject { entry } => self.quest_interact_gameobject(entry),
             Request::LootTakeAll => self.loot_take_all(),
             request => return self.item_request(request),
         };
@@ -293,6 +294,36 @@ impl crate::GameClient {
             player.ok_or_else(|| format!("no NPC, game object or player named {name}"))?;
         self.set_target(Some(id));
         Ok(format!("target {player}"))
+    }
+
+    /// Use the nearest replicated game object of an explicit template entry.
+    fn quest_interact_gameobject(&mut self, entry: u32) -> Result<String, String> {
+        let player = self
+            .world
+            .local_player_transform()
+            .ok_or("quest interact requires a local player")?
+            .origin;
+        let object = self
+            .replica
+            .units()
+            .filter_map(|unit| {
+                let info = unit.get::<GameObjectInfo>()?;
+                if info.entry != entry {
+                    return None;
+                }
+                let position = self.game_objects.position(unit.server_id)?;
+                let distance = (position.x - player.x).powi(2) + (position.z - player.z).powi(2);
+                Some((unit.server_id, info.clone(), distance))
+            })
+            .min_by(|a, b| a.2.total_cmp(&b.2));
+        let (id, info, _) = object.ok_or_else(|| format!("no game object with entry {entry}"))?;
+        self.account
+            .send_use_game_object(id)
+            .map_err(|error| error.to_string())?;
+        if info.go_type == GAMEOBJECT_TYPE_MAILBOX {
+            self.mailbox.session.expect_open(id);
+        }
+        Ok(format!("use {} (entry {entry})", info.name))
     }
 
     /// The original `handle_loot_take_all` (src/ipc/plugin.rs:742): takes every slot of

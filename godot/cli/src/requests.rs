@@ -97,7 +97,11 @@ pub fn quest_request(command: QuestCmd) -> Result<Request, String> {
         QuestCmd::List => Request::QuestList,
         QuestCmd::Watch => Request::QuestWatch,
         QuestCmd::Show { id } => Request::QuestShow { quest_id: id },
-        QuestCmd::Interact { npc } => Request::QuestInteract { npc },
+        QuestCmd::Interact { npc, gameobject } => match (npc, gameobject) {
+            (Some(npc), None) => Request::QuestInteract { npc },
+            (None, Some(entry)) => Request::QuestInteractGameObject { entry },
+            _ => return Err("choose exactly one of --npc or --gameobject".into()),
+        },
         QuestCmd::TakeLoot => Request::LootTakeAll,
     };
     Ok(request)

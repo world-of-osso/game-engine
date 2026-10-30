@@ -257,3 +257,35 @@ fn export_scene_request_uses_output_path() {
         }
     );
 }
+
+#[test]
+fn quest_interact_selects_gameobject_entry_and_rejects_ambiguous_selectors() {
+    let cli = Cli::try_parse_from([
+        "game-engine-cli",
+        "quest",
+        "interact",
+        "--gameobject",
+        "616377",
+    ])
+    .unwrap();
+    let Cmd::Quest { command } = cli.command else {
+        panic!("quest command expected")
+    };
+    assert_eq!(
+        quest_request(command).unwrap(),
+        Request::QuestInteractGameObject { entry: 616377 }
+    );
+    assert!(Cli::try_parse_from(["game-engine-cli", "quest", "interact"]).is_err());
+    assert!(
+        Cli::try_parse_from([
+            "game-engine-cli",
+            "quest",
+            "interact",
+            "--npc",
+            "Ethereal Pyre",
+            "--gameobject",
+            "616377",
+        ])
+        .is_err()
+    );
+}

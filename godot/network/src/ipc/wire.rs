@@ -223,6 +223,10 @@ pub enum Request {
     QuestInteract {
         npc: String,
     },
+    /// Use the nearest game object with this template entry.
+    QuestInteractGameObject {
+        entry: u32,
+    },
     /// Take every slot of the open loot window (`LootSlot` for each).
     LootTakeAll,
     QuestShow {
