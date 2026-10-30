@@ -679,6 +679,17 @@ impl SpellVisualCatalog {
             .collect()
     }
 
+    /// Resolve an authored kit on a visual for offline diagnostic playback.
+    pub fn diagnostic_kit(&self, visual_id: u32, kit_id: u32) -> Option<VisualKit> {
+        let event = self
+            .visuals
+            .get(&visual_id)?
+            .events
+            .iter()
+            .find(|event| event.kit_id == kit_id && kit_id != 0)?;
+        Some(self.resolve_kit(event.kit_id, event.target, event.end))
+    }
+
     /// Source ID lookup without cloning kit assets during per-frame synchronization.
     pub fn display_state_kit_id(&self, display_id: u32) -> Option<u32> {
         self.display_state_kits.get(&display_id).copied()

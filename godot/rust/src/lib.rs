@@ -114,6 +114,8 @@ mod sound_client;
 mod sound_footsteps;
 mod sound_ui_kits;
 mod spell_assets;
+#[cfg(debug_assertions)]
+mod spell_census_fixture;
 mod spell_effects;
 mod spell_sounds;
 mod spells;
