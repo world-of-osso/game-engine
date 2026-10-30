@@ -636,7 +636,12 @@ mod tests {
         };
         let lower = feet.with_y(-41.0);
         assert!((ground.water_surface(lower).unwrap() + 38.515987).abs() < 0.01);
-        assert!((ground.liquid_floor(lower, -38.515987) + 42.0).abs() < 0.01);
+        let floor = ground.liquid_floor(lower, -38.515987);
+        assert!(
+            (floor + 42.0).abs() < 0.01,
+            "floor={floor}, m2={:?}",
+            ground.m2_ground(lower.with_y(lower.y + 0.05 - STEP_UP_HEIGHT), true)
+        );
         let upper = feet.with_y(-31.5);
         assert!((ground.water_surface(upper).unwrap() + 30.0).abs() < 0.01);
         assert!((ground.liquid_floor(upper, -30.0) + 35.0).abs() < 0.01);
