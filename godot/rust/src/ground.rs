@@ -334,7 +334,7 @@ impl TerrainGround<'_> {
                 return false;
             };
             if landing.surface != Surface::Wmo
-                || landing.height < obstacle_height
+                || landing.height < current.y - shared::movement::GROUND_SNAP_THRESHOLD
                 || landing.height > current.y + STEP_UP_HEIGHT
             {
                 return false;
@@ -367,6 +367,11 @@ impl TerrainGround<'_> {
             ) else {
                 return false;
             };
+            if top - landing.height > shared::movement::GROUND_SNAP_THRESHOLD
+                || top < obstacle_height
+            {
+                return false;
+            }
             let raised = current.with_y(top.max(landing.height));
             let destination = probe.with_y(raised.y);
             clamp_movement_to_walls(raised, destination, self.walls) == destination
