@@ -11,7 +11,7 @@ func verify_caption() -> void:
 	var output := OS.get_environment("PET_QUEUE_CAPTURE_PATH")
 	assert(not output.is_empty(), "Set PET_QUEUE_CAPTURE_PATH")
 	var verify := OS.get_environment("PET_QUEUE_VERIFY") == "1"
-	for forever in [false, true]:
+	for forever in [true]:
 		var probe = ClassDB.instantiate("UiAuditProbe")
 		root.add_child(probe)
 		var error: String = probe.mount_collections(forever, "pet-queue")

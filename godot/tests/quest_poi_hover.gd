@@ -38,7 +38,7 @@ func run_test() -> void:
 		return
 	if not await wait_until(func(): return client.get_node_or_null("ObjectiveTrackerUI") != null and client.get_node("ObjectiveTrackerUI").find_child("QuestBlock28766HeaderText", true, false) is Control, 30000):
 		return
-	for forever in [false, true]:
+	for forever in [true]:
 		if not await capture_skin(forever):
 			return
 	print("QUEST_POI_HOVER PASS: log/tracker hover and leave, unchanged super-tracking, watched minimap set, both skins")

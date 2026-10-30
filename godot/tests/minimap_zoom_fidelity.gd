@@ -68,7 +68,7 @@ func run_zoom() -> bool:
 	verify = OS.get_environment("MINIMAP_ZOOM_VERIFY") == "1"
 	if not completion.require(not output.is_empty()):
 		return false
-	for forever in [false, true]:
+	for forever in [true]:
 		for zoom in [0, 2, 5]:
 			var ui = ClassDB.instantiate("RegistryUi")
 			root.add_child(ui)

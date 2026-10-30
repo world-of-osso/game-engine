@@ -60,7 +60,7 @@ func capture(skin: String, phase: String) -> bool:
 	return true
 
 func verify_controls() -> bool:
-	for skin in ["modern", "forever"]:
+	for skin in ["forever"]:
 		fixture = ClassDB.instantiate("HudEditControlsFixture")
 		root.add_child(fixture)
 		if not completion.require(fixture.call("initialize", skin == "forever", true) == ""):

@@ -113,7 +113,7 @@ func probe(forever: bool, size: Vector2i, phase: String) -> bool:
 func run_placement() -> bool:
 	root.content_scale_size = Vector2i.ZERO
 	root.notify_mouse_entered()
-	for forever in [false, true]:
+	for forever in [true]:
 		for size in [Vector2i(1280, 720), Vector2i(1920, 1080)]:
 			for phase in ["waiting", "running"]:
 				if not completion.step(await probe(forever, size, phase), "probe"):

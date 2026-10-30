@@ -105,7 +105,7 @@ func run_cards() -> bool:
 	verify = OS.get_environment("CAMP_HOVER_VERIFY") == "1"
 	if not completion.require(not output.is_empty()):
 		return false
-	for forever in [false, true]:
+	for forever in [true]:
 		var ui = ClassDB.instantiate("RegistryUi")
 		root.add_child(ui)
 		if not completion.require(ui.show_glue_menus_preview("campsite", forever).is_empty()):

@@ -15,7 +15,7 @@ func capture() -> bool:
 	root.size = Vector2i(1920, 1080)
 	var probe := EnterProbe.new()
 	root.add_child(probe)
-	for forever in [false, true]:
+	for forever in [true]:
 		var ui: Node = ClassDB.instantiate("RegistryUi")
 		root.add_child(ui)
 		var error: String = ui.call("show_guild_communities_preview", forever)

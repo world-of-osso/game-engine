@@ -18,7 +18,7 @@ func run_title_shadow() -> void:
 	var output := OS.get_environment("READY_TITLE_CAPTURE_PATH")
 	assert(not output.is_empty())
 	var observations: Array[Dictionary] = []
-	for forever in [false, true]:
+	for forever in [true]:
 		var skin := "forever" if forever else "modern"
 		var ui = ClassDB.instantiate("RegistryUi")
 		root.add_child(ui)

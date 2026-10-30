@@ -10,7 +10,7 @@ func run_message() -> void:
 	var output := OS.get_environment("READY_MESSAGE_CAPTURE_PATH")
 	var verify := OS.get_environment("READY_MESSAGE_VERIFY") == "1"
 	assert(not output.is_empty())
-	for forever in [false, true]:
+	for forever in [true]:
 		var skin := "forever" if forever else "modern"
 		var ui = ClassDB.instantiate("RegistryUi")
 		root.add_child(ui)

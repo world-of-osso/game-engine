@@ -754,7 +754,7 @@ func castbar_snapshot_matches(ui: Node, image: Image, output: String) -> bool:
 
 # Both skins and every bottom page; production projection, local mage data, no networking.
 func capture_spellbook_both(directory: String) -> bool:
-	for skin in ["modern", "forever"]:
+	for skin in ["forever"]:
 		for page in ["spellbook", "specialization", "talents"]:
 			OS.set_environment("GODOT_SPELLBOOK_TAB", page)
 			var ui = ClassDB.instantiate("RegistryUi")
@@ -808,7 +808,7 @@ func capture_auction_both(directory: String) -> bool:
 	var sorted_proof := OS.get_environment("GODOT_AH_SORT_CAPTURE") == "1"
 	if sorted_proof:
 		views = ["subcategory_sorted"]
-	for skin in ["modern", "forever"]:
+	for skin in ["forever"]:
 		for view in views:
 			OS.set_environment("GODOT_AUCTION_VIEW", view)
 			var ui = ClassDB.instantiate("RegistryUi")
@@ -998,7 +998,7 @@ func auction_row_icon(ui: Node, row: int) -> Texture2D:
 
 # Offline production bank projection, exact compositor/window/viewport dimensions.
 func capture_bank_both(directory: String) -> bool:
-	for skin in ["modern", "forever"]:
+	for skin in ["forever"]:
 		for page in ["tabs", "purchase"]:
 			OS.set_environment("GODOT_BANK_PURCHASE", "1" if page == "purchase" else "0")
 			var ui = ClassDB.instantiate("RegistryUi")

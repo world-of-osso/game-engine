@@ -8,7 +8,7 @@ func capture() -> bool:
 	if not completion.require(not directory.is_empty(), "Owned projection output required"):
 		return false
 	DirAccess.make_dir_recursive_absolute(directory)
-	for skin in ["modern", "forever"]:
+	for skin in ["forever"]:
 		var ui: Node = ClassDB.instantiate("RegistryUi")
 		root.add_child(ui)
 		if not completion.require(ui.call("show_guild_communities_preview", skin == "forever") == ""):

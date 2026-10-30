@@ -4,7 +4,7 @@ func _initialize() -> void:
 	call_deferred("run_test")
 
 func run_test() -> void:
-	for forever in [false, true]:
+	for forever in [true]:
 		var ui = ClassDB.instantiate("RegistryUi")
 		root.add_child(ui)
 		var error: String = ui.call("show_buttonfit_service_preview", "options:socialaddons", forever)

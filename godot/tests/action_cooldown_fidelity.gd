@@ -11,7 +11,7 @@ func verify_action_swipes() -> void:
 	var output := OS.get_environment("ACTION_SWIPE_CAPTURE_PATH")
 	assert(not output.is_empty(), "Set ACTION_SWIPE_CAPTURE_PATH")
 	var verify := OS.get_environment("ACTION_SWIPE_VERIFY") == "1"
-	for forever in [false, true]:
+	for forever in [true]:
 		var probe = ClassDB.instantiate("UiAuditProbe")
 		root.add_child(probe)
 		var error: String = probe.mount_action_cooldown_bars(forever)

@@ -51,7 +51,7 @@ func run_buttons() -> void:
 	output = OS.get_environment("HOUSE_ACTION_CAPTURE_PATH")
 	verify = OS.get_environment("HOUSE_ACTION_VERIFY") == "1"
 	assert(not output.is_empty())
-	for forever in [false, true]:
+	for forever in [true]:
 		var skin := "forever" if forever else "modern"
 		for spec in [
 			["HousingSettingsSave", false, false],

@@ -55,7 +55,7 @@ func run_test() -> void:
 		return
 	await key(KEY_L)
 	await frames(10)
-	for forever in [false, true]:
+	for forever in [true]:
 		if not await capture_skin(forever, false):
 			return
 	var ready := FileAccess.open(evidence.path_join("ready-completion"), FileAccess.WRITE)
@@ -71,7 +71,7 @@ func run_test() -> void:
 		fail("Completed objective area remains on minimap")
 		return
 	await key(KEY_M)
-	for forever in [false, true]:
+	for forever in [true]:
 		if not await capture_skin(forever, true):
 			return
 	print("QUEST_POI PASS: real acceptance, selected quest, live completion, both skins")

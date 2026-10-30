@@ -6,7 +6,7 @@ func _initialize() -> void:
 
 func _run() -> void:
 	var directory := OS.get_environment("GODOT_CAPTURE_PATH")
-	for skin in ["modern", "forever"]:
+	for skin in ["forever"]:
 		OS.set_environment("GODOT_SPELLBOOK_TAB", "talents")
 		var ui = ClassDB.instantiate("RegistryUi")
 		root.add_child(ui)

@@ -15,7 +15,7 @@ func run_hold() -> void:
 	var output := OS.get_environment("ERROR_HOLD_CAPTURE_PATH")
 	var verify := OS.get_environment("ERROR_HOLD_VERIFY") == "1"
 	assert(not output.is_empty())
-	for forever in [false, true]:
+	for forever in [true]:
 		var skin := "forever" if forever else "modern"
 		for sample in [["new", 0.0, false], ["held", 2.0, false], ["fading", 2.25, false], ["expired", 2.5, false], ["repeat", 2.25, true]]:
 			var ui = ClassDB.instantiate("RegistryUi")

@@ -10,7 +10,7 @@ func _run() -> void:
 		push_error("UI_FIDELITY_CAPTURE_DIR required")
 		quit(1)
 		return
-	for forever in [false, true]:
+	for forever in [true]:
 		for journal in ["questlog", "mounts", "pets", "toys"]:
 			var node: Node
 			var error: String

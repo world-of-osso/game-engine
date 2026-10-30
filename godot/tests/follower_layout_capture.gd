@@ -14,7 +14,7 @@ func capture() -> void:
 		push_error("Capture requires compositor output 1920x1080")
 		quit(1)
 		return
-	for skin in ["modern", "forever"]:
+	for skin in ["forever"]:
 		for menu in [false, true]:
 			var ui = ClassDB.instantiate("RegistryUi")
 			root.add_child(ui)

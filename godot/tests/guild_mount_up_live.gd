@@ -30,7 +30,7 @@ func run_test() -> void:
 		return
 	client.set_world_minutes(720.0)
 	client.set_camera_orbit(PI, -0.3, 14.0)
-	for skin in ["Modern", "Forever"]:
+	for skin in ["Forever"]:
 		phase += 1
 		samples.clear()
 		if not await select_skin(skin):

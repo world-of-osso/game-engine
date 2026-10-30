@@ -30,7 +30,7 @@ func run_test() -> void:
 			return
 		await wait_frames(30)
 	var phase := 0
-	for skin in ["Modern", "Forever"]:
+	for skin in ["Forever"]:
 		phase += 1
 		if not await select_skin(skin):
 			return

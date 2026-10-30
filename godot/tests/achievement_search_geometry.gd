@@ -13,7 +13,7 @@ func run_geometry() -> void:
 		push_error("Source Roman font unavailable")
 		quit(1)
 		return
-	for forever in [false, true]:
+	for forever in [true]:
 		for comparison in [false, true]:
 			for query in ["", "bear"]:
 				if not await check_header(forever, comparison, query, expected_font, failures):

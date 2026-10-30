@@ -10,7 +10,7 @@ func capture_settings() -> void:
 	RenderingServer.set_default_clear_color(Color(0.12, 0.12, 0.12))
 	var output := OS.get_environment("SETTINGS_ART_CAPTURE_PATH")
 	assert(not output.is_empty(), "Set SETTINGS_ART_CAPTURE_PATH")
-	for forever in [false, true]:
+	for forever in [true]:
 		for auras in [false, true]:
 			var probe = ClassDB.instantiate("UiAuditProbe")
 			root.add_child(probe)

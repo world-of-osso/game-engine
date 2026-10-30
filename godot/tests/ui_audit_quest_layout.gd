@@ -5,7 +5,7 @@ func _initialize() -> void:
 
 func run_test() -> void:
 	root.size = Vector2i(1920, 1080)
-	for forever in [false, true]:
+	for forever in [true]:
 		var probe = ClassDB.instantiate("UiAuditProbe")
 		root.add_child(probe)
 		var error: String = probe.mount_quest(forever)

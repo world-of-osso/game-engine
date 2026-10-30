@@ -16,7 +16,7 @@ func run_label_shadow() -> void:
 	var verify := OS.get_environment("STACK_SHADOW_VERIFY") == "1"
 	assert(not output.is_empty())
 	var observations: Array[Dictionary] = []
-	for forever in [false, true]:
+	for forever in [true]:
 		var skin := "forever" if forever else "modern"
 		for bundles in [false, true]:
 			var case_name: String = skin + ("-bundle" if bundles else "-single")

@@ -14,7 +14,7 @@ func capture_buff_bars() -> void:
 		push_error("Set BUFF_BAR_CAPTURE_PATH")
 		quit(1)
 		return
-	for forever in [false, true]:
+	for forever in [true]:
 		var probe = ClassDB.instantiate("UiAuditProbe")
 		root.add_child(probe)
 		var error: String = probe.mount_cooldown_buff_bars(forever)

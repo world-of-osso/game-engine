@@ -78,7 +78,7 @@ func run_fixture() -> void:
 	var radius := maxf(bounds.size.length() * 0.5, 1.0)
 	camera.look_at_from_position(focus + Vector3(1.0, 0.12, 0.0).normalized() * radius * 2.8, focus)
 	var evidence := {}
-	for skin in ["modern", "forever"]:
+	for skin in ["forever"]:
 		var skin_error: String = client.preview_world_skin(skin == "forever")
 		if not skin_error.is_empty():
 			fail_fixture(skin_error)

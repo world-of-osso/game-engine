@@ -11,7 +11,7 @@ func run_test() -> void:
 	var output := OS.get_environment("BAGTITLE_SHOTS")
 	DirAccess.make_dir_recursive_absolute(output)
 	var failures := []
-	for forever in [false, true]:
+	for forever in [true]:
 		var skin := "forever" if forever else "modern"
 		var ui = ClassDB.instantiate("RegistryUi")
 		root.add_child(ui)

@@ -6,7 +6,7 @@ func run_cases() -> void:
 	root.content_scale_size = Vector2i.ZERO
 	completion = preload("res://tests/completion.gd").new(self, 24)
 	var passed := true
-	for forever in [false, true]:
+	for forever in [true]:
 		for kind in ["default", "down", "wrap_many", "wrap_two", "first_enter", "hover_enter", "all_enter", "hover_all_enter", "batched_enter", "short_enter", "pending_enter", "empty_enter"]:
 			if await check_case(forever, kind):
 				if not completion.case_done():

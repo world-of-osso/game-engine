@@ -8,7 +8,7 @@ func capture_pending() -> void:
 	OS.set_environment("GODOT_TALENT_PENDING", "1")
 	root.size = Vector2i(1920, 1080)
 	var directory := OS.get_environment("GODOT_CAPTURE_PATH")
-	for skin in ["modern", "forever"]:
+	for skin in ["forever"]:
 		var ui = ClassDB.instantiate("RegistryUi")
 		root.add_child(ui)
 		var method := "show_spellbook_preview" if skin == "modern" else "show_forever_spellbook_preview"

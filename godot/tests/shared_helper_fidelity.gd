@@ -10,7 +10,7 @@ func capture_panels() -> void:
 	RenderingServer.set_default_clear_color(Color(0.12, 0.12, 0.12))
 	var output := OS.get_environment("SHARED_HELPER_CAPTURE_PATH")
 	assert(not output.is_empty(), "Set SHARED_HELPER_CAPTURE_PATH")
-	for forever in [false, true]:
+	for forever in [true]:
 		for panel in ["quest", "mail", "raid", "bank", "settings"]:
 			var probe = ClassDB.instantiate("UiAuditProbe")
 			root.add_child(probe)

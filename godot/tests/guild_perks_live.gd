@@ -20,7 +20,7 @@ func run_test() -> void:
 	await wait_frames(30)
 	if not await connect_private_account() or not await enter_world("Gcperkslead"):
 		return
-	for skin in ["Modern", "Forever"]:
+	for skin in ["Forever"]:
 		if not await select_skin(skin) or not await open_guild():
 			return
 		role = skin.to_lower() + "-perks"

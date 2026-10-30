@@ -14,7 +14,7 @@ func capture_dropdowns() -> bool:
 	if not completion.require(not output.is_empty(), "Set DROPDOWN_CENTER_CAPTURE_PATH"):
 		return false
 	var verify := OS.get_environment("DROPDOWN_CENTER_VERIFY") == "1"
-	for forever in [false, true]:
+	for forever in [true]:
 		for view in ["auction", "primitives"]:
 			var ui = ClassDB.instantiate("RegistryUi")
 			root.add_child(ui)

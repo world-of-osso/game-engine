@@ -5,7 +5,7 @@ func run() -> void:
     root.content_scale_size = Vector2i.ZERO
     root.size = Vector2i(1600,900)
     var output := OS.get_environment("GLUE_MENUS_CAPTURE_PATH")
-    for forever in [false,true]:
+    for forever in [true]:
         var ui = ClassDB.instantiate("RegistryUi")
         root.add_child(ui)
         var error = ui.call("show_buttonfit_service_preview","options:interface",forever)

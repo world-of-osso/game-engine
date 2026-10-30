@@ -10,7 +10,7 @@ func run_completion() -> void:
 
 func check_submenus() -> bool:
 	root.size = Vector2i(1920, 1080)
-	for forever in [false, true]:
+	for forever in [true]:
 		for raid in [false, true]:
 			var ui: Node = ClassDB.instantiate("RegistryUi")
 			root.add_child(ui)

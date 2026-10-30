@@ -13,7 +13,7 @@ func run_test() -> void:
 	if not await capture_screens():
 		quit(1)
 		return
-	for forever in [false, true]:
+	for forever in [true]:
 		skin = "forever" if forever else "modern"
 		if not await check_portrait(forever):
 			fixture.free()

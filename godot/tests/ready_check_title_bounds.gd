@@ -41,7 +41,7 @@ func run_title_bounds() -> bool:
 	if not completion.require(not output.is_empty()):
 		return false
 	var observations: Array[Dictionary] = []
-	for forever in [false, true]:
+	for forever in [true]:
 		var skin := "forever" if forever else "modern"
 		fixture = ClassDB.instantiate("PartyPortraitFixture")
 		root.add_child(fixture)

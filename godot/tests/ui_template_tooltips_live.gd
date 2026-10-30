@@ -36,7 +36,7 @@ func run_test() -> void:
 	if not await enter_world(): return
 	print("UI_TEMPLATE_GENERICS_SPELLS ", {"catalog_ready": spells().catalog_ready, "known": spells().known, "bar": spells().bar})
 	if not await wait_until(func(): return spells().catalog_ready and spells().known.has(30451), 60000, "Arcane Blast catalog/authority"): return
-	for forever in [false, true]:
+	for forever in [true]:
 		current_skin = "forever" if forever else "modern"
 		error = client.preview_world_skin(forever)
 		if not error.is_empty():

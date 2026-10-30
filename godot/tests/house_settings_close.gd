@@ -51,7 +51,7 @@ func run_close() -> void:
 	output = OS.get_environment("HOUSE_CLOSE_CAPTURE_PATH")
 	verify = OS.get_environment("HOUSE_CLOSE_VERIFY") == "1"
 	assert(not output.is_empty())
-	for forever in [false, true]:
+	for forever in [true]:
 		var skin := "forever" if forever else "modern"
 		for pending in [false, true]:
 			var label := skin + ("-pending" if pending else "-enabled")

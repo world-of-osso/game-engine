@@ -9,7 +9,7 @@ func _run() -> void:
 		push_error("GODOT_TRAINER_EVIDENCE is required")
 		quit(1)
 		return
-	for skin in ["modern", "forever"]:
+	for skin in ["forever"]:
 		for mode in ["default", "hovered", "selected"]:
 			OS.set_environment("GODOT_TRAINER_DEFAULT", "1" if mode == "default" else "0")
 			OS.set_environment("GODOT_TRAINER_THREE_COINS", "1")

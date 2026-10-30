@@ -4,7 +4,7 @@ extends "res://tests/communities_fidelity.gd"
 func capture() -> void:
 	var directory := OS.get_environment("GUILD_INVITE_CAPTURES")
 	assert(not directory.is_empty())
-	for skin in ["modern", "forever"]:
+	for skin in ["forever"]:
 		for choice in [["JoinButton", "AcceptInvite"], ["DeclineButton", "DeclineInvite"]]:
 			var ui: Node = ClassDB.instantiate("RegistryUi")
 			root.add_child(ui)

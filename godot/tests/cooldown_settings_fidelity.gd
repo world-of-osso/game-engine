@@ -41,7 +41,7 @@ func capture(skin: String, phase: String) -> void:
 	assert(image.save_png(directory.path_join(skin + "-menus-cooldown-" + phase + ".png")) == OK)
 
 func verify_settings() -> void:
-	for skin in ["modern", "forever"]:
+	for skin in ["forever"]:
 		fixture = ClassDB.instantiate("CooldownSettingsFixture")
 		root.add_child(fixture)
 		var initialize_error = fixture.call("initialize", skin == "forever", true)

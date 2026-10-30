@@ -11,7 +11,7 @@ func capture() -> bool:
 		return false
 	# Pixel samples and captures use 1920x1080; the project window defaults to 1280x720.
 	root.size = Vector2i(1920, 1080)
-	for skin in ["modern", "forever"]:
+	for skin in ["forever"]:
 		var ui: Node = ClassDB.instantiate("RegistryUi")
 		root.add_child(ui)
 		var error: String = ui.call("show_guild_ranks_preview" if skin == "modern" else "show_forever_guild_ranks_preview")

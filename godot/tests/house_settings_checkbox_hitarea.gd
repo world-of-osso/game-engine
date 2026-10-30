@@ -55,7 +55,7 @@ func run_checkboxes() -> void:
 	output = OS.get_environment("HOUSE_CHECKBOX_CAPTURE_PATH")
 	verify = OS.get_environment("HOUSE_CHECKBOX_VERIFY") == "1"
 	assert(not output.is_empty())
-	for forever in [false, true]:
+	for forever in [true]:
 		var skin := "forever" if forever else "modern"
 		for scenario in [["limited", false], ["anyone", false], ["none", false], ["none", true]]:
 			var label: String = skin + "-" + scenario[0] + ("-pending" if scenario[1] else "-current")

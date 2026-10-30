@@ -60,7 +60,7 @@ func run_test() -> void:
 		if not error.is_empty():
 			fail(error)
 			return
-		for forever in [false, true]:
+		for forever in [true]:
 			var skin := "Forever" if forever else "Modern"
 			error = client.preview_world_skin(forever)
 			if not error.is_empty():

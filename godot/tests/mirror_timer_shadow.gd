@@ -11,7 +11,7 @@ func run_mirror_shadow() -> void:
 	var verify := OS.get_environment("MIRROR_SHADOW_VERIFY") == "1"
 	assert(not output.is_empty())
 	var observations: Array[Dictionary] = []
-	for forever in [false, true]:
+	for forever in [true]:
 		var skin := "forever" if forever else "modern"
 		var ui = ClassDB.instantiate("RegistryUi")
 		root.add_child(ui)

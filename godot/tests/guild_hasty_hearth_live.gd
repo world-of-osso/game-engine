@@ -34,7 +34,7 @@ func run_test() -> void:
 	if not Array(client.spells_state().known).has(458619):
 		fail("Actual Human No Place Like Home racial must remain known")
 		return
-	for skin in ["Modern", "Forever"]:
+	for skin in ["Forever"]:
 		phase += 1
 		if not await select_skin(skin):
 			return

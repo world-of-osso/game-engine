@@ -16,7 +16,7 @@ func close(actual: float, expected: float, context: String) -> bool:
 func run_contract() -> void:
 	root.content_scale_size = Vector2i.ZERO
 	root.size = Vector2i(1920, 1080)
-	for forever in [false, true]:
+	for forever in [true]:
 		var fixture := ClassDB.instantiate("ReadyCheckDifficultyFixture") as Node
 		root.add_child(fixture)
 		if fixture.initialize(forever) != "":

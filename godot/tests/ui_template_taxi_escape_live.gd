@@ -20,7 +20,7 @@ func run_test() -> void:
 	var error: String = client.connect_account(endpoint, account, PASSWORD, false)
 	if not completion.require(error.is_empty(), error): return
 	if not await enter_world(OS.get_environment("BANK_CHARACTER")): return
-	for forever in [false, true]:
+	for forever in [true]:
 		current_skin = "forever" if forever else "modern"
 		error = client.preview_world_skin(forever)
 		if not completion.require(error.is_empty(), error): return

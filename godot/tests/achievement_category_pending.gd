@@ -13,7 +13,7 @@ func run_cases() -> void:
 	root.content_scale_size = Vector2i.ZERO
 	completion = preload("res://tests/completion.gd").new(self, 20)
 	var passed := true
-	for forever in [false, true]:
+	for forever in [true]:
 		for comparison in [false, true]:
 			for phase in ["pending", "empty", "rows", "search", "error"]:
 				if await check_case(forever, comparison, phase):

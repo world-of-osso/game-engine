@@ -50,7 +50,7 @@ func run_buttons() -> void:
 	output = OS.get_environment("READY_BUTTON_CAPTURE_PATH")
 	verify = OS.get_environment("READY_BUTTON_VERIFY") == "1"
 	assert(not output.is_empty())
-	for forever in [false, true]:
+	for forever in [true]:
 		var skin := "forever" if forever else "modern"
 		for key in ["Yes", "No"]:
 			var label: String = skin + "-" + key

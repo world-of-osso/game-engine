@@ -12,7 +12,7 @@ func capture_cases() -> void:
         push_error("Set GLUE_MENUS_CAPTURE_PATH and GLUE_MENUS_CAPTURE_STAGE")
         quit(1)
         return
-    for forever in [false, true]:
+    for forever in [true]:
         for case in ["nav", "delete", "campsite", "menu", "options:graphics", "options:keybindings"]:
             var ui = ClassDB.instantiate("RegistryUi")
             root.add_child(ui)

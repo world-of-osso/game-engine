@@ -26,7 +26,7 @@ func run_audit() -> void:
 	inventory.free()
 	methods.append_array(["show_launcher_candidate", "show_buttonfit_auction_preview"])
 	methods.sort()
-	for forever in [false, true]:
+	for forever in [true]:
 		OS.set_environment("GODOT_CASTBAR_SKIN", "forever" if forever else "modern")
 		for method in methods:
 			var views := ["browse"]

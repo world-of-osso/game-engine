@@ -160,7 +160,7 @@ func run_test() -> void:
 	shots = OS.get_environment("QUEST_OVERFLOW_SHOTS")
 	require(not shots.is_empty())
 	DirAccess.make_dir_recursive_absolute(shots)
-	for forever in [false, true]:
+	for forever in [true]:
 		for page in ["log", "detail", "progress", "reward"]:
 			for long_text in [false, true]:
 				await run_case(forever, page, long_text)

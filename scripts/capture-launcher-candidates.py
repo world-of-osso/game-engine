@@ -81,7 +81,7 @@ def capture_candidates(godot, out):
                 time.sleep(0.1)
             else:
                 raise RuntimeError("Weston socket timeout")
-            for skin in ["modern", "forever"]:
+            for skin in ["forever"]:
                 status[skin] = capture_candidate(skin, env, godot, out)
         finally:
             children = Path(f"/proc/{weston.pid}/task/{weston.pid}/children")

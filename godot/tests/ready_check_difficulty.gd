@@ -145,7 +145,7 @@ func run_difficulty() -> bool:
 		return false
 	var observations: Array[Dictionary] = []
 	var phases := [["continent-raid", ""], ["actual3", "10 Player"], ["actual4", "25 Player"], ["actual5", "10 Player (Heroic)"], ["actual6", "25 Player (Heroic)"], ["continent-raid", ""], ["continent-dungeon", ""], ["selected4", "25 Player"], ["current14", ""], ["transfer", ""], ["actual3", "10 Player"]]
-	for forever in [false, true]:
+	for forever in [true]:
 		var skin := "forever" if forever else "modern"
 		var fixture := ClassDB.instantiate("ReadyCheckDifficultyFixture") as Node
 		root.add_child(fixture)

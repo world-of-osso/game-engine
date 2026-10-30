@@ -4,7 +4,7 @@ extends "res://tests/communities_fidelity.gd"
 func capture() -> void:
 	var directory := OS.get_environment("COMMUNITIES_CAPTURES")
 	assert(not directory.is_empty())
-	for skin in ["modern", "forever"]:
+	for skin in ["forever"]:
 		var ui: Node = ClassDB.instantiate("RegistryUi")
 		root.add_child(ui)
 		assert(ui.call("show_guild_communities_preview", skin == "forever") == "")

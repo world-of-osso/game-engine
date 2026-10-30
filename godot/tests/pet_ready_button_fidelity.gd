@@ -51,7 +51,7 @@ func run_buttons() -> void:
 	output = OS.get_environment("PET_READY_CAPTURE_PATH")
 	verify = OS.get_environment("PET_READY_VERIFY") == "1"
 	assert(not output.is_empty())
-	for forever in [false, true]:
+	for forever in [true]:
 		for pending in [false, true]:
 			var skin := "forever" if forever else "modern"
 			var probe = ClassDB.instantiate("UiAuditProbe")

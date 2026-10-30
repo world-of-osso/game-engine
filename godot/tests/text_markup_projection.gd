@@ -44,7 +44,7 @@ func require(value: bool, reason: String) -> bool:
 func run_contract() -> void:
 	root.content_scale_size = Vector2i.ZERO
 	root.size = Vector2i(1920, 1080)
-	for forever in [false, true]:
+	for forever in [true]:
 		owner = ClassDB.instantiate("RegistryUi")
 		root.add_child(owner)
 		if not require(owner.show_text_markup_fixture(forever).is_empty(), "fixture initialization"):

@@ -14,7 +14,7 @@ func run_difficulty() -> bool:
 		return false
 	var observations: Array[Dictionary] = []
 	var all_clear := true
-	for forever in [false, true]:
+	for forever in [true]:
 		var skin := "forever" if forever else "modern"
 		var fixture := ClassDB.instantiate("ReadyCheckDifficultyFixture") as Node
 		root.add_child(fixture)

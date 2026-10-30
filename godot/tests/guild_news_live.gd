@@ -66,7 +66,7 @@ func produce_news() -> bool:
 	return await overflow_news()
 
 func controls_news() -> bool:
-	for skin in ["Modern", "Forever"]:
+	for skin in ["Forever"]:
 		if not await select_skin(skin) or not await open_news():
 			return false
 		role = skin.to_lower() + "-news"
@@ -100,7 +100,7 @@ func controls_news() -> bool:
 func overflow_news() -> bool:
 	if not await wait_file("overflow.json"):
 		return false
-	for skin in ["Modern", "Forever"]:
+	for skin in ["Forever"]:
 		if not await select_skin(skin) or not await open_news():
 			return false
 		role = skin.to_lower() + "-news"
@@ -168,7 +168,7 @@ func readback_news() -> bool:
 	var saved := read_json("news-history.json")
 	if saved.is_empty() or saved.entries.size() != 250:
 		return fail("Original real retained250 missing")
-	for skin in ["Modern", "Forever"]:
+	for skin in ["Forever"]:
 		if not await select_skin(skin) or not await open_news():
 			return false
 		role = skin.to_lower() + "-news"

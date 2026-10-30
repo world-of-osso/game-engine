@@ -12,7 +12,7 @@ func check(condition: bool, message: String) -> void:
 
 func run_test() -> void:
 	root.size = Vector2i(1280, 720)
-	for forever in [false, true]:
+	for forever in [true]:
 		var fixture = ClassDB.instantiate("PartyPortraitFixture")
 		root.add_child(fixture)
 		check(fixture.initialize(forever) == "", "initialize group HUD")

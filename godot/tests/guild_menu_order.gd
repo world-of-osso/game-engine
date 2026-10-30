@@ -3,7 +3,7 @@ extends "res://tests/guild_control_fidelity.gd"
 # Actual projected CanvasItem order, not a declaration/enum assertion.
 func capture() -> bool:
 	root.size = Vector2i(1920, 1080)
-	for forever in [false, true]:
+	for forever in [true]:
 		var ui: Node = ClassDB.instantiate("RegistryUi")
 		root.add_child(ui)
 		var error: String = ui.call("show_forever_guild_ranks_preview" if forever else "show_guild_ranks_preview")

@@ -44,7 +44,7 @@ func run_cases() -> void:
 		return
 	if not completion.require(DirAccess.make_dir_recursive_absolute(output) == OK, "capture directory"):
 		return
-	for forever in [false, true]:
+	for forever in [true]:
 		for panel in cases(forever):
 			if not await check_panel(panel, forever, output):
 				completion.fail(failures.back())

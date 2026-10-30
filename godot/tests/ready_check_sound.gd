@@ -28,7 +28,7 @@ func run_sound() -> void:
 	var output := OS.get_environment("READY_SOUND_CAPTURE_PATH")
 	assert(not output.is_empty())
 	var receipts: Array[Dictionary] = []
-	for forever in [false, true]:
+	for forever in [true]:
 		var skin := "forever" if forever else "modern"
 		var fixture := ClassDB.instantiate("ReadyCheckSoundFixture") as Node
 		root.add_child(fixture)

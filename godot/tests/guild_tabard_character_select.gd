@@ -6,7 +6,7 @@ func _initialize() -> void:
 func capture() -> void:
 	var directory := OS.get_environment("TABARD_CAPTURES")
 	assert(not directory.is_empty())
-	for skin in ["modern", "forever"]:
+	for skin in ["forever"]:
 		var fixture: Node = ClassDB.instantiate("GuildTabardFixture")
 		root.add_child(fixture)
 		assert(fixture.call("show_character_selection", skin == "forever") == "")

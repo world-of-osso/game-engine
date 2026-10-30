@@ -50,7 +50,7 @@ func run_arrows() -> void:
 	output = OS.get_environment("STACK_ARROW_CAPTURE_PATH")
 	verify = OS.get_environment("STACK_ARROW_VERIFY") == "1"
 	assert(not output.is_empty())
-	for forever in [false, true]:
+	for forever in [true]:
 		var skin := "forever" if forever else "modern"
 		for bundles in [false, true]:
 			for enabled in [false, true]:

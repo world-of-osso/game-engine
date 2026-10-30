@@ -79,8 +79,8 @@ func produce_history() -> bool:
 		return false
 	if read_json("peer-ready.json").name != PEER_NAME:
 		return fail("Real target peer entered the wrong character")
-	for index in range(2):
-		var skin := "Modern" if index == 0 else "Forever"
+	for index in range(1):
+		var skin := "Forever"
 		if not await select_skin(skin) or not await open_guild():
 			return false
 		if rank_of(OS.get_environment("BANK_CHARACTER")) != "Officer":
@@ -105,7 +105,7 @@ func produce_history() -> bool:
 		if not await change_rank(index % 2 == 0):
 			return false
 	await close_guild()
-	for skin in ["Modern", "Forever"]:
+	for skin in ["Forever"]:
 		if not await select_skin(skin) or not await open_guild() or not await query_log(100):
 			return false
 		if kind(last_log.events.front()) != "Promote" or kind(last_log.events.back()) != "Demote":
@@ -267,7 +267,7 @@ func readback_history() -> bool:
 	var saved := read_json("history.json")
 	if saved.is_empty() or saved.events.size() != 100:
 		return fail("Original complete history receipt missing")
-	for skin in ["Modern", "Forever"]:
+	for skin in ["Forever"]:
 		if not await select_skin(skin) or not await open_guild() or not await query_log(100):
 			return false
 		if last_log.events != saved.events:

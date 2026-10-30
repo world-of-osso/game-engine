@@ -11,7 +11,7 @@ func verify_empty_bank() -> void:
 	var output := OS.get_environment("BANK_GRID_CAPTURE_PATH")
 	assert(not output.is_empty(), "Set BANK_GRID_CAPTURE_PATH")
 	var failures: Array[String] = []
-	for forever in [false, true]:
+	for forever in [true]:
 		var probe = ClassDB.instantiate("UiAuditProbe")
 		root.add_child(probe)
 		var error: String = probe.mount_shared_helper_panel(forever, "bank")

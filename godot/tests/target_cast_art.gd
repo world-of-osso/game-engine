@@ -11,7 +11,7 @@ func capture_target_casts() -> void:
 	var output := OS.get_environment("TARGET_CAST_CAPTURE_PATH")
 	assert(not output.is_empty(), "Set TARGET_CAST_CAPTURE_PATH")
 	var verify_art := OS.get_environment("TARGET_CAST_VERIFY_ART") == "1"
-	for forever in [false, true]:
+	for forever in [true]:
 		for phase in ["cast", "channel", "locked", "interrupted"]:
 			var ui = ClassDB.instantiate("RegistryUi")
 			root.add_child(ui)

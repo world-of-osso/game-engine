@@ -13,7 +13,7 @@ func capture() -> bool:
 	var directory := OS.get_environment("TABARD_CAPTURES")
 	if not completion.require(not directory.is_empty()):
 		return false
-	for skin in ["modern", "forever"]:
+	for skin in ["forever"]:
 		var fixture: Node = ClassDB.instantiate("GuildTabardFixture")
 		root.add_child(fixture)
 		if not completion.require(fixture.call("initialize", skin == "forever") == ""):

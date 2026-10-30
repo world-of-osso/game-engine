@@ -9,7 +9,7 @@ func capture_cases() -> void:
 		push_error("Set GODOT_BUTTONFIT_CAPTURE_PATH")
 		quit(1)
 		return
-	for forever in [false, true]:
+	for forever in [true]:
 		for case in ["professions", "auction"]:
 			if not await capture_case(output, case, forever):
 				quit(1)

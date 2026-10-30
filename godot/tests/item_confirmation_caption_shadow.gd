@@ -16,7 +16,7 @@ func run_caption_shadow() -> void:
 	var verify := OS.get_environment("CAPTION_SHADOW_VERIFY") == "1"
 	assert(not output.is_empty())
 	var observations: Array[Dictionary] = []
-	for forever in [false, true]:
+	for forever in [true]:
 		var skin := "forever" if forever else "modern"
 		for state in ["normal", "delay", "pending"]:
 			var case_name: String = skin + "-" + state

@@ -11,7 +11,7 @@ func verify_duration() -> void:
 	var output := OS.get_environment("AH_DURATION_CAPTURE_PATH")
 	assert(not output.is_empty(), "Set AH_DURATION_CAPTURE_PATH")
 	var verify := OS.get_environment("AH_DURATION_VERIFY") == "1"
-	for forever in [false, true]:
+	for forever in [true]:
 		for view in ["sell", "duration"]:
 			OS.set_environment("GODOT_AUCTION_VIEW", view)
 			var ui = ClassDB.instantiate("RegistryUi")

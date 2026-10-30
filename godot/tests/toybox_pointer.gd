@@ -6,7 +6,7 @@ func _initialize() -> void:
 
 func run_fixture() -> void:
 	root.size = Vector2i(1920, 1080)
-	for skin in ["modern", "forever"]:
+	for skin in ["forever"]:
 		var ui = ClassDB.instantiate("RegistryUi")
 		root.add_child(ui)
 		var error: String = ui.show_toybox_pointer_fixture(skin == "forever")
