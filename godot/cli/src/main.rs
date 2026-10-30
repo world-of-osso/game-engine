@@ -52,6 +52,19 @@ enum Cmd {
         #[arg(short, long)]
         filter: Option<String>,
     },
+    /// Probe live ground admission at world coordinates and horizontal direction
+    ProbeGround {
+        #[arg(allow_hyphen_values = true)]
+        x: f32,
+        #[arg(allow_hyphen_values = true)]
+        y: f32,
+        #[arg(allow_hyphen_values = true)]
+        z: f32,
+        #[arg(allow_hyphen_values = true)]
+        dir_x: f32,
+        #[arg(allow_hyphen_values = true)]
+        dir_z: f32,
+    },
     /// Auction house operations via the running engine
     Auction {
         #[command(subcommand)]

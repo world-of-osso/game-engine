@@ -33,6 +33,7 @@ fn is_scene_export_command(command: &Cmd) -> bool {
             | Cmd::DumpTree { .. }
             | Cmd::DumpUiTree { .. }
             | Cmd::DumpScene { .. }
+            | Cmd::ProbeGround { .. }
             | Cmd::ExportCharacter { .. }
             | Cmd::ExportScene { .. }
     )
@@ -71,6 +72,20 @@ fn dispatch_scene_export_command(socket: &PathBuf, command: Cmd, json: bool) -> 
         Cmd::DumpTree { filter } => handle_dump_tree(socket, filter, json),
         Cmd::DumpUiTree { filter } => handle_dump_ui_tree(socket, filter, json),
         Cmd::DumpScene { filter } => handle_dump_scene(socket, filter, json),
+        Cmd::ProbeGround {
+            x,
+            y,
+            z,
+            dir_x,
+            dir_z,
+        } => handle_text_response(
+            socket,
+            Request::ProbeGround {
+                feet: [x, y, z],
+                direction: [dir_x, dir_z],
+            },
+            json,
+        ),
         Cmd::ExportCharacter {
             output,
             name,

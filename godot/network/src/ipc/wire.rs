@@ -324,6 +324,10 @@ pub enum Request {
     DumpScene {
         filter: Option<String>,
     },
+    ProbeGround {
+        feet: [f32; 3],
+        direction: [f32; 2],
+    },
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]

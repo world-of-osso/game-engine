@@ -321,6 +321,21 @@ impl TerrainGround<'_> {
         })
     }
 
+    pub(crate) fn probe_admission(&self, current: Vec3, direction: Vec3) -> serde_json::Value {
+        let direction = direction.with_y(0.0).normalize_or_zero();
+        let proposed = current + direction * (7.0 / 60.0);
+        let target = self.sample(proposed);
+        let probes: Vec<_> = (1..=8).map(|index| {
+            let distance = index as f32 * 0.25;
+            let point = current + direction * distance;
+            let floor = self.static_ground(point, true);
+            let solid = self.sample(point);
+            serde_json::json!({"distance": distance, "point": point.to_array(), "walkable": format!("{floor:?}"), "solid": format!("{solid:?}"), "wmo_step_clear": target.is_some_and(|target| self.wmo_step_is_clear(current, point, target.height))})
+        }).collect();
+        let (allowed, reason) = self.validate_move_with_reason(current, proposed, true);
+        serde_json::json!({"feet":current.to_array(), "direction":direction.to_array(), "proposed":proposed.to_array(), "support":format!("{:?}", self.sample(current)), "target":format!("{target:?}"), "probes":probes, "allowed":allowed.to_array(), "rejection":reason})
+    }
+
     fn wmo_step_is_clear(&self, current: Vec3, target: Vec3, obstacle_height: f32) -> bool {
         let movement = (target - current).with_y(0.0);
         let direction = movement.normalize_or_zero();

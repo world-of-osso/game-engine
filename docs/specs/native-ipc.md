@@ -31,6 +31,10 @@ Windows uses a local-only named pipe `\\\\.\\pipe\\game-engine-<pid>` instead of
 - [x] `Screenshot` captures the owning viewport after `RenderingServer.frame_post_draw`, returns actual WebP bytes in `Response::Screenshot`, and preserves original lossy quality 65%. Independently changed 2D and actual 3D pixels must appear in captures at viewport size; missing/freed viewport, missing pixels, encoding or signal connection failure is explicit.
 - [x] `Performance` preserves `fps`, `frame_time_ms`, `focused` in `Response::Performance`. FPS comes from the engine's measured average; frame time from consecutive main-thread process observations; focus from the containing window. Missing/nonpositive measurements remain `None`, never fabricated constants.
 
+### Ground probe
+
+- [ ] `probe-ground <x> <y> <z> <dir_x> <dir_z>` reads live ground admission at the given Bevy coordinates. It reports the proposed move, support, forward landing candidates and verdict, plus Godot column and horizontal ray hits separately for WMO, M2 and game-object collision layers, including collider identity. It does not move the player. Live proof remains pending.
+
 ### Passive fixture state
 
 `GameClient.ground_areas_state()` passively exposes ordinary received86636 DynamicObjects as `state_json` (`areas`: identity, caster, spell, centre, radius, hostile). Received entity disappearance owns removal. Missing/invalid position, radius or actual caster/viewer faction is an explicit `error`, never a fabricated empty area list. The observer retains the JSON string unchanged so server IDs remain integers; querying neither selects/casts nor sends a server request. The [harness contract](bot-harness.md#rain-of-fire-avoidance) defines the separate named escape policy.
