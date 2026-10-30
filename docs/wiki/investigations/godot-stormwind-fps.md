@@ -4,6 +4,8 @@ The Godot client ran Stormwind at about 13–20 FPS (debug build, 1280x720, head
 
 ## Method
 
+`GameClient.frame_stats()` reports last-frame wall milliseconds for each client step and `client_process_ms`. `attachment_gates_ms` covers all attachment-gate calls since the previous GameClient frame; it overlaps client steps when gates are driven there and must not be added to them. The timers add measurement overhead.
+
 - The probe is an untracked scratch script, `godot/tests/_probe_draws.gd`. It enters the world as agent account `fb_fps`/`fbtest`, character `Fbfps`. It waits until every object has spawned (8,059 objects, 0 failures). It then averages the monitors over 30 frames for each variant: `Engine.get_frames_per_second` and the `RENDER_TOTAL_DRAW_CALLS/OBJECTS/PRIMITIVES_IN_FRAME` monitors.
 - For each A/B pair, the "before" variant is forced from GDScript in the same session:
   - Doodads: every root is set visible and its `M2Animation` is set processing. The cull only writes when its cached state changes, so these forced values stay.

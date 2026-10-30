@@ -21,7 +21,7 @@ use godot::builtin::{Basis, Transform3D};
 mod action;
 mod attachment;
 mod billboard;
-pub(crate) use attachment::refresh_attachment_shadows;
+pub(crate) use attachment::{refresh_attachment_shadows, take_gate_time_ms};
 mod momentum;
 mod mount_special;
 #[cfg(test)]

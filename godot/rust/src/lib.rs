@@ -368,6 +368,8 @@ pub struct GameClient {
     auras: auras::Auras,
     ipc: Option<ipc::NativeIpc>,
     last_process_ms: f64,
+    frame_system_ms: Vec<(&'static str, f64)>,
+    attachment_gate_ms: f64,
 }
 
 #[godot_api]
@@ -521,6 +523,8 @@ impl INode3D for GameClient {
             auras: auras::Auras::default(),
             ipc: None,
             last_process_ms: 0.0,
+            frame_system_ms: Vec::new(),
+            attachment_gate_ms: 0.0,
             replica: Replica::default(),
             spell_effects: spell_effects::SpellEffects::new(data_root.clone()),
             world,
@@ -763,6 +767,8 @@ impl INode3D for GameClient {
 
     fn process(&mut self, delta: f64) {
         let started = std::time::Instant::now();
+        self.frame_system_ms.clear();
+        self.attachment_gate_ms = animation::take_gate_time_ms();
         let _span = profile::span(|| "client.frame".to_owned());
         self.poll_native_ipc();
         self.run_frame(delta);
@@ -938,6 +944,20 @@ impl GameClient {
     #[func]
     fn process_ms(&self) -> f64 {
         self.last_process_ms
+    }
+
+    /// Last GameClient step wall times; attachment gates cover the prior frame interval.
+    #[func]
+    fn frame_stats(&self) -> VarDictionary {
+        let mut systems = VarDictionary::new();
+        for (name, milliseconds) in &self.frame_system_ms {
+            systems.set(*name, *milliseconds);
+        }
+        let mut state = VarDictionary::new();
+        state.set("client_process_ms", self.last_process_ms);
+        state.set("systems_ms", &systems);
+        state.set("attachment_gates_ms", self.attachment_gate_ms);
+        state
     }
 
     #[func]
@@ -2302,7 +2322,11 @@ impl GameClient {
         ];
         for (step, run) in steps {
             let _span = profile::span(|| format!("step={step}"));
-            if let Err(error) = run(self, delta as f32)
+            let started = std::time::Instant::now();
+            let result = run(self, delta as f32);
+            self.frame_system_ms
+                .push((step, started.elapsed().as_secs_f64() * 1000.0));
+            if let Err(error) = result
                 && self.handle_frame_error(step, error)
             {
                 break;

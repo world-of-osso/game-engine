@@ -2,6 +2,7 @@
 use std::{
     cell::{Cell, RefCell},
     rc::Rc,
+    time::{Duration, Instant},
 };
 
 use game_engine_core::{asset::m2_format::m2_attach::M2Attachment, m2};
@@ -37,6 +38,12 @@ pub(super) struct AttachmentGates {
 
 thread_local! {
     static TREE_GENERATION: RefCell<Option<(InstanceId, Rc<Cell<u64>>)>> = const { RefCell::new(None) };
+    static GATE_TIME: Cell<Duration> = const { Cell::new(Duration::ZERO) };
+}
+
+/// Take the gate time accumulated since the previous GameClient frame.
+pub(crate) fn take_gate_time_ms() -> f64 {
+    GATE_TIME.with(|time| time.replace(Duration::ZERO).as_secs_f64() * 1000.0)
 }
 
 /// A single scene-tree signal tracks descendant additions, removals and replacements.
@@ -99,6 +106,7 @@ impl AttachmentGates {
     }
 
     pub fn apply(&mut self, animation: &AnimationState) {
+        let started = Instant::now();
         if self.tree_generation.is_none() {
             self.tree_generation = self
                 .points
@@ -126,6 +134,7 @@ impl AttachmentGates {
                 point.tree_generation = value;
             }
         }
+        GATE_TIME.with(|time| time.set(time.get() + started.elapsed()));
     }
 }
 
