@@ -663,6 +663,53 @@ fn side_tabs(contents: &GuildBankContents, selected: usize) -> Vec<GuildSideTab>
         .collect()
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn purchased_guild_tabs_preserve_server_icons_and_order() {
+        let contents = GuildBankContents {
+            object: 9,
+            guild_name: "Vault Keepers".into(),
+            tabs: [134_400, 135_274, 132_889]
+                .into_iter()
+                .map(|icon| GuildBankTabView {
+                    name: "Tab".into(),
+                    icon,
+                    viewable: true,
+                    can_deposit: true,
+                    withdrawals_per_day: None,
+                    remaining_withdrawals: None,
+                    text: String::new(),
+                    slots: vec![None; 98],
+                })
+                .collect(),
+            money: 0,
+            withdraw_money_remaining: None,
+            next_tab_cost: Some(1_000_000),
+            is_leader: true,
+        };
+        assert_eq!(
+            side_tabs(&contents, 1),
+            vec![
+                GuildSideTab {
+                    icon_fdid: 134_400,
+                    selected: false
+                },
+                GuildSideTab {
+                    icon_fdid: 135_274,
+                    selected: true
+                },
+                GuildSideTab {
+                    icon_fdid: 132_889,
+                    selected: false
+                },
+            ]
+        );
+    }
+}
+
 fn mode_for(key: &str) -> Option<GuildBankMode> {
     Some(match key {
         "bank" => GuildBankMode::Bank,

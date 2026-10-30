@@ -47,8 +47,8 @@ func check_tabs(ui: Node, skin: String) -> bool:
 		if tab.size.x + 0.01 < width + 20.0:
 			push_error("%s tab %d lacks Retail text padding" % [skin, index])
 			return false
-		if previous != null and tab.position.x < previous.position.x + previous.size.x:
-			push_error("%s tab %d overlaps its predecessor" % [skin, index])
+		if previous != null and absf(tab.position.x - (previous.position.x + previous.size.x + 3.0)) > 0.01:
+			push_error("%s tab %d does not have the Retail 3px gap" % [skin, index])
 			return false
 		previous = tab
 	for index in range(1, 4):

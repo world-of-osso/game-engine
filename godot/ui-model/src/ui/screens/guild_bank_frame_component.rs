@@ -781,7 +781,8 @@ fn mode_tabs(mode: GuildBankModeView) -> Element {
         } else {
             others.extend(element);
         }
-        x += width - 16.0;
+        // PanelTemplates_AnchorTabs places each tab 3px after its predecessor.
+        x += width + 3.0;
     }
     others.extend(selected);
     others
