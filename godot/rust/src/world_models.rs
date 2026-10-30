@@ -15,7 +15,7 @@ use godot::{
     prelude::*,
 };
 use rusqlite::{Connection, OpenFlags};
-use shared::components::{EquipmentAppearance, EquipmentVisualSlot, Player, SheathState};
+use shared::components::{CharacterVisual, EquipmentAppearance, EquipmentVisualSlot, SheathState};
 
 use crate::{
     animation::WowAnimationPlayer,
@@ -77,7 +77,7 @@ pub(crate) enum UnitAppearance {
         items: EquipmentAppearance,
     },
     Player(
-        Player,
+        CharacterVisual,
         EquipmentAppearance,
         Option<shared::guild_creation::GuildTabardDesign>,
     ),
@@ -87,7 +87,7 @@ impl UnitAppearance {
     pub fn describe_unit(&self, server_id: u64) -> String {
         match self {
             Self::Creature { display_id, .. } => format!("NPC {server_id} display {display_id}"),
-            Self::Player(player, _, _) => format!("Player {server_id} ({})", player.name),
+            Self::Player(player, _, _) => format!("Character {server_id} (race {})", player.race),
         }
     }
 
@@ -124,7 +124,7 @@ enum VisualRequest {
         sheath: SheathState,
     },
     Player(
-        Player,
+        CharacterVisual,
         EquipmentAppearance,
         Option<shared::guild_creation::GuildTabardDesign>,
     ),
@@ -421,7 +421,7 @@ impl WorldModels {
     }
 
     /// Native player display from the same build-pinned ChrModel rows as unit voices.
-    pub fn player_native_display(&mut self, player: &Player) -> Result<u32, String> {
+    pub fn player_native_display(&mut self, player: &CharacterVisual) -> Result<u32, String> {
         let dir = self.catalogs.data_root.join("db2/active");
         let displays = self
             .player_displays
@@ -695,8 +695,7 @@ mod tests {
     fn player_model_display_native_identity_uses_authored_chrmodel_rows() {
         let data_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
         let mut models = WorldModels::new(data_root.clone());
-        let mut player = Player {
-            name: "Alice".into(),
+        let mut player = CharacterVisual {
             race: 1,
             class: 11,
             appearance: Default::default(),

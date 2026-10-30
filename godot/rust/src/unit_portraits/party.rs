@@ -34,7 +34,7 @@ fn roster_appearance(member: &shared::protocol::GroupMemberSnapshot) -> UnitAppe
     let equipment = EquipmentAppearance {
         entries: member.portrait.head.iter().cloned().collect(),
     };
-    UnitAppearance::Player(player, equipment, None)
+    UnitAppearance::Player((&player).into(), equipment, None)
 }
 
 /// ReadyCheck.lua:30 selects the initiator, not the viewer or current target.
@@ -246,10 +246,7 @@ mod tests {
         else {
             panic!("received initiator must have a portrait");
         };
-        assert_eq!(
-            (player.name.as_str(), player.race, player.class),
-            ("Ann", 10, 8)
-        );
+        assert_eq!((player.race, player.class), (10, 8));
         assert_eq!(
             (player.appearance.sex, player.appearance.hair_color),
             (1, 3)
@@ -262,7 +259,7 @@ mod tests {
         else {
             panic!("replacement initiator must have a portrait");
         };
-        assert_eq!((player.name.as_str(), player.race), ("Bob", 1));
+        assert_eq!(player.race, 1);
         group.ready_check.as_mut().unwrap().update.finished = true;
         assert!(ready_check_appearance(&group).unwrap().is_none());
         group.ready_check = None;
@@ -316,12 +313,13 @@ mod tests {
         assert!(
             appearances.get("Ann")
                 == Some(&UnitAppearance::Player(
-                    Player {
+                    (&Player {
                         name: "Ann".into(),
                         race: 10,
                         class: 8,
                         appearance: group.members[0].portrait.appearance.clone(),
-                    },
+                    })
+                        .into(),
                     EquipmentAppearance::default(),
                     None,
                 )),

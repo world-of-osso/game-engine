@@ -105,12 +105,13 @@ pub(crate) fn attach_trainer_preview(ui: Gd<RegistryUi>) -> Result<(), String> {
     let mut host = preview.bind_mut();
     host.portrait = Some(Portrait::new(game_engine_ui_model::trainer_frame::PORTRAIT));
     host.appearance = Some(UnitAppearance::Player(
-        Player {
+        (&Player {
             name: "Offline human trainer".into(),
             race: 1,
             class: 1,
             appearance: Default::default(),
-        },
+        })
+            .into(),
         EquipmentAppearance::default(),
         None,
     ));
@@ -131,12 +132,13 @@ pub(crate) fn attach_customer_orders_preview(ui: Gd<RegistryUi>) {
         game_engine_ui_professions::professions_frame::orders::PORTRAIT,
     ));
     host.appearance = Some(UnitAppearance::Player(
-        Player {
+        (&Player {
             name: "Offline crafting clerk".into(),
             race: 1,
             class: 1,
             appearance: Default::default(),
-        },
+        })
+            .into(),
         EquipmentAppearance::default(),
         None,
     ));
@@ -169,7 +171,7 @@ impl NpcPortraitPreview {
         if let Some(slot) = slot {
             self.portrait = Some(Portrait::new(slot));
             self.appearance = Some(UnitAppearance::Player(
-                Player {
+                (&Player {
                     name: if frame == "trade" {
                         "Local player"
                     } else {
@@ -179,7 +181,8 @@ impl NpcPortraitPreview {
                     race: if frame == "trade" { 10 } else { 1 },
                     class: 1,
                     appearance: Default::default(),
-                },
+                })
+                    .into(),
                 EquipmentAppearance::default(),
                 None,
             ));

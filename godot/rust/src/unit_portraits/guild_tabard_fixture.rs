@@ -423,7 +423,7 @@ fn registered_roster_entry() -> CharacterListEntry {
     };
     CharacterListEntry {
         character_id: 7,
-        name: player.name,
+        name: "Guildmaster".into(),
         level: 80,
         race: player.race,
         class: player.class,
