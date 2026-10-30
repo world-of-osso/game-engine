@@ -17,6 +17,8 @@ use super::assets::{NativeWmoAsset, NativeWmoGroup};
 /// Distance from a portal's plane within which the portal counts as visible whatever
 /// the frustum says (WebWowViewerCpp `dotepsilon`, 1.5², as the original client).
 const PORTAL_NEAR_DISTANCE: f32 = 2.25;
+const SPLIT_GROUP_PARENT: u32 = 0x40;
+const SPLIT_GROUP_CHILD: u32 = 0x80;
 
 /// WMO-local file axes to engine axes, the conversion the shared mesh batches use.
 fn engine_axes([x, y, z]: [f32; 3]) -> Vec3 {
@@ -40,6 +42,9 @@ struct PortalGroup {
     bbox_min: Vec3,
     bbox_max: Vec3,
     exterior: bool,
+    split_parent: Option<u16>,
+    first_child: Option<u16>,
+    next_child: Option<u16>,
     /// Render triangles of an interior group, to tell whether the camera stands inside
     /// the group or only inside its bounding box. Empty for exterior groups.
     floor: Vec<[Vec3; 3]>,
@@ -98,7 +103,9 @@ impl WmoPortals {
         };
         match self.camera_interior_group(local_camera) {
             Some(group) => {
-                let mut visible = traverse(&[group]);
+                let parent = self.split_parent(group);
+                let mut visible = traverse(&[parent]);
+                self.show_split_children(parent, &mut visible);
                 if exterior
                     .iter()
                     .any(|&group| visible.get(group as usize) == Some(&true))
@@ -110,6 +117,35 @@ impl WmoPortals {
                 visible
             }
             None => traverse(&exterior),
+        }
+    }
+
+    /// A camera in a split child traverses the parent and draws all of its children
+    /// (WebWowViewerCpp `startTraversingWMOGroup` / `addSplitChildWMOsToView`).
+    fn split_parent(&self, index: u16) -> u16 {
+        self.groups
+            .iter()
+            .find(|group| group.index == index)
+            .and_then(|group| group.split_parent)
+            .unwrap_or(index)
+    }
+
+    fn show_split_children(&self, parent: u16, visible: &mut [bool]) {
+        let mut child = self
+            .groups
+            .iter()
+            .find(|group| group.index == parent)
+            .and_then(|group| group.first_child);
+        for _ in 0..self.groups.len() {
+            let Some(group) =
+                child.and_then(|index| self.groups.iter().find(|group| group.index == index))
+            else {
+                break;
+            };
+            if let Some(drawn) = visible.get_mut(group.index as usize) {
+                *drawn = true;
+            }
+            child = group.next_child;
         }
     }
 
@@ -213,6 +249,13 @@ fn build_portal_group(root: &wmo::WmoRootData, group: &NativeWmoGroup) -> Portal
         bbox_min,
         bbox_max,
         exterior,
+        split_parent: (group.group.header.flags2 & SPLIT_GROUP_CHILD != 0)
+            .then(|| u16::try_from(group.group.header.parent_split_group_index).ok())
+            .flatten(),
+        first_child: (group.group.header.flags2 & SPLIT_GROUP_PARENT != 0)
+            .then(|| u16::try_from(group.group.header.parent_split_group_index).ok())
+            .flatten(),
+        next_child: u16::try_from(group.group.header.next_split_child_group_index).ok(),
         floor,
     }
 }
@@ -346,6 +389,9 @@ mod tests {
                     bbox_min: Vec3::new(-50.0, -1.0, -50.0),
                     bbox_max: Vec3::new(50.0, 20.0, 0.0),
                     exterior: true,
+                    split_parent: None,
+                    first_child: None,
+                    next_child: None,
                     floor: Vec::new(),
                 },
                 PortalGroup {
@@ -353,6 +399,9 @@ mod tests {
                     bbox_min: Vec3::new(0.0, -1.0, 0.0),
                     bbox_max: Vec3::new(10.0, 4.0, 10.0),
                     exterior: false,
+                    split_parent: None,
+                    first_child: None,
+                    next_child: None,
                     floor,
                 },
             ],
@@ -419,6 +468,34 @@ mod tests {
     #[test]
     fn standing_in_the_doorway_sees_both_sides_whatever_the_view() {
         assert_eq!(visible(Vec3::new(5.0, 1.0, 1.0), Vec3::Z), [0, 1]);
+    }
+
+    /// Neltharus' central chamber has parent group 12 and split children 15, 14 and 13.
+    /// The recorded camera stands in child 13, which has no portals of its own.
+    #[test]
+    fn split_child_camera_draws_parent_and_siblings() {
+        let data_root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
+        let resolver = osso_asset_resolver::CascListfileResolver::new(
+            osso_asset_resolver::AssetResolverConfig::new()
+                .with_data_root(&data_root)
+                .with_shared_data_root(&data_root),
+        );
+        let bytes = std::fs::read(data_root.join("terrain/4334889.adt")).unwrap();
+        let objects = game_engine_core::adt::parse_obj(&bytes).unwrap();
+        let placement = &objects.wmos[0];
+        let asset = crate::wmo::assets::read_placement(&resolver, &data_root, placement).unwrap();
+        assert_eq!(asset.root_fdid, 4_329_056);
+        let portals = WmoPortals::new(&asset);
+        let transform = crate::wmo::placement::adt_world_from_local(placement, (33, 32));
+        let camera = Vec3::new(-61.1, 75.3, 873.4);
+        assert_eq!(
+            portals.camera_interior_group(transform.inverse().transform_point3(camera)),
+            Some(13)
+        );
+        let drawn = portals.visible_groups(transform, &[], camera);
+        for group in [12, 13, 14, 15] {
+            assert!(drawn[group], "central chamber group {group} was hidden");
+        }
     }
 
     /// Cultists' Quay (WarbandScene 5, tile 2837_27_31): the scene's camera and its
