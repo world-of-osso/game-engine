@@ -48,7 +48,10 @@ pub(crate) fn take_gate_time_ms() -> f64 {
 
 /// A single scene-tree signal tracks descendant additions, removals and replacements.
 fn watch_tree(point: &Gd<Node3D>) -> Option<Rc<Cell<u64>>> {
-    let mut tree = point.get_tree()?;
+    if !point.is_inside_tree() {
+        return None;
+    }
+    let mut tree = point.get_tree();
     TREE_GENERATION.with(|slot| {
         let mut slot = slot.borrow_mut();
         if let Some((id, generation)) = slot.as_ref()
