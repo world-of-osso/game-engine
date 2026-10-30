@@ -181,3 +181,20 @@ fn talent_string_fully_spent_real_mage_can_be_exported_for_live_proof() {
     println!("FULL_MAGE_RETAIL_CODE={code}");
     assert_eq!(decode(&tree, CONTEXT, &code).unwrap(), config);
 }
+
+#[test]
+fn talent_string_import_accepts_real_hunter_export_with_trailing_bits() {
+    let data = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/db2/active");
+    let page = game_engine_core::talent_data::load_talent_page(&data, 3, 255).unwrap();
+    let tree = load_trait_rules(&data, page.tree_id).unwrap();
+    let context = TraitContext {
+        spec_id: 255,
+        level: 90,
+    };
+    // Pinned SimC 76f8118 MID2_Hunter_Survival.simc.
+    let source = "C8PAAAAAAAAAAAAAAAAAAAAAAMWgBmxoxyAYmgtZMzMGzyAAAAAAwMmxMLmxYGzgx0MAAAADAmxyyMzsYMzMjZmBAzYZDGDjNDAA";
+    let entries = decode(&tree, context, source).unwrap();
+    assert!(entries.iter().filter(|entry| entry.total() > 0).count() > 20);
+    let canonical = encode(&tree, context.spec_id, &entries).unwrap();
+    assert_eq!(decode(&tree, context, &canonical).unwrap(), entries);
+}

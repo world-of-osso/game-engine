@@ -25,10 +25,15 @@ mkdir -p "$TMPDIR"
 capacity=${AGENT_RUN_CAPACITY:-/home/osso/.worktrees/logs/capacity.sh}
 runs_cargo=""
 for arg in "$@"; do [ "$(basename -- "$arg")" = cargo ] && runs_cargo=1 && break; done
+# fmt only rewrites sources; agents waited on the build gate just to format (2026-10-30).
+for arg in "$@"; do [ "$arg" = fmt ] && runs_cargo="" && break; done
 if [ -n "$runs_cargo" ] && [ -x "$capacity" ]; then
     # Capture the verdict instead of piping into `grep -q`: under pipefail, tee's SIGPIPE after
     # grep's early exit discarded granted ADDs and held tank73 for 2 h 45 min (2026-10-29).
-    until verdict=$(CAPACITY_ID="agent-${name}" "$capacity") && echo "$verdict" >&2 \
+    # The merge train lands everyone's work: it takes the lead_ id so the 24/32 CPU hold skips it
+    # (its fmt/check steps sat 60+ min behind agent compiles on 2026-10-30).
+    capacity_id="agent-${name}"; [ "$name" = merge_train ] && capacity_id=lead_merge_train_build
+    until verdict=$(CAPACITY_ID="$capacity_id" "$capacity") && echo "$verdict" >&2 \
         && [[ $verdict == *'| ADD:'* ]]; do :; done
 fi
 exec systemd-run --user --scope --quiet --collect \

@@ -10,6 +10,7 @@ mod export;
 mod items;
 mod lfg;
 mod mail;
+mod probe_ground;
 mod trade;
 mod tree;
 mod ui_tree;

@@ -54,6 +54,7 @@ impl crate::GameClient {
                 Ok("movement trace started".into())
             }
             Request::MovementTrace => self.movement_trace.json(),
+            Request::ProbeGround { feet, direction } => self.probe_ground(feet, direction),
             Request::SetCameraDirection {
                 yaw_degrees,
                 pitch_degrees,

@@ -30,20 +30,60 @@ fn query_wall_triangles(
     from: Vec3,
     to: Vec3,
 ) -> Vec<[Vec3; 3]> {
+    let mut triangles = Vec::new();
+    visit_nearby_triangles(space, from, to, |_, _, _, face| triangles.push(face));
+    triangles
+}
+
+pub(crate) fn diagnose_step_wall(
+    space: &Gd<PhysicsDirectSpaceState3D>,
+    from: Vec3,
+    to: Vec3,
+    support_top: f32,
+) -> serde_json::Value {
+    let mut triangles = Vec::new();
+    let mut identities = Vec::new();
+    visit_nearby_triangles(space, from, to, |body, shape, index, face| {
+        triangles.push(face);
+        identities.push((
+            body.get_path().to_string(),
+            shape.get_path().to_string(),
+            index,
+        ));
+    });
+    let blockers = game_engine_core::step_clearance::step_wall_blocking_triangles(
+        &triangles,
+        from,
+        to,
+        support_top,
+        shared::ground::min_walkable_normal_y(),
+    );
+    let hits: Vec<_> = blockers.into_iter().map(|(index, height)| {
+        let (body, shape, face_index) = &identities[index];
+        serde_json::json!({"collider":body,"shape":shape,"face_index":face_index,"triangle":triangles[index].map(|point| point.to_array()),"height_at_landing":height})
+    }).collect();
+    serde_json::json!({"from":from.to_array(),"landing_feet":to.to_array(),"support_top":support_top,"blocking_triangles":hits})
+}
+
+fn visit_nearby_triangles(
+    space: &Gd<PhysicsDirectSpaceState3D>,
+    from: Vec3,
+    to: Vec3,
+    mut visit: impl FnMut(&Gd<StaticBody3D>, &Gd<CollisionShape3D>, usize, [Vec3; 3]),
+) {
     let mut query = wall_neighbour_query(from, to);
     let mut excluded = Array::<Rid>::new();
-    let mut triangles = Vec::new();
     loop {
         let hits = space.clone().intersect_shape(&query);
         if hits.is_empty() {
-            return triangles;
+            return;
         }
         for hit in hits.iter_shared() {
             let body = hit
                 .get("collider")
                 .expect("Step query collider")
                 .to::<Gd<StaticBody3D>>();
-            append_body_triangles(&body, &mut triangles);
+            visit_body_triangles(&body, &mut visit);
             // Inspect every shape on this body before excluding it. Repeating the
             // query consumes all bodies even when Godot fills its result batch.
             excluded.push(body.get_rid());
@@ -69,17 +109,24 @@ fn wall_neighbour_query(from: Vec3, to: Vec3) -> Gd<PhysicsShapeQueryParameters3
     query
 }
 
-fn append_body_triangles(body: &Gd<StaticBody3D>, triangles: &mut Vec<[Vec3; 3]>) {
+fn visit_body_triangles(
+    body: &Gd<StaticBody3D>,
+    visit: &mut impl FnMut(&Gd<StaticBody3D>, &Gd<CollisionShape3D>, usize, [Vec3; 3]),
+) {
     for child in body.get_children().iter_shared() {
         if let Ok(collision) = child.try_cast::<CollisionShape3D>()
             && !collision.is_disabled()
         {
-            append_shape_triangles(&collision, triangles);
+            visit_shape_triangles(body, &collision, visit);
         }
     }
 }
 
-fn append_shape_triangles(collision: &Gd<CollisionShape3D>, triangles: &mut Vec<[Vec3; 3]>) {
+fn visit_shape_triangles(
+    body: &Gd<StaticBody3D>,
+    collision: &Gd<CollisionShape3D>,
+    visit: &mut impl FnMut(&Gd<StaticBody3D>, &Gd<CollisionShape3D>, usize, [Vec3; 3]),
+) {
     let shape = collision
         .get_shape()
         .expect("Live collision shape")
@@ -87,10 +134,11 @@ fn append_shape_triangles(collision: &Gd<CollisionShape3D>, triangles: &mut Vec<
         .expect("WMO/GO authored triangle collision");
     let transform = collision.get_global_transform();
     let faces = shape.get_faces();
-    triangles.extend(faces.as_slice().chunks_exact(3).map(|face| {
-        [face[0], face[1], face[2]].map(|point| {
+    for (index, face) in faces.as_slice().chunks_exact(3).enumerate() {
+        let triangle = [face[0], face[1], face[2]].map(|point| {
             let world = transform * point;
             Vec3::new(world.x, world.y, world.z)
-        })
-    }));
+        });
+        visit(body, collision, index, triangle);
+    }
 }
