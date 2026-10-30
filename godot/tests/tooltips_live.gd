@@ -126,7 +126,7 @@ func world_unit() -> bool:
 	if npc.is_empty():
 		return false
 	await move_mouse(npc.point)
-	if not await wait_until(func(): return tooltip().title == VENDOR and has_line(tooltip(), "Sells"), 8000, "vendor tooltip with the server's items"):
+	if not await wait_until(func(): return tooltip().title == VENDOR and has_line(tooltip(), "Sells") and client.merchant_state().cursor == "Buy", 8000, "vendor tooltip and Buy cursor for the same hover"):
 		return false
 	var state := tooltip()
 	print("FIXTURE WORLD_UNIT ", state)

@@ -44,6 +44,25 @@ struct Ray {
     direction: Vector3,
 }
 
+impl crate::GameClient {
+    /// Pick once after motion, camera and culling for the cursor and world tooltip.
+    pub(crate) fn update_world_hover(&mut self) {
+        self.world_hover_pick =
+            if self.account.session.screen == game_engine_session::SessionScreen::InWorld {
+                self.base().get_viewport().and_then(|viewport| {
+                    if viewport.gui_get_hovered_control().is_some() {
+                        return None;
+                    }
+                    let camera = viewport.get_camera_3d()?;
+                    pick_unit(&camera, Vector2::from_array(self.physical_input.pointer()))
+                })
+            } else {
+                None
+            };
+        self.update_hover_cursor();
+    }
+}
+
 /// The unit under `screen_point`: the nearest visible unit triangle on the camera ray
 /// in front of the first visible world surface.
 pub(crate) fn pick_unit(camera: &Gd<Camera3D>, screen_point: Vector2) -> Option<u64> {
@@ -65,7 +84,8 @@ pub(crate) fn pick_unit(camera: &Gd<Camera3D>, screen_point: Vector2) -> Option<
 }
 
 /// Visible units whose pick box the ray crosses before the first visible world surface,
-/// and that surface's distance.
+/// and that surface's distance. The physics box rejects misses before any skin palette
+/// or triangle is evaluated.
 fn broad_phase(
     camera: &Gd<Camera3D>,
     ray: &Ray,

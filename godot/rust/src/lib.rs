@@ -326,6 +326,7 @@ pub struct GameClient {
     server_hostname: String,
     startup_panel: Option<startup::StartupPanel>,
     targeting: targeting::Targeting,
+    world_hover_pick: Option<u64>,
     nameplates: nameplates::Nameplates,
     /// The local player's and the target's cast bars, on their own clocks: neither
     /// needs a nameplate.
@@ -495,6 +496,7 @@ impl INode3D for GameClient {
             transmog: transmog::Transmog::default(),
             pet_bar: pet_bar::PetBarHud::default(),
             merchant: merchant::Merchant::default(),
+            world_hover_pick: None,
             bags: bags::Bags::default(),
             character_frame: character_frame::CharacterFrame::default(),
             launcher: launcher::Launcher::default(),
@@ -2285,6 +2287,11 @@ impl GameClient {
             }),
             ("UI scale after updates", |c, _| {
                 Ok(c.sync_registry_ui_scale()?)
+            }),
+            // Both consumers use the pick after camera, unit motion and culling.
+            ("World hover", |c, _| {
+                c.update_world_hover();
+                Ok(())
             }),
             // Tooltip ownership must use the final projected owner bounds.
             ("Tooltips", |c, _| c.update_tooltips()),

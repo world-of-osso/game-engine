@@ -20,7 +20,6 @@ use crate::frame_error::FrameError;
 use crate::replicated::UnitFields;
 use crate::targeting::unit_classification;
 use crate::tooltips::{HoveredFrame, HoveredTooltip};
-use crate::unit_pick::pick_unit;
 
 impl GameClient {
     /// The unit a hovered unit frame shows: `PlayerFrame`, `TargetFrame`, and the party
@@ -80,7 +79,7 @@ impl GameClient {
         let pointer = Vector2::from_array(self.physical_input.pointer());
         let Some(id) = self
             .nameplate_at(&camera, pointer)
-            .or_else(|| pick_unit(&camera, pointer))
+            .or(self.world_hover_pick)
         else {
             return Ok(None);
         };

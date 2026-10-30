@@ -239,13 +239,6 @@ impl GameClient {
         if interactive {
             self.right_click_interact()?;
         }
-        // `ShowRepairCursor` replaces the hover cursor everywhere until hidden.
-        let cursor = if self.merchant.session.repair_mode {
-            Some(ActiveWowCursor::Repair)
-        } else {
-            interactive.then(|| self.hover_cursor()).flatten()
-        };
-        self.set_world_cursor(cursor);
         let kit = self
             .merchant
             .visibility
@@ -370,6 +363,21 @@ impl GameClient {
         right_click(unit.has::<Npc>(), dead, distance, flags)
     }
 
+    /// Update the cursor after world motion and culling, using the shared hover pick.
+    pub(crate) fn update_hover_cursor(&mut self) {
+        let interactive = self.account.session.screen == SessionScreen::InWorld
+            && self.game_menu_ui.is_none()
+            && self.account.session.gameplay_input_allowed();
+        let cursor = if !interactive {
+            None
+        } else if self.merchant.session.repair_mode {
+            Some(ActiveWowCursor::Repair)
+        } else {
+            self.hover_cursor()
+        };
+        self.set_world_cursor(cursor);
+    }
+
     /// Bevy `pick_desired_cursor` for units: the cursor of the NPC under the pointer.
     fn hover_cursor(&mut self) -> Option<ActiveWowCursor> {
         let viewport = self.base().get_viewport()?;
@@ -379,9 +387,8 @@ impl GameClient {
                     .unwrap_or(ActiveWowCursor::Default),
             );
         }
-        let camera = viewport.get_camera_3d()?;
-        let Some(id) = pick_unit(&camera, Vector2::from_array(self.physical_input.pointer()))
-        else {
+        viewport.get_camera_3d()?;
+        let Some(id) = self.world_hover_pick else {
             return Some(ActiveWowCursor::Default);
         };
         if let Some(info) = self.replica.unit(id)?.get::<GameObjectInfo>() {
