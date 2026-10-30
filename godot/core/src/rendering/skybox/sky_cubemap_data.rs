@@ -1,5 +1,7 @@
 //! Bevy-free procedural sky profile and linear RGBA16F cubemap pixels.
 
+use std::sync::OnceLock;
+
 /// Dome points from the top pole to the bottom pole, in half-turn fractions.
 const SKY_DOME_RING_LATITUDES: [f32; SKY_DOME_POINT_COUNT] =
     [0.0, 0.17, 0.2, 0.23, 0.24, 0.25, 1.0];
@@ -100,22 +102,26 @@ pub fn cubemap_direction(face: u32, x: u32, y: u32) -> [f32; 3] {
 pub fn build_sky_cubemap(stops: &[[f32; 3]; SKY_DOME_POINT_COUNT]) -> Vec<u8> {
     let face_pixels = (ENV_MAP_SIZE * ENV_MAP_SIZE) as usize;
     let mut data = vec![0u8; face_pixels * 6 * 8];
-    for face in 0..6u32 {
-        let offset = face as usize * face_pixels * 8;
-        fill_cubemap_face(&mut data[offset..offset + face_pixels * 8], face, stops);
+    for (pixel, &band) in data.chunks_exact_mut(8).zip(cubemap_bands()) {
+        write_rgba16f(pixel, sky_gradient_color(stops, band));
     }
     data
 }
 
-fn fill_cubemap_face(data: &mut [u8], face: u32, stops: &[[f32; 3]; SKY_DOME_POINT_COUNT]) {
-    for y in 0..ENV_MAP_SIZE {
-        for x in 0..ENV_MAP_SIZE {
-            let dir = cubemap_direction(face, x, y);
-            let color = sky_gradient_color(stops, sky_band_at_elevation(dir[1].asin()));
-            let pixel_offset = ((y * ENV_MAP_SIZE + x) as usize) * 8;
-            write_rgba16f(&mut data[pixel_offset..pixel_offset + 8], color);
-        }
-    }
+fn cubemap_bands() -> &'static [f32] {
+    static BANDS: OnceLock<Vec<f32>> = OnceLock::new();
+    BANDS.get_or_init(|| {
+        (0..6)
+            .flat_map(|face| {
+                (0..ENV_MAP_SIZE).flat_map(move |y| {
+                    (0..ENV_MAP_SIZE).map(move |x| {
+                        let direction = cubemap_direction(face, x, y);
+                        sky_band_at_elevation(direction[1].asin())
+                    })
+                })
+            })
+            .collect()
+    })
 }
 
 fn write_rgba16f(dst: &mut [u8], rgb: [f32; 3]) {

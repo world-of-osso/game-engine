@@ -64,6 +64,39 @@ fn face_directions_use_pixel_centers_and_original_face_order() {
 }
 
 #[test]
+fn every_cubemap_pixel_matches_the_original_geometry_calculation() {
+    let mixed_stops = [
+        [0.91, 0.13, 0.04],
+        [0.77, 0.25, 0.61],
+        [0.49, 0.81, 0.22],
+        [0.33, 0.41, 0.75],
+        [0.24, 0.12, 0.45],
+        [0.05, 0.31, 0.63],
+        [0.87, 0.74, 0.02],
+    ];
+    for stops in [STOPS, mixed_stops] {
+        let data = build_sky_cubemap(&stops);
+        for face in 0..6 {
+            for y in 0..ENV_MAP_SIZE {
+                for x in 0..ENV_MAP_SIZE {
+                    let direction = cubemap_direction(face, x, y);
+                    let band = sky_band_at_elevation(direction[1].asin());
+                    let expected = sky_gradient_color(&stops, band);
+                    let rgba = pixel(&data, face as usize, x as usize, y as usize);
+                    for channel in 0..3 {
+                        assert_eq!(
+                            rgba[channel],
+                            half::f16::from_f32(expected[channel]).to_f32()
+                        );
+                    }
+                    assert_eq!(rgba[3], 1.0);
+                }
+            }
+        }
+    }
+}
+
+#[test]
 fn six_faces_are_contiguous_half_float_linear_rgba_without_mip_levels() {
     let data = build_sky_cubemap(&STOPS);
     let face_bytes = (ENV_MAP_SIZE * ENV_MAP_SIZE * 8) as usize;
