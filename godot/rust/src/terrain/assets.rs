@@ -95,7 +95,16 @@ pub(crate) struct NativeTerrainAssets {
     liquids: OnceLock<Result<MapLiquidCatalog, String>>,
     maps: OnceLock<Result<game_engine_core::map_catalog::MapCatalog, String>>,
     /// Parsed group floors and root-wide material surface, keyed by root FDID.
-    wmo_groups: RefCell<HashMap<u32, (Vec<Arc<WmoGroupCollision>>, Option<FootstepSurface>)>>,
+    wmo_groups: RefCell<
+        HashMap<
+            u32,
+            (
+                Vec<Arc<WmoGroupCollision>>,
+                Option<FootstepSurface>,
+                Vec<game_engine_core::wmo_liquid::LiquidTriangle>,
+            ),
+        >,
+    >,
 }
 
 type CachedFile = (PathBuf, Vec<u8>);
@@ -126,6 +135,7 @@ pub(crate) struct NativeTerrainTile {
     /// Their floors are the player's ground and their faces physics walls from the moment the
     /// tile is parsed, before any WMO node spawns. A WMO spanning tiles is in each tile's list.
     pub wmo_floors: Vec<(u32, WmoCollision)>,
+    pub wmo_liquids: Vec<game_engine_core::wmo_liquid::LiquidTriangle>,
     /// Authored M2 hulls, including the neighbouring centroid tiles. Loaded on the
     /// worker before ground prediction, independent of render-node spawning/culling.
     pub m2_floors: Vec<shared::los::LosTile>,
@@ -229,7 +239,7 @@ impl NativeTerrainAssets {
         let chunk_surfaces = self.classify_tile_surfaces(&root, tex.as_ref());
         let textures = self.load_tile_textures(tex.as_ref())?;
         let liquid_materials = self.read_liquid_materials(wdt.map_id, &mut root)?;
-        let (wmo_floors, wmo_surfaces) = obj
+        let (wmo_floors, wmo_surfaces, wmo_liquids) = obj
             .as_ref()
             .map(|obj| self.read_wmo_floors(&obj.wmos, (tile_y, tile_x)))
             .unwrap_or_default();
@@ -243,6 +253,7 @@ impl NativeTerrainAssets {
             textures,
             chunk_surfaces,
             wmo_floors,
+            wmo_liquids,
             m2_floors: self.read_m2_tiles(wdt.map_id, Some((tile_y, tile_x)), false)?,
             m2_solids: self.read_m2_tiles(wdt.map_id, Some((tile_y, tile_x)), true)?,
             wmo_surfaces,
@@ -452,12 +463,20 @@ impl NativeTerrainAssets {
     ) -> (
         Vec<(u32, WmoCollision)>,
         Vec<(WmoSurfaceBounds, FootstepSurface)>,
+        Vec<game_engine_core::wmo_liquid::LiquidTriangle>,
     ) {
         let mut floors = Vec::new();
         let mut surfaces = Vec::new();
+        let mut liquids = Vec::new();
         for placement in placements {
             match self.read_wmo_groups(placement) {
-                Ok((groups, surface)) => {
+                Ok((groups, surface, triangles)) => {
+                    let transform = crate::wmo::placement::adt_world_from_local(placement, tile);
+                    liquids.extend(
+                        triangles
+                            .iter()
+                            .map(|triangle| triangle.transformed(transform)),
+                    );
                     floors.push((
                         placement.unique_id,
                         crate::wmo::placement::adt_wmo_collision(placement, tile, groups),
@@ -472,13 +491,20 @@ impl NativeTerrainAssets {
                 ),
             }
         }
-        (floors, surfaces)
+        (floors, surfaces, liquids)
     }
 
     fn read_wmo_groups(
         &self,
         placement: &adt::WmoPlacement,
-    ) -> Result<(Vec<Arc<WmoGroupCollision>>, Option<FootstepSurface>), String> {
+    ) -> Result<
+        (
+            Vec<Arc<WmoGroupCollision>>,
+            Option<FootstepSurface>,
+            Vec<game_engine_core::wmo_liquid::LiquidTriangle>,
+        ),
+        String,
+    > {
         if let Some(groups) = placement
             .fdid
             .and_then(|fdid| self.wmo_groups.borrow().get(&fdid).cloned())
@@ -491,7 +517,11 @@ impl NativeTerrainAssets {
             .iter()
             .map(|group| Arc::clone(&group.collision))
             .collect();
-        let result = (groups, classify_wmo_surface(&asset.root, &self.resolver));
+        let result = (
+            groups,
+            classify_wmo_surface(&asset.root, &self.resolver),
+            crate::wmo::placement::asset_liquids(&asset),
+        );
         self.wmo_groups
             .borrow_mut()
             .insert(asset.root_fdid, result.clone());

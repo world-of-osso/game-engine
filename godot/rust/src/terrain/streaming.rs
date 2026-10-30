@@ -232,12 +232,24 @@ impl StreamedTerrain {
     }
 
     pub fn water_surface_at(&self, x: f32, z: f32) -> Option<f32> {
+        self.water_surfaces_at(x, z)
+            .into_iter()
+            .max_by(f32::total_cmp)
+    }
+
+    pub fn water_surfaces_at(&self, x: f32, z: f32) -> Vec<f32> {
         use game_engine_core::terrain_height_data::{
             WaterLayerSurface, bevy_to_tile_coords, layer_has_water, sample_water_layer_height,
         };
 
-        let tile = self.parsed_tiles.get(&bevy_to_tile_coords(x, z))?;
-        let water = tile.root.water.as_ref()?;
+        let Some(water) = self
+            .parsed_tiles
+            .get(&bevy_to_tile_coords(x, z))
+            .and_then(|tile| tile.root.water.as_ref().map(|water| (tile, water)))
+        else {
+            return Vec::new();
+        };
+        let (tile, water) = water;
         water
             .chunks
             .iter()
@@ -257,7 +269,7 @@ impl StreamedTerrain {
                     sample_water_layer_height(&surface, x, z)
                 })
             })
-            .max_by(f32::total_cmp)
+            .collect()
     }
 
     pub fn request_map(&mut self, map: String, tile: (u32, u32)) -> Result<(), String> {
@@ -622,6 +634,7 @@ mod tests {
             textures: BTreeMap::new(),
             chunk_surfaces: BTreeMap::new(),
             wmo_floors: Vec::new(),
+            wmo_liquids: Vec::new(),
             m2_floors: Vec::new(),
             m2_solids: Vec::new(),
             wmo_surfaces: Vec::new(),

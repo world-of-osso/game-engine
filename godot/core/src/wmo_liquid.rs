@@ -64,6 +64,49 @@ pub fn group_interior_lit(group_flags: u32) -> bool {
     group_flags & (GROUP_EXTERIOR_LIT | GROUP_EXTERIOR) == 0 && group_flags & GROUP_INTERIOR != 0
 }
 
+/// One active MLIQ triangle and its resolved group LiquidType.
+#[derive(Clone, Debug)]
+pub struct LiquidTriangle {
+    pub vertices: [glam::Vec3; 3],
+    pub liquid_type: u16,
+}
+
+impl LiquidTriangle {
+    pub fn transformed(&self, transform: glam::Affine3A) -> Self {
+        Self {
+            vertices: self.vertices.map(|v| transform.transform_point3(v)),
+            liquid_type: self.liquid_type,
+        }
+    }
+
+    pub fn level_at(&self, x: f32, z: f32) -> Option<f32> {
+        let [a, b, c] = self.vertices;
+        let det = (b.z - c.z) * (a.x - c.x) + (c.x - b.x) * (a.z - c.z);
+        if det.abs() < 1e-6 {
+            return None;
+        }
+        let u = ((b.z - c.z) * (x - c.x) + (c.x - b.x) * (z - c.z)) / det;
+        let v = ((c.z - a.z) * (x - c.x) + (a.x - c.x) * (z - c.z)) / det;
+        let w = 1.0 - u - v;
+        (u >= -1e-5 && v >= -1e-5 && w >= -1e-5).then_some(u * a.y + v * b.y + w * c.y)
+    }
+}
+
+/// The active liquid triangles in model-local coordinates, using the rendered geometry.
+pub fn liquid_triangles(liquid: &WmoLiquid, liquid_type: u16) -> Vec<LiquidTriangle> {
+    let geometry = liquid_geometry(liquid, liquid_type);
+    geometry
+        .indices
+        .chunks_exact(3)
+        .map(|indices| LiquidTriangle {
+            vertices: std::array::from_fn(|i| {
+                glam::Vec3::from_array(geometry.positions[indices[i] as usize])
+            }),
+            liquid_type,
+        })
+        .collect()
+}
+
 /// The drawn tiles of `liquid` in WMO-local Godot axes, before the WMO placement: each
 /// vertex at its MLIQ height, depth 1 (alpha), and texture coordinates in chunks of
 /// WMO-local position, or the magma vertex `s, t * 3 / 256` for `liquid_type` 19.
