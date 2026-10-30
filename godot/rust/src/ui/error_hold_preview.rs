@@ -31,4 +31,31 @@ impl RegistryUi {
         })();
         result.err().unwrap_or_default().as_str().into()
     }
+
+    #[func]
+    fn tick_error_hold_preview(&mut self, elapsed: f32) -> GString {
+        self.tick_errors(elapsed)
+            .err()
+            .unwrap_or_default()
+            .as_str()
+            .into()
+    }
+
+    #[func]
+    fn clear_error_hold_preview(&mut self) -> GString {
+        self.clear_errors()
+            .err()
+            .unwrap_or_default()
+            .as_str()
+            .into()
+    }
+
+    #[func]
+    fn add_error_hold_preview(&mut self) -> GString {
+        self.add_error("Out of range.")
+            .err()
+            .unwrap_or_default()
+            .as_str()
+            .into()
+    }
 }

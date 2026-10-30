@@ -2817,12 +2817,15 @@ impl RegistryUi {
         if model.registry.get_by_name("UIErrorsFrame").is_none() {
             return Err("RegistryUi is not an UIErrors overlay".into());
         }
-        let mut errors = model
+        let previous = model
             .shared
             .get::<UiErrorsData>()
-            .ok_or("UIErrors data is not initialized")?
-            .clone();
+            .ok_or("UIErrors data is not initialized")?;
+        let mut errors = previous.clone();
         update(&mut errors);
+        if errors == *previous {
+            return Ok(());
+        }
         model.shared.insert(errors);
         self.sync_model()
     }
