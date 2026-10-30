@@ -67,7 +67,9 @@ class FrozenModelClosureTests(unittest.TestCase):
             "aliases": [],
             "chains": [],
         }
-        (self.data / "cache/model-asset-index-fixture.json").write_text(json.dumps(index))
+        (self.data / "cache/model-asset-index-fixture.json").write_text(
+            json.dumps(index)
+        )
         local = self.data / "local-listfile-cache.sqlite"
         with closing(sqlite3.connect(local)) as db:
             db.execute(
@@ -76,7 +78,9 @@ class FrozenModelClosureTests(unittest.TestCase):
             db.commit()
         self.resolution = self.root / "resolution.sqlite"
         with closing(sqlite3.connect(self.resolution)) as db:
-            db.execute("CREATE TABLE resolution (fdid INTEGER PRIMARY KEY, content_key BLOB)")
+            db.execute(
+                "CREATE TABLE resolution (fdid INTEGER PRIMARY KEY, content_key BLOB)"
+            )
             db.executemany(
                 "INSERT INTO resolution VALUES (?, ?)",
                 [
@@ -130,7 +134,9 @@ class FrozenModelClosureTests(unittest.TestCase):
 
     def test_rejects_wrong_frozen_child_bytes_before_creating_fragment(self):
         (self.data / "models/202.skin").write_bytes(b"SKIN incorrect bytes")
-        with self.assertRaisesRegex(ValueError, "202.skin.*authenticated source bytes unavailable"):
+        with self.assertRaisesRegex(
+            ValueError, "202.skin.*authenticated source bytes unavailable"
+        ):
             self.stage()
         self.assertFalse(self.output.exists())
 
