@@ -112,6 +112,25 @@ fn abbey_gate_fountain_draws_ten_water_tiles() {
     assert_eq!(&geometry.indices[..6], &[0, 1, 5, 0, 5, 4]);
     assert!(!geometry.indices.contains(&3));
     assert!(geometry.colors.iter().all(|&color| color == [1.0; 4]));
+
+    let transform = glam::Affine3A::from_translation(glam::Vec3::new(100.0, 5.0, 200.0))
+        * glam::Affine3A::from_rotation_y(std::f32::consts::FRAC_PI_2);
+    let triangles: Vec<_> = game_engine_core::wmo_liquid::liquid_triangles(liquid, 13)
+        .iter()
+        .map(|triangle| triangle.transformed(transform))
+        .collect();
+    let point = |x: f32| transform.transform_point3(glam::Vec3::new(x, 0.0, 8.333_333 - 2.0));
+    let active = point(-29.166_666 + 2.0);
+    assert!(
+        triangles.iter().any(|triangle| triangle.liquid_type == 13
+            && triangle.level_at(active.x, active.z).is_some())
+    );
+    let hidden = point(-29.166_666 + 2.0 * (100.0 / 3.0 / 8.0) + 2.0);
+    assert!(
+        triangles
+            .iter()
+            .all(|triangle| triangle.level_at(hidden.x, hidden.z).is_none())
+    );
 }
 
 /// Cultists' Quay delve (5356285, group 5533972): an interior-lit group of WMO Water.
