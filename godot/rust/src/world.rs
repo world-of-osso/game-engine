@@ -1546,6 +1546,11 @@ impl WorldUnits {
         }
     }
 
+    #[cfg(debug_assertions)]
+    pub(crate) fn set_census_root(&mut self, root: Gd<Node3D>) {
+        self.root = Some(root);
+    }
+
     pub fn root(&self) -> Option<Gd<Node3D>> {
         self.root.clone()
     }

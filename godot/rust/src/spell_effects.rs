@@ -568,6 +568,8 @@ fn join_errors(errors: Vec<String>) -> Result<(), String> {
 
 mod aura_alpha;
 mod casts;
+#[cfg(debug_assertions)]
+mod census;
 mod displays;
 mod kits;
 mod missiles;
