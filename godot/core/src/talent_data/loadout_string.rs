@@ -237,10 +237,6 @@ pub fn decode(
             });
         }
     }
-    // Only the final base64 symbol's zero padding may remain.
-    if stream.bits.len() - stream.cursor > 5 || stream.bits[stream.cursor..].iter().any(|bit| *bit)
-    {
-        return Err(LoadoutError::BadString);
-    }
+    // Blizzard_ClassTalentImportExport.lua reads tree nodes and ignores trailing bits.
     build_config(tree, context, &purchases).map_err(|_| LoadoutError::InvalidNodes)
 }

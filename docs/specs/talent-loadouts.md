@@ -12,6 +12,8 @@ Named trait configurations per specialization in the Talents footer. Mainline de
 - [x] Starter Build is a server-advertised, noneditable built-in selection, not a named user config. Selecting it waits for authoritative allocation/selection snapshots. The server builds affordable ranks from installed DB2 rows, persists selection, and automatically spends newly earned points. Accepted manual edits leave guided mode; node/choice deviation prompts use Retail's Continue/Cancel confirmation. Both skins share behavior.
 
 ## How it works
+
+Retail import reads every current tree node and ignores trailing bits. Node selections still require native trait validation.
 - [Talent system](../wiki/systems/talents.md#named-loadouts--2026-10-10)
 - [Server persistence](../../../game-server/docs/wiki/systems/talents.md#persistence-and-messages)
 
