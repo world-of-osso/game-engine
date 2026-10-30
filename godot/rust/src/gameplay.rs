@@ -71,6 +71,7 @@ pub(crate) struct PlayerMovement {
     previous_facing: Option<f32>,
     vertical_velocity: f32,
     grounded: bool,
+    ground_rejection: Option<&'static str>,
     /// Aura speed multiplier the server applies: its replicated `MovementSpeed` over the
     /// speed it computes without auras for the newest input reported to it.
     speed_modifier: f32,
@@ -135,6 +136,7 @@ impl Default for PlayerMovement {
             previous_facing: None,
             vertical_velocity: 0.0,
             grounded: true,
+            ground_rejection: None,
             speed_modifier: 1.0,
             server_speed: None,
             // The server spawns players with `MovementSpeed(RUN_SPEED)`.
@@ -320,6 +322,7 @@ impl PlayerMovement {
         delta: f32,
     ) -> Vec3 {
         self.rose = false;
+        self.ground_rejection = None;
         let steps = (delta / MAX_STEP_SECONDS).ceil().max(1.0);
         (0..steps as u32).fold(position, |position, _| {
             self.step(
@@ -403,7 +406,13 @@ impl PlayerMovement {
         if let Some(proposed) =
             build_proposed_ground_movement(position, frame.direction.into(), frame.speed, delta)
         {
-            position = ground.validate_move(position, proposed, self.grounded && !self.jumping);
+            let (allowed, rejection) = ground.validate_move_with_reason(
+                position,
+                proposed,
+                self.grounded && !self.jumping,
+            );
+            position = allowed;
+            self.ground_rejection = self.ground_rejection.or(rejection);
             self.grounded &= update_grounded(
                 position.y,
                 ground.probe(position),
@@ -856,6 +865,9 @@ impl crate::GameClient {
             .then(|| ground.trace_support(before))
             .flatten();
         let mut contacts = |from, to, step_delta| flight_tree_contact(&space, from, to, step_delta);
+        let input_direction = frame.direction;
+        let input_speed = frame.speed;
+        let input_vertical = frame.vertical;
         let next = self.player_movement.predict(
             glam::Vec3::new(current.x, current.y, current.z),
             frame,
@@ -874,6 +886,13 @@ impl crate::GameClient {
                 timestamp_ms,
                 before: before.to_array(),
                 after: next.to_array(),
+                input_direction,
+                input_speed,
+                input_vertical,
+                input_jump: jump,
+                input_yaw: yaw,
+                delta_seconds: delta,
+                ground_rejection: self.player_movement.ground_rejection,
                 support_before,
                 support_after: ground.trace_support(next),
                 vertical_velocity: self.player_movement.vertical_velocity,

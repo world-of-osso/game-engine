@@ -215,24 +215,39 @@ impl TerrainGround<'_> {
     /// floor over a terrain hole) stops, as an underwater cliff stops a swimmer: walking on
     /// would put the feet under the world's surface, with nothing to land on.
     pub fn validate_move(&self, current: Vec3, proposed: Vec3, snap: bool) -> Vec3 {
+        self.validate_move_with_reason(current, proposed, snap).0
+    }
+
+    pub fn validate_move_with_reason(
+        &self,
+        current: Vec3,
+        proposed: Vec3,
+        snap: bool,
+    ) -> (Vec3, Option<&'static str>) {
         let target_feet = proposed.with_y(current.y);
         let target = self.sample(target_feet);
         if snap && self.steep_solid_blocks_ascent(current, target_feet, target) {
-            return current;
+            return (current, Some("steep_solid_without_reachable_landing"));
         }
         let candidate = self.apply_floor_rules(current, proposed, target, snap);
         let clamped = clamp_movement_to_walls(current, proposed, self.walls);
         let reached = clamped.x == proposed.x && clamped.z == proposed.z;
         if reached {
-            return candidate;
+            let blocked = candidate.x == current.x
+                && candidate.z == current.z
+                && (proposed.x != current.x || proposed.z != current.z);
+            return (candidate, blocked.then_some("floor_or_slope"));
         }
         if snap && self.step_past_wall_is_clear(current, proposed, candidate) {
-            return candidate;
+            return (candidate, None);
         }
         // A blocked step keeps the ordinary wall clamp. Never retain the height
         // of a landing that the player did not actually reach.
         let target = self.sample(clamped.with_y(current.y));
-        self.apply_floor_rules(current, clamped, target, snap)
+        (
+            self.apply_floor_rules(current, clamped, target, snap),
+            Some("wall_clamp"),
+        )
     }
 
     fn steep_solid_blocks_ascent(

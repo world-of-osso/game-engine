@@ -90,6 +90,20 @@ fn assert_authored_rate_crosses(speed: f32, fps: f32, frames: usize) {
 }
 
 #[test]
+fn blocked_horizontal_move_reports_wall_clamp() {
+    let terrain = StreamedTerrain::new(PathBuf::new());
+    let ground = TerrainGround {
+        terrain: &terrain,
+        walls: &|_, _, _| Some(0.0),
+        step_wall_blocked: &|_, _, _| false,
+        game_object_floor: &|_| None,
+    };
+    let (position, reason) = ground.validate_move_with_reason(Vec3::ZERO, Vec3::X * 0.1, true);
+    assert_eq!(position, Vec3::ZERO);
+    assert_eq!(reason, Some("wall_clamp"));
+}
+
+#[test]
 fn ramp_lip_authored_run_144_fps() {
     assert_authored_rate_crosses(7.0, 144.0, 3);
 }
