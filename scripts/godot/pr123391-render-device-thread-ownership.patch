@@ -1,0 +1,37 @@
+From b3574a906dd59b04070d04b400ddc0efbed4c439 Mon Sep 17 00:00:00 2001
+From: Artarex <22620496+Akrelion45@users.noreply.github.com>
+Date: Fri, 11 Sep 2026 01:17:52 +0200
+Subject: [PATCH] Fix RenderingDevice thread ownership during shutdown
+
+The separate render worker takes ownership of the main RenderingDevice,
+but shutdown only resets the rendering server's thread ID. Device
+destruction then calls finalize() from the main thread and fails the
+device's thread guard.
+
+Return the main device to the calling thread after the worker has stopped.
+Keep the null check for backends without a RenderingDevice.
+
+Validated with an empty project on Windows using Vulkan and D3D12,
+comparing the official 4.8-dev5 build with a local patched build.
+---
+ servers/rendering/rendering_server_default.cpp | 7 +++++++
+ 1 file changed, 7 insertions(+)
+
+diff --git a/servers/rendering/rendering_server_default.cpp b/servers/rendering/rendering_server_default.cpp
+index 82eebf5e8db7..213b0b6169f4 100644
+--- a/servers/rendering/rendering_server_default.cpp
++++ b/servers/rendering/rendering_server_default.cpp
+@@ -300,6 +300,13 @@ void RenderingServerDefault::finish() {
+ 	} else {
+ 		_finish();
+ 	}
++#ifdef RD_ENABLED
++	// The display server destroys the main device after the render worker
++	// has stopped. Return ownership to the calling (main) thread first.
++	if (RenderingDevice *rd = RenderingDevice::get_singleton()) {
++		rd->make_current();
++	}
++#endif
+ }
+ 
+ /* STATUS INFORMATION */

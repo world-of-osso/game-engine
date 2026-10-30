@@ -21,7 +21,7 @@ def configure(root):
     os.environ.update(
         HOME=str(Path.home()), LIBCLANG_PATH=r'C:\Program Files\LLVM\bin',
         MINGW_PREFIX=str(mingw.parent), KTX_CACHE_DIR=str(Path.home() / '.woo-ktx'),
-        CARGO_BUILD_JOBS='4', PYTHONHASHSEED='0', BUILD_NAME='pr123546',
+        CARGO_BUILD_JOBS='4', PYTHONHASHSEED='0', BUILD_NAME='pr123546-pr123391-font-atlas',
         RUSTUP_TOOLCHAIN='1.98.1',
     )
     clang = Path(os.environ['LIBCLANG_PATH']) / 'clang.exe'
@@ -43,12 +43,14 @@ def build_runtime(root, uv, engine):
     revision = subprocess.check_output(['git', '-C', str(source), 'rev-parse', 'HEAD'], text=True).strip()
     if revision != GODOT_COMMIT:
         raise RuntimeError(f'Godot source revision {revision}, expected {GODOT_COMMIT}')
-    patch = engine / 'scripts/godot/pr123546-classdb-default-values-race.patch'
-    # A repeat build must prove the exact patch already applied, not silently skip errors.
-    applied = subprocess.run(['git', '-C', str(source), 'apply', '--reverse', '--check', str(patch)], capture_output=True)
-    if applied.returncode:
-        run('git', '-C', str(source), 'apply', '--check', str(patch))
-        run('git', '-C', str(source), 'apply', str(patch))
+    for patch_name in ('pr123546-classdb-default-values-race.patch', 'pr123391-render-device-thread-ownership.patch',
+                       'font-atlas-snapshot.patch'):
+        patch = engine / 'scripts/godot' / patch_name
+        # A repeat build must prove the exact patch already applied, not silently skip errors.
+        applied = subprocess.run(['git', '-C', str(source), 'apply', '--reverse', '--check', str(patch)], capture_output=True)
+        if applied.returncode:
+            run('git', '-C', str(source), 'apply', '--check', str(patch))
+            run('git', '-C', str(source), 'apply', str(patch))
     for target in ('editor', 'template_release'):
         options = ['disable_path_overrides=no'] if target == 'template_release' else []
         run(str(uv), 'run', '--python', '3.12.12', '--with', 'scons==4.10.1', 'scons',
@@ -57,7 +59,11 @@ def build_runtime(root, uv, engine):
     runtime = root / 'artifacts/godot.exe'
     runtime.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(source / 'bin/godot.windows.template_release.x86_64.exe', runtime)
-    (runtime.parent / 'godot.sha512').write_text(hashlib.sha512(runtime.read_bytes()).hexdigest() + '\n')
+    digest = hashlib.sha512(runtime.read_bytes()).hexdigest()
+    expected = (engine / 'scripts/godot/godot-4.7.2-pr123546-pr123391-windows-template.sha512').read_text().strip()
+    if digest != expected:
+        raise RuntimeError(f'Windows Godot runtime checksum {digest}, expected {expected}')
+    (runtime.parent / 'godot.sha512').write_text(digest + '\n')
 
 
 def build_extension(root, engine):

@@ -2,7 +2,8 @@
 # Builds the Godot the launcher pins: 4.7.2-stable plus upstream PRs #123946 (Wayland exit
 # hang, issue #123059; docs/wiki/investigations/godot-wayland-exit-hang.md) and #123546
 # (ClassDB default-value race that crashes cold imports;
-# docs/wiki/investigations/godot-cold-import-crash.md). The editor and optional release
+# docs/wiki/investigations/godot-cold-import-crash.md), and #123391 (render-device
+# ownership during separate-thread shutdown), plus the glyph-atlas snapshot fix. The editor and optional release
 # template are installed only when their SHA-512 matches the corresponding checked-in pin.
 #
 # Toolchain and options follow the official 4.7.2 Linux editor release:
@@ -10,7 +11,7 @@
 # in build-containers aaef187 (buildroot SDK godot-2023.08.x-4, GCC 13.2, SCons 4.10.1).
 #
 # Retire this script, the patches and the pin once the launcher moves to an official Godot
-# release that contains #123946 and #123546.
+# release that contains #123946, #123546, #123391 and a fix for #122206.
 set -euo pipefail
 
 # Usage: build-patched-godot.sh [--template-release] [--jobs N]
@@ -78,7 +79,7 @@ git clone --quiet --depth 1 --branch "$tag" https://github.com/godotengine/godot
   echo "$tag is not $tag_commit" >&2
   exit 1
 }
-git -C "$src" apply "$here/pr123946-wayland-exit-hang.patch" "$here/pr123546-classdb-default-values-race.patch"
+git -C "$src" apply "$here/pr123946-wayland-exit-hang.patch" "$here/pr123546-classdb-default-values-race.patch" "$here/pr123391-render-device-thread-ownership.patch" "$here/font-atlas-snapshot.patch"
 
 template_options=()
 if [ "$target" = template_release ]; then
@@ -87,7 +88,7 @@ fi
 
 # PYTHONHASHSEED: editor/editor_builders.py embeds Python hash() of the docs, randomized
 # per process otherwise, so the binary would differ on every build.
-(cd "$src" && PATH="$sdk/bin:$PATH" BUILD_NAME=pr123946-pr123546 PYTHONHASHSEED=0 \
+(cd "$src" && PATH="$sdk/bin:$PATH" BUILD_NAME=pr123946-pr123546-pr123391-fontatlas PYTHONHASHSEED=0 \
   UV_CACHE_DIR="${UV_CACHE_DIR:-$work/uv-cache}" uvx --from scons==4.10.1 scons \
   -j"$jobs" verbose=yes warnings=all progress=no redirect_build_objects=no \
   platform=linuxbsd arch=x86_64 production=yes accesskit_sdk_path="$accesskit" "target=$target" "${template_options[@]}")

@@ -5,7 +5,7 @@
 ## Build
 
 1. `python3 scripts/engine-build.py --root <checkout> --release` builds the optimized extension on Depot into `target/release/libgame_engine_godot.so` (see [remote builds](remote-builds.md)). Release builds default to the live realm, `game.worldofosso.com:5000`.
-2. The host uses the checksum-verified patched Godot `4.7.2-pr123946-pr123546` editor for import. The shipped Linux runtime is a separately pinned `template_release` build with `disable_path_overrides=no`; build it with `scripts/godot/build-patched-godot.sh --template-release` if missing.
+2. The host uses the checksum-verified patched Godot `4.7.2-pr123946-pr123546-pr123391` editor for import. The shipped Linux runtime is a separately pinned `template_release` build with `disable_path_overrides=no`; build it with `scripts/godot/build-patched-godot.sh --template-release` if missing.
 3. `scripts/windows-release.py --phase build` builds the Windows extension, patched editor and release template on desktop. It exports the template, its verified SHA-512 receipt, and the native entry into `target/windows-release/artifacts/`; the editor stays on the build host.
 4. The combined player is described by the source map (`BUNDLE_DIR` selects the output prefix):
 

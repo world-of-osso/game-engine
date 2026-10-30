@@ -1,0 +1,124 @@
+--- a/modules/text_server_adv/text_server_adv.cpp
++++ b/modules/text_server_adv/text_server_adv.cpp
+@@ -3795,13 +3795,13 @@
+ 	if (fgl.texture_idx != -1) {
+ 		if (ffsd->textures[fgl.texture_idx].dirty) {
+ 			ShelfPackTexture &tex = ffsd->textures.write[fgl.texture_idx];
+-			Ref<Image> img = tex.image;
++			// Glyph writes can continue while the render thread uploads this image.
++			Ref<Image> img = tex.image->duplicate();
+ 			if (fgl.fix_edge) {
+ 				// Same as the "fix alpha border" process option when importing SVGs
+ 				img->fix_alpha_edges();
+ 			}
+ 			if (fd->mipmaps && !img->has_mipmaps()) {
+-				img = tex.image->duplicate();
+ 				img->generate_mipmaps();
+ 			}
+ 			if (tex.texture.is_null()) {
+@@ -3845,13 +3845,13 @@
+ 	if (fgl.texture_idx != -1) {
+ 		if (ffsd->textures[fgl.texture_idx].dirty) {
+ 			ShelfPackTexture &tex = ffsd->textures.write[fgl.texture_idx];
+-			Ref<Image> img = tex.image;
++			// Glyph writes can continue while the render thread uploads this image.
++			Ref<Image> img = tex.image->duplicate();
+ 			if (fgl.fix_edge) {
+ 				// Same as the "fix alpha border" process option when importing SVGs
+ 				img->fix_alpha_edges();
+ 			}
+ 			if (fd->mipmaps && !img->has_mipmaps()) {
+-				img = tex.image->duplicate();
+ 				img->generate_mipmaps();
+ 			}
+ 			if (tex.texture.is_null()) {
+@@ -4321,13 +4321,13 @@
+ #endif
+ 			if (ffsd->textures[fgl.texture_idx].dirty) {
+ 				ShelfPackTexture &tex = ffsd->textures.write[fgl.texture_idx];
+-				Ref<Image> img = tex.image;
++				// Glyph writes can continue while the render thread uploads this image.
++				Ref<Image> img = tex.image->duplicate();
+ 				if (fgl.fix_edge) {
+ 					// Same as the "fix alpha border" process option when importing SVGs
+ 					img->fix_alpha_edges();
+ 				}
+ 				if (fd->mipmaps && !img->has_mipmaps()) {
+-					img = tex.image->duplicate();
+ 					img->generate_mipmaps();
+ 				}
+ 				if (tex.texture.is_null()) {
+@@ -4464,9 +4464,9 @@
+ #endif
+ 			if (ffsd->textures[fgl.texture_idx].dirty) {
+ 				ShelfPackTexture &tex = ffsd->textures.write[fgl.texture_idx];
+-				Ref<Image> img = tex.image;
++				// Glyph writes can continue while the render thread uploads this image.
++				Ref<Image> img = tex.image->duplicate();
+ 				if (fd->mipmaps && !img->has_mipmaps()) {
+-					img = tex.image->duplicate();
+ 					img->generate_mipmaps();
+ 				}
+ 				if (tex.texture.is_null()) {
+--- a/modules/text_server_fb/text_server_fb.cpp
++++ b/modules/text_server_fb/text_server_fb.cpp
+@@ -2484,13 +2484,13 @@
+ 	if (fgl.texture_idx != -1) {
+ 		if (ffsd->textures[fgl.texture_idx].dirty) {
+ 			ShelfPackTexture &tex = ffsd->textures.write[fgl.texture_idx];
+-			Ref<Image> img = tex.image;
++			// Glyph writes can continue while the render thread uploads this image.
++			Ref<Image> img = tex.image->duplicate();
+ 			if (fgl.from_svg) {
+ 				// Same as the "fix alpha border" process option when importing SVGs
+ 				img->fix_alpha_edges();
+ 			}
+ 			if (fd->mipmaps && !img->has_mipmaps()) {
+-				img = tex.image->duplicate();
+ 				img->generate_mipmaps();
+ 			}
+ 			if (tex.texture.is_null()) {
+@@ -2534,13 +2534,13 @@
+ 	if (fgl.texture_idx != -1) {
+ 		if (ffsd->textures[fgl.texture_idx].dirty) {
+ 			ShelfPackTexture &tex = ffsd->textures.write[fgl.texture_idx];
+-			Ref<Image> img = tex.image;
++			// Glyph writes can continue while the render thread uploads this image.
++			Ref<Image> img = tex.image->duplicate();
+ 			if (fgl.from_svg) {
+ 				// Same as the "fix alpha border" process option when importing SVGs
+ 				img->fix_alpha_edges();
+ 			}
+ 			if (fd->mipmaps && !img->has_mipmaps()) {
+-				img = tex.image->duplicate();
+ 				img->generate_mipmaps();
+ 			}
+ 			if (tex.texture.is_null()) {
+@@ -2963,13 +2963,13 @@
+ #endif
+ 			if (ffsd->textures[fgl.texture_idx].dirty) {
+ 				ShelfPackTexture &tex = ffsd->textures.write[fgl.texture_idx];
+-				Ref<Image> img = tex.image;
++				// Glyph writes can continue while the render thread uploads this image.
++				Ref<Image> img = tex.image->duplicate();
+ 				if (fgl.from_svg) {
+ 					// Same as the "fix alpha border" process option when importing SVGs
+ 					img->fix_alpha_edges();
+ 				}
+ 				if (fd->mipmaps && !img->has_mipmaps()) {
+-					img = tex.image->duplicate();
+ 					img->generate_mipmaps();
+ 				}
+ 				if (tex.texture.is_null()) {
+@@ -3106,9 +3106,9 @@
+ #endif
+ 			if (ffsd->textures[fgl.texture_idx].dirty) {
+ 				ShelfPackTexture &tex = ffsd->textures.write[fgl.texture_idx];
+-				Ref<Image> img = tex.image;
++				// Glyph writes can continue while the render thread uploads this image.
++				Ref<Image> img = tex.image->duplicate();
+ 				if (fd->mipmaps && !img->has_mipmaps()) {
+-					img = tex.image->duplicate();
+ 					img->generate_mipmaps();
+ 				}
+ 				if (tex.texture.is_null()) {

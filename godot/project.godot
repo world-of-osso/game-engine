@@ -28,6 +28,7 @@ window/vsync/vsync_mode=0
 common/max_physics_steps_per_frame=100
 
 [rendering]
+driver/threads/thread_model=2
 renderer/rendering_method="forward_plus"
 ; CPU-bound draw submission: keep Off baseline from a41c02c1.
 ; Saved SSAO enables this once in GDExtension Servers init, before RenderingServer.
