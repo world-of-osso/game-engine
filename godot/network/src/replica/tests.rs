@@ -422,6 +422,58 @@ fn run_scenario(session: &mut Session, despawn_hero: bool) -> (Entity, Entity) {
 }
 
 #[test]
+fn character_visual_and_equipment_replicate_on_npc_over_udp() {
+    use shared::components::{
+        CharacterAppearance, CharacterVisual, EquipmentAppearance, EquipmentVisualSlot,
+        EquippedAppearanceEntry,
+    };
+    use shared::item_data::ItemDefinitionSource;
+
+    let mut session = Session::start(9184);
+    let visual = CharacterVisual {
+        race: 10,
+        class: 2,
+        appearance: CharacterAppearance {
+            sex: 1,
+            hair_style: 6,
+            ..Default::default()
+        },
+    };
+    let equipment = EquipmentAppearance {
+        entries: vec![EquippedAppearanceEntry {
+            slot: EquipmentVisualSlot::MainHand,
+            item_id: Some(19019),
+            definition_source: Some(ItemDefinitionSource::Retail),
+            display_info_id: None,
+            inventory_type: 13,
+            hidden: false,
+        }],
+    };
+    let follower = session.spawn((
+        Npc {
+            template_id: 123,
+            name: "Follower".into(),
+        },
+        visual.clone(),
+        equipment.clone(),
+        position(12.0),
+    ));
+    session.until("equipped follower", follower, |unit| {
+        unit.is_some_and(|unit| {
+            unit.get::<Npc>().is_some()
+                && unit.get::<CharacterVisual>() == Some(&visual)
+                && unit.get::<EquipmentAppearance>() == Some(&equipment)
+        })
+    });
+    session.edit(follower, |entity| {
+        entity.remove::<CharacterVisual>();
+    });
+    session.until("visual removal", follower, |unit| {
+        unit.is_some() && !has::<CharacterVisual>(unit)
+    });
+}
+
+#[test]
 fn rainfire_dynamic_object_geometry_and_removal_replicate_over_udp() {
     use shared::components::{DynamicObjectInfo, RAIN_OF_FIRE_SPELL_ID};
     let mut session = Session::start(9183);
