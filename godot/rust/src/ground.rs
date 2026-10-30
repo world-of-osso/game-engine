@@ -330,10 +330,46 @@ impl TerrainGround<'_> {
             let point = current + direction * distance;
             let floor = self.static_ground(point, true);
             let solid = self.sample(point);
-            serde_json::json!({"distance": distance, "point": point.to_array(), "walkable": format!("{floor:?}"), "solid": format!("{solid:?}"), "wmo_step_clear": target.is_some_and(|target| self.wmo_step_is_clear(current, point, target.height))})
+            let top = self.wmo_obstacle_top(current, point);
+            let clearance = top.zip(floor).map(|(top, floor)| {
+                let raised = current.with_y(top.max(floor.height));
+                let destination = point.with_y(raised.y);
+                let landing = point.with_y(floor.height);
+                serde_json::json!({"raised_y": raised.y, "wall_reaches": clamp_movement_to_walls(raised, destination, self.walls) == destination, "sweep_blocked": (self.step_wall_blocked)(raised, destination, current.y + STEP_UP_HEIGHT), "headroom_blocked": (self.step_wall_blocked)(landing, landing, floor.height)})
+            });
+            serde_json::json!({"distance": distance, "point": point.to_array(), "walkable": format!("{floor:?}"), "solid": format!("{solid:?}"), "top": top, "clearance": clearance})
         }).collect();
         let (allowed, reason) = self.validate_move_with_reason(current, proposed, true);
         serde_json::json!({"feet":current.to_array(), "direction":direction.to_array(), "proposed":proposed.to_array(), "support":format!("{:?}", self.sample(current)), "target":format!("{target:?}"), "probes":probes, "allowed":allowed.to_array(), "rejection":reason})
+    }
+
+    fn wmo_obstacle_top(&self, current: Vec3, probe: Vec3) -> Option<f32> {
+        let wmos = self
+            .terrain
+            .map_wdt
+            .as_ref()
+            .and_then(|map| map.global_wmo.as_ref())
+            .map(|wmo| &wmo.collision)
+            .into_iter()
+            .chain(
+                self.terrain
+                    .parsed_tiles
+                    .values()
+                    .flat_map(|tile| tile.wmo_floors.iter().map(|(_, wmo)| wmo)),
+            );
+        let faces = wmos.flat_map(|wmo| {
+            wmo.groups().iter().flat_map(move |group| {
+                group.collidable_triangles().map(move |face| {
+                    face.map(|point| wmo.world_from_local().transform_point3(point))
+                })
+            })
+        });
+        game_engine_core::step_clearance::step_obstacle_top(
+            faces,
+            current,
+            probe,
+            current.y + STEP_UP_HEIGHT,
+        )
     }
 
     fn wmo_step_is_clear(&self, current: Vec3, target: Vec3, obstacle_height: f32) -> bool {
@@ -351,32 +387,7 @@ impl TerrainGround<'_> {
             if landing.surface != Surface::Wmo || landing.height > current.y + STEP_UP_HEIGHT {
                 return false;
             }
-            let wmos = self
-                .terrain
-                .map_wdt
-                .as_ref()
-                .and_then(|map| map.global_wmo.as_ref())
-                .map(|wmo| &wmo.collision)
-                .into_iter()
-                .chain(
-                    self.terrain
-                        .parsed_tiles
-                        .values()
-                        .flat_map(|tile| tile.wmo_floors.iter().map(|(_, wmo)| wmo)),
-                );
-            let faces = wmos.flat_map(|wmo| {
-                wmo.groups().iter().flat_map(move |group| {
-                    group.collidable_triangles().map(move |face| {
-                        face.map(|point| wmo.world_from_local().transform_point3(point))
-                    })
-                })
-            });
-            let Some(top) = game_engine_core::step_clearance::step_obstacle_top(
-                faces,
-                current,
-                probe,
-                current.y + STEP_UP_HEIGHT,
-            ) else {
+            let Some(top) = self.wmo_obstacle_top(current, probe) else {
                 return false;
             };
             if top < obstacle_height {
