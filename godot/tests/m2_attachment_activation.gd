@@ -98,7 +98,30 @@ func run_fixture() -> void:
 	if point.get_meta("m2_attachment_active", true):
 		stop_failure("sequence-switch precondition did not reach inactive100ms")
 		return
+	# A newly attached descendant must inherit the inactive gate even when its
+	# direct parent's child count is unchanged between animation samples.
+	var first := MeshInstance3D.new()
+	first.mesh = BoxMesh.new()
+	first.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_DOUBLE_SIDED
+	item.add_child(first)
+	parent_player.advance_time_ms(0.0)
+	if first.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_OFF:
+		stop_failure("new descendant under inactive attachment still casts shadows")
+		return
+	item.remove_child(first)
+	first.free()
+	var replacement := MeshInstance3D.new()
+	replacement.mesh = BoxMesh.new()
+	replacement.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_DOUBLE_SIDED
+	item.add_child(replacement)
+	parent_player.advance_time_ms(0.0)
+	if replacement.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_OFF:
+		stop_failure("same-count descendant replacement still casts shadows")
+		return
 	parent_player.play_sequence(1, true)
+	if replacement.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_DOUBLE_SIDED:
+		stop_failure("reactivation did not restore replacement shadow mode")
+		return
 	if not point.get_meta("m2_attachment_active", true):
 		stop_failure("sequence switch retained inactive state")
 		return

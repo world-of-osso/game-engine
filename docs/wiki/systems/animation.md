@@ -182,6 +182,8 @@ A6 proof at19d9850e8: CPU3 RED→GREEN, native root/ordinary-descendant1 GREEN. 
 
 ## Authored attachment participation (A7) — 2026-10-15
 
+Attachment gates refresh shadow descendants when activation or the scene-tree generation changes. A single tree-change signal catches descendant additions, removals and same-count replacements; detached points still refresh on each sample.
+
 MD20 and SKA1 records retain their trailing byte tracks. Samples use the owning model's current local sequence/time or its global timeline; absent samples start active1. Authentic solar spell1081566 and soul aegis971117 contain authored zero keys, independently observed in local bytes. No color-hiding conclusion follows from those keys.
 
 Native animation players bind persistent authored points (including lookup aliases), publish activation on the point, and evaluate effective eligibility through every attachment ancestor. Ineligible children keep their existing continuous clocks but skip bone-pose writes and consume callbacks without dispatch/replay. Parent players tick before deeper children. Shadow recursion stores each geometry's original casting mode on first exclusion and restores exactly that mode on reactivation; equipment placement refreshes this state after relocation. Nodes are never removed, detached or hidden by activation.
