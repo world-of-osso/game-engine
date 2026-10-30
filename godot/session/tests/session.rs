@@ -422,10 +422,17 @@ fn entry_reply_records_selected_roster_identity_and_respects_failure() {
     });
     assert_eq!(session.screen, SessionScreen::CharacterSelect);
     assert_eq!(session.selected_character_id, Some(7));
+    assert_eq!(session.feedback.as_deref(), Some("denied"));
     assert!(effects.iter().any(|effect| matches!(
         effect,
         SessionEffect::Transition(SessionScreen::CharacterSelect)
     )));
+    session.receive_enter_world(EnterWorldResponse {
+        success: true,
+        player_entity: Some(3),
+        error: None,
+    });
+    assert_eq!(session.feedback, None);
 }
 
 #[test]

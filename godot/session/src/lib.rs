@@ -347,10 +347,18 @@ impl Session {
 
     pub fn receive_enter_world(&mut self, response: EnterWorldResponse) -> Vec<SessionEffect> {
         if !response.success {
+            if let Some(error) = &response.error {
+                eprintln!("World entry failed: {error}");
+            } else {
+                eprintln!("World entry failed without a server error");
+            }
+            self.feedback = response.error;
+            self.feedback_is_informational = false;
             self.clear_reconnect();
             self.screen = SessionScreen::CharacterSelect;
             return vec![SessionEffect::Transition(self.screen)];
         }
+        self.feedback = None;
         if let Some(entry) = self
             .selected_index
             .and_then(|index| self.characters.get(index))
