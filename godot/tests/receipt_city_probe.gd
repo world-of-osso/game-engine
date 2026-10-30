@@ -55,7 +55,11 @@ func run_test() -> void:
 		"objects": client.account_state().world_objects}))
 	await RenderingServer.frame_post_draw
 	root.get_texture().get_image().save_png(OS.get_environment("BENCH_SCREENSHOT") + ".png")
-	print("ZONE_REPORT ", JSON.stringify(client.account_state().world_objects))
+	var objects: Dictionary = client.account_state().world_objects
+	print("ZONE_REPORT ", JSON.stringify(objects))
+	if objects.failures != 0:
+		fail("World object placement failures: " + str(objects.failures))
+		return
 	print("FIXTURE FRAME_BENCHMARK_DONE")
 	client.free()
 	quit(0)
