@@ -191,8 +191,9 @@ fn format_game_object_label(
     layer: Option<u32>,
     animation: Option<i64>,
 ) -> String {
+    let enabled = layer.map(|layer| layer & crate::game_objects::GAME_OBJECT_LAYER != 0);
     format!(
-        "GameObject \"{name}\" id={id} entry={entry}{position} replicated_collision={collision:?} collision_layer={layer:?} animation={animation:?}"
+        "GameObject \"{name}\" id={id} entry={entry}{position} replicated_collision={collision:?} collision_enabled={enabled:?} collision_layer={layer:?} animation={animation:?}"
     )
 }
 
@@ -240,7 +241,7 @@ mod tests {
         );
         assert_eq!(
             line,
-            "GameObject \"Door\" id=42 entry=377366 @ (59.4, 217.8, 690.9) replicated_collision=Some(false) collision_layer=Some(32) animation=Some(148)"
+            "GameObject \"Door\" id=42 entry=377366 @ (59.4, 217.8, 690.9) replicated_collision=Some(false) collision_enabled=Some(true) collision_layer=Some(32) animation=Some(148)"
         );
     }
 }
