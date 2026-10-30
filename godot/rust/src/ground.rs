@@ -227,8 +227,8 @@ impl TerrainGround<'_> {
         let target_feet = proposed.with_y(current.y);
         let target = self.sample(target_feet);
         if snap && self.steep_solid_blocks_ascent(current, target_feet, target) {
-            if target.is_some_and(|solid| solid.surface == Surface::Wmo)
-                && self.wmo_step_is_clear(current, target_feet, target.unwrap().height)
+            if let Some(solid) = target.filter(|solid| solid.surface == Surface::Wmo)
+                && self.wmo_step_is_clear(current, target_feet, solid.height)
             {
                 return (
                     self.apply_floor_rules(current, proposed, target, snap),
