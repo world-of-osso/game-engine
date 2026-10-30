@@ -2321,6 +2321,30 @@ db2/active/GroundEffectDoodad.csv
 db2/active/LightSkybox.csv
 # horizon: Azeroth WDL.
 terrain/775970.wdl
+# WMO portal split-group visibility: Neltharus central chamber and its parent.
+terrain/4334889.adt
+models/4329056.wmo
+models/4331781.wmo
+models/4331785.wmo
+models/4331789.wmo
+models/4331793.wmo
+models/4331797.wmo
+models/4334591.wmo
+models/4334595.wmo
+models/4334599.wmo
+models/4334603.wmo
+models/4334607.wmo
+models/4334611.wmo
+models/4362929.wmo
+models/4383364.wmo
+models/4390261.wmo
+models/4392849.wmo
+models/4392853.wmo
+models/4392857.wmo
+models/4392861.wmo
+models/4613354.wmo
+models/4613355.wmo
+models/4621843.wmo
 
 # Player swatch/eyesight tests: Eyesight textures and the tattoo the seeded Night Elf draws.
 textures/5326923.blp
