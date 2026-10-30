@@ -333,10 +333,7 @@ impl TerrainGround<'_> {
             let Some(landing) = self.static_ground(probe, true) else {
                 return false;
             };
-            if landing.surface != Surface::Wmo
-                || landing.height < current.y - shared::movement::GROUND_SNAP_THRESHOLD
-                || landing.height > current.y + STEP_UP_HEIGHT
-            {
+            if landing.surface != Surface::Wmo || landing.height > current.y + STEP_UP_HEIGHT {
                 return false;
             }
             let wmos = self
@@ -367,9 +364,7 @@ impl TerrainGround<'_> {
             ) else {
                 return false;
             };
-            if top - landing.height > shared::movement::GROUND_SNAP_THRESHOLD
-                || top < obstacle_height
-            {
+            if top < obstacle_height {
                 return false;
             }
             let raised = current.with_y(top.max(landing.height));
@@ -518,6 +513,29 @@ mod tests {
         assert!(blocked.is_empty(), "captured steps blocked: {blocked:?}");
     }
 
+    fn wmo_faces(terrain: &StreamedTerrain) -> Vec<[Vec3; 3]> {
+        terrain
+            .map_wdt
+            .as_ref()
+            .and_then(|map| map.global_wmo.as_ref())
+            .map(|wmo| &wmo.collision)
+            .into_iter()
+            .chain(
+                terrain
+                    .parsed_tiles
+                    .values()
+                    .flat_map(|tile| tile.wmo_floors.iter().map(|(_, wmo)| wmo)),
+            )
+            .flat_map(|wmo| {
+                wmo.groups().iter().flat_map(move |group| {
+                    group.collidable_triangles().map(move |face| {
+                        face.map(|point| wmo.world_from_local().transform_point3(point))
+                    })
+                })
+            })
+            .collect()
+    }
+
     #[test]
     fn uldaman_recorded_steps_cross_real_wmo() {
         let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
@@ -529,27 +547,7 @@ mod tests {
                 .parsed_tiles
                 .insert((33, 31), assets.read_tile("2451", 33, 31).unwrap());
         }
-        let wmos = terrain
-            .map_wdt
-            .as_ref()
-            .and_then(|map| map.global_wmo.as_ref())
-            .map(|wmo| &wmo.collision)
-            .into_iter()
-            .chain(
-                terrain
-                    .parsed_tiles
-                    .values()
-                    .flat_map(|tile| tile.wmo_floors.iter().map(|(_, wmo)| wmo)),
-            );
-        let faces: Vec<[Vec3; 3]> = wmos
-            .flat_map(|wmo| {
-                wmo.groups().iter().flat_map(move |group| {
-                    group.collidable_triangles().map(move |face| {
-                        face.map(|point| wmo.world_from_local().transform_point3(point))
-                    })
-                })
-            })
-            .collect();
+        let faces = wmo_faces(&terrain);
         let vertices: Vec<Vec3> = faces.iter().flatten().copied().collect();
         let indices = (0..faces.len() as u32)
             .map(|i| [3 * i, 3 * i + 1, 3 * i + 2])
@@ -612,6 +610,102 @@ mod tests {
             }
         }
         assert!(blocked.is_empty(), "Uldaman movement blocked: {blocked:?}");
+    }
+
+    #[test]
+    fn halls_of_infusion_recorded_step_crosses_real_wmo() {
+        let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
+        let assets = crate::terrain::NativeTerrainAssets::new(root.clone());
+        let mut terrain = StreamedTerrain::new(root);
+        terrain.map_wdt = Some(assets.read_map_wdt("2527").unwrap());
+        if terrain.map_wdt.as_ref().unwrap().global_wmo.is_none() {
+            terrain
+                .parsed_tiles
+                .insert((32, 31), assets.read_tile("2527", 32, 31).unwrap());
+        }
+        let faces = wmo_faces(&terrain);
+        let vertices: Vec<Vec3> = faces.iter().flatten().copied().collect();
+        let indices = (0..faces.len() as u32)
+            .map(|i| [3 * i, 3 * i + 1, 3 * i + 2])
+            .collect();
+        let walls = shared::los::LosTile::build(32, 32, vertices, indices);
+        let ground = TerrainGround {
+            terrain: &terrain,
+            walls: &|origin, direction, length| {
+                walls
+                    .first_hit(origin, origin + direction * length)
+                    .map(|fraction| fraction * length)
+            },
+            step_wall_blocked: &|from, to, top| {
+                game_engine_core::step_clearance::step_wall_blocked(
+                    &faces,
+                    from,
+                    to,
+                    top,
+                    shared::ground::min_walkable_normal_y(),
+                )
+            },
+            game_object_floor: &|_| None,
+        };
+        let start = Vec3::new(27.40882, -34.000023, 154.36302);
+        let direction = Vec3::new(-0.81188613, 0.0, 0.5838158);
+        let mut feet = start;
+        for frame in 0..8 {
+            let proposed = feet + direction * 0.116667;
+            let (moved, reason) = ground.validate_move_with_reason(feet, proposed, true);
+            assert!(
+                (moved - feet).with_y(0.0).length() > 0.01,
+                "Halls frame {frame} blocked at {feet:?}: {reason:?}"
+            );
+            feet = moved;
+        }
+    }
+
+    #[test]
+    fn windrunner_recorded_step_crosses_real_wmo() {
+        let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
+        let assets = crate::terrain::NativeTerrainAssets::new(root.clone());
+        let mut terrain = StreamedTerrain::new(root);
+        terrain.map_wdt = Some(assets.read_map_wdt("2805").unwrap());
+        if terrain.map_wdt.as_ref().unwrap().global_wmo.is_none() {
+            terrain
+                .parsed_tiles
+                .insert((37, 22), assets.read_tile("2805", 37, 22).unwrap());
+        }
+        let faces = wmo_faces(&terrain);
+        let vertices: Vec<Vec3> = faces.iter().flatten().copied().collect();
+        let indices = (0..faces.len() as u32)
+            .map(|i| [3 * i, 3 * i + 1, 3 * i + 2])
+            .collect();
+        let walls = shared::los::LosTile::build(32, 32, vertices, indices);
+        let ground = TerrainGround {
+            terrain: &terrain,
+            walls: &|origin, direction, length| {
+                walls
+                    .first_hit(origin, origin + direction * length)
+                    .map(|fraction| fraction * length)
+            },
+            step_wall_blocked: &|from, to, top| {
+                game_engine_core::step_clearance::step_wall_blocked(
+                    &faces,
+                    from,
+                    to,
+                    top,
+                    shared::ground::min_walkable_normal_y(),
+                )
+            },
+            game_object_floor: &|_| None,
+        };
+        let start = Vec3::new(5294.949, 126.46627, 3157.4668);
+        let direction = Vec3::new(-0.98049283, 0.0, 0.19655496);
+        for distance in [0.1, 0.116667] {
+            let proposed = start + direction * distance;
+            let (moved, reason) = ground.validate_move_with_reason(start, proposed, true);
+            assert!(
+                (moved - start).with_y(0.0).length() > 0.01,
+                "Windrunner blocked at {distance}: {reason:?}"
+            );
+        }
     }
 
     #[test]
