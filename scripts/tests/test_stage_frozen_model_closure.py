@@ -1,5 +1,6 @@
 """Frozen model closures must retain authenticated source and path ownership."""
 
+from contextlib import closing
 import hashlib
 import json
 from pathlib import Path
@@ -68,12 +69,13 @@ class FrozenModelClosureTests(unittest.TestCase):
         }
         (self.data / "cache/model-asset-index-fixture.json").write_text(json.dumps(index))
         local = self.data / "local-listfile-cache.sqlite"
-        with sqlite3.connect(local) as db:
+        with closing(sqlite3.connect(local)) as db:
             db.execute(
                 "CREATE TABLE local_listfile_entries (fdid INTEGER, path TEXT, lower_path TEXT)"
             )
+            db.commit()
         self.resolution = self.root / "resolution.sqlite"
-        with sqlite3.connect(self.resolution) as db:
+        with closing(sqlite3.connect(self.resolution)) as db:
             db.execute("CREATE TABLE resolution (fdid INTEGER PRIMARY KEY, content_key BLOB)")
             db.executemany(
                 "INSERT INTO resolution VALUES (?, ?)",
@@ -83,6 +85,7 @@ class FrozenModelClosureTests(unittest.TestCase):
                     (303, hashlib.md5(self.texture).digest()),
                 ],
             )
+            db.commit()
         self.source_root = self.root / "root.bin"
         self.source_root.write_bytes(b"frozen authenticated root")
         identity = {
@@ -131,9 +134,25 @@ class FrozenModelClosureTests(unittest.TestCase):
             self.stage()
         self.assertFalse(self.output.exists())
 
-    def test_rejects_snapshot_or_owned_parent_mismatch(self):
+    def test_rejects_snapshot_mismatch(self):
         self.source_root.write_bytes(b"different root")
         with self.assertRaisesRegex(ValueError, "snapshot hash mismatch"):
+            self.stage()
+        self.assertFalse(self.output.exists())
+
+    def test_rejects_owned_parent_bytes_that_do_not_match_receipt(self):
+        parent = self.data / f"products/wow/{self.old}/models/100.m2"
+        parent.write_bytes(b"different model")
+        with self.assertRaisesRegex(ValueError, "M2 100 does not match"):
+            self.stage()
+        self.assertFalse(self.output.exists())
+
+    def test_rejects_missing_payload_for_existing_receipt(self):
+        index = self.data / "cache/model-asset-index-fixture.json"
+        document = json.loads(index.read_text())
+        document["assets"].append(receipt(202, "skin", self.old, self.skin))
+        index.write_text(json.dumps(document))
+        with self.assertRaisesRegex(ValueError, "Existing owner payload missing"):
             self.stage()
         self.assertFalse(self.output.exists())
 
