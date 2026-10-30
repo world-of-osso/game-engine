@@ -150,6 +150,7 @@ struct BuiltDoodad {
     node: Gd<Node3D>,
     texture_dir: PathBuf,
     render_box: (Vec3, Vec3),
+    rigid_without_attachments: bool,
     particles: Option<std::rc::Rc<ModelParticles>>,
 }
 
@@ -191,8 +192,9 @@ struct CulledDoodad {
     driven: bool,
     /// A WMO doodad's portal-culled WMO and the groups whose MODR references it.
     wmo_groups: Option<(usize, Vec<u16>)>,
-    /// Whether the camera can see this placement through an outdoor portal.
-    camera_admitted: bool,
+    /// Only rigid models without attachments, animation or particles have bounds
+    /// sufficient to reject all of their visible geometry.
+    portal_cull_safe: bool,
     /// Particle emitters, when the model has any and particle effects are on.
     particles: Option<PlacedParticles>,
 }
@@ -204,6 +206,7 @@ impl CulledDoodad {
         unique_id: u32,
         wmo_groups: Option<(usize, Vec<u16>)>,
         light_bound: bool,
+        portal_cull_safe: bool,
     ) -> Self {
         Self {
             // A model whose tracks are all constant keeps its first sample and is never
@@ -222,7 +225,7 @@ impl CulledDoodad {
             clock: DeferredClock::default(),
             driven: false,
             wmo_groups,
-            camera_admitted: true,
+            portal_cull_safe,
             particles: None,
         }
     }
@@ -968,6 +971,7 @@ impl TerrainObjects {
             unique_id,
             wmo_groups,
             self.light.is_some(),
+            built.rigid_without_attachments && built.particles.is_none(),
         );
         if let (Some(pools), Some(particles)) = (&mut self.particles, &built.particles) {
             let (placed, errors) =
@@ -1019,7 +1023,8 @@ impl TerrainObjects {
             model.free();
             return Err(format!("model {fdid} missing textures {missing:?}"));
         }
-        if game_engine_core::m2::has_single_bind_pose(&parsed.model.model) {
+        let rigid = game_engine_core::m2::has_single_bind_pose(&parsed.model.model);
+        if rigid {
             for child in model.get_children().iter_shared() {
                 if let Ok(mut mesh) = child.try_cast::<MeshInstance3D>() {
                     mesh.set_skeleton_path(&NodePath::from(""));
@@ -1037,10 +1042,12 @@ impl TerrainObjects {
             engine_axes(parsed.model.model.bounding_box_min),
             engine_axes(parsed.model.model.bounding_box_max),
         );
+        let rigid_without_attachments = rigid && !model.has_node("ElasticTree");
         Ok(BuiltDoodad {
             texture_dir: model_asset_root(&parsed.model)?.join("textures"),
             node: model,
             render_box,
+            rigid_without_attachments,
             particles: parsed.particles.clone(),
         })
     }
@@ -1202,6 +1209,9 @@ impl TerrainObjects {
         for doodad in &mut self.doodads {
             let group_drawn = doodad.group_drawn(&self.wmos);
             let camera_admitted = doodad.wmo_groups.is_some()
+                || !doodad.portal_cull_safe
+                || doodad.bones.is_some()
+                || doodad.materials.is_some()
                 || self.outdoor_windows.as_ref().is_none_or(|windows| {
                     self.interior_bounds
                         .iter()
@@ -1212,7 +1222,6 @@ impl TerrainObjects {
                 });
             doodad.fade(camera, group_drawn);
             doodad.fade.set_camera_admitted(camera_admitted);
-            doodad.camera_admitted = camera_admitted;
             doodad.animate(camera, frustum, delta_ms, frame, group_drawn);
         }
     }
@@ -1232,10 +1241,7 @@ impl TerrainObjects {
             let Some(placed) = &mut doodad.particles else {
                 continue;
             };
-            if doodad.opacity > 0.0
-                && doodad.camera_admitted
-                && doodad.scenery.box_in_frustum(frustum)
-            {
+            if doodad.opacity > 0.0 && doodad.scenery.box_in_frustum(frustum) {
                 placed.update_and_draw(&doodad.node, delta, doodad.opacity, &view, pools);
                 updated += placed.emitter_count();
             } else {
