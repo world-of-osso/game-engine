@@ -41,6 +41,17 @@ fn warrior(main_hand_subclass: Option<u8>) -> CasterContext {
 }
 
 #[test]
+fn champions_spear_cast_model_uses_positioner_right_hand() {
+    let kit = catalog().diagnostic_kit(190791, 279337).unwrap();
+    let model = kit
+        .models
+        .iter()
+        .find(|model| model.model_fdid == 3174182)
+        .unwrap();
+    assert_eq!(model.attachment, Some(22));
+}
+
+#[test]
 fn invisibility_aura_resolves_authored_half_alpha() {
     let caster = CasterContext {
         race: 1,

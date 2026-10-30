@@ -30,10 +30,13 @@ impl SpellVisualCatalog {
         let attaches = Table::read(dir, "SpellVisualKitModelAttach")?;
         let attach_ints = read_attach_ints(&attaches)?;
         let attach_floats = read_attach_floats(&attaches)?;
+        let positioners = read_attachment_positioners(dir)?;
         Ok(attach_ints
             .into_iter()
             .zip(attach_floats)
-            .filter_map(|(ints, floats)| parse_kit_model(ints, floats, &self.effect_names))
+            .filter_map(|(ints, floats)| {
+                parse_kit_model(ints, floats, &self.effect_names, &positioners)
+            })
             .collect())
     }
 
@@ -122,9 +125,10 @@ impl SpellVisualCatalog {
 }
 
 fn parse_kit_model(
-    [id, name, attach, start, anim, end]: [i64; 6],
+    [id, name, attach, positioner, start, anim, end]: [i64; 7],
     [x, y, z, yaw, pitch, roll, scale, delay]: [f32; 8],
     names: &HashMap<u32, EffectName>,
+    positioners: &HashMap<i64, Option<u8>>,
 ) -> Option<(u32, KitModel)> {
     let effect = names.get(&(name as u32))?;
     if effect.model_fdid == 0 {
@@ -132,7 +136,10 @@ fn parse_kit_model(
     }
     let model = KitModel {
         model_fdid: effect.model_fdid,
-        attachment: attachment(attach),
+        attachment: positioners
+            .get(&positioner)
+            .copied()
+            .unwrap_or_else(|| attachment(attach)),
         offset: [x, y, z],
         yaw,
         pitch,
@@ -147,15 +154,48 @@ fn parse_kit_model(
     Some((id as u32, model))
 }
 
-fn read_attach_ints(attaches: &Table) -> Result<Vec<[i64; 6]>, String> {
+fn read_attach_ints(attaches: &Table) -> Result<Vec<[i64; 7]>, String> {
     attaches.ints([
         "ID",
         "SpellVisualEffectNameID",
         "AttachmentID",
+        "PositionerID",
         "StartAnimID",
         "AnimID",
         "EndAnimID",
     ])
+}
+
+/// Wowhead's viewer treats its pre-resolved Positioner as an attachment override.
+/// Type 1 is inferred from that output and authored hand effects such as 638657.
+fn read_attachment_positioners(dir: &Path) -> Result<HashMap<i64, Option<u8>>, String> {
+    let entries: HashMap<_, _> = Table::read(dir, "PositionerStateEntry")?
+        .ints(["ID", "SrcValType", "SrcVal"])?
+        .into_iter()
+        .map(|[id, kind, value]| (id, (kind, value)))
+        .collect();
+    let states: HashMap<_, _> = Table::read(dir, "PositionerState")?
+        .ints(["ID", "PosEntryID"])?
+        .into_iter()
+        .map(|[id, entry]| (id, entry))
+        .collect();
+    let mut resolved = HashMap::new();
+    let mut unsupported = 0;
+    for [id, state] in Table::read(dir, "Positioner")?.ints(["ID", "FirstStateID"])? {
+        let entry = states.get(&state).and_then(|entry| entries.get(entry));
+        match entry {
+            Some(&(1, value)) if (-1..=255).contains(&value) => {
+                resolved.insert(id, attachment(value));
+            }
+            _ => unsupported += 1,
+        }
+    }
+    if unsupported > 0 {
+        log::warn!(
+            "{unsupported} positioners have unsupported or missing position entries; using their model attachment"
+        );
+    }
+    Ok(resolved)
 }
 
 fn read_attach_floats(attaches: &Table) -> Result<Vec<[f32; 8]>, String> {
