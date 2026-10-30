@@ -886,10 +886,13 @@ mod tests {
         let start = Vec3::new(-69.85042, -39.76599, 148.5022);
         let mut feet = start;
         let mut climbed = false;
+        let mut left_water = false;
         for _ in 0..12 {
             feet = ground.validate_swim_move(feet, feet + Vec3::NEG_X * 0.116667);
             climbed |= feet.y > start.y + 0.5;
+            left_water |= !ground.swimming(feet);
         }
+        assert!(left_water, "swimmer never left the water: {feet:?}");
         assert!(
             climbed && feet.x < -70.2,
             "swimmer did not step onto lip: {feet:?}"
