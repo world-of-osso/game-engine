@@ -29,8 +29,7 @@ func run_test() -> void:
 			if total <= 0.0 or total > stats.client_process_ms + 0.01 or stats.attachment_gates_ms < 0.0:
 				fail("Incoherent frame durations: " + str(stats))
 				return
-			for clock in clocks:
-				clock.set_process(false)
+			stop_material_clocks(root)
 			for index in range(3):
 				await process_frame
 			if client.frame_stats().nodes_ms.has("WowMaterialClock.process"):
@@ -41,6 +40,12 @@ func run_test() -> void:
 			quit(0)
 			return
 	fail("Frame steps did not start before the deadline")
+
+func stop_material_clocks(node: Node) -> void:
+	if node.get_class() == "WowMaterialClock":
+		node.set_process(false)
+	for child in node.get_children():
+		stop_material_clocks(child)
 
 func fail(message: String) -> void:
 	push_error(message)
