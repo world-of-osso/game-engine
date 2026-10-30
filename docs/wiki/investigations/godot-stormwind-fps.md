@@ -105,6 +105,12 @@ WMO doodads (merged `17e44dfa`, `7e839a73`) add 8,694 `WmoDoodad` nodes at the i
 - **Screenshots.** Same spot, `eac376b6` vs `6cb884ec`: 565 of 921,600 pixels differ, all around the animated props next to the player and the FPS counter.
 - **Remaining.** About 5 ms of `cull_doodads` (all doodads, fade and animation LOD per doodad each frame) and 2-3 ms of `cull_wmos` (the camera-interior test over each WMO's interior floor triangles) in debug builds. The node count itself costs nothing per frame that the samples show.
 
+## Windows fat-LTO trial (2026-10-30)
+
+A Windows release build with `lto = "fat"` and `codegen-units = 1` was compared at 1080p with the default release profile, both including the UI-errors sync change. Three 300-frame samples were 121.17/121.18/120.34 FPS indoors and 168.29/165.58/179.00 at the exit with the default profile; fat LTO produced 122.06/123.17/120.09 and 174.09/170.31/167.51. Median gains were 0.89 and 2.02 FPS, within run-to-run spread. Placements had matching paths and sources but differed in height, and draw counts differed, so the comparison does not isolate LTO. The profile change forced dependency rebuilds and took 1,110.65 seconds; the 137-second default-profile UI build was incremental and is not a cold-build comparison.
+
+**Decision:** Do not adopt fat LTO now. Retry only after structural rendering fixes if frame-time margins remain thin. Evidence: `data/diagnostics/fps-120-2026-10-30/windows-qualification-ui/`, `windows-qualification-lto/`, and `landing/windows-lto/`.
+
 ## Sources
 
 - `src/rendering/camera/culling.rs`: the original doodad, WMO and portal culling. Its 200/2,000/400 yd distances cite no source (commit `f475000f`), so they were not used.
