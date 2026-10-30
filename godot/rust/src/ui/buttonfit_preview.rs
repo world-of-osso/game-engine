@@ -180,6 +180,17 @@ fn guild_bank_fixture() -> game_engine_ui_model::guild_bank::NativeGuildBankView
         frame: game_engine_ui_model::guild_bank_frame_component::GuildBankFrameState {
             visible: true,
             title: "Guild Vault".into(),
+            tabs: vec![
+                game_engine_ui_model::guild_bank_frame_component::GuildSideTab {
+                    icon_fdid: 134_400,
+                    selected: true,
+                },
+                game_engine_ui_model::guild_bank_frame_component::GuildSideTab {
+                    icon_fdid: 134_400,
+                    selected: false,
+                },
+            ],
+            buy_tab: Some(false),
             ..Default::default()
         },
         bags: Default::default(),
