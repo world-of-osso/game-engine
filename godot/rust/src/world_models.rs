@@ -69,7 +69,7 @@ pub(crate) fn mesh_bounds(model: &Gd<Node3D>) -> Aabb {
         .unwrap_or_default()
 }
 
-#[derive(PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone)]
 pub(crate) enum UnitAppearance {
     /// A creature display and its virtual items (`creature_equip_template`).
     Creature {
