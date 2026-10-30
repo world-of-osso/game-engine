@@ -4,7 +4,7 @@ func _initialize() -> void:
 	call_deferred("run_test")
 
 func run_test() -> void:
-	var client := load("res://scenes/client.tscn").instantiate()
+	var client: Node = load("res://scenes/client.tscn").instantiate()
 	root.add_child(client)
 	var deadline := Time.get_ticks_msec() + 60000
 	while Time.get_ticks_msec() < deadline:
