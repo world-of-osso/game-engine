@@ -21,10 +21,12 @@ func run() -> void:
 	var on := make_batch(GeometryInstance3D.SHADOW_CASTING_SETTING_ON)
 	var off := make_batch(GeometryInstance3D.SHADOW_CASTING_SETTING_OFF)
 	var double := make_batch(GeometryInstance3D.SHADOW_CASTING_SETTING_DOUBLE_SIDED)
+	var initially_hidden := make_batch(GeometryInstance3D.SHADOW_CASTING_SETTING_ON)
+	initially_hidden.visible = false
 	await process_frame
 	await RenderingServer.frame_post_draw
 	var probes := []
-	for batch in [on, off, double]:
+	for batch in [on, off, double, initially_hidden]:
 		var probe = ClassDB.instantiate("WowSceneryFadeProbe")
 		probe.track(batch.get_parent())
 		probes.append(probe)
@@ -63,6 +65,10 @@ func run() -> void:
 		return
 	if not (double.visible and double.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_DOUBLE_SIDED):
 		push_error("Unexpected scenery camera/shadow state")
+		quit(1)
+		return
+	if initially_hidden.visible:
+		push_error("Camera readmission revealed an initially hidden batch")
 		quit(1)
 		return
 	print("PASS outdoor scenery camera and shadow admission")
