@@ -194,6 +194,41 @@ impl WmoPortals {
         Some(windows)
     }
 
+    /// Conservative world bounds of the interior groups of this WMO.
+    pub(crate) fn interior_bounds(&self, world_from_local: Affine3A) -> Vec<(Vec3, Vec3)> {
+        self.groups
+            .iter()
+            .filter(|group| !group.exterior)
+            .map(|group| {
+                let mut min = Vec3::splat(f32::INFINITY);
+                let mut max = Vec3::splat(f32::NEG_INFINITY);
+                for bits in 0..8 {
+                    let corner = Vec3::new(
+                        if bits & 1 == 0 {
+                            group.bbox_min.x
+                        } else {
+                            group.bbox_max.x
+                        },
+                        if bits & 2 == 0 {
+                            group.bbox_min.y
+                        } else {
+                            group.bbox_max.y
+                        },
+                        if bits & 4 == 0 {
+                            group.bbox_min.z
+                        } else {
+                            group.bbox_max.z
+                        },
+                    );
+                    let point = world_from_local.transform_point3(corner);
+                    min = min.min(point);
+                    max = max.max(point);
+                }
+                (min, max)
+            })
+            .collect()
+    }
+
     /// The MFOG fog at world `camera`: WebWowViewerCpp picks the group the camera stands
     /// in (`map.cpp:487-512`) and asks it for `checkFog` (`DayNightLightHolder.cpp:390-396`).
     /// The group comes from `camera_interior_group`, not the reference's BSP query.

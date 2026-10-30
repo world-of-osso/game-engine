@@ -96,6 +96,11 @@ impl SceneryDistance {
         AnimationLod::new(self.center.distance(camera), self.box_in_frustum(frustum))
     }
 
+    /// Whether this placement's world bounds overlap another world-space box.
+    pub fn overlaps_box(&self, min: Vec3, max: Vec3) -> bool {
+        self.world_max.cmpge(min).all() && self.world_min.cmple(max).all()
+    }
+
     /// Whether any part of the world box can be inside every half space: the corner
     /// farthest along each plane normal must not be behind it.
     pub fn box_in_frustum(&self, frustum: &[HalfSpace]) -> bool {
@@ -133,6 +138,13 @@ mod tests {
         assert!(scenery.visible_from(along(far - fade * 0.02)));
         assert!(!scenery.visible_from(along(far)));
         far
+    }
+
+    #[test]
+    fn world_box_overlap_is_conservative_at_room_boundaries() {
+        let scenery = SceneryDistance::new(Vec3::splat(-1.0), Vec3::splat(1.0), Affine3A::IDENTITY);
+        assert!(scenery.overlaps_box(Vec3::new(1.0, -2.0, -2.0), Vec3::new(3.0, 2.0, 2.0)));
+        assert!(!scenery.overlaps_box(Vec3::new(1.1, -2.0, -2.0), Vec3::new(3.0, 2.0, 2.0)));
     }
 
     #[test]

@@ -191,6 +191,8 @@ struct CulledDoodad {
     driven: bool,
     /// A WMO doodad's portal-culled WMO and the groups whose MODR references it.
     wmo_groups: Option<(usize, Vec<u16>)>,
+    /// Whether the camera can see this placement through an outdoor portal.
+    camera_admitted: bool,
     /// Particle emitters, when the model has any and particle effects are on.
     particles: Option<PlacedParticles>,
 }
@@ -220,6 +222,7 @@ impl CulledDoodad {
             clock: DeferredClock::default(),
             driven: false,
             wmo_groups,
+            camera_admitted: true,
             particles: None,
         }
     }
@@ -401,6 +404,8 @@ pub(crate) struct TerrainObjects {
     wmo_doodads: HashMap<u32, WmoDoodads>,
     doodads: Vec<CulledDoodad>,
     wmos: Vec<CulledWmo>,
+    outdoor_windows: Option<Vec<Vec<HalfSpace>>>,
+    interior_bounds: Vec<(Vec3, Vec3)>,
     progress: TileProgress,
     nearby: super::object_progress::NearbyProgress,
     priority_focus: Option<Vec3>,
@@ -449,6 +454,8 @@ impl TerrainObjects {
             wmo_doodads: HashMap::new(),
             doodads: Vec::new(),
             wmos: Vec::new(),
+            outdoor_windows: None,
+            interior_bounds: Vec::new(),
             progress: TileProgress::default(),
             nearby: super::object_progress::NearbyProgress::default(),
             priority_focus: None,
@@ -1147,7 +1154,19 @@ impl TerrainObjects {
     /// whose groups this frame culled.
     pub fn cull_wmos(&mut self, camera: Vector3, frustum: &[HalfSpace]) {
         let camera = Vec3::new(camera.x, camera.y, camera.z);
+        self.outdoor_windows = None;
+        self.interior_bounds.clear();
         for wmo in &mut self.wmos {
+            if let Some(windows) =
+                wmo.portals
+                    .exterior_frusta(wmo.world_from_local, frustum, camera)
+            {
+                self.outdoor_windows
+                    .get_or_insert_with(Vec::new)
+                    .extend(windows);
+                self.interior_bounds
+                    .extend(wmo.portals.interior_bounds(wmo.world_from_local));
+            }
             let drawn = wmo
                 .portals
                 .visible_groups(wmo.world_from_local, frustum, camera);
@@ -1182,7 +1201,18 @@ impl TerrainObjects {
         let camera = Vec3::new(camera.x, camera.y, camera.z);
         for doodad in &mut self.doodads {
             let group_drawn = doodad.group_drawn(&self.wmos);
+            let camera_admitted = doodad.wmo_groups.is_some()
+                || self.outdoor_windows.as_ref().is_none_or(|windows| {
+                    self.interior_bounds
+                        .iter()
+                        .any(|&(min, max)| doodad.scenery.overlaps_box(min, max))
+                        || windows
+                            .iter()
+                            .any(|window| doodad.scenery.box_in_frustum(window))
+                });
             doodad.fade(camera, group_drawn);
+            doodad.fade.set_camera_admitted(camera_admitted);
+            doodad.camera_admitted = camera_admitted;
             doodad.animate(camera, frustum, delta_ms, frame, group_drawn);
         }
     }
@@ -1202,7 +1232,10 @@ impl TerrainObjects {
             let Some(placed) = &mut doodad.particles else {
                 continue;
             };
-            if doodad.opacity > 0.0 && doodad.scenery.box_in_frustum(frustum) {
+            if doodad.opacity > 0.0
+                && doodad.camera_admitted
+                && doodad.scenery.box_in_frustum(frustum)
+            {
                 placed.update_and_draw(&doodad.node, delta, doodad.opacity, &view, pools);
                 updated += placed.emitter_count();
             } else {
@@ -1275,6 +1308,8 @@ impl TerrainObjects {
         self.nearby = super::object_progress::NearbyProgress::default();
         self.priority_focus = None;
         self.wmo_tiles.clear();
+        self.outdoor_windows = None;
+        self.interior_bounds.clear();
         self.light = None;
         self.liquids = WmoLiquids::default();
         self.failures = 0;
