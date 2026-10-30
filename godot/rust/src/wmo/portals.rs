@@ -106,9 +106,9 @@ impl WmoPortals {
                 let parent = self.split_parent(group);
                 let mut visible = traverse(&[parent]);
                 self.show_split_children(parent, &mut visible);
-                if exterior
-                    .iter()
-                    .any(|&group| visible.get(group as usize) == Some(&true))
+                if self
+                    .exterior_frusta(world_from_local, frustum, camera)
+                    .is_some_and(|windows| !windows.is_empty())
                 {
                     for (drawn, outside) in visible.iter_mut().zip(traverse(&exterior)) {
                         *drawn |= outside;
@@ -147,6 +147,51 @@ impl WmoPortals {
             }
             child = group.next_child;
         }
+    }
+
+    /// Visible outdoor windows, or `None` when the camera is not inside this WMO.
+    /// Each path is clipped through every portal it crossed. A camera close to a
+    /// portal keeps its current frustum, conservatively avoiding doorway pop-in.
+    pub(crate) fn exterior_frusta(
+        &self,
+        world_from_local: Affine3A,
+        frustum: &[HalfSpace],
+        camera: Vec3,
+    ) -> Option<Vec<Vec<HalfSpace>>> {
+        let local_camera = world_from_local.inverse().transform_point3(camera);
+        let group = self.split_parent(self.camera_interior_group(local_camera)?);
+        let mut windows = Vec::new();
+        let mut pending = vec![(group, frustum.to_vec(), vec![group])];
+        while let Some((current, planes, path)) = pending.pop() {
+            for &(portal, destination) in self.adjacency.get(current as usize).into_iter().flatten()
+            {
+                if path.contains(&destination) {
+                    continue;
+                }
+                let Some(vertices) = self.portal_vertices.get(portal) else {
+                    continue;
+                };
+                let polygon: Vec<_> = vertices
+                    .iter()
+                    .map(|vertex| world_from_local.transform_point3(*vertex))
+                    .collect();
+                let Some(clipped) = portal_window(&polygon, &planes, camera) else {
+                    continue;
+                };
+                let Some(group) = self.groups.iter().find(|group| group.index == destination)
+                else {
+                    continue;
+                };
+                if group.exterior {
+                    windows.push(clipped);
+                } else {
+                    let mut next_path = path.clone();
+                    next_path.push(destination);
+                    pending.push((destination, clipped, next_path));
+                }
+            }
+        }
+        Some(windows)
     }
 
     /// The MFOG fog at world `camera`: WebWowViewerCpp picks the group the camera stands
@@ -301,6 +346,39 @@ fn camera_near_plane(polygon: &[Vec3], camera: Vec3) -> bool {
     normal != Vec3::ZERO && normal.dot(camera - polygon[0]).abs() <= PORTAL_NEAR_DISTANCE
 }
 
+/// Clip a portal to the current view, then add camera-to-edge planes.
+fn portal_window(polygon: &[Vec3], frustum: &[HalfSpace], camera: Vec3) -> Option<Vec<HalfSpace>> {
+    if polygon.len() < 3 {
+        return None;
+    }
+    if camera_near_plane(polygon, camera) {
+        return Some(frustum.to_vec());
+    }
+    let mut clipped = polygon.to_vec();
+    for plane in frustum {
+        clipped = clip_polygon(&clipped, |point| plane.normal.dot(point) + plane.d);
+        if clipped.len() < 3 {
+            return None;
+        }
+    }
+    let center = clipped.iter().copied().sum::<Vec3>() / clipped.len() as f32;
+    let mut planes = frustum.to_vec();
+    for (&a, &b) in clipped.iter().zip(clipped.iter().cycle().skip(1)) {
+        let mut normal = (a - camera).cross(b - camera).normalize_or_zero();
+        if normal == Vec3::ZERO {
+            continue;
+        }
+        if normal.dot(center - camera) < 0.0 {
+            normal = -normal;
+        }
+        planes.push(HalfSpace {
+            normal,
+            d: -normal.dot(camera),
+        });
+    }
+    Some(planes)
+}
+
 /// Unit normal of a planar polygon (Newell's method), zero when degenerate.
 fn polygon_normal(polygon: &[Vec3]) -> Vec3 {
     polygon
@@ -443,6 +521,32 @@ mod tests {
             &view(eye, forward),
             eye,
         ))
+    }
+
+    #[test]
+    fn outdoor_windows_clip_to_the_door_and_close_when_facing_away() {
+        let portals = courtyard_and_room();
+        let eye = Vec3::new(5.0, 1.0, 8.0);
+        let windows = portals
+            .exterior_frusta(Affine3A::IDENTITY, &view(eye, -Vec3::Z), eye)
+            .unwrap();
+        assert_eq!(windows.len(), 1);
+        let inside = Vec3::new(5.0, 1.0, -8.0);
+        let outside = Vec3::new(12.0, 1.0, -8.0);
+        assert!(windows[0].iter().all(|p| p.normal.dot(inside) + p.d >= 0.0));
+        assert!(windows[0].iter().any(|p| p.normal.dot(outside) + p.d < 0.0));
+        assert!(
+            portals
+                .exterior_frusta(Affine3A::IDENTITY, &view(eye, Vec3::Z), eye)
+                .unwrap()
+                .is_empty()
+        );
+        let outside_eye = Vec3::new(5.0, 1.0, -20.0);
+        assert!(
+            portals
+                .exterior_frusta(Affine3A::IDENTITY, &view(outside_eye, Vec3::Z), outside_eye)
+                .is_none()
+        );
     }
 
     #[test]
