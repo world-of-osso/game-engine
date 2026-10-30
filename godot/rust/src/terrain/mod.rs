@@ -1,7 +1,7 @@
 //! Native ADT geometry and streamed texture resources. World lighting/readiness are separate.
 mod assets;
 #[cfg(test)]
-pub(crate) use assets::NativeTerrainTile;
+pub(crate) use assets::{NativeTerrainAssets, NativeTerrainTile};
 pub(crate) mod doodad_collision;
 pub(crate) mod elastic_tree;
 pub(crate) mod ground_detail;

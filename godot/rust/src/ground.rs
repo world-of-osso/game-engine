@@ -263,32 +263,39 @@ impl TerrainGround<'_> {
         let distance = (target - current).with_y(0.0).length();
         rise > 0.0
             && !is_walkable_slope(rise, distance, MAX_SLOPE_ANGLE)
-            && !self.has_step_landing(current, target)
+            && !self.has_step_landing(current, target, solid.height)
     }
 
-    fn has_step_landing(&self, current: Vec3, target: Vec3) -> bool {
+    fn has_step_landing(&self, current: Vec3, target: Vec3, obstacle_height: f32) -> bool {
         let direction = (target - current).with_y(0.0).normalize_or_zero();
-        let reach = direction * (2.0 * shared::los::body::BODY_RADIUS);
-        let probe = current + reach;
-        let walkable = self
-            .static_ground(probe, true)
-            .into_iter()
-            .chain(self.m2_ground(probe, true))
-            .max_by(|a, b| a.height.total_cmp(&b.height));
-        let Some(landing) = walkable else {
-            return false;
-        };
-        if landing.height <= current.y
-            || self
-                .sample(probe)
-                .is_none_or(|solid| solid.height > landing.height)
-        {
-            return false;
-        }
-        let raised = current.with_y(landing.height);
-        let destination = probe.with_y(landing.height);
-        let clear = clamp_movement_to_walls(raised, destination, self.walls) == destination;
-        clear && !(self.step_wall_blocked)(raised, destination, current.y + STEP_UP_HEIGHT)
+        let reach = 2.0 * shared::los::body::BODY_RADIUS;
+        [0.25, 0.5, 1.0].into_iter().any(|fraction| {
+            let probe_distance = reach * fraction;
+            if probe_distance < (target - current).with_y(0.0).length() {
+                return false;
+            }
+            let probe = current + direction * probe_distance;
+            let landing = self
+                .static_ground(probe, true)
+                .into_iter()
+                .chain(self.m2_ground(probe, true))
+                .max_by(|a, b| a.height.total_cmp(&b.height));
+            let Some(landing) = landing else {
+                return false;
+            };
+            if (landing.height - current.y).abs() > STEP_UP_HEIGHT
+                || (obstacle_height - landing.height).abs() > STEP_UP_HEIGHT
+                || self
+                    .sample(probe)
+                    .is_none_or(|solid| solid.height > landing.height)
+            {
+                return false;
+            }
+            let raised = current.with_y(landing.height);
+            let destination = probe.with_y(landing.height);
+            let clear = clamp_movement_to_walls(raised, destination, self.walls) == destination;
+            clear && !(self.step_wall_blocked)(raised, destination, current.y + STEP_UP_HEIGHT)
+        })
     }
 
     /// Only a wall-blocked move attempts a step: unobstructed ramps keep their
@@ -378,6 +385,55 @@ mod tests {
     };
 
     use super::*;
+
+    #[test]
+    fn academy_and_murder_row_recorded_steps_admit_movement_on_real_ground() {
+        let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
+        let mut blocked = Vec::new();
+        for (map, tile, start, goal) in [
+            (
+                "2526",
+                (37, 28),
+                Vec3::new(1651.6862, 899.94464, 2956.511),
+                Vec3::new(1651.3021, 900.1326, 2957.812),
+            ),
+            (
+                "2813",
+                (40, 15),
+                Vec3::new(8872.657, 30.72636, 4739.721),
+                Vec3::new(8873.4375, 31.261337, 4740.364),
+            ),
+        ] {
+            let assets = crate::terrain::NativeTerrainAssets::new(root.clone());
+            let mut terrain = StreamedTerrain::new(root.clone());
+            terrain.map_wdt = Some(assets.read_map_wdt(map).unwrap());
+            terrain
+                .parsed_tiles
+                .insert(tile, assets.read_tile(map, tile.0, tile.1).unwrap());
+            let ground = TerrainGround {
+                terrain: &terrain,
+                walls: &|_, _, _| None,
+                step_wall_blocked: &|_, _, _| false,
+                game_object_floor: &|_| None,
+            };
+            let direction = (goal - start).with_y(0.0).normalize();
+            for distance in [0.1, 0.25, 0.5, 0.776, 1.0, 1.35] {
+                let proposed = start + direction * distance;
+                let moved = ground.validate_move(start, proposed, true);
+                eprintln!(
+                    "{map} distance={distance} current={:?} target={:?} walkable_m2={:?} solid_m2={:?} moved={moved:?}",
+                    ground.sample(start),
+                    ground.sample(proposed),
+                    ground.m2_ground(proposed, true),
+                    ground.m2_ground(proposed, false)
+                );
+                if (moved - start).with_y(0.0).length() <= 0.01 {
+                    blocked.push((map, distance));
+                }
+            }
+        }
+        assert!(blocked.is_empty(), "captured steps blocked: {blocked:?}");
+    }
 
     #[test]
     fn solid_m2_support_prevents_fall_and_blocks_steep_ascent() {
