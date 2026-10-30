@@ -286,6 +286,24 @@ fn overhead_slab(y: f32) -> [Vec3; 3] {
 }
 
 #[test]
+fn landing_headroom_blocks_slab_within_wall_ray_height() {
+    let feet = Vec3::new(108.3, UPPER_Y, 3.45);
+    let blocked = overhead_slab(UPPER_Y + 0.3);
+    let clear = overhead_slab(UPPER_Y + 0.8);
+    let collision = |faces: &[[Vec3; 3]]| {
+        game_engine_core::step_clearance::step_wall_blocked(
+            faces,
+            feet,
+            feet,
+            feet.y,
+            shared::ground::min_walkable_normal_y(),
+        )
+    };
+    assert!(collision(&[blocked]));
+    assert!(!collision(&[clear]));
+}
+
+#[test]
 fn ramp_lip_ceiling_above_existing_wall_ray_preserves_corridor() {
     let mut faces = authored_faces();
     // Clear above the current body, but not above the stepped-up body.

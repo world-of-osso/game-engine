@@ -6,6 +6,7 @@ use crate::player_physics_data::WALL_RAY_HEIGHT;
 /// Walkable faces supporting the destination are floors, not wall obstructions.
 /// Reconstruct their support plane for the adjoining vertical edges: ground-ray
 /// interpolation can round feet below the authored plane. No epsilon is used.
+/// Identical endpoints test the vertical headroom above the landing instead.
 pub fn step_wall_blocked(
     triangles: &[[Vec3; 3]],
     from: Vec3,
@@ -13,6 +14,12 @@ pub fn step_wall_blocked(
     support_top: f32,
     min_walkable_normal_y: f32,
 ) -> bool {
+    if from.x == to.x && from.z == to.z {
+        return triangles.iter().any(|&triangle| {
+            destination_support_height(triangle, from, from.y + WALL_RAY_HEIGHT, f32::MIN_POSITIVE)
+                .is_some_and(|height| height > from.y && height < from.y + WALL_RAY_HEIGHT)
+        });
+    }
     let support = triangles
         .iter()
         .filter_map(|&triangle| {
@@ -41,7 +48,16 @@ pub fn step_obstacle_top(
     }
     let direction = movement / distance;
     let mut top = from.y;
+    let min = from.min(to);
+    let max = from.max(to);
     for triangle in triangles {
+        if triangle.iter().all(|point| point.x < min.x)
+            || triangle.iter().all(|point| point.x > max.x)
+            || triangle.iter().all(|point| point.z < min.z)
+            || triangle.iter().all(|point| point.z > max.z)
+        {
+            continue;
+        }
         let section = intersect_wall_plane(triangle, from, direction);
         let section = clip_section(&section, 0, 0.0, 1.0);
         let section = clip_section(&section, 0, distance, -1.0);

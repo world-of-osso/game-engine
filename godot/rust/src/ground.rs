@@ -374,8 +374,10 @@ impl TerrainGround<'_> {
             }
             let raised = current.with_y(top.max(landing.height));
             let destination = probe.with_y(raised.y);
+            let landing_feet = probe.with_y(landing.height);
             clamp_movement_to_walls(raised, destination, self.walls) == destination
                 && !(self.step_wall_blocked)(raised, destination, current.y + STEP_UP_HEIGHT)
+                && !(self.step_wall_blocked)(landing_feet, landing_feet, landing.height)
         })
     }
 
