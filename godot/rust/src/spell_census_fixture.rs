@@ -2,7 +2,7 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
 
-use game_engine_core::spell_visual::{CasterModels, VisualKit, read_animation_fallbacks};
+use game_engine_core::spell_visual::{VisualKit, read_animation_fallbacks};
 use game_engine_network::replica::Replica;
 use godot::classes::{Node3D, ProjectSettings};
 use godot::prelude::*;
@@ -21,7 +21,6 @@ use outfit::{OutfitCatalog, StartingOutfit};
 struct SpellCensusFixture {
     base: Base<Node3D>,
     data: PathBuf,
-    legal: Option<CasterModels>,
     outfits: Option<OutfitCatalog>,
     outfit: Option<StartingOutfit>,
     appearance: Option<UnitAppearance>,
@@ -46,7 +45,6 @@ impl INode3D for SpellCensusFixture {
             world: WorldUnits::new(data.clone()),
             effects: SpellEffects::new(data.clone()),
             data,
-            legal: None,
             outfits: None,
             outfit: None,
             appearance: None,
@@ -283,23 +281,6 @@ impl SpellCensusFixture {
         if sex > 1 {
             return Err(format!("unsupported player sex {sex}"));
         }
-        if self.legal.is_none() {
-            self.legal = Some(CasterModels::load(
-                &self.data.join("db2/active"),
-                &self.data,
-            )?);
-        }
-        if !self
-            .legal
-            .as_ref()
-            .expect("loaded race data")
-            .legal_races(class)
-            .contains(&race)
-        {
-            return Err(format!(
-                "race {race} is not legal for class {class} in CharBaseInfo"
-            ));
-        }
         if self.outfits.is_none() {
             self.outfits = Some(OutfitCatalog::load(&self.data)?);
         }
@@ -340,7 +321,7 @@ impl SpellCensusFixture {
             .as_ref()
             .map(|outfit| outfit.equipment.clone())
             .unwrap_or_default();
-        let appearance = UnitAppearance::Player(player, equipment, None);
+        let appearance = UnitAppearance::Player((&player).into(), equipment, None);
         self.request = Some(self.world.request_detached_visual(&appearance));
         self.appearance = Some(appearance);
         Ok(())
