@@ -295,19 +295,37 @@ impl TerrainGround<'_> {
                 .into_iter()
                 .chain(self.m2_ground(probe, true))
                 .max_by(|a, b| a.height.total_cmp(&b.height));
+            let solid = self.sample(probe);
+            let landing = landing
+                .filter(|floor| solid.is_some_and(|surface| surface.height <= floor.height))
+                .or_else(|| {
+                    solid.filter(|surface| {
+                        surface.surface == Surface::Wmo
+                            && is_walkable_slope(
+                                surface.height - current.y,
+                                probe_distance,
+                                MAX_SLOPE_ANGLE,
+                            )
+                    })
+                });
             let Some(landing) = landing else {
                 return false;
             };
             if (landing.height - current.y).abs() > STEP_UP_HEIGHT
                 || (obstacle_height - landing.height).abs() > STEP_UP_HEIGHT
-                || self
-                    .sample(probe)
-                    .is_none_or(|solid| solid.height > landing.height)
             {
                 return false;
             }
-            let raised = current.with_y(landing.height);
-            let destination = probe.with_y(landing.height);
+            let top = [0.25, 0.5, 0.75, 1.0]
+                .into_iter()
+                .filter_map(|fraction| self.sample(current + direction * probe_distance * fraction))
+                .map(|surface| surface.height)
+                .fold(obstacle_height.max(landing.height), f32::max);
+            if top - current.y > STEP_UP_HEIGHT {
+                return false;
+            }
+            let raised = current.with_y(top);
+            let destination = probe.with_y(top);
             let clear = clamp_movement_to_walls(raised, destination, self.walls) == destination;
             clear && !(self.step_wall_blocked)(raised, destination, current.y + STEP_UP_HEIGHT)
         })
@@ -448,6 +466,101 @@ mod tests {
             }
         }
         assert!(blocked.is_empty(), "captured steps blocked: {blocked:?}");
+    }
+
+    #[test]
+    fn uldaman_recorded_steps_cross_real_wmo() {
+        let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
+        let assets = crate::terrain::NativeTerrainAssets::new(root.clone());
+        let mut terrain = StreamedTerrain::new(root);
+        terrain.map_wdt = Some(assets.read_map_wdt("2451").unwrap());
+        if terrain.map_wdt.as_ref().unwrap().global_wmo.is_none() {
+            terrain
+                .parsed_tiles
+                .insert((33, 31), assets.read_tile("2451", 33, 31).unwrap());
+        }
+        let wmos = terrain
+            .map_wdt
+            .as_ref()
+            .and_then(|map| map.global_wmo.as_ref())
+            .map(|wmo| &wmo.collision)
+            .into_iter()
+            .chain(
+                terrain
+                    .parsed_tiles
+                    .values()
+                    .flat_map(|tile| tile.wmo_floors.iter().map(|(_, wmo)| wmo)),
+            );
+        let faces: Vec<[Vec3; 3]> = wmos
+            .flat_map(|wmo| {
+                wmo.groups().iter().flat_map(move |group| {
+                    group.collidable_triangles().map(move |face| {
+                        face.map(|point| wmo.world_from_local().transform_point3(point))
+                    })
+                })
+            })
+            .collect();
+        let vertices: Vec<Vec3> = faces.iter().flatten().copied().collect();
+        let indices = (0..faces.len() as u32)
+            .map(|i| [3 * i, 3 * i + 1, 3 * i + 2])
+            .collect();
+        let walls = shared::los::LosTile::build(32, 32, vertices, indices);
+        let ground = TerrainGround {
+            terrain: &terrain,
+            walls: &|origin, direction, length| {
+                walls
+                    .first_hit(origin, origin + direction * length)
+                    .map(|fraction| fraction * length)
+            },
+            step_wall_blocked: &|from, to, top| {
+                game_engine_core::step_clearance::step_wall_blocked(
+                    &faces,
+                    from,
+                    to,
+                    top,
+                    shared::ground::min_walkable_normal_y(),
+                )
+            },
+            game_object_floor: &|_| None,
+        };
+        for (start, goal) in [
+            (
+                Vec3::new(109.95476, 228.2389, 1012.58875),
+                Vec3::new(109.95476, 228.2389, 1012.58875) + Vec3::new(-0.6834266, 0.0, -0.7300192),
+            ),
+            (
+                Vec3::new(110.0, 229.6, 1001.0),
+                Vec3::new(109.961, 230.866, 999.199),
+            ),
+            (
+                Vec3::new(91.062035, 229.34682, 825.8572),
+                Vec3::new(90.885414, 230.8, 824.21936),
+            ),
+            (
+                Vec3::new(86.28172, 229.39621, 814.4717),
+                Vec3::new(85.416664, 229.40001, 813.5423),
+            ),
+            (
+                Vec3::new(59.928703, 217.99553, 680.35706),
+                Vec3::new(59.66912, 218.245, 667.44855),
+            ),
+            (
+                Vec3::new(30.893808, 231.24559, 983.4601),
+                Vec3::new(30.893808, 231.24559, 983.4601) + Vec3::new(-0.6641483, 0.0, 0.7476009),
+            ),
+            (
+                Vec3::new(96.11173, 226.15282, 875.9713),
+                Vec3::new(96.11173, 226.15282, 875.9713) + Vec3::new(0.005689741, 0.0, -0.9999838),
+            ),
+        ] {
+            let direction = (goal - start).with_y(0.0).normalize();
+            let proposed = start + direction * 0.1;
+            let (moved, reason) = ground.validate_move_with_reason(start, proposed, true);
+            assert!(
+                (moved - start).with_y(0.0).length() > 0.01,
+                "Uldaman movement blocked: {start:?} -> {proposed:?}, {reason:?}"
+            );
+        }
     }
 
     #[test]
