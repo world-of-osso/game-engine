@@ -152,7 +152,23 @@ class FrozenModelClosureTests(unittest.TestCase):
         document = json.loads(index.read_text())
         document["assets"].append(receipt(202, "skin", self.old, self.skin))
         index.write_text(json.dumps(document))
-        with self.assertRaisesRegex(ValueError, "Existing owner payload missing"):
+        with self.assertRaisesRegex(ValueError, "Existing receipt payload missing"):
+            self.stage()
+        self.assertFalse(self.output.exists())
+
+    def test_rejects_missing_payload_for_existing_alias(self):
+        index = self.data / "cache/model-asset-index-fixture.json"
+        document = json.loads(index.read_text())
+        document["aliases"].append(receipt(303, "blp", self.old, self.texture))
+        index.write_text(json.dumps(document))
+        with self.assertRaisesRegex(ValueError, "Existing receipt payload missing"):
+            self.stage()
+        self.assertFalse(self.output.exists())
+
+    def test_rejects_conflicting_unindexed_target_bytes(self):
+        target = self.data / f"products/wow/{self.old}/models/202.skin"
+        target.write_bytes(b"SKIN conflicting target")
+        with self.assertRaisesRegex(ValueError, "Existing payload conflicts"):
             self.stage()
         self.assertFalse(self.output.exists())
 

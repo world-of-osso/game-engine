@@ -101,7 +101,13 @@ def stage_closure(
     ):
         raise ValueError("Output must be a new directory outside the input data roots")
     identity = load_snapshot(manifest, root, resolution)
-    owners = publication.index_asset_receipts(publication.read_indexes(index_data))
+    documents = publication.read_indexes(index_data)
+    owners = publication.index_asset_receipts(documents)
+    claimed_paths = {
+        row["path"]
+        for document in documents.values()
+        for row in document["assets"] + document.get("aliases", [])
+    }
     graph = RawByteGraph(
         source_data,
         {},
@@ -131,14 +137,12 @@ def stage_closure(
         ({key: value for key, value in receipt.items() if key in allowed}, raw)
         for receipt, raw in verified.values()
     ]
-    for receipt, _ in pairs:
-        owner = owners.get(publication.receipt_key(receipt))
-        if (
-            owner
-            and owner[1]["path"] == receipt["path"]
-            and not (index_data / receipt["path"]).is_file()
-        ):
-            raise ValueError(f"Existing owner payload missing: {receipt['path']}")
+    for receipt, raw in pairs:
+        target = index_data / receipt["path"]
+        if receipt["path"] in claimed_paths and not target.is_file():
+            raise ValueError(f"Existing receipt payload missing: {receipt['path']}")
+        if target.is_file() and target.read_bytes() != raw:
+            raise ValueError(f"Existing payload conflicts: {receipt['path']}")
     fragment = publication.deduplicate_staged_fragment(
         index_data,
         {"version": 1, "assets": [row for row, _ in pairs], "aliases": [], "chains": []},
