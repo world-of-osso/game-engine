@@ -149,6 +149,7 @@ pub struct WowDebugCharacter {
 #[godot_api]
 impl INode3D for WowDebugCharacter {
     fn process(&mut self, _delta: f64) {
+        let _timing = crate::profile::node_span("WowDebugCharacter.process");
         self.orbit.ease();
         let Some(mut camera) = self.camera.clone() else {
             return;

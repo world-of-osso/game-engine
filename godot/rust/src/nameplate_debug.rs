@@ -113,6 +113,7 @@ pub struct WowNameplateDebug {
 #[godot_api]
 impl INode3D for WowNameplateDebug {
     fn process(&mut self, delta: f64) {
+        let _timing = crate::profile::node_span("WowNameplateDebug.process");
         if let Err(error) = self.update(delta as f32) {
             godot_error!("Nameplate debug: {error}");
         }

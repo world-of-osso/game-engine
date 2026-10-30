@@ -97,6 +97,7 @@ impl INode3D for WowM2Lights {
     }
 
     fn process(&mut self, _delta: f64) {
+        let _timing = crate::profile::node_span("WowM2Lights.process");
         self.update();
     }
 }

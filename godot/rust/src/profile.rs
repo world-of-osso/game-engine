@@ -4,7 +4,49 @@
 //! so it excludes the time the thread waited for a CPU on a loaded host. Nested spans
 //! print innermost first.
 
-use std::{sync::OnceLock, time::Instant};
+use std::{
+    cell::RefCell,
+    collections::BTreeMap,
+    sync::OnceLock,
+    time::{Duration, Instant},
+};
+
+thread_local! {
+    static NODE_TIMES: RefCell<BTreeMap<&'static str, Duration>> = const { RefCell::new(BTreeMap::new()) };
+}
+
+/// Wall time accumulated per node callback since the last client frame boundary.
+pub(crate) fn take_node_times() -> Vec<(&'static str, f64)> {
+    NODE_TIMES.with(|times| {
+        times
+            .borrow_mut()
+            .iter_mut()
+            .filter_map(|(&name, duration)| {
+                let value = std::mem::take(duration);
+                (value != Duration::ZERO).then_some((name, value.as_secs_f64() * 1000.0))
+            })
+            .collect()
+    })
+}
+
+pub(crate) struct NodeSpan {
+    name: &'static str,
+    started: Instant,
+}
+
+pub(crate) fn node_span(name: &'static str) -> NodeSpan {
+    NodeSpan {
+        name,
+        started: Instant::now(),
+    }
+}
+
+impl Drop for NodeSpan {
+    fn drop(&mut self) {
+        let duration = self.started.elapsed();
+        NODE_TIMES.with(|times| *times.borrow_mut().entry(self.name).or_default() += duration);
+    }
+}
 
 fn threshold_ms() -> Option<f64> {
     static THRESHOLD: OnceLock<Option<f64>> = OnceLock::new();

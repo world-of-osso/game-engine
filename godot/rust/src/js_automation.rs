@@ -504,6 +504,7 @@ impl INode for NativeJsAutomationHost {
     }
 
     fn process(&mut self, delta: f64) {
+        let _timing = crate::profile::node_span("NativeJsAutomationHost.process");
         if self.runtime.is_none() {
             return;
         }

@@ -369,6 +369,7 @@ pub struct GameClient {
     ipc: Option<ipc::NativeIpc>,
     last_process_ms: f64,
     frame_system_ms: Vec<(&'static str, f64)>,
+    frame_node_ms: Vec<(&'static str, f64)>,
     attachment_gate_ms: f64,
 }
 
@@ -524,6 +525,7 @@ impl INode3D for GameClient {
             ipc: None,
             last_process_ms: 0.0,
             frame_system_ms: Vec::new(),
+            frame_node_ms: Vec::new(),
             attachment_gate_ms: 0.0,
             replica: Replica::default(),
             spell_effects: spell_effects::SpellEffects::new(data_root.clone()),
@@ -766,7 +768,9 @@ impl INode3D for GameClient {
     }
 
     fn process(&mut self, delta: f64) {
+        let _timing = profile::node_span("GameClient.process");
         let started = std::time::Instant::now();
+        self.frame_node_ms = profile::take_node_times();
         self.frame_system_ms.clear();
         self.attachment_gate_ms = animation::take_gate_time_ms();
         let _span = profile::span(|| "client.frame".to_owned());
@@ -953,9 +957,14 @@ impl GameClient {
         for (name, milliseconds) in &self.frame_system_ms {
             systems.set(*name, *milliseconds);
         }
+        let mut nodes = VarDictionary::new();
+        for (name, milliseconds) in &self.frame_node_ms {
+            nodes.set(*name, *milliseconds);
+        }
         let mut state = VarDictionary::new();
         state.set("client_process_ms", self.last_process_ms);
         state.set("systems_ms", &systems);
+        state.set("nodes_ms", &nodes);
         state.set("attachment_gates_ms", self.attachment_gate_ms);
         state
     }

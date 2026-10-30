@@ -78,6 +78,7 @@ pub struct WowElasticTree {
 #[godot_api]
 impl INode3D for WowElasticTree {
     fn physics_process(&mut self, delta: f64) {
+        let _timing = crate::profile::node_span("WowElasticTree.physics_process");
         for (state, branch) in self.branches.iter_mut().zip(&self.annotation.branches) {
             state.advance(branch, delta as f32);
         }

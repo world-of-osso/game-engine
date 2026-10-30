@@ -24,6 +24,7 @@ impl INode for WowMaterialClock {
     }
 
     fn process(&mut self, delta: f64) {
+        let _timing = crate::profile::node_span("WowMaterialClock.process");
         self.advance_time_ms(delta * 1000.0);
     }
 }
@@ -100,6 +101,7 @@ impl INode for WowMaterialAnimation {
     }
 
     fn process(&mut self, _delta: f64) {
+        let _timing = crate::profile::node_span("WowMaterialAnimation.process");
         self.sample_materials();
     }
 }

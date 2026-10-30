@@ -173,6 +173,7 @@ impl INode3D for WowSkyboxDebug {
     }
 
     fn process(&mut self, _delta: f64) {
+        let _timing = crate::profile::node_span("WowSkyboxDebug.process");
         if let Err(error) = self.tick() {
             godot_error!("SkyboxDebug: {error}");
             self.base_mut().set_process(false);

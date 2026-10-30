@@ -1079,6 +1079,7 @@ impl RegistryModel {
 impl ICanvasLayer for RegistryUi {
     /// Frames drawn without art whose file was still loading show it once it arrives.
     fn process(&mut self, delta: f64) {
+        let _timing = crate::profile::node_span("RegistryUi.process");
         if let Err(error) = self.advance_scroll_stepper(delta) {
             crate::frame_error::report_once(&format!("UI scroll repeat: {error}"));
         }

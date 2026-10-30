@@ -144,6 +144,7 @@ pub struct WowSelectionDebug {
 #[godot_api]
 impl INode for WowSelectionDebug {
     fn process(&mut self, _delta: f64) {
+        let _timing = crate::profile::node_span("WowSelectionDebug.process");
         let Some(mut ui) = self.ui.clone() else {
             return;
         };

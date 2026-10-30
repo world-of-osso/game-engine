@@ -69,6 +69,7 @@ impl INode3D for WowWmoPlacementProbe {
     }
 
     fn process(&mut self, _delta: f64) {
+        let _timing = crate::profile::node_span("WowWmoPlacementProbe.process");
         let mut parent = self.to_gd().upcast::<Node3D>();
         let Some(loaded) = self.loaded.as_mut() else {
             return;

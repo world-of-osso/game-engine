@@ -343,6 +343,7 @@ impl INode3D for WowParticleDebug {
     }
 
     fn process(&mut self, delta: f64) {
+        let _timing = crate::profile::node_span("WowParticleDebug.process");
         self.orbit.ease();
         let Some(mut camera) = self.camera.clone() else {
             return;

@@ -61,6 +61,7 @@ pub struct WowM2Debug {
 #[godot_api]
 impl INode3D for WowM2Debug {
     fn process(&mut self, _delta: f64) {
+        let _timing = crate::profile::node_span("WowM2Debug.process");
         self.orbit.ease();
         let Some(mut camera) = self.camera.clone() else {
             return;
