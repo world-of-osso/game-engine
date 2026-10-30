@@ -50,3 +50,34 @@ fn cli_decodes_real_loadout_and_reports_bad_input_per_profile() {
     assert!(actual[1]["entries"].is_null());
     assert!(actual[1]["error"].as_str().unwrap().contains("BadString"));
 }
+
+#[test]
+fn cli_subtracts_native_grant_from_hunter_profile_total_ranks() {
+    let data = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/db2/active");
+    let input = serde_json::json!([{
+        "spec_id": 253, "class_id": 3,
+        "talents": "C0PAAAAAAAAAAAAAAAAAAAAAAAMmxwCsAzwwMsBAgZYMzyMDzYmxMMzYMzwMjZMziZmxMmBjpZAAAAAzAAAwYmZAmZjxGMLgtBgBA"
+    }]);
+    let mut child = Command::new(env!("CARGO_BIN_EXE_decode_follower_talents"))
+        .arg(&data)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .spawn()
+        .unwrap();
+    child
+        .stdin
+        .take()
+        .unwrap()
+        .write_all(input.to_string().as_bytes())
+        .unwrap();
+    let output = child.wait_with_output().unwrap();
+    assert!(output.status.success());
+    let actual: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert!(actual[0]["error"].is_null(), "{actual}");
+    assert!(
+        actual[0]["entries"]
+            .as_array()
+            .unwrap()
+            .contains(&serde_json::json!([117588, 1]))
+    );
+}

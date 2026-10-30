@@ -168,6 +168,24 @@ pub fn decode(
     context: TraitContext,
     text: &str,
 ) -> Result<Vec<ConfigEntry>, LoadoutError> {
+    decode_ranks(tree, context, text, false)
+}
+
+/// Decode a source profile whose serialized ranks include native free ranks.
+pub fn decode_total_ranks(
+    tree: &TraitTree,
+    context: TraitContext,
+    text: &str,
+) -> Result<Vec<ConfigEntry>, LoadoutError> {
+    decode_ranks(tree, context, text, true)
+}
+
+fn decode_ranks(
+    tree: &TraitTree,
+    context: TraitContext,
+    text: &str,
+    total_ranks: bool,
+) -> Result<Vec<ConfigEntry>, LoadoutError> {
     let mut stream = Stream::from_text(text)?;
     if stream.bits.len() < 152 {
         return Err(LoadoutError::BadString);
@@ -238,5 +256,17 @@ pub fn decode(
         }
     }
     // Blizzard_ClassTalentImportExport.lua reads tree nodes and ignores trailing bits.
+    if total_ranks {
+        for purchase in &mut purchases {
+            let granted = grants
+                .iter()
+                .find(|grant| {
+                    grant.node_id == purchase.node_id && grant.entry_id == purchase.entry_id
+                })
+                .map_or(0, |grant| grant.granted);
+            purchase.ranks = purchase.ranks.saturating_sub(granted);
+        }
+        purchases.retain(|purchase| purchase.ranks > 0);
+    }
     build_config(tree, context, &purchases).map_err(|_| LoadoutError::InvalidNodes)
 }

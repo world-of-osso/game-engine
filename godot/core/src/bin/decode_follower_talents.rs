@@ -3,7 +3,7 @@ use std::io::{self, Read};
 use std::path::Path;
 
 use game_engine_core::talent_data::{
-    load_talent_page, load_trait_rules, loadout_string::decode, rules::TraitContext,
+    load_talent_page, load_trait_rules, loadout_string::decode_total_ranks, rules::TraitContext,
 };
 use serde::{Deserialize, Serialize};
 
@@ -28,7 +28,7 @@ fn decode_profile(data: &Path, profile: &Profile) -> Result<Vec<(u32, u32)>, Str
         spec_id: profile.spec_id,
         level: 90,
     };
-    let entries = decode(&tree, context, &profile.talents)
+    let entries = decode_total_ranks(&tree, context, &profile.talents)
         .map_err(|error| format!("loadout decode: {error:?}"))?;
     Ok(entries
         .into_iter()
