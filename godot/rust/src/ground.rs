@@ -565,6 +565,8 @@ mod tests {
                     && triangle.level_at(feet.x, feet.z).is_some())
         );
         assert!(ground.swimming(feet));
+        assert!(ground.swimming(feet.with_y(surface - 1.25)));
+        assert!(!ground.swimming(feet.with_y(surface - 1.20)));
         assert!(!ground.swimming(feet.with_y(surface + 1.0)));
         let mut movement = crate::gameplay::PlayerMovement::default();
         let frame = || crate::gameplay::MovementFrame {
@@ -590,6 +592,54 @@ mod tests {
             1.0 / 60.0,
         );
         assert!(!movement.swimming);
+    }
+
+    #[test]
+    fn stacked_wmo_surfaces_and_m2_floors_select_by_swimmer_height() {
+        use game_engine_core::wmo_liquid::LiquidTriangle;
+        let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
+        let assets = crate::terrain::NativeTerrainAssets::new(root.clone());
+        let mut terrain = StreamedTerrain::new(root);
+        let feet = Vec3::new(-70.91135, -44.08284, 148.4207);
+        let tile = bevy_to_tile_coords(feet.x, feet.z);
+        terrain.map_wdt = Some(assets.read_map_wdt("2527").unwrap());
+        let mut data = assets.read_tile("2527", tile.0, tile.1).unwrap();
+        let triangle = |height| {
+            [
+                Vec3::new(feet.x - 5.0, height, feet.z - 5.0),
+                Vec3::new(feet.x + 5.0, height, feet.z - 5.0),
+                Vec3::new(feet.x, height, feet.z + 5.0),
+            ]
+        };
+        data.wmo_liquids.push(LiquidTriangle {
+            vertices: triangle(-30.0),
+            liquid_type: 13,
+        });
+        data.m2_floors.push(shared::los::LosTile::build(
+            tile.0,
+            tile.1,
+            triangle(-42.0).to_vec(),
+            vec![[0, 1, 2]],
+        ));
+        data.m2_floors.push(shared::los::LosTile::build(
+            tile.0,
+            tile.1,
+            triangle(-35.0).to_vec(),
+            vec![[0, 1, 2]],
+        ));
+        terrain.parsed_tiles.insert(tile, data);
+        let ground = TerrainGround {
+            terrain: &terrain,
+            walls: &|_, _, _| None,
+            step_wall_blocked: &|_, _, _| false,
+            game_object_floor: &|_| None,
+        };
+        let lower = feet.with_y(-41.0);
+        assert!((ground.water_surface(lower).unwrap() + 38.515987).abs() < 0.01);
+        assert!((ground.liquid_floor(lower, -38.515987) + 42.0).abs() < 0.01);
+        let upper = feet.with_y(-31.5);
+        assert!((ground.water_surface(upper).unwrap() + 30.0).abs() < 0.01);
+        assert!((ground.liquid_floor(upper, -30.0) + 35.0).abs() < 0.01);
     }
 
     #[test]
