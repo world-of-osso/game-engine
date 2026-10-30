@@ -509,6 +509,10 @@ impl TerrainGround<'_> {
     /// A level swim move: stop short of a WMO wall and of ground beyond step reach (an
     /// underwater cliff); ground rising over the feet lifts the swimmer onto it (the shore).
     pub fn validate_swim_move(&self, current: Vec3, proposed: Vec3) -> Vec3 {
+        let shore = self.validate_move(current, proposed, true);
+        if shore.y > current.y && (shore.x != current.x || shore.z != current.z) {
+            return shore;
+        }
         let proposed = clamp_movement_to_walls(current, proposed, self.walls);
         match self.sample(proposed) {
             Some(ground) => proposed.with_y(proposed.y.max(ground.height)),
@@ -844,6 +848,61 @@ mod tests {
             );
             feet = moved;
         }
+    }
+
+    #[test]
+    fn halls_swimmer_steps_onto_lip_but_not_an_overheight_wall() {
+        let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
+        let assets = crate::terrain::NativeTerrainAssets::new(root.clone());
+        let mut terrain = StreamedTerrain::new(root);
+        terrain.map_wdt = Some(assets.read_map_wdt("2527").unwrap());
+        terrain
+            .parsed_tiles
+            .insert((32, 31), assets.read_tile("2527", 32, 31).unwrap());
+        let faces = wmo_faces(&terrain);
+        let vertices: Vec<Vec3> = faces.iter().flatten().copied().collect();
+        let indices = (0..faces.len() as u32)
+            .map(|i| [3 * i, 3 * i + 1, 3 * i + 2])
+            .collect();
+        let walls = shared::los::LosTile::build(32, 32, vertices, indices);
+        let ground = TerrainGround {
+            terrain: &terrain,
+            walls: &|origin, direction, length| {
+                walls
+                    .first_hit(origin, origin + direction * length)
+                    .map(|fraction| fraction * length)
+            },
+            step_wall_blocked: &|from, to, top| {
+                game_engine_core::step_clearance::step_wall_blocked(
+                    &faces,
+                    from,
+                    to,
+                    top,
+                    shared::ground::min_walkable_normal_y(),
+                )
+            },
+            game_object_floor: &|_| None,
+        };
+        let start = Vec3::new(-69.85042, -39.76599, 148.5022);
+        let mut feet = start;
+        let mut climbed = false;
+        for _ in 0..12 {
+            feet = ground.validate_swim_move(feet, feet + Vec3::NEG_X * 0.116667);
+            climbed |= feet.y > start.y + 0.5;
+        }
+        assert!(
+            climbed && feet.x < -70.2,
+            "swimmer did not step onto lip: {feet:?}"
+        );
+        let low = start.with_y(-40.6);
+        let mut blocked = low;
+        for _ in 0..12 {
+            blocked = ground.validate_swim_move(blocked, blocked + Vec3::NEG_X * 0.116667);
+        }
+        assert!(
+            blocked.x > -70.1 && blocked.y <= low.y,
+            "overheight wall crossed: {blocked:?}"
+        );
     }
 
     #[test]
