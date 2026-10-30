@@ -550,6 +550,50 @@ mod tests {
     }
 
     #[test]
+    fn outdoor_window_rejects_a_second_door_outside_the_first_window() {
+        let mut portals = courtyard_and_room();
+        let bbox_min = portals.groups[1].bbox_min;
+        let bbox_max = portals.groups[1].bbox_max;
+        portals.groups.push(PortalGroup {
+            index: 2,
+            bbox_min,
+            bbox_max,
+            exterior: false,
+            floor: Vec::new(),
+        });
+        portals.adjacency = vec![vec![(1, 2)], vec![(0, 2)], vec![(0, 1), (1, 0)]];
+        portals.portal_vertices[0] = vec![
+            Vec3::new(4.0, 0.0, 4.0),
+            Vec3::new(6.0, 0.0, 4.0),
+            Vec3::new(6.0, 2.0, 4.0),
+            Vec3::new(4.0, 2.0, 4.0),
+        ];
+        portals.portal_vertices.push(vec![
+            Vec3::new(9.0, 0.0, 0.0),
+            Vec3::new(10.0, 0.0, 0.0),
+            Vec3::new(10.0, 2.0, 0.0),
+            Vec3::new(9.0, 2.0, 0.0),
+        ]);
+        let eye = Vec3::new(5.0, 1.0, 8.0);
+        assert!(
+            portals
+                .exterior_frusta(Affine3A::IDENTITY, &view(eye, -Vec3::Z), eye)
+                .unwrap()
+                .is_empty()
+        );
+        for vertex in &mut portals.portal_vertices[1] {
+            vertex.x -= 4.0;
+        }
+        assert_eq!(
+            portals
+                .exterior_frusta(Affine3A::IDENTITY, &view(eye, -Vec3::Z), eye)
+                .unwrap()
+                .len(),
+            1
+        );
+    }
+
+    #[test]
     fn outside_facing_the_doorway_draws_the_room() {
         assert_eq!(visible(Vec3::new(5.0, 1.0, -20.0), Vec3::Z), [0, 1]);
     }
