@@ -131,7 +131,15 @@ def stage_closure(
     staged = {"source_identity": identity, "assets": assets, "failures": []}
     verified = chains.prepare_verified_assets(identity, staged, resolution)
     allowed = {
-        "product", "build", "build_key", "fdid", "kind", "path", "bytes", "sha256", "content_key"
+        "product",
+        "build",
+        "build_key",
+        "fdid",
+        "kind",
+        "path",
+        "bytes",
+        "sha256",
+        "content_key",
     }
     pairs = [
         ({key: value for key, value in receipt.items() if key in allowed}, raw)
@@ -145,7 +153,12 @@ def stage_closure(
             raise ValueError(f"Existing payload conflicts: {receipt['path']}")
     fragment = publication.deduplicate_staged_fragment(
         index_data,
-        {"version": 1, "assets": [row for row, _ in pairs], "aliases": [], "chains": []},
+        {
+            "version": 1,
+            "assets": [row for row, _ in pairs],
+            "aliases": [],
+            "chains": [],
+        },
     )
     publication.validate_staged_fragment(index_data, fragment)
     output.mkdir(parents=True)
@@ -161,7 +174,13 @@ def stage_closure(
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     for name in (
-        "source-data", "index-data", "roots", "manifest", "root", "resolution", "output"
+        "source-data",
+        "index-data",
+        "roots",
+        "manifest",
+        "root",
+        "resolution",
+        "output",
     ):
         parser.add_argument("--" + name, type=Path, required=True)
     parser.add_argument("--name", required=True)
