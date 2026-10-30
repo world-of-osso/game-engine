@@ -21,6 +21,8 @@ func run() -> void:
 	var on := make_batch(GeometryInstance3D.SHADOW_CASTING_SETTING_ON)
 	var off := make_batch(GeometryInstance3D.SHADOW_CASTING_SETTING_OFF)
 	var double := make_batch(GeometryInstance3D.SHADOW_CASTING_SETTING_DOUBLE_SIDED)
+	await process_frame
+	await RenderingServer.frame_post_draw
 	var probes := []
 	for batch in [on, off, double]:
 		var probe = ClassDB.instantiate("WowSceneryFadeProbe")
