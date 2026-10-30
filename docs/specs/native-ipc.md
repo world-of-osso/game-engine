@@ -58,6 +58,7 @@ The client answers these from its live state (`godot/rust/src/ipc/dev.rs`, `worl
 - [x] `status terrain`: map, the map request's tile, load radius, initial/loaded/pending/failed tiles, server-requested tiles, heightmap (parsed) tiles, process memory, parsed-model cache entries, terrain and liquid material counts. The original's Bevy asset-store counters (images, meshes, M2/effect materials, composited textures, model byte estimates) have no native store and are not reported.
 - [x] Zone: the MCNK area under the local player and its root zone; a position no loaded chunk answers keeps the last zone (original `CurrentZone`).
 - [x] `map position`, `map waypoint add|clear` (the reply is the position text; scripted movement clears the waypoint): zone, the local player's x,z, waypoint; no death state, so no graveyard marker (`-`). No local player is an error.
+- [x] `death release-spirit` and `death resurrect-at-corpse` send the same server requests as the death UI. Submission is not proof of server acceptance; inspect `death status` for the resulting state.
 - [x] `map target`: `none`, `missing`, or the target's name, server entity, x,z and ground distance from the local player.
 - [x] `camera set`: the original angle validation and reply; the live camera follows the new orbit.
 - [x] `movement forward|stop`: the original duration/heading validation; forward steps along the heading for the duration, manual movement input or a modal cancels it, stop reports one stop input.

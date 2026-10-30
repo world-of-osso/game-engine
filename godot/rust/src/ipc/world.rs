@@ -18,11 +18,30 @@ use shared::{
     protocol::{EmoteIntent, GAMEOBJECT_TYPE_MAILBOX, GameObjectInfo},
 };
 
+pub(crate) fn send_death_ipc(
+    account: &crate::account::Account,
+    request: Request,
+) -> Result<String, String> {
+    use game_engine_ui_model::death_flow::DeathRequest;
+    let request = match request {
+        Request::DeathReleaseSpirit => DeathRequest::Release,
+        Request::DeathResurrectAtCorpse => DeathRequest::Corpse,
+        _ => return Err("unsupported death request".into()),
+    };
+    account
+        .send_death(request)
+        .map_err(|error| error.to_string())?;
+    Ok("death request submitted".into())
+}
+
 impl crate::GameClient {
     /// A world request's response, or the request when the client does not serve it.
     pub(crate) fn world_request(&mut self, request: Request) -> Result<Response, Request> {
         let answer = match request {
             Request::DeathStatus => format_death_snapshot(self.death_flow.snapshot.as_ref()),
+            request @ (Request::DeathReleaseSpirit | Request::DeathResurrectAtCorpse) => {
+                send_death_ipc(&self.account, request)
+            }
             Request::CurrenciesStatus => {
                 serde_json::to_string(&self.account.currencies).map_err(|error| error.to_string())
             }

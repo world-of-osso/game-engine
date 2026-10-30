@@ -46,6 +46,8 @@ pub(crate) fn dump_ui_tree(client: &Gd<Node>, filter: Option<&str>) -> Response 
 }
 
 pub(crate) use export::export_scene;
+#[cfg(test)]
+pub(crate) use world::send_death_ipc;
 
 struct Command {
     request: Request,
