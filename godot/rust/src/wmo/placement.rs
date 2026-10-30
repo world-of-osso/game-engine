@@ -17,6 +17,7 @@ pub(crate) struct PlacedWmo {
     pub asset: NativeWmoAsset,
     pub world_from_local: Affine3A,
     pub collision: WmoCollision,
+    pub liquids: Vec<game_engine_core::wmo_liquid::LiquidTriangle>,
     pub surface: Option<FootstepSurface>,
 }
 
@@ -32,14 +33,41 @@ impl PlacedWmo {
             global_wmo_placement_position(placement.position),
         );
         let collision = placed_collision(world_from_local, &asset);
+        let liquids = asset_liquids(&asset)
+            .iter()
+            .map(|triangle| triangle.transformed(world_from_local))
+            .collect();
         Self {
             placement,
             asset,
             world_from_local,
             collision,
+            liquids,
             surface,
         }
     }
+}
+
+pub(crate) fn asset_liquids(
+    asset: &NativeWmoAsset,
+) -> Vec<game_engine_core::wmo_liquid::LiquidTriangle> {
+    use game_engine_core::wmo_liquid::{group_liquid_type, liquid_triangles};
+    asset
+        .groups
+        .iter()
+        .flat_map(|group| {
+            let Some(kind) = group_liquid_type(asset.root.flags, &group.group.header) else {
+                return Vec::new();
+            };
+            group
+                .group
+                .geometry
+                .liquid
+                .as_ref()
+                .map(|liquid| liquid_triangles(liquid, kind))
+                .unwrap_or_default()
+        })
+        .collect()
 }
 
 /// Floors of an ADT `_obj` MODF placement, placed as `TerrainObjects` renders it.

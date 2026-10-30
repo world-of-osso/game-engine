@@ -450,12 +450,60 @@ impl TerrainGround<'_> {
 
     /// Swimming where the water stands `SWIM_DEPTH` over the feet, above the ground.
     pub fn swimming(&self, feet: Vec3) -> bool {
-        self.sample(feet)
-            .is_some_and(|ground| is_swimming(feet.y, ground.height, self.water_surface(feet)))
+        let Some(surface) = self.water_surface(feet) else {
+            return false;
+        };
+        let floor = self.liquid_floor(feet, surface);
+        is_swimming(feet.y, floor, Some(surface))
     }
 
     pub fn water_surface(&self, feet: Vec3) -> Option<f32> {
-        self.terrain.water_surface_at(feet.x, feet.z)
+        let global = self
+            .terrain
+            .map_wdt
+            .as_ref()
+            .and_then(|map| map.global_wmo.as_ref());
+        let liquids = global.into_iter().flat_map(|wmo| &wmo.liquids).chain(
+            self.terrain
+                .parsed_tiles
+                .values()
+                .flat_map(|tile| &tile.wmo_liquids),
+        );
+        self.terrain
+            .water_surfaces_at(feet.x, feet.z)
+            .into_iter()
+            .chain(liquids.filter_map(|triangle| triangle.level_at(feet.x, feet.z)))
+            .min_by(|a, b| (a - feet.y).abs().total_cmp(&(b - feet.y).abs()))
+    }
+
+    /// The highest collision floor below the swimmer and liquid, as on the server.
+    fn liquid_floor(&self, feet: Vec3, surface: f32) -> f32 {
+        let ceiling = feet.y.min(surface) + 0.05;
+        let wmos = self
+            .terrain
+            .map_wdt
+            .as_ref()
+            .and_then(|map| map.global_wmo.as_ref())
+            .map(|wmo| &wmo.collision)
+            .into_iter()
+            .chain(
+                self.terrain
+                    .parsed_tiles
+                    .values()
+                    .flat_map(|tile| tile.wmo_floors.iter().map(|(_, wmo)| wmo)),
+            );
+        let mut heights = Vec::new();
+        for wmo in wmos {
+            wmo.collision_heights(feet.x, feet.z, ceiling, ceiling - 250_000.0, &mut heights);
+        }
+        let probe = feet.with_y(ceiling - STEP_UP_HEIGHT);
+        heights
+            .into_iter()
+            .chain(self.terrain_height(feet))
+            .filter(|height| *height <= ceiling)
+            .chain(self.m2_ground(probe, true).map(|ground| ground.height))
+            .max_by(f32::total_cmp)
+            .unwrap_or(f32::NEG_INFINITY)
     }
 
     /// A level swim move: stop short of a WMO wall and of ground beyond step reach (an
@@ -489,6 +537,60 @@ mod tests {
     };
 
     use super::*;
+
+    #[test]
+    fn halls_wmo_water_drives_local_swim_prediction() {
+        let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
+        let assets = crate::terrain::NativeTerrainAssets::new(root.clone());
+        let mut terrain = StreamedTerrain::new(root);
+        terrain.map_wdt = Some(assets.read_map_wdt("2527").unwrap());
+        let feet = Vec3::new(-70.91135, -44.08284, 148.4207);
+        let tile = bevy_to_tile_coords(feet.x, feet.z);
+        terrain
+            .parsed_tiles
+            .insert(tile, assets.read_tile("2527", tile.0, tile.1).unwrap());
+        let ground = TerrainGround {
+            terrain: &terrain,
+            walls: &|_, _, _| None,
+            step_wall_blocked: &|_, _, _| false,
+            game_object_floor: &|_| None,
+        };
+        let surface = ground.water_surface(feet).expect("Halls WMO liquid");
+        assert!((surface - -38.515987).abs() < 0.01, "{surface}");
+        assert!(
+            terrain.parsed_tiles[&tile]
+                .wmo_liquids
+                .iter()
+                .any(|triangle| triangle.liquid_type == 1194
+                    && triangle.level_at(feet.x, feet.z).is_some())
+        );
+        assert!(ground.swimming(feet));
+        assert!(!ground.swimming(feet.with_y(surface + 1.0)));
+        let mut movement = crate::gameplay::PlayerMovement::default();
+        let frame = || crate::gameplay::MovementFrame {
+            direction: [0.0; 3],
+            speed: 0.0,
+            vertical: 0.0,
+        };
+        movement.predict(
+            feet,
+            frame(),
+            false,
+            &ground,
+            &mut |_, to, _| to,
+            1.0 / 60.0,
+        );
+        assert!(movement.swimming);
+        movement.predict(
+            feet.with_y(surface + 1.0),
+            frame(),
+            false,
+            &ground,
+            &mut |_, to, _| to,
+            1.0 / 60.0,
+        );
+        assert!(!movement.swimming);
+    }
 
     #[test]
     fn academy_and_murder_row_recorded_steps_admit_movement_on_real_ground() {
@@ -780,6 +882,7 @@ mod tests {
                 textures: Default::default(),
                 chunk_surfaces: Default::default(),
                 wmo_floors: Vec::new(),
+                wmo_liquids: Vec::new(),
                 m2_floors: vec![floor],
                 m2_solids: vec![solid],
                 wmo_surfaces: Vec::new(),
@@ -857,6 +960,7 @@ mod tests {
                 textures: Default::default(),
                 chunk_surfaces: Default::default(),
                 wmo_floors: Vec::new(),
+                wmo_liquids: Vec::new(),
                 m2_floors: vec![upper, lower],
                 m2_solids: Vec::new(),
                 wmo_surfaces: Vec::new(),
