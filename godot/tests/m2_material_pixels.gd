@@ -322,13 +322,29 @@ func run_cases() -> void:
 	box.size = Vector3(0.8, 0.15, 0.8)
 	block.mesh = box
 	block.position = Vector3(-0.5, 0.5, 0.0)
-	viewport.add_child(block)
+	var caster_shader := Shader.new()
+	caster_shader.code = "shader_type spatial; void fragment() { ALBEDO = vec3(1.0); }"
+	var caster_material := ShaderMaterial.new()
+	caster_material.shader = caster_shader
+	block.material_override = caster_material
+	var caster := Node3D.new()
+	caster.add_child(block)
+	viewport.add_child(caster)
 	var ambient_only := 0.4 * ambient_factor
 	var shadow_pixel := await pixel()
 	if shadow_pixel.r >= unshadowed - 0.008 or shadow_pixel.r < ambient_only - TOLERANCE:
 		fail("real caster must attenuate direct, retain ambient: %s (clear %s, ambient %s)" % [shadow_pixel, unshadowed, ambient_only])
 		return
 	print("PASS: real caster attenuates direct, retains ambient ", shadow_pixel)
+	var probe = ClassDB.instantiate("WowSceneryFadeProbe")
+	probe.track(caster)
+	probe.set_camera_admitted(false)
+	var shadow_only_pixel := await pixel()
+	if absf(shadow_only_pixel.r - shadow_pixel.r) > TOLERANCE:
+		fail("camera-rejected caster changed its shadow: %s versus %s" % [shadow_only_pixel, shadow_pixel])
+		return
+	probe.set_camera_admitted(true)
+	print("PASS: camera-rejected caster preserves receiver shadow ", shadow_only_pixel)
 	# WMO doodad interior light (commonLightFunctions.slang calcLight): at blend 0 the
 	# interior ambient and direct light along the personal sun replace the exterior
 	# light, ignoring the sun's shadow; at 0.5 the two mix.
@@ -341,7 +357,7 @@ func run_cases() -> void:
 	var interior := 0.4 * (0.2 * 1.1 + 0.5)
 	if not await assert_pixel("interior doodad light under the caster", Color(interior, interior, interior)):
 		return
-	block.free()
+	caster.free()
 	material.set_shader_parameter("exterior_blend", 0.5)
 	var mixed := 0.5 * interior + 0.5 * unshadowed
 	if not await assert_pixel("half interior, half exterior", Color(mixed, mixed, mixed)):
