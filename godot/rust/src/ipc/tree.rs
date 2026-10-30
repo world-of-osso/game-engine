@@ -155,7 +155,10 @@ fn semantic_label(node: &Gd<Node>) -> Option<String> {
 }
 
 fn game_object_label(node: &Gd<Node>, spatial: &Gd<Node3D>) -> String {
-    let name = node.get_meta("game_object_name").to::<String>();
+    let name = node
+        .get_meta("game_object_name")
+        .to::<GString>()
+        .to_string();
     let id = node.get_meta("game_object_server_id").to::<i64>();
     let entry = node.get_meta("game_object_entry").to::<i64>();
     let collision = node
