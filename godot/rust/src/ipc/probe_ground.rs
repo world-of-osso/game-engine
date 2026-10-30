@@ -80,7 +80,7 @@ fn physics_ray(
     )
     .ok_or("probe-ground ray allocation failed")?;
     query.set_collision_mask(layer);
-    query.set_hit_back_faces(true);
+    query.set_hit_back_faces(kind == "column");
     let hit = space.clone().intersect_ray(&query);
     if hit.is_empty() {
         return Ok(
@@ -101,6 +101,6 @@ fn physics_ray(
         .ok_or("probe-ground hit lacks normal")?
         .to::<Vector3>();
     Ok(
-        json!({"layer":layer,"kind":kind,"from":from.to_array(),"to":to.to_array(),"hit":{"collider":node.get_path().to_string(),"position":[point.x,point.y,point.z],"normal":[normal.x,normal.y,normal.z]}}),
+        json!({"layer":layer,"kind":kind,"from":from.to_array(),"to":to.to_array(),"hit":{"collider":node.get_path().to_string(),"position":[point.x,point.y,point.z],"normal":[normal.x,normal.y,normal.z],"distance": (Vec3::new(point.x, point.y, point.z) - from).length()}}),
     )
 }
