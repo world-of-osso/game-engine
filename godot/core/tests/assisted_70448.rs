@@ -308,7 +308,29 @@ fn assisted_70448_condition_type_sweep_names_every_rule_outcome() {
             .push(rule.id);
     }
     assert_eq!(report[&3]["evaluated"].len(), 92);
-    assert!(!report[&4].contains_key("evaluated"));
+    // 21a30a474 implements the SimC 76f8118 player.cpp target.distance> rule.
+    let distance_rules = &report[&4]["evaluated"];
+    assert_eq!(distance_rules.len(), 11);
+    for rule in rules
+        .iter()
+        .filter(|rule| distance_rules.contains(&rule.id))
+    {
+        let threshold = f64::from(rule.values[0]);
+        for (distance, expected) in [
+            (threshold - 1.0, false),
+            (threshold, false),
+            (threshold + 1.0, true),
+        ] {
+            let mut distance_facts = facts.clone();
+            distance_facts.target_distance_yd = Some(distance);
+            assert_eq!(
+                evaluate_rule(rule, &distance_facts),
+                Ok(expected),
+                "rule {} distance {distance}",
+                rule.id
+            );
+        }
+    }
     for (kind, outcomes) in &report {
         let evaluated = outcomes.get("evaluated").map_or(0, Vec::len);
         let total: usize = outcomes.values().map(Vec::len).sum();
