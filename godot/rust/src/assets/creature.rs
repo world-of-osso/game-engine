@@ -539,6 +539,53 @@ mod tests {
     }
 
     #[test]
+    fn model_dependencies_load_from_their_individual_owner_builds() {
+        use game_engine_core::asset_product::AssetProduct;
+        use serde_json::json;
+
+        let root = std::env::temp_dir().join(format!("model-owner-{}", std::process::id()));
+        let model_key = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+        let owner_key = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+        let kinds = [
+            (11, "m2"),
+            (12, "skin"),
+            (13, "skel"),
+            (14, "anim"),
+            (15, "blp"),
+            (16, "wmo"),
+            (17, "bone"),
+        ];
+        let mut rows = Vec::new();
+        for (fdid, kind) in kinds {
+            let key = if kind == "m2" { model_key } else { owner_key };
+            let dir = if kind == "blp" { "textures" } else { "models" };
+            let path = format!("products/wow/{key}/{dir}/{fdid}.{kind}");
+            let file = root.join(&path);
+            fs::create_dir_all(file.parent().unwrap()).unwrap();
+            fs::write(&file, format!("owner-{fdid}")).unwrap();
+            rows.push(
+                json!({"product": "wow", "build": "fixture", "build_key": key,
+                "fdid": fdid, "kind": kind, "path": path,
+                "bytes": 1, "sha256": "a".repeat(64), "content_key": "b".repeat(32)}),
+            );
+        }
+        fs::create_dir_all(root.join("cache")).unwrap();
+        fs::write(
+            root.join("cache/model-asset-index.json"),
+            json!({"version":1,"assets":rows}).to_string(),
+        )
+        .unwrap();
+        let resolver = authored_model_resolver(&root, AssetProduct::Retail, 11).unwrap();
+        for (fdid, kind) in kinds.into_iter().skip(1) {
+            let dir = if kind == "blp" { "textures" } else { "models" };
+            let file = cache_required(&resolver, fdid, &root.join(format!("{dir}/{fdid}.{kind}")))
+                .unwrap();
+            assert_eq!(fs::read(file).unwrap(), format!("owner-{fdid}").as_bytes());
+        }
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
     fn dornogal_model_texture_uses_the_index_owner_build() {
         use game_engine_core::asset::m2_format;
         use game_engine_core::asset_product::AssetProduct;

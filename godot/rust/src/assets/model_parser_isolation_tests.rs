@@ -27,6 +27,22 @@ fn retail_head_7321940_reads_primary_sfid_without_filename_alias_or_casc() {
     for name in ["7321940.m2", "7530107.skin"] {
         fs::copy(source.join(name), models.join(name)).unwrap();
     }
+    let cache = root.join("cache");
+    fs::create_dir_all(&cache).unwrap();
+    let skin = serde_json::json!({
+        "product": "wow", "build": "70391", "build_key": KEY,
+        "fdid": 7530107, "kind": "skin",
+        "path": format!("products/wow/{KEY}/models/7530107.skin"),
+        "bytes": 1, "sha256": "a".repeat(64), "content_key": "b".repeat(32),
+    });
+    fs::write(
+        cache.join("model-asset-index.json"),
+        serde_json::json!({
+            "version": 1, "assets": [skin]
+        })
+        .to_string(),
+    )
+    .unwrap();
     let output = std::process::Command::new(std::env::current_exe().unwrap())
         .args(["--exact", "assets::parser_isolation_tests::retail_head_7321940_reads_primary_sfid_without_filename_alias_or_casc", "--nocapture"])
         .env_clear().env("GAME_ENGINE_ASSET_MODE", "extracted-only")

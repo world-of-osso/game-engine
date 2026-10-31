@@ -1,5 +1,6 @@
 # data/-relative files uploaded for `scripts/engine-build.py --test`; see docs/remote-builds.md.
 # Dornogal cross-build M2 texture ownership regression.
+cache/model-asset-index.json
 cache/model-asset-index-noinstall-model-recovery-69933.json
 cache/model-asset-index-orgrimmar-20261030.json
 model:wow:645372:m2
