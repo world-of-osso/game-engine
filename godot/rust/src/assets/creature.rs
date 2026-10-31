@@ -486,7 +486,8 @@ pub(crate) fn cache_required(
             .with_shared_data_root(&root)
             .with_identity(identity),
     );
-    owner_resolver.ensure_cached_checked(fdid, destination)
+    let directory = if kind == "blp" { "textures" } else { "models" };
+    owner_resolver.ensure_cached_checked(fdid, &root.join(directory).join(format!("{fdid}.{kind}")))
 }
 
 /// Cache the local-CASC textures an already parsed model's batches and particles
