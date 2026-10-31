@@ -11,6 +11,7 @@ pub(crate) mod object_progress;
 pub(crate) mod objects;
 mod probe;
 pub(crate) mod scenery;
+mod scenery_index;
 pub(crate) mod state;
 pub(crate) mod streaming;
 mod textures;

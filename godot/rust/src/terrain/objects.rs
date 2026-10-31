@@ -45,8 +45,8 @@ use crate::{
     lighting::TerrainLight,
     particles::{ModelParticles, ParticlePools, PlacedParticles, view_basis},
     terrain::{
-        doodad_collision, scenery::SceneryDistance, streaming::StreamedTerrain,
-        wmo_liquid::WmoLiquids,
+        doodad_collision, scenery::SceneryDistance, scenery_index::SceneryIndex,
+        streaming::StreamedTerrain, wmo_liquid::WmoLiquids,
     },
     wmo::{
         assets::{LitDoodad, NativeWmoAsset, ShadowGroups, wmo_fog_volume},
@@ -414,6 +414,7 @@ pub(crate) struct TerrainObjects {
     spawned_wmos: BTreeSet<u32>,
     wmo_doodads: HashMap<u32, WmoDoodads>,
     doodads: Vec<CulledDoodad>,
+    scenery_index: SceneryIndex,
     wmos: Vec<CulledWmo>,
     outdoor_windows: Option<Vec<Vec<HalfSpace>>>,
     interior_bounds: Vec<(Vec3, Vec3)>,
@@ -463,6 +464,7 @@ impl TerrainObjects {
             spawned_wmos: BTreeSet::new(),
             wmo_doodads: HashMap::new(),
             doodads: Vec::new(),
+            scenery_index: SceneryIndex::default(),
             wmos: Vec::new(),
             outdoor_windows: None,
             interior_bounds: Vec::new(),
@@ -999,6 +1001,8 @@ impl TerrainObjects {
             }
             doodad.particles = Some(placed);
         }
+        let animated = doodad.bones.is_some() || doodad.materials.is_some();
+        self.scenery_index.push(doodad.scenery, animated);
         self.doodads.push(doodad);
     }
 
@@ -1227,7 +1231,8 @@ impl TerrainObjects {
         frame: u64,
     ) {
         let camera = Vec3::new(camera.x, camera.y, camera.z);
-        for doodad in &mut self.doodads {
+        for &index in self.scenery_index.update(camera) {
+            let doodad = &mut self.doodads[index];
             let group_drawn = doodad.group_drawn(&self.wmos);
             let camera_admitted = doodad.wmo_groups.is_some()
                 || !doodad.portal_cull_safe
@@ -1330,6 +1335,7 @@ impl TerrainObjects {
         self.spawned_wmos.clear();
         self.wmo_doodads.clear();
         self.doodads.clear();
+        self.scenery_index = SceneryIndex::default();
         self.wmos.clear();
         self.progress = TileProgress::default();
         self.nearby = super::object_progress::NearbyProgress::default();

@@ -9,6 +9,7 @@ extends SceneTree
 ##          the same distance back (run 7 yd/s, backpedal 4.5 yd/s), repeatedly
 ## Environment: GODOT_TEST_SERVER, BENCH_ACCOUNT (password fbtest), BENCH_CHARACTER;
 ## BENCH_SCREENSHOT=<png> saves the settled idle view before measuring.
+## BENCH_SCENERY_RECEIPT=<path> records real Stormwind visibility for comparison.
 ## Place the character with `game-server-admin set-position|teleport` while it is offline.
 ## Each segment prints `BENCH_MARK <segment> start|end` (for an external profiler) and
 ## `BENCH_SEGMENT {json}`: wall-clock frame interval percentiles, per-frame means of the
@@ -22,6 +23,7 @@ extends SceneTree
 
 const PASSWORD := "fbtest"
 const Readiness = preload("res://tests/world_entry_readiness.gd")
+const SceneryReceipt = preload("res://tests/scenery_visibility_receipt.gd")
 const PITCH := -0.35
 const DISTANCE := 15.0
 ## Noon in the half-minutes the world light samples.
@@ -100,6 +102,15 @@ func run_test() -> void:
 	if not Readiness.is_ready(client.account_state()):
 		fail("Work queued again after settling: " + str(client.account_state().world_objects))
 		return
+	var receipt_path := OS.get_environment("BENCH_SCENERY_RECEIPT")
+	if receipt_path != "":
+		if client.account_state().get("ui_skin") != "Forever":
+			fail("Scenery receipt requires the Forever skin")
+			return
+		var count: int = SceneryReceipt.write(client, receipt_path)
+		if count < 1000:
+			fail("Scenery receipt has insufficient placements: " + str(count))
+			return
 	var spawn := Vector2(player.position.x, player.position.z)
 	print("BENCH_SCENE ", JSON.stringify({"character": character, "spawn": [spawn.x, spawn.y],
 		"objects": client.account_state().world_objects, "load": load_average()}))

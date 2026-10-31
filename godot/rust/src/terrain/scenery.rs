@@ -87,6 +87,15 @@ impl SceneryDistance {
         self.opacity(camera) > 0.0
     }
 
+    /// Short-range placements can use the scenery candidate grid.
+    pub(super) fn grid_position(&self) -> Option<(Vec3, usize)> {
+        (self.class < 3).then_some((self.center, self.class))
+    }
+
+    pub(super) fn grid_radii() -> &'static [f32] {
+        &FAR_RADII[..3]
+    }
+
     /// Animation rate of the placement seen from `camera` through `frustum` (inside
     /// half spaces): frozen when not drawn or when its world box is out of view.
     pub fn animation_lod(&self, camera: Vec3, frustum: &[HalfSpace]) -> AnimationLod {
