@@ -54,6 +54,7 @@ pub(crate) struct LocalTransport {
     pub epoch: u32,
     pub attached: bool,
     pub pending_disembark: bool,
+    pub pending_board: bool,
     previous: TransportPose,
 }
 
@@ -64,6 +65,7 @@ impl LocalTransport {
             epoch,
             attached: true,
             pending_disembark: false,
+            pending_board: true,
             previous: pose,
         }
     }

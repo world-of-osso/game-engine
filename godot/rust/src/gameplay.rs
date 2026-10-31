@@ -936,7 +936,11 @@ impl crate::GameClient {
             .local_transport
             .as_ref()
             .is_some_and(|carrier| carrier.pending_disembark);
-        if input.is_none() && pending_drop {
+        let pending_board = self
+            .local_transport
+            .as_ref()
+            .is_some_and(|carrier| carrier.pending_board);
+        if input.is_none() && (pending_drop || pending_board) {
             input = Some(PlayerInput {
                 direction: [0.0; 3],
                 facing_yaw: yaw,
@@ -951,9 +955,13 @@ impl crate::GameClient {
         }
         if let Some(mut input) = input {
             input.transport = transport;
-            self.account.send_player_input(input)?;
-            if let Some(carrier) = &mut self.local_transport {
-                carrier.pending_disembark = false;
+            if pending_board {
+                self.account.send_transport_board_ack(input)?;
+                if let Some(carrier) = &mut self.local_transport {
+                    carrier.pending_board = false;
+                }
+            } else {
+                self.account.send_player_input(input)?;
             }
         }
         Ok(())

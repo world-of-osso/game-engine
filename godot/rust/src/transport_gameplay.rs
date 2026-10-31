@@ -86,7 +86,7 @@ impl GameClient {
         let at = player.get_position();
         let feet = glam::Vec3::new(at.x, at.y, at.z);
         let floor = crate::game_objects::floor_object(&space, feet);
-        if floor != Some(carrier.ship) {
+        if !carrier.pending_board && floor != Some(carrier.ship) {
             carrier.attached = false;
             carrier.pending_disembark = true;
             return Ok(None);

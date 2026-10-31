@@ -562,6 +562,12 @@ impl Account {
             .map_err(SessionError)
     }
 
+    pub fn send_transport_board_ack(&self, input: PlayerInput) -> Result<(), SessionError> {
+        self.bridge()?
+            .send::<_, AuthChannel>(input)
+            .map_err(SessionError)
+    }
+
     pub(crate) fn send_lfg<M: game_engine_network::WireMessage>(
         &self,
         request: M,
