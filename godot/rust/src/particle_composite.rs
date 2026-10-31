@@ -231,8 +231,7 @@ fn new_effect() -> Result<Gd<Resource>, String> {
         .map_err(|error| format!("{EFFECT_PATH}.new(): {error}"))
 }
 
-/// The effect's draw dictionary for `pool`.
-fn pool_draw(pool: &mut Published) -> Result<VarDictionary, String> {
+fn sync_pool_textures(pool: &mut Published) -> Result<(VarArray, VarArray), String> {
     let mut texture_rids = [None; 3];
     let mut texture_refs = VarArray::new();
     for (layer, slot) in pool.textures.iter_mut().enumerate() {
@@ -258,6 +257,12 @@ fn pool_draw(pool: &mut Published) -> Result<VarDictionary, String> {
         texture_rids[1].unwrap_or(base).to_variant(),
         texture_rids[2].unwrap_or(base).to_variant(),
     ]);
+    Ok((textures, texture_refs))
+}
+
+/// The effect's draw dictionary for `pool`.
+fn pool_draw(pool: &mut Published) -> Result<VarDictionary, String> {
+    let (textures, texture_refs) = sync_pool_textures(pool)?;
     let material = &pool.material;
     let parameter = |name: &str| material.get_shader_parameter(name);
     let float = |name: &str| parameter(name).try_to::<f32>().unwrap_or(0.0);
