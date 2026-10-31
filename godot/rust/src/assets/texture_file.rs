@@ -6,7 +6,7 @@ pub(super) fn read_texture_file(
     dir: &Path,
     record_missing: impl FnOnce(u32),
 ) -> Result<Option<Vec<u8>>, String> {
-    let path = super::dependent_asset_path(&dir.join(format!("{fdid}.blp")), fdid, "blp")?;
+    let path = crate::assets::dependent_asset_path(&dir.join(format!("{fdid}.blp")), fdid, "blp")?;
     match fs::read(path) {
         Ok(bytes) => Ok(Some(bytes)),
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
