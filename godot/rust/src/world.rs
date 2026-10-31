@@ -995,6 +995,42 @@ pub(crate) struct SceneUnit {
     pub visual: Option<Gd<Node3D>>,
 }
 
+/// Report a sustained missing local appearance without treating replication latency as a fault.
+#[derive(Default)]
+struct LocalVisualMonitor {
+    id: Option<u64>,
+    ticks: u32,
+    elapsed: f32,
+    reported: bool,
+}
+
+impl LocalVisualMonitor {
+    fn observe(&mut self, unit: Option<Unit>, delta: f32) -> Option<String> {
+        let Some(unit) = unit.filter(|unit| unit.has::<Player>() && !unit.has::<CharacterVisual>())
+        else {
+            *self = Self::default();
+            return None;
+        };
+        if self.id != Some(unit.server_id) {
+            *self = Self {
+                id: Some(unit.server_id),
+                ..Self::default()
+            };
+        }
+        self.ticks = self.ticks.saturating_add(1);
+        self.elapsed += delta;
+        if self.ticks < 300 || self.elapsed < 5.0 || self.reported {
+            return None;
+        }
+        self.reported = true;
+        let player = unit.get::<Player>().expect("filtered player");
+        Some(format!(
+            "Local player {} (server ID {}) has Player but no CharacterVisual after {} update ticks; check client/server pairing",
+            player.name, unit.server_id, self.ticks
+        ))
+    }
+}
+
 pub struct WorldUnits {
     root: Option<Gd<Node3D>>,
     /// `AnimationData.Fallback`, loaded on first use.
@@ -1006,6 +1042,7 @@ pub struct WorldUnits {
     units: HashMap<u64, UnitNode>,
     selected_name: Option<String>,
     local_player_id: Option<u64>,
+    local_visual_monitor: LocalVisualMonitor,
     models: WorldModels,
     /// Loaded visuals waiting for main-thread time, oldest first.
     arrived: VecDeque<(u64, Result<VisualParts, String>)>,
@@ -1030,6 +1067,7 @@ impl WorldUnits {
             units: HashMap::new(),
             selected_name: None,
             local_player_id: None,
+            local_visual_monitor: LocalVisualMonitor::default(),
             models: WorldModels::new(data_root),
             arrived: VecDeque::new(),
             light: None,
@@ -1410,6 +1448,13 @@ impl WorldUnits {
         }
     }
 
+    pub fn check_local_visual(&mut self, replica: &Replica, delta: f32) {
+        let unit = self.local_player_id.and_then(|id| replica.unit(id));
+        if let Some(error) = self.local_visual_monitor.observe(unit, delta) {
+            godot_error!("{error}");
+        }
+    }
+
     pub fn advance(&mut self, delta: f32) {
         for (id, unit) in &mut self.units {
             advance_unit_transform(unit, self.local_player_id == Some(*id), delta);
@@ -1540,6 +1585,7 @@ impl WorldUnits {
         self.units.clear();
         self.deaths.clear();
         self.local_player_id = None;
+        self.local_visual_monitor = LocalVisualMonitor::default();
         self.selected_name = None;
         if let Some(root) = self.root.take() {
             root.free();
@@ -1881,6 +1927,32 @@ mod tests {
             },
         );
         replica
+    }
+
+    #[test]
+    fn missing_local_character_visual_is_reported_after_the_grace_period() {
+        let mut replica = player_replica();
+        let mut monitor = LocalVisualMonitor::default();
+        for _ in 0..400 {
+            assert!(monitor.observe(replica.unit(PLAYER_ID), 0.02).is_none());
+        }
+        replica.remove::<CharacterVisual>(PLAYER_ID);
+        for _ in 0..299 {
+            assert!(monitor.observe(replica.unit(PLAYER_ID), 0.02).is_none());
+        }
+        let error = monitor.observe(replica.unit(PLAYER_ID), 0.02).unwrap();
+        assert!(error.contains("has Player but no CharacterVisual"));
+        assert!(monitor.observe(replica.unit(PLAYER_ID), 0.02).is_none());
+
+        let visual =
+            CharacterVisual::from(replica.unit(PLAYER_ID).unwrap().get::<Player>().unwrap());
+        replica.insert(PLAYER_ID, visual);
+        assert!(monitor.observe(replica.unit(PLAYER_ID), 0.02).is_none());
+        replica.remove::<CharacterVisual>(PLAYER_ID);
+        for _ in 0..299 {
+            assert!(monitor.observe(replica.unit(PLAYER_ID), 0.02).is_none());
+        }
+        assert!(monitor.observe(replica.unit(PLAYER_ID), 0.02).is_some());
     }
 
     #[test]

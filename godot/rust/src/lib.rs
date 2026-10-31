@@ -2273,6 +2273,7 @@ impl GameClient {
             ("Group frames", |c, d| c.update_group_frames(d)),
             ("World units", |c, d| {
                 c.world.advance(d);
+                c.world.check_local_visual(&c.replica, d);
                 c.update_transport_motion(0.0)?;
                 Ok(())
             }),
