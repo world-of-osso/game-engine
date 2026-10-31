@@ -5,7 +5,7 @@
 
 use std::{
     cell::{Cell, RefCell},
-    collections::{hash_map::Entry, HashMap},
+    collections::{HashMap, hash_map::Entry},
     rc::Rc,
 };
 
