@@ -1,3 +1,7 @@
+## 2026-10-31 — Neltharus Forge liquid material
+
+[Neltharus Forge](investigations/northshire-pale-water.md#neltharus-forge-lava-material--2026-10-31) records real WMO/DB2 material resolution, ProcMagma evidence and open shoreline/flow gaps.
+
 ## 2026-10-31 — Stormwind client performance comparison
 
 [Client performance techniques](investigations/client-performance-techniques.md) preserves the local client source comparison and its unmeasured candidates. [Stormwind FPS](investigations/godot-stormwind-fps.md) records qualified Linux measurements.
