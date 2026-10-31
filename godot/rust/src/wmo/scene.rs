@@ -736,7 +736,7 @@ fn read_wmo_texture(
     fdid: u32,
 ) -> Result<Gd<ImageTexture>, String> {
     if let Some(product) = product {
-        let address = crate::assets::creature::cache_authored_texture(
+        let address = crate::assets::creature::cache_wmo_texture(
             data_root,
             game_engine_core::asset_product::AssetTexture { product, fdid },
         )?;

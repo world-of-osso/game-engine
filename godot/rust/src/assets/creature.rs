@@ -239,6 +239,33 @@ pub(crate) fn cache_authored_texture(
     })
 }
 
+/// Use each WMO texture's receipt when present; otherwise use its legacy flat path.
+pub(crate) fn cache_wmo_texture(
+    data_root: &Path,
+    texture: game_engine_core::asset_product::AssetTexture,
+) -> Result<TextureAddress, String> {
+    if data_root.join("cache/model-asset-index.json").is_file()
+        && load_asset_index(data_root)?
+            .receipt(texture.product, texture.fdid, "blp")
+            .is_ok()
+    {
+        return cache_authored_texture(data_root, texture);
+    }
+    let path = cache_required(
+        &local_resolver(data_root),
+        texture.fdid,
+        &data_root.join(format!("textures/{}.blp", texture.fdid)),
+    )?;
+    let dir = path
+        .parent()
+        .ok_or("Texture path has no directory")?
+        .to_owned();
+    Ok(TextureAddress {
+        dir,
+        fdid: texture.fdid,
+    })
+}
+
 /// Use a receipt's product/build namespace when present; legacy flat WMOs have no receipt.
 pub(crate) fn wmo_resolver(
     data_root: &Path,

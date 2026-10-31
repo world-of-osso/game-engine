@@ -156,6 +156,7 @@ pub(crate) mod tests {
         let resolver = crate::assets::creature::local_resolver(&source);
         let original = crate::wmo::assets::read_wmo(&resolver, &source, 307812).unwrap();
         let mut assets = Vec::new();
+        let mut flat_texture_written = false;
         for (fdid, kind, directory) in [307812, 318242, 318243, 318244, 318245, 318246]
             .into_iter()
             .map(|fdid| (fdid, "wmo", "models"))
@@ -170,9 +171,16 @@ pub(crate) mod tests {
             } else {
                 key
             };
+            let bytes = std::fs::read(source.join(format!("{directory}/{fdid}.{kind}"))).unwrap();
+            if kind == "blp" && !flat_texture_written {
+                let path = data.join(format!("textures/{fdid}.blp"));
+                std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+                std::fs::write(path, &bytes).unwrap();
+                flat_texture_written = true;
+                continue;
+            }
             let path = format!("products/wow/{key}/{directory}/{fdid}.{kind}");
             std::fs::create_dir_all(data.join(&path).parent().unwrap()).unwrap();
-            let bytes = std::fs::read(source.join(format!("{directory}/{fdid}.{kind}"))).unwrap();
             std::fs::write(data.join(&path), &bytes).unwrap();
             assets.push(serde_json::json!({"product":"wow", "build_key":key, "build":"fixture", "fdid":fdid, "kind":kind, "path":path, "bytes":bytes.len(), "sha256":"a".repeat(64), "content_key":"b".repeat(32)}));
         }

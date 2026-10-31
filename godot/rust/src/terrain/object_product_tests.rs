@@ -10,13 +10,16 @@ fn terrain_wmo_loads_receipt_only_root_groups_and_textures() {
     };
     assert_eq!(asset.groups.len(), 5);
     assert!(!textures.is_empty());
-    for (address, _) in textures {
-        assert!(
-            address
-                .dir
-                .ends_with("products/wow/11111111111111111111111111111111/textures")
-        );
-    }
+    assert!(
+        textures
+            .iter()
+            .any(|(address, _)| address.dir == data.join("textures"))
+    );
+    assert!(textures.iter().any(|(address, _)| {
+        address
+            .dir
+            .ends_with("products/wow/11111111111111111111111111111111/textures")
+    }));
     assert!(!data.join("models/307812.wmo").exists());
     std::fs::remove_dir_all(data).unwrap();
 }
