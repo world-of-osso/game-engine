@@ -11,7 +11,7 @@ uniform sampler2D texture_2 : repeat_enable, filter_linear_mipmap;
 uniform sampler2D texture_3 : repeat_enable, filter_linear_mipmap;
 uniform sampler2D noise_volume : repeat_enable, filter_linear;
 
-uniform float animation_time_ms = 0.0;
+global uniform float liquid_animation_time_ms;
 // LiquidType.Float[0..11] (MagmaData f0..f11).
 uniform vec4 floats_0 = vec4(0.0);
 uniform vec4 floats_4 = vec4(0.0);
@@ -90,7 +90,7 @@ void vertex() {
 }
 
 void fragment() {
-	float time = animation_time_ms;
+	float time = liquid_animation_time_ms;
 	// Exterior ADT liquid maps world position * 0.06 (LiquidInstance.cpp generateTexCoordsFromPos).
 	vec2 uv = mesh_uv ? UV : wow_position.xy * 0.06;
 	float flow_angle = flow.y * DEGREES;

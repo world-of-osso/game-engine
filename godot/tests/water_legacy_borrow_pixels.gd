@@ -1,6 +1,7 @@
 extends "res://tests/water_material_pixels.gd"
 
 func run() -> void:
+	root.get_node("M2MaterialClock").set_process(false)
 	var loader = ClassDB.instantiate("WowTerrainLoader")
 	var retail: Dictionary = loader.load_liquid_material(947, 42, 1643, Vector3(7733.333, 6133.333, 0), 1440.0)
 	if retail.has("error"):
@@ -42,7 +43,7 @@ func check_negative_opacity_gain() -> String:
 	RenderingServer.global_shader_parameter_set("specular_color", Vector3.ZERO)
 	RenderingServer.global_shader_parameter_set("underwater_fog", Vector3(1000, 100000000, 0))
 	material.set_shader_parameter("fog_mode", 0)
-	material.set_shader_parameter("animation_time_ms", 0.0)
+	RenderingServer.global_shader_parameter_set("liquid_animation_time_ms", 0.0)
 	build(Vector2.ONE, Vector2(5, 5), Color(0.02, 0.02, 0.02))
 	var first: Image = await capture()
 	set_backing_color(Color(0.04, 0.04, 0.04))

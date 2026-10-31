@@ -131,7 +131,7 @@ impl WaterMaterials {
     }
 
     /// One lit material outside any tile, for the liquid material fixture. The fixture drives
-    /// `animation_time_ms`; texture frames stay at time 0.
+    /// the global liquid clock; texture frames stay at time 0.
     pub fn standalone(
         mut self,
         native: &NativeLiquidMaterial,
@@ -290,9 +290,6 @@ impl LiquidSurface {
     /// frame per second; a crossfaded slot binds frame k and k+1 as `texture_next`
     /// (`resolveAnimatedTextures`), the shader blending by the fractional frame position.
     fn set_time(&mut self, milliseconds: f64) {
-        let wrapped = (milliseconds % 3_600_000.0) as f32;
-        self.material
-            .set_shader_parameter("animation_time_ms", &wrapped.to_variant());
         let second = (milliseconds * 0.001) as usize;
         for (slot, frames) in self.slots.iter().enumerate() {
             if frames.is_empty() {

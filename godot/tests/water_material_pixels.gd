@@ -28,6 +28,7 @@ func _initialize() -> void:
 	call_deferred("run")
 
 func run() -> void:
+	root.get_node("M2MaterialClock").set_process(false)
 	if DisplayServer.get_name() == "headless":
 		fail("Water material pixels require a display")
 		return
@@ -113,10 +114,10 @@ func check_colour() -> String:
 
 func check_animation() -> String:
 	build(Vector2(40.0, 40.0) / 255.0, Vector2(2.0, 2.0), Color(0.3, 0.3, 0.3))
-	material.set_shader_parameter("animation_time_ms", 0.0)
+	RenderingServer.global_shader_parameter_set("liquid_animation_time_ms", 0.0)
 	var first := await capture()
 	var again := await capture()
-	material.set_shader_parameter("animation_time_ms", 2000.0)
+	RenderingServer.global_shader_parameter_set("liquid_animation_time_ms", 2000.0)
 	var later := await capture()
 	var stable := changed_pixels(first, again)
 	var moved := changed_pixels(again, later)

@@ -3,7 +3,7 @@
 use crate::animation::WowAnimationPlayer;
 use game_engine_core::m2_material::{self, BatchBinding, MaterialSample, MaterialTracks};
 use godot::{
-    classes::{INode, Node, ShaderMaterial},
+    classes::{INode, Node, RenderingServer, ShaderMaterial},
     prelude::*,
 };
 
@@ -43,6 +43,9 @@ impl WowMaterialClock {
             return false;
         }
         self.elapsed_ms += delta_ms;
+        let liquid_time = (self.elapsed_ms % 3_600_000.0) as f32;
+        RenderingServer::singleton()
+            .global_shader_parameter_set("liquid_animation_time_ms", &liquid_time.to_variant());
         true
     }
 }

@@ -13,7 +13,7 @@ uniform sampler2D screen_texture : hint_screen_texture, filter_linear, repeat_di
 uniform sampler2D depth_texture : hint_depth_texture, filter_nearest, repeat_disable;
 
 // Shared material clock in milliseconds (the reference scene time).
-uniform float animation_time_ms = 0.0;
+global uniform float liquid_animation_time_ms;
 // LiquidType.Float[0..17] (WaterData f0..f17).
 uniform vec4 floats_0 = vec4(0.0);
 uniform vec4 floats_4 = vec4(0.0);
@@ -102,7 +102,7 @@ void vertex() {
 }
 
 void fragment() {
-	float time = animation_time_ms;
+	float time = liquid_animation_time_ms;
 	float f2 = floats_0.z;
 	float f3 = floats_0.w;
 	float f4 = floats_4.x;

@@ -13,6 +13,7 @@ Terrain and water shaders animate UVs from Bevy’s shared shader clock instead 
 - [x] Retain terrain uniform layout; `config.w` is unused.
 - [x] Bounded GPU rendering shows terrain and water pixels change from shared time 0 to 1 without material `Modified` events.
 - [x] Document the accepted one-hour shared-clock wrap difference from former unwrapped material time.
+- [x] Godot liquid shaders read one global clock in milliseconds, wrapped after one hour. Individual liquid texture frames still follow their authored periods.
 
 ## How it works
 

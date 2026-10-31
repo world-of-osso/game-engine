@@ -163,8 +163,8 @@ func wait_for_water_clock(water: Dictionary) -> bool:
 			fail("Destination Water or its shader material disappeared during clock sampling")
 			return false
 		var expected: float = fmod(clock.elapsed_time_ms() / 1000.0, 3600.0)
-		# LiquidSurface::set_time writes milliseconds wrapped at one hour.
-		var sampled: float = material.get_shader_parameter("animation_time_ms") / 1000.0
+		# The shared liquid clock writes milliseconds wrapped at one hour.
+		var sampled: float = RenderingServer.global_shader_parameter_get("liquid_animation_time_ms") / 1000.0
 		if frame > 0 and absf(sampled - expected) > 0.2:
 			fail("Destination Water clock diverged: sampled=%s expected=%s" % [sampled, expected])
 			return false

@@ -37,6 +37,7 @@ func _initialize() -> void:
 	call_deferred("run")
 
 func run() -> void:
+	root.get_node("M2MaterialClock").set_process(false)
 	if DisplayServer.get_name() == "headless":
 		fail("Liquid material pixels require a display")
 		return
@@ -60,7 +61,7 @@ func check_case(name: String, liquid: Array) -> String:
 		return "load_liquid_material: " + str(result.error)
 	var material: ShaderMaterial = result.material
 	quad.set_surface_override_material(0, material)
-	material.set_shader_parameter("animation_time_ms", 1000.0)
+	RenderingServer.global_shader_parameter_set("liquid_animation_time_ms", 1000.0)
 	quad.visible = false
 	backing.albedo_color = Color(0.8, 0.1, 0.1)
 	var bare := await capture()
@@ -73,7 +74,7 @@ func check_case(name: String, liquid: Array) -> String:
 			return "Frozen Azerite clock changed %d pixels" % drift
 	backing.albedo_color = Color(0.1, 0.1, 0.8)
 	var blue := await capture()
-	material.set_shader_parameter("animation_time_ms", LATER_MS)
+	RenderingServer.global_shader_parameter_set("liquid_animation_time_ms", LATER_MS)
 	var later := await capture()
 	var shots := OS.get_environment("LIQUID_SHOTS")
 	if shots != "":

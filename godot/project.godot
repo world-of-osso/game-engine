@@ -39,6 +39,10 @@ textures/default_filters/use_nearest_mipmap_filter=false
 
 [shader_globals]
 
+liquid_animation_time_ms={
+"type": "float",
+"value": 0.0
+}
 fog_color={
 "type": "vec3",
 "value": Vector3(0, 0, 0)

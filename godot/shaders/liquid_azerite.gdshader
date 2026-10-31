@@ -19,7 +19,7 @@ uniform sampler2D shore_foam : repeat_enable, filter_linear_mipmap;
 uniform sampler2D depth_texture : hint_depth_texture, filter_nearest, repeat_disable;
 
 // Shared material clock in milliseconds (the reference scene time).
-uniform float animation_time_ms = 0.0;
+global uniform float liquid_animation_time_ms;
 // LiquidType.Float[0..15] (AzeritheData f0..f15).
 uniform vec4 floats_0 = vec4(0.0);
 uniform vec4 floats_4 = vec4(0.0);
@@ -92,7 +92,7 @@ void vertex() {
 }
 
 void fragment() {
-	float time = animation_time_ms;  // v17
+	float time = liquid_animation_time_ms;  // v17
 	float f8 = floats_8.x;
 	float f9 = floats_8.y;
 	float f11 = floats_8.w;
