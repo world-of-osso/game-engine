@@ -49,8 +49,9 @@ fn detection_aura_visuals_follow_viewer_concealment() {
     let kits = catalog.kits(visual, VisualEvent::AuraStart);
     assert!(kits.iter().any(|kit| kit.kit_id == 7034));
     assert!(!catalog.aura_visual_visible(18950, &[]));
-    assert!(catalog.aura_visual_visible(18950, &[1784]));
-    assert!(catalog.aura_visual_visible(18950, &[66]));
+    // Rogue Stealth 1784 applies the actual MOD_STEALTH aura 158185.
+    assert!(catalog.aura_visual_visible(18950, &[158185]));
+    assert!(catalog.aura_visual_visible(18950, &[32612]));
     assert!(catalog.aura_visual_visible(122, &[]));
     assert!(!catalog.aura_visual_visible(18950, &[122]));
 }
