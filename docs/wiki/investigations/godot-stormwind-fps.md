@@ -163,6 +163,7 @@ A Windows release build with `lto = "fat"` and `codegen-units = 1` was compared 
 
 ## See Also
 
+- [[client-performance-techniques]]: source comparisons and unmeasured rendering candidates.
 - [[solarityclient-performance-comparison]]: the reference client's culling pipeline.
 - [[movement-performance]]: Bevy-side CPU measurements and the A/B method.
 - [[stormwind-hilly-plaza]]: why the portal traversal ignores antiportals and requires a floor below the camera.

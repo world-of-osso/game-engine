@@ -1,3 +1,7 @@
+## 2026-10-31 — Stormwind client performance comparison
+
+[Client performance techniques](investigations/client-performance-techniques.md) preserves the local client source comparison and its unmeasured candidates. [Stormwind FPS](investigations/godot-stormwind-fps.md) records qualified Linux measurements.
+
 ## 2026-10-31 — Windows Stormwind exact comparison
 
 [Stormwind FPS](investigations/godot-stormwind-fps.md#windows-exact-revision-comparison-2026-10-31) records all four Windows samples, WMO visibility and placement receipts, the WoW-open load confound and the decision to drop the unlanded WMO prototype.
