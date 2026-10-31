@@ -8774,7 +8774,7 @@ checksum = "1ebf944e87a7c253233ad6766e082e3cd714b5d03812acc24c318f549614536e"
 [[package]]
 name = "wow-adt"
 version = "0.1.0"
-source = "git+https://github.com/world-of-osso/wow-formats.git?rev=882b2fc748c0365dad315375d0827e1f066f733f#882b2fc748c0365dad315375d0827e1f066f733f"
+source = "git+https://github.com/world-of-osso/wow-formats.git?rev=25f75bc04bebd7195913ab02ca16b99184703435#25f75bc04bebd7195913ab02ca16b99184703435"
 dependencies = [
  "binrw",
  "wow-chunk",
@@ -8783,12 +8783,12 @@ dependencies = [
 [[package]]
 name = "wow-chunk"
 version = "0.1.0"
-source = "git+https://github.com/world-of-osso/wow-formats.git?rev=882b2fc748c0365dad315375d0827e1f066f733f#882b2fc748c0365dad315375d0827e1f066f733f"
+source = "git+https://github.com/world-of-osso/wow-formats.git?rev=25f75bc04bebd7195913ab02ca16b99184703435#25f75bc04bebd7195913ab02ca16b99184703435"
 
 [[package]]
 name = "wow-m2"
 version = "0.1.0"
-source = "git+https://github.com/world-of-osso/wow-formats.git?rev=882b2fc748c0365dad315375d0827e1f066f733f#882b2fc748c0365dad315375d0827e1f066f733f"
+source = "git+https://github.com/world-of-osso/wow-formats.git?rev=25f75bc04bebd7195913ab02ca16b99184703435#25f75bc04bebd7195913ab02ca16b99184703435"
 dependencies = [
  "binrw",
  "glam",
@@ -8798,7 +8798,7 @@ dependencies = [
 [[package]]
 name = "wow-wmo"
 version = "0.1.0"
-source = "git+https://github.com/world-of-osso/wow-formats.git?rev=882b2fc748c0365dad315375d0827e1f066f733f#882b2fc748c0365dad315375d0827e1f066f733f"
+source = "git+https://github.com/world-of-osso/wow-formats.git?rev=25f75bc04bebd7195913ab02ca16b99184703435#25f75bc04bebd7195913ab02ca16b99184703435"
 dependencies = [
  "binrw",
  "glam",
