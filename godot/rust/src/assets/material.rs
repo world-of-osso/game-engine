@@ -816,8 +816,7 @@ pub(crate) fn insert_shared_texture(
     }
     let mut texture =
         texture_from_gpu_image(image).map_err(|error| format!("Texture {fdid}: {error}"))?;
-    let asset_path = dir
-        .join(format!("{fdid}.blp"))
+    let asset_path = super::dependent_asset_path(&dir.join(format!("{fdid}.blp")), fdid, "blp")?
         .to_string_lossy()
         .into_owned();
     texture.set_meta("asset_path", &asset_path.to_variant());
