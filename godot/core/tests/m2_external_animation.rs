@@ -40,6 +40,32 @@ fn populated_tracks(model: &m2::Model, index: usize) -> usize {
 }
 
 #[test]
+fn human_male_sequence_208_uses_sequence_60_external_bone_keys() {
+    let model = parse_hd("1011653", |fdid| {
+        (fdid == 1013009).then(|| fixture("1013009.anim"))
+    });
+    let target = sequence_index(&model, 60);
+    let alias = sequence_index(&model, 208);
+    assert_eq!((target, alias), (44, 45));
+    let mut populated = 0;
+    for bone in &model.bone_tracks {
+        for track in [&bone.translation, &bone.scale] {
+            let target_keys = &track.sequences[target];
+            assert_eq!(&track.sequences[alias], target_keys);
+            for value in &target_keys.1 {
+                assert!(value.iter().all(|component| component.is_finite()));
+                populated += 1;
+            }
+        }
+        assert_eq!(
+            bone.rotation.sequences[alias],
+            bone.rotation.sequences[target]
+        );
+    }
+    assert!(populated > 0, "the target must contain authored keys");
+}
+
+#[test]
 fn human_male_external_sit_and_sleep_retain_authored_keys() {
     let fdids =
         m2::external_anim_fdids(&fixture("1011653.m2"), Some(&fixture("1011653.skel"))).unwrap();

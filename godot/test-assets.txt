@@ -308,6 +308,7 @@ models/humanfemale_hd00.skin
 models/humanfemale_hd.skel
 models/1011653.m2
 models/1011653.skel
+models/1013009.anim
 models/101165300.skin
 models/1012989.anim
 models/1012994.anim
