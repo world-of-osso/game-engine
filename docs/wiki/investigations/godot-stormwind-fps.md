@@ -192,6 +192,19 @@ A Windows release build with `lto = "fat"` and `codegen-units = 1` was compared 
 
 **Decision:** Do not adopt fat LTO now. Retry only after structural rendering fixes if frame-time margins remain thin. Evidence: `data/diagnostics/fps-120-2026-10-30/windows-qualification-ui/`, `windows-qualification-lto/`, and `landing/windows-lto/`.
 
+## Linux 120 FPS status and remaining CPU costs (2026-10-31)
+
+The target remains 120 FPS at both Stormwind poses at 1080p. The static scenery grid, NPC material animation LOD, and disabling Godot's unused viewport physics picker have landed. The existing explicit unit-picking rays remain active. The picking fixture passed unit selection, wall occlusion, a direct physics ray, and a Control click. Three loaded A/B pairs showed fewer sampled broad-phase segment-cull stacks in all six pose comparisons (indoor 11→7, 15→11, 15→13; exit 18→8, 19→12, 11→4); 1,304–2,040 samples per run make those small counts noisy. Frame time did not establish a gain under varying shared GPU and host load. Raw evidence: `data/diagnostics/fps-120-linux-picking-{before,after}-{1,2,3}/`.
+
+An eight-second CPU-clock profile after the grid and material changes, but before the picking change, identifies the next costs. It used a frame-pointer release extension and a **non-shipped, older symbolized Godot runtime**, with shared GPU and host contention; its shutdown logged skeleton disconnect and render-device finalization errors. It is attribution evidence, not a shipped-runtime FPS qualification. The indoor render thread previously measured about 8 ms CPU per frame in a different loaded sample; do not add overlapping thread times or assume that value still holds.
+
+1. **Render thread — render-list and draw submission:** 860 of 2,483 indoor render-thread samples include `_render_list`; 222 include vertex-array binding and 211 include Vulkan vertex-buffer binding. These counts overlap. Reducing actual submitted surfaces and state changes, not merely scene nodes, is the leading structural opportunity.
+2. **Render thread — material uniform updates:** 68 of those samples include `_update_queued_materials` and 63 include `update_parameters_uniform_set`; these overlap. Identify the changing materials and their causes before changing shader or material sharing.
+3. **Main thread — scene transforms, scenery cull, and animation:** top sampled self functions include `Node3D::_propagate_transform_changed`, `cull_doodads`, transform notification flushing, Godot FFI thread checks, and M2 rotation/position sampling. The scenery and material changes have not yet been isolated in a quiet shipped-runtime comparison.
+4. **Physics:** the separate Godot viewport ray was removed. The remaining explicit selection, camera, and collision rays still need attribution before further changes.
+
+The exit render profile similarly contains 826/2,435 samples in `_render_list` and 55/2,435 in `_update_queued_materials`. See [client performance techniques](client-performance-techniques.md) for source-backed portal-window admission, compatible-surface consolidation, and shared rigid-instance candidates; none is yet proven to reduce these particular submissions. Evidence and per-thread reports: `data/diagnostics/fps-120-linux-2026-10-31-physics-dwarf/`.
+
 ## Sources
 
 - `src/rendering/camera/culling.rs`: the original doodad, WMO and portal culling. Its 200/2,000/400 yd distances cite no source (commit `f475000f`), so they were not used.

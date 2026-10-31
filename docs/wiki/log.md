@@ -1,3 +1,7 @@
+## 2026-10-31 — Linux Stormwind performance status
+
+[Stormwind FPS](investigations/godot-stormwind-fps.md#linux-120-fps-status-and-remaining-cpu-costs-2026-10-31) records landed changes, loaded picking comparisons, and remaining main/render-thread profile costs.
+
 ## 2026-10-31 — M2 animation transform errors
 
 [M2 animation transform errors](investigations/m2-nonfinite-transforms.md) records sequence alias and full-weight bone override causes, fixes, and qualified Karazhan and Stormwind samples.
