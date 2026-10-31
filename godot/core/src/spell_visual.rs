@@ -28,7 +28,7 @@ pub use melee::{MeleeHand, SwingResult};
 pub use voice::{UnitSound, VoiceSource, player_displays};
 
 /// Bump when the cached catalog layout or its build rules change.
-const CACHE_FORMAT: u32 = 17;
+const CACHE_FORMAT: u32 = 18;
 
 const SOURCE_TABLES: [&str; 30] = [
     "SpellEffect",
@@ -549,7 +549,8 @@ impl SpellVisualCatalog {
     }
 
     fn read_aura_effects(&mut self, dir: &Path) -> Result<(), String> {
-        const APPLY_AURA: i64 = 6;
+        // TrinityCore SpellEffectInfo::IsUnitOwnedAuraEffect: direct, area and pet auras.
+        const UNIT_AURA_EFFECTS: [i64; 10] = [6, 35, 65, 119, 128, 129, 143, 174, 202, 271];
         const MOD_STEALTH: i64 = 16;
         const MOD_STEALTH_DETECT: i64 = 17;
         const MOD_INVISIBILITY: i64 = 18;
@@ -557,7 +558,7 @@ impl SpellVisualCatalog {
         for [spell, effect, aura] in
             Table::read(dir, "SpellEffect")?.ints(["SpellID", "Effect", "EffectAura"])?
         {
-            if effect != APPLY_AURA {
+            if !UNIT_AURA_EFFECTS.contains(&effect) {
                 continue;
             }
             match aura {

@@ -54,6 +54,11 @@ fn detection_aura_visuals_follow_viewer_concealment() {
     assert!(catalog.aura_visual_visible(18950, &[32612]));
     assert!(catalog.aura_visual_visible(122, &[]));
     assert!(!catalog.aura_visual_visible(18950, &[122]));
+    // Worg Sentry and Dead-Eye apply detection through area aura effects.
+    assert!(!catalog.aura_visual_visible(16527, &[]));
+    assert!(!catalog.aura_visual_visible(81471, &[]));
+    assert!(catalog.aura_visual_visible(16527, &[82577]));
+    assert!(catalog.aura_visual_visible(81471, &[82577]));
 }
 
 #[test]
