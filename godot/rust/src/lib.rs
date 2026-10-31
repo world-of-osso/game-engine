@@ -2696,6 +2696,7 @@ impl GameClient {
             )?;
         }
         if map_changed {
+            self.teleport_ground = gameplay::TeleportGroundWait::default();
             let _span = profile::span(|| "terrain.enter_loading".to_owned());
             let span = profile::span(|| "terrain.enter_loading.reset".to_owned());
             self.world_camera.reset();
@@ -2721,6 +2722,7 @@ impl GameClient {
     }
 
     fn transfer_world(&mut self, destination: shared::protocol::NewWorld) -> Result<(), String> {
+        self.teleport_ground = gameplay::TeleportGroundWait::default();
         self.terrain.reset()?;
         self.world_camera.reset();
         self.terrain_materials.reset();
