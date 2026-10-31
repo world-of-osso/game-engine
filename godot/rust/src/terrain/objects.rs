@@ -36,9 +36,9 @@ use crate::{
     assets::{
         build_model,
         creature::{
-            CachedModel, DecodedTextures, authored_model_resolver, cache_model_textures,
-            decode_new_textures, load_model_files, local_resolver, model_asset_root,
-            publish_decoded_texture, wmo_resolver,
+            CachedModel, DecodedTextures, authored_model_resolver, cache_authored_texture,
+            cache_model_textures, decode_new_textures, decode_texture_file, load_model_files,
+            local_resolver, model_asset_root, publish_decoded_texture, wmo_resolver,
         },
         uv_animation::WowMaterialAnimation,
     },
@@ -136,14 +136,16 @@ fn load_asset(data_root: &Path, asset: ObjectAsset) -> Result<LoadedAsset, Strin
                 Some(product),
             )?;
             let fdids = crate::wmo::scene::texture_fdids(&asset);
-            for &texture in &fdids {
-                let path = data_root.join("textures").join(format!("{texture}.blp"));
-                // Local-CASC misses remain optional; shipped misses fail this load.
-                resolver.ensure_cached(texture, &path)?;
-            }
-            let texture_dir = resolver.cache_path(&data_root.join("textures"))?;
-            let texture_root = texture_dir.parent().ok_or("WMO texture root missing")?;
-            let textures = decode_new_textures(texture_root, &fdids)?;
+            let textures = fdids
+                .into_iter()
+                .map(|fdid| {
+                    let address = cache_authored_texture(
+                        data_root,
+                        game_engine_core::asset_product::AssetTexture { product, fdid },
+                    )?;
+                    decode_texture_file(address)
+                })
+                .collect::<Result<DecodedTextures, String>>()?;
             Ok(LoadedAsset::Wmo(Arc::new(asset), textures))
         }
     }
@@ -165,6 +167,7 @@ struct WmoSpawn {
     index: usize,
     asset: Arc<NativeWmoAsset>,
     resolver: CascListfileResolver,
+    product: AssetProduct,
     doodad_sets: Vec<u16>,
     build: WmoBuild,
     /// `WMO_MODEL_META` for the placed root.
@@ -865,6 +868,7 @@ impl TerrainObjects {
                     index,
                     asset,
                     resolver,
+                    product,
                     doodad_sets,
                     build,
                     model: wmo_model_label(&self.resolver, root_fdid, wmo.name_set),
@@ -892,6 +896,7 @@ impl TerrainObjects {
             &spawn.asset,
             &spawn.resolver,
             &self.data_root,
+            Some(spawn.product),
             self.light.as_ref(),
             || Instant::now() >= deadline,
         );

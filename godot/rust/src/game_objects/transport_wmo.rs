@@ -66,7 +66,14 @@ pub(super) fn load_transport_wmo(
     light: Option<&TerrainLight>,
 ) -> Result<Gd<Node3D>, String> {
     let (asset, resolver) = read_transport_wmo(data_root, fdid)?;
-    let built = build_wmo_node(&asset, &resolver, data_root, &DEFAULT_DOODAD_SETS, light)?;
+    let built = build_wmo_node(
+        &asset,
+        &resolver,
+        data_root,
+        Some(game_engine_core::asset_product::AssetProduct::Retail),
+        &DEFAULT_DOODAD_SETS,
+        light,
+    )?;
     if !built.batch_errors.is_empty() {
         built.node.free();
         return Err(format!(
@@ -158,7 +165,7 @@ pub(crate) mod tests {
                     .map(|fdid| (fdid, "blp", "textures")),
             )
         {
-            let key = if fdid == 318242 {
+            let key = if fdid == 318242 || kind == "blp" {
                 "11111111111111111111111111111111"
             } else {
                 key

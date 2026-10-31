@@ -172,7 +172,7 @@ fn load_wmo_preview(data: &Path, fdid: u32) -> Result<(Gd<Node3D>, Aabb), String
     let resolver = crate::assets::creature::local_resolver(data);
     let asset = crate::wmo::assets::read_wmo(&resolver, data, fdid)?;
     let bounds = crate::assets::wow_aabb(asset.root.bbox_min, asset.root.bbox_max);
-    let built = crate::wmo::scene::build_wmo_node(&asset, &resolver, data, &[], None)?;
+    let built = crate::wmo::scene::build_wmo_node(&asset, &resolver, data, None, &[], None)?;
     if !built.batch_errors.is_empty() {
         built.node.free();
         return Err(format!(

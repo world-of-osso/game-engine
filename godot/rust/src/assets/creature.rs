@@ -344,7 +344,9 @@ pub(crate) fn decode_new_textures(
     fresh.into_iter().map(decode_texture_file).collect()
 }
 
-fn decode_texture_file(address: TextureAddress) -> Result<(TextureAddress, blp::GpuImage), String> {
+pub(crate) fn decode_texture_file(
+    address: TextureAddress,
+) -> Result<(TextureAddress, blp::GpuImage), String> {
     let file = address.dir.join(format!("{}.blp", address.fdid));
     let io = crate::profile::span(|| "phase.asset_io.blp".to_owned());
     let bytes = fs::read(&file)

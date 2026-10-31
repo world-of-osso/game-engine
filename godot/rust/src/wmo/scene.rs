@@ -155,11 +155,12 @@ pub(crate) fn build_wmo_node(
     asset: &NativeWmoAsset,
     resolver: &CascListfileResolver,
     data_root: &Path,
+    product: Option<game_engine_core::asset_product::AssetProduct>,
     doodad_sets: &[u16],
     light: Option<&TerrainLight>,
 ) -> Result<WmoNode, String> {
     let mut build = WmoBuild::new(asset, doodad_sets)?;
-    build.step(asset, resolver, data_root, light, || false);
+    build.step(asset, resolver, data_root, product, light, || false);
     Ok(build.finish())
 }
 
@@ -204,6 +205,7 @@ impl WmoBuild {
         asset: &NativeWmoAsset,
         resolver: &CascListfileResolver,
         data_root: &Path,
+        product: Option<game_engine_core::asset_product::AssetProduct>,
         light: Option<&TerrainLight>,
         stop: impl Fn() -> bool,
     ) -> bool {
@@ -234,6 +236,7 @@ impl WmoBuild {
                 &self.source,
                 resolver,
                 data_root,
+                product,
                 &self.black,
                 light,
             );
@@ -525,6 +528,7 @@ fn build_batch_material(
     source: &str,
     resolver: &CascListfileResolver,
     data_root: &Path,
+    product: Option<game_engine_core::asset_product::AssetProduct>,
     black: &Gd<ImageTexture>,
     light: Option<&TerrainLight>,
 ) -> Result<Gd<ShaderMaterial>, String> {
@@ -542,7 +546,7 @@ fn build_batch_material(
         let texture = if fdid == 0 || slots & (1 << slot) == 0 {
             black.clone()
         } else {
-            read_wmo_texture(resolver, data_root, fdid)
+            read_wmo_texture(resolver, data_root, product, fdid)
                 .map_err(|error| format!("texture slot {}: {error}", slot + 1))?
         };
         material.set_shader_parameter(name, &texture.to_variant());
@@ -728,8 +732,23 @@ fn clamp_wmo_shader_uv(mut code: String, key: WmoShaderKey) -> Result<String, St
 fn read_wmo_texture(
     resolver: &CascListfileResolver,
     data_root: &Path,
+    product: Option<game_engine_core::asset_product::AssetProduct>,
     fdid: u32,
 ) -> Result<Gd<ImageTexture>, String> {
+    if let Some(product) = product {
+        let address = crate::assets::creature::cache_authored_texture(
+            data_root,
+            game_engine_core::asset_product::AssetTexture { product, fdid },
+        )?;
+        let mut missing = PackedInt32Array::new();
+        return crate::assets::material::shared_texture(fdid, &address.dir, &mut missing)?
+            .ok_or_else(|| {
+                format!(
+                    "WMO texture FDID {fdid} missing in {}",
+                    address.dir.display()
+                )
+            });
+    }
     let dir = data_root.join("textures");
     let destination = dir.join(format!("{fdid}.blp"));
     let path = resolver.ensure_cached(fdid, &destination)?.ok_or_else(|| {
@@ -1068,7 +1087,7 @@ mod tests {
     #[test]
     fn missing_wmo_texture_reports_fdid_and_local_casc_failure() {
         let (_, resolver, data_root) = campsite_asset();
-        let error = read_wmo_texture(&resolver, &data_root, 999_999_999)
+        let error = read_wmo_texture(&resolver, &data_root, None, 999_999_999)
             .err()
             .unwrap();
         assert!(error.contains("999999999"), "{error}");
