@@ -18,8 +18,8 @@ use godot::{
     builtin::Side,
     classes::{
         Camera3D, CanvasLayer, DirectionalLight3D, Environment, INode3D, InputEvent, InputEventKey,
-        InputEventMouseButton, InputEventMouseMotion, Label, MeshInstance3D, PanelContainer,
-        PlaneMesh, StandardMaterial3D, StyleBoxFlat, WorldEnvironment,
+        InputEventMouseButton, InputEventMouseMotion, Label, MeshInstance3D, MultiMeshInstance3D,
+        PanelContainer, PlaneMesh, StandardMaterial3D, StyleBoxFlat, WorldEnvironment,
         control::{LayoutPreset, MouseFilter},
         environment,
         text_server::AutowrapMode,
@@ -413,6 +413,12 @@ impl INode3D for WowParticleDebug {
 
 #[godot_api]
 impl WowParticleDebug {
+    /// The instance bytes submitted to the compositor for this pool.
+    #[func]
+    fn debug_pool_instances(&self, pool: Gd<MultiMeshInstance3D>) -> PackedByteArray {
+        crate::particle_composite::pool_instances(&pool)
+    }
+
     /// The shown model, its emitters and this frame's drawn particles, for fixtures.
     #[func]
     fn debug_state(&self) -> VarDictionary {

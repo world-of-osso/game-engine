@@ -93,6 +93,17 @@ pub(crate) fn texture_lookup_count() -> u64 {
     TEXTURE_LOOKUPS.with(Cell::get)
 }
 
+pub(crate) fn pool_instances(node: &Gd<MultiMeshInstance3D>) -> PackedByteArray {
+    COMPOSITE.with_borrow(|composite| {
+        composite
+            .pools
+            .get(&node.instance_id())
+            .expect("particle debug pool has not been published")
+            .instances
+            .clone()
+    })
+}
+
 /// Drops the pools and camera effects before the engine shuts down.
 pub(crate) fn clear() {
     COMPOSITE.with_borrow_mut(|composite| {

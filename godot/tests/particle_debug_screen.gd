@@ -91,7 +91,7 @@ func check_flame_ramps() -> bool:
 	await settle(1500)
 	var pool := scene.find_child("Particles%d_0" % TORCH, true, false) as MultiMeshInstance3D
 	var multimesh := pool.multimesh
-	var buffer := multimesh.buffer
+	var buffer: PackedFloat32Array = scene.debug_pool_instances(pool).to_float32_array()
 	var samples: Array[Vector2] = []
 	for index in multimesh.visible_instance_count:
 		var at := index * FLOATS_PER_PARTICLE
