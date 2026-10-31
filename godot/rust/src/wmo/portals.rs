@@ -101,11 +101,10 @@ impl WmoPortals {
                 self.portal_visible(portal, world_from_local, frustum, camera)
             })
         };
-        match self.camera_interior_group(local_camera) {
+        let mut visible = match self.camera_interior_group(local_camera) {
             Some(group) => {
                 let parent = self.split_parent(group);
                 let mut visible = traverse(&[parent]);
-                self.show_split_children(parent, &mut visible);
                 if self
                     .exterior_frusta(world_from_local, frustum, camera)
                     .is_some_and(|windows| !windows.is_empty())
@@ -117,7 +116,13 @@ impl WmoPortals {
                 visible
             }
             None => traverse(&exterior),
+        };
+        for group in &self.groups {
+            if visible.get(group.index as usize).copied().unwrap_or(false) {
+                self.show_split_children(group.index, &mut visible);
+            }
         }
+        visible
     }
 
     /// A camera in a split child traverses the parent and draws all of its children
@@ -613,6 +618,32 @@ mod tests {
     }
 
     #[test]
+    fn portal_reached_split_parent_draws_its_children() {
+        let mut portals = courtyard_and_room();
+        portals.groups[1].first_child = Some(2);
+        portals.groups.push(PortalGroup {
+            index: 2,
+            bbox_min: portals.groups[1].bbox_min,
+            bbox_max: portals.groups[1].bbox_max,
+            exterior: false,
+            split_parent: Some(1),
+            first_child: None,
+            next_child: None,
+            floor: Vec::new(),
+        });
+        portals.adjacency.push(Vec::new());
+        let eye = Vec3::new(5.0, 1.0, -20.0);
+        assert_eq!(
+            drawn_indices(portals.visible_groups(Affine3A::IDENTITY, &view(eye, Vec3::Z), eye)),
+            [0, 1, 2]
+        );
+        assert_eq!(
+            drawn_indices(portals.visible_groups(Affine3A::IDENTITY, &view(eye, -Vec3::Z), eye)),
+            [0]
+        );
+    }
+
+    #[test]
     fn outdoor_window_rejects_a_second_door_outside_the_first_window() {
         let mut portals = courtyard_and_room();
         let bbox_min = portals.groups[1].bbox_min;
@@ -710,6 +741,11 @@ mod tests {
         for group in [12, 13, 14, 15] {
             assert!(drawn[group], "central chamber group {group} was hidden");
         }
+
+        let entrance_camera = Vec3::new(70.6, 79.5, 793.2);
+        let entrance_drawn = portals.visible_groups(transform, &[], entrance_camera);
+        assert!(entrance_drawn[0], "military ward parent was hidden");
+        assert!(entrance_drawn[1], "military ward child was hidden");
     }
 
     /// Cultists' Quay (WarbandScene 5, tile 2837_27_31): the scene's camera and its
