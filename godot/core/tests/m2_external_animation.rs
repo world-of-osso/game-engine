@@ -50,16 +50,17 @@ fn human_male_sequence_208_uses_sequence_60_external_bone_keys() {
     let mut populated = 0;
     for bone in &model.bone_tracks {
         for track in [&bone.translation, &bone.scale] {
-            let target_keys = &track.sequences[target];
-            assert_eq!(&track.sequences[alias], target_keys);
-            for value in &target_keys.1 {
-                assert!(value.iter().all(|component| component.is_finite()));
-                populated += 1;
+            assert_eq!(track.sequences.get(alias), track.sequences.get(target));
+            if let Some((_, values)) = track.sequences.get(target) {
+                for value in values {
+                    assert!(value.iter().all(|component| component.is_finite()));
+                    populated += 1;
+                }
             }
         }
         assert_eq!(
-            bone.rotation.sequences[alias],
-            bone.rotation.sequences[target]
+            bone.rotation.sequences.get(alias),
+            bone.rotation.sequences.get(target)
         );
     }
     assert!(populated > 0, "the target must contain authored keys");
