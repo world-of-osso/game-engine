@@ -31,6 +31,8 @@ fn delayed_handshake_delivers_queued_login_over_udp() {
     );
     let deadline = Instant::now() + Duration::from_secs(8);
     let mut received = false;
+    let mut connected = false;
+    let mut receiver_count = 0;
     while Instant::now() < deadline && !received {
         server.update();
         let world = server.world_mut();
@@ -38,23 +40,24 @@ fn delayed_handshake_delivers_queued_login_over_udp() {
             .query::<&mut MessageReceiver<LoginRequest>>()
             .iter_mut(world)
         {
+            receiver_count += 1;
             received |= receiver
                 .receive()
                 .any(|request| request.username == "fb_slow" && request.password == "private");
         }
-        assert!(
-            bridge
-                .drain_events()
-                .unwrap()
-                .iter()
-                .all(|event| !matches!(event, Event::Disconnected(_)))
-        );
+        for event in bridge.drain_events().unwrap() {
+            assert!(
+                !matches!(event, Event::Disconnected(_)),
+                "client disconnected"
+            );
+            connected |= matches!(event, Event::Connected);
+        }
         thread::sleep(Duration::from_millis(5));
     }
     bridge.stop().expect("stop bridge");
     assert!(
         received,
-        "queued login did not reach the server after the delayed handshake"
+        "queued login did not reach the server after the delayed handshake (connected={connected}, receiver observations={receiver_count})"
     );
 }
 
