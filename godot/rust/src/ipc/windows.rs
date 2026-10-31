@@ -9,7 +9,8 @@ use tokio::{
     sync::Mutex,
 };
 
-const MAX_MESSAGE_SIZE: usize = 4 * 1024 * 1024;
+// Match the peercred-ipc framed limit used by Unix diagnostics.
+const MAX_MESSAGE_SIZE: usize = 64 * 1024 * 1024;
 
 pub struct Server {
     path: String,
