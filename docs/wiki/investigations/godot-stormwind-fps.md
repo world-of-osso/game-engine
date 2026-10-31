@@ -209,6 +209,12 @@ For uniform updates, the exit main-thread stacks include both `WaterMaterials::s
 
 Evidence and per-thread reports: `data/diagnostics/fps-120-linux-2026-10-31-physics-dwarf/`.
 
+### Liquid clock and draw identities
+
+The global liquid clock landed as `99d4f7c4c` / `90e914106`. Pinned Vulkan fixtures passed the one-hour clock wrap and water, eight other liquid, and borrowed-water pixel checks. Three loaded, interleaved A/B pairs used the same older non-shipped symbolized Godot and matched before/after release builds. FPS varied substantially with contention, so the runs do not establish a frame-time gain. Evidence: `data/diagnostics/fps-120-liquid-fixtures2/` and `data/diagnostics/fps-120-linux-liquid-{before,after}-{1,2,3}/`.
+
+A subsequent one-frame Forward+ draw trace used an older instrumented Godot in **safe**, not the shipped separate-thread, render mode. It found 2,425 color and 1,057 shadow submissions indoors, and 1,954 color and 792 shadow submissions at the exit. Exact same-mesh/material/state, non-skinned doodad color repetitions involved 46 draws in 10 groups indoors and 45 in 12 groups at the exit. Their mathematical maximum reductions are 36 and 33 draws, before visibility, fade, animation, and shadow constraints. Skinned repetitions are not proof of rigid eligibility. Shadow repetitions may include different cascades, not distinct instances. Instancing is not justified by this census (lead decision); no FPS gain is claimed. Full per-pass groups and same-process material-signature matching: `data/diagnostics/fps-120-linux-draw-census/`.
+
 ## Sources
 
 - `src/rendering/camera/culling.rs`: the original doodad, WMO and portal culling. Its 200/2,000/400 yd distances cite no source (commit `f475000f`), so they were not used.
