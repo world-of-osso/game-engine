@@ -184,9 +184,10 @@ fn read_attachment_positioners(dir: &Path) -> Result<HashMap<i64, Option<u8>>, S
     for [id, state] in Table::read(dir, "Positioner")?.ints(["ID", "FirstStateID"])? {
         let entry = states.get(&state).and_then(|entry| entries.get(entry));
         match entry {
-            Some(&(1, value)) if (-1..=255).contains(&value) => {
+            Some(&(1, value)) if (0..=255).contains(&value) => {
                 resolved.insert(id, attachment(value));
             }
+            Some(&(1, -1)) => {}
             _ => unsupported += 1,
         }
     }
