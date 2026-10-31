@@ -38,6 +38,9 @@ func run_test() -> void:
 	var player := await enter_world()
 	if player == null:
 		return
+	if client.account_state().ui_skin != "Forever":
+		fail("Teleport fixture requires the Forever skin")
+		return
 	if player.position.distance_to(destination) < 500.0:
 		fail("Destination must be at least 500 yd away")
 		return
