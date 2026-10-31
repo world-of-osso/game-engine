@@ -18,6 +18,8 @@ fn hogger(health_fraction: f32) -> SmallUnitFrameState {
     SmallUnitFrameState {
         name: "Hogger".into(),
         level: Some(("11".into(), "1.0,0.82,0.0,1.0".into())),
+        forever_level_color: "1.0,0.82,0.0,1.0".into(),
+        classification: shared::components::CreatureClassification::Normal,
         health_fraction,
         dead: false,
         reaction: Some(Reaction::Hostile),

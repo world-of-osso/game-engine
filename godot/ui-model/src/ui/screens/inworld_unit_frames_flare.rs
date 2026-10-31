@@ -6,7 +6,7 @@
 
 use std::f32::consts::FRAC_PI_2;
 
-use ui_toolkit::atlas::ActiveSkin;
+use shared::components::CreatureClassification;
 use ui_toolkit::rsx;
 use ui_toolkit::widget_def::Element;
 
@@ -48,6 +48,7 @@ const FONT_SIZE: f32 = 12.0;
 const NAME_LINE_H: f32 = FONT_SIZE + 2.0;
 /// Room for the level text the name follows (`Name:SetPoint("LEFT", Level, "RIGHT", 3, 0)`).
 const LEVEL_W: f32 = 20.0;
+const CLASSIFIED_LEVEL_W: f32 = 32.0;
 /// Room for the percentage the name stops at (`Name:SetPoint("RIGHT", HealthText, "LEFT", -4, 0)`).
 const HEALTH_TEXT_W: f32 = 40.0;
 
@@ -115,6 +116,7 @@ pub const FLARE_PET: FlareFrame = FlareFrame {
 pub struct FlareUnit<'a> {
     pub name: &'a str,
     pub level: Option<(&'a str, &'a str)>,
+    pub classification: CreatureClassification,
     pub health_fraction: f32,
     /// `UnitIsDeadOrGhost`: `DEAD_TEXT` replaces the health text (UnitFrames.lua:390-391).
     pub dead: bool,
@@ -129,7 +131,8 @@ impl<'a> From<&'a UnitFrameState> for FlareUnit<'a> {
     fn from(unit: &'a UnitFrameState) -> Self {
         Self {
             name: &unit.name,
-            level: Some((unit.level_text.as_str(), unit.level_color.as_str())),
+            level: Some((unit.level_text.as_str(), unit.forever_level_color.as_str())),
+            classification: unit.classification,
             health_fraction: unit.health_fraction,
             dead: unit.dead,
             tap_denied: unit.tap_denied,
@@ -148,7 +151,8 @@ impl<'a> From<&'a SmallUnitFrameState> for FlareUnit<'a> {
             level: unit
                 .level
                 .as_ref()
-                .map(|(text, color)| (text.as_str(), color.as_str())),
+                .map(|(text, _)| (text.as_str(), unit.forever_level_color.as_str())),
+            classification: unit.classification,
             health_fraction: unit.health_fraction,
             dead: unit.dead,
             tap_denied: false,
@@ -165,6 +169,7 @@ impl<'a> From<&'a PetFrameState> for FlareUnit<'a> {
         Self {
             name: &pet.name,
             level: None,
+            classification: CreatureClassification::Normal,
             health_fraction: pet.health_fraction,
             dead: false,
             tap_denied: false,
@@ -265,21 +270,9 @@ fn flare_contents(spec: &FlareFrame, unit: &FlareUnit<'_>) -> Element {
         {flare_bar(format!("{}HealthBar", spec.prefix), health, unit.health_fraction, health_rgb(unit), spec.mirror)}
         {power_bar.unwrap_or_default()}
         {flare_border_frame(spec.root, spec.size)}
-        {flare_layer(format!("{}Overlay", spec.root), (0.0, 0.0, width, height), [flare_separator(spec, unit), flare_texts(spec, unit, health), flare_power_text(spec, unit), flare_target_classification(spec, unit)].into_iter().flatten().collect())}
+        {flare_layer(format!("{}Overlay", spec.root), (0.0, 0.0, width, height), [flare_separator(spec, unit), flare_texts(spec, unit, health), flare_power_text(spec, unit)].into_iter().flatten().collect())}
         {unit.aura_state.map(|state| flare_unit_auras(spec, state)).unwrap_or_default()}
     }
-}
-
-/// Forever changes the art, not Retail's target classification elements or anchors.
-fn flare_target_classification(spec: &FlareFrame, unit: &FlareUnit<'_>) -> Element {
-    if spec.root != FLARE_TARGET.root {
-        return Element::new();
-    }
-    unit.aura_state
-        .map(|state| {
-            super::classification_art(spec.prefix, state.classification, ActiveSkin::Forever)
-        })
-        .unwrap_or_default()
 }
 
 fn flare_unit_auras(spec: &FlareFrame, state: &UnitFrameState) -> Element {
@@ -384,7 +377,21 @@ fn flare_bar(
 /// or `DEAD_TEXT` for a dead unit whatever its `healthText` mode (UnitFrames.lua:386-393).
 fn flare_texts(spec: &FlareFrame, unit: &FlareUnit<'_>, (x, y, width, height): Rect) -> Element {
     let level = unit.level.filter(|_| spec.show_level);
-    let level_w = if level.is_some() { LEVEL_W + 3.0 } else { 0.0 };
+    let label_width = if matches!(
+        unit.classification,
+        CreatureClassification::Elite
+            | CreatureClassification::Rare
+            | CreatureClassification::RareElite
+    ) {
+        CLASSIFIED_LEVEL_W
+    } else {
+        LEVEL_W
+    };
+    let level_w = if level.is_some() {
+        label_width + 3.0
+    } else {
+        0.0
+    };
     let health_text_shown = spec.health_percent || unit.dead;
     let percent_w = if health_text_shown {
         HEALTH_TEXT_W + 4.0
@@ -395,7 +402,7 @@ fn flare_texts(spec: &FlareFrame, unit: &FlareUnit<'_>, (x, y, width, height): R
     let (level_x, name_x, percent_x, near, far) = if spec.mirror {
         let right = x + width - TEXT_INSET;
         (
-            right - LEVEL_W,
+            right - label_width,
             right - level_w - name_w,
             x + TEXT_INSET,
             "LEFT",
@@ -413,10 +420,21 @@ fn flare_texts(spec: &FlareFrame, unit: &FlareUnit<'_>, (x, y, width, height): R
     };
     let level_text = level
         .map(|(text, color)| {
+            let suffix = match unit.classification {
+                CreatureClassification::Elite => "+",
+                CreatureClassification::Rare => "R",
+                CreatureClassification::RareElite => "R+",
+                _ => "",
+            };
+            let text = if text.parse::<u32>().is_ok() {
+                format!("{text}{suffix}")
+            } else {
+                text.to_owned()
+            };
             flare_label(
                 dyn_name(format!("{}LevelText", spec.prefix)),
-                text,
-                (level_x, y, LEVEL_W, height),
+                &text,
+                (level_x, y, label_width, height),
                 (color, FONT_SIZE),
                 far,
             )

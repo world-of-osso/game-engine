@@ -326,6 +326,18 @@ fn target_frame_state(
         )
     });
     state.level_text = target_level_text(level, viewer_level);
+    state.forever_level_color = match (state.level_text.as_str(), level, viewer_level) {
+        ("??", _, _) => "1.0,0.1,0.1,1.0".into(),
+        (_, Some(level), Some(viewer)) => {
+            game_engine_ui_model::quest_log_frame_component::QuestDifficulty::relative(
+                i32::from(viewer),
+                i32::from(level),
+            )
+            .color()
+            .into()
+        }
+        _ => "1.0,1.0,1.0,1.0".into(),
+    };
     state.classification = unit_classification(unit);
     // `TargetFrameStatusBarMixin:OnLoad` `zeroText = ""` (TargetFrame.lua:760-769).
     let target_health = TextStatusBar::HEALTH.with_zero_text("");
@@ -437,6 +449,9 @@ fn player_frame_state(unit: Unit, in_rest_area: bool, texts: &BarTexts) -> UnitF
         .get::<UnitLevel>()
         .map(|level| level.0.to_string())
         .unwrap_or_default();
+    if !state.level_text.is_empty() {
+        state.forever_level_color = "1.0,0.82,0.0,1.0".into();
+    }
     state.class_id = unit.get::<Player>().map(|player| player.class);
     state.show_combat_icon = unit.in_combat();
     state.show_resting_icon = in_rest_area;

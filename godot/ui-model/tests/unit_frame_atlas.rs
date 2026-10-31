@@ -88,6 +88,8 @@ fn small(name: &str) -> SmallUnitFrameState {
     SmallUnitFrameState {
         name: name.into(),
         level: None,
+        forever_level_color: "1.0,1.0,1.0,1.0".into(),
+        classification: CreatureClassification::Normal,
         health_fraction: 1.0,
         dead: false,
         reaction: Some(Reaction::Hostile),

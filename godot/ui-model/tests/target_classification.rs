@@ -130,56 +130,37 @@ fn rare_elites_get_the_silver_dragon_and_star_normal_units_neither() {
     assert!(frame(&normal, "TargetBossIcon").hidden);
 }
 
-/// Retail's classification elements remain visible when Forever re-skins the frame.
+/// FlareUI UnitFrames.lua:354-373 shows classification in the level, not a dragon.
 #[test]
-fn forever_rare_target_shows_star_without_dragon() {
-    let registry = target_frames_in_skin(
-        "Brack",
-        CreatureClassification::Rare,
-        ui_toolkit::atlas::ActiveSkin::Forever,
-    );
-    assert!(!frame(&registry, "TargetBossIcon").hidden);
-    assert_eq!(texture(&registry, "TargetBossIcon"), atlas(BOSS_RARE_STAR));
-    assert!(frame(&registry, "TargetBossPortraitFrameTexture").hidden);
-    assert_eq!(
-        rect(&registry, "TargetBossIcon"),
-        (
-            Val::Px(167.0),
-            Val::Px(67.0),
-            Dimension::Fixed(20.0),
-            Dimension::Fixed(20.0)
-        )
-    );
-}
-
-#[test]
-fn forever_rare_elite_target_shows_silver_dragon_and_star() {
-    let registry = target_frames_in_skin(
-        "Ruul Onestone",
-        CreatureClassification::RareElite,
-        ui_toolkit::atlas::ActiveSkin::Forever,
-    );
-    assert!(!frame(&registry, "TargetBossIcon").hidden);
-    assert!(!frame(&registry, "TargetBossPortraitFrameTexture").hidden);
-    assert_eq!(
-        texture(&registry, "TargetBossPortraitFrameTexture"),
-        atlas(BOSS_RARE_SILVER)
-    );
-}
-
-#[test]
-fn forever_elite_target_shows_gold_dragon_without_star() {
-    let registry = target_frames_in_skin(
-        "Hogger",
-        CreatureClassification::Elite,
-        ui_toolkit::atlas::ActiveSkin::Forever,
-    );
-    assert!(!frame(&registry, "TargetBossPortraitFrameTexture").hidden);
-    assert_eq!(
-        texture(&registry, "TargetBossPortraitFrameTexture"),
-        atlas(BOSS_GOLD)
-    );
-    assert!(frame(&registry, "TargetBossIcon").hidden);
+fn forever_classification_is_a_level_suffix_without_name_overlap() {
+    use ui_toolkit::atlas::ActiveSkin;
+    for (classification, expected) in [
+        (CreatureClassification::Normal, "10"),
+        (CreatureClassification::Elite, "10+"),
+        (CreatureClassification::Rare, "10R"),
+        (CreatureClassification::RareElite, "10R+"),
+    ] {
+        let registry = target_frames_in_skin("Ruul Onestone", classification, ActiveSkin::Forever);
+        assert!(
+            registry
+                .get_by_name("TargetBossPortraitFrameTexture")
+                .is_none()
+        );
+        assert!(registry.get_by_name("TargetBossIcon").is_none());
+        let level = frame(&registry, "TargetLevelText");
+        let Some(WidgetData::FontString(label)) = level.widget_data.as_ref() else {
+            panic!("level is not a font string");
+        };
+        assert_eq!(label.text, expected);
+        let (Val::Px(name_x), _, Dimension::Fixed(name_w), _) = rect(&registry, "TargetName")
+        else {
+            panic!("name has no fixed rectangle");
+        };
+        let (Val::Px(level_x), _, _, _) = rect(&registry, "TargetLevelText") else {
+            panic!("level has no fixed rectangle");
+        };
+        assert!(name_x + name_w <= level_x);
+    }
 }
 
 /// Unit frames size their art from the atlas tables (`atlas_size`).

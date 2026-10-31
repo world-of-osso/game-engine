@@ -123,6 +123,8 @@ pub struct UnitFrameState {
     pub level_text: String,
     /// "r,g,b,a" of the level text: gold, or the target's difficulty colour.
     pub level_color: String,
+    /// FlareUI's quest-difficulty color for the level.
+    pub forever_level_color: String,
     /// The health bar's status text (`TextStatusBar`).
     pub health_text: StatusBarText,
     /// Health fill fraction 0.0..=1.0.
@@ -161,6 +163,7 @@ impl UnitFrameState {
             name: name.into(),
             level_text: String::new(),
             level_color: GOLD_TEXT.to_string(),
+            forever_level_color: WHITE.to_string(),
             health_text: StatusBarText::default(),
             health_fraction: 0.0,
             dead: false,
@@ -188,6 +191,8 @@ impl UnitFrameState {
 pub struct SmallUnitFrameState {
     pub name: String,
     pub level: Option<(String, String)>,
+    pub forever_level_color: String,
+    pub classification: CreatureClassification,
     pub health_fraction: f32,
     /// `UnitHealth(unit) <= 0` (`TargetOfTargetMixin:CheckDead`, TargetFrame.lua:915-924).
     pub dead: bool,
@@ -202,6 +207,8 @@ impl From<&UnitFrameState> for SmallUnitFrameState {
         Self {
             name: unit.name.clone(),
             level: Some((unit.level_text.clone(), unit.level_color.clone())),
+            forever_level_color: unit.forever_level_color.clone(),
+            classification: unit.classification,
             health_fraction: unit.health_fraction,
             dead: unit.dead,
             reaction: unit.reaction,
