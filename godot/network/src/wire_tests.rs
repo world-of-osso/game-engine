@@ -72,6 +72,27 @@ fn delayed_handshake_delivers_queued_login_over_udp() {
 }
 
 #[test]
+fn silent_server_times_out_using_netcode_token() {
+    let socket = UdpSocket::bind("127.0.0.1:0").expect("bind silent server");
+    let started = Instant::now();
+    let mut bridge =
+        NetworkBridge::connect(socket.local_addr().unwrap(), 8311).expect("start bridge");
+    let deadline = started + Duration::from_secs(25);
+    let reason = 'wait: loop {
+        for event in bridge.drain_events().unwrap() {
+            if let Event::Disconnected(reason) = event {
+                break 'wait reason;
+            }
+        }
+        assert!(Instant::now() < deadline, "silent server never timed out");
+        thread::sleep(Duration::from_millis(10));
+    };
+    bridge.stop().expect("stop bridge");
+    assert!(started.elapsed() >= Duration::from_secs(9));
+    assert_eq!(reason.as_deref(), Some(HANDSHAKE_TIMEOUT_REASON));
+}
+
+#[test]
 fn housing_default_bridge_receives_authoritative_storage_over_udp() {
     use shared::protocol::{HousingChannel, HousingReply, HousingState, StoredDecor};
     let (mut server, address) = start_fixture_server();
