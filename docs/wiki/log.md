@@ -1,3 +1,6 @@
+## 2026-10-31 — Godot material update-list race
+
+[Material update-list race](investigations/godot-material-update-race.md) records the source audit, unpatched 3/3 assertion aborts and patched 3/3 passes. The pin moves to `4.7.2-pr123946-pr123546-pr123391-matlist-bonepose`, which also carries the Skeleton3D full-override patch.
 ## 2026-10-31 — Neltharus Forge liquid material
 
 [Neltharus Forge](investigations/northshire-pale-water.md#neltharus-forge-lava-material--2026-10-31) records real WMO/DB2 material resolution, ProcMagma evidence and open shoreline/flow gaps.

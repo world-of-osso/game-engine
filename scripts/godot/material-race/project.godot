@@ -1,0 +1,12 @@
+config_version=5
+
+[application]
+config/name="Material queue race"
+
+[display]
+window/size/viewport_width=64
+window/size/viewport_height=64
+
+[rendering]
+driver/threads/thread_model=2
+renderer/rendering_method="forward_plus"

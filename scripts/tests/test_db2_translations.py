@@ -7,7 +7,7 @@ import unittest
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from refresh_db2_translations import regenerate_translations
 
-GODOT = Path.home() / '.cache/game-engine/godot/4.7.2-pr123946-pr123546-pr123391/godot-4.7.2-pr123946-pr123546-pr123391'
+GODOT = Path.home() / '.cache/game-engine/godot/4.7.2-pr123946-pr123546-pr123391-matlist-bonepose/godot-4.7.2-pr123946-pr123546-pr123391-matlist-bonepose'
 
 
 class TranslationTest(unittest.TestCase):

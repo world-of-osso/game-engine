@@ -168,11 +168,13 @@ fn exec_godot(root: &Path, godot: &Path, args: Vec<OsString>) -> Result<i32, Str
     Err(format!("cannot launch Godot {}: {error}", godot.display()))
 }
 
-const GODOT_VERSION: &str = "4.7.2-pr123946-pr123546-pr123391";
+const GODOT_VERSION: &str = "4.7.2-pr123946-pr123546-pr123391-matlist-bonepose";
 const GODOT_BUILD_SCRIPT: &str = "scripts/godot/build-patched-godot.sh";
-/// Official 4.7.2 plus upstream Godot PRs #123946, #123546 and #123391.
-const GODOT_SHA512: &str =
-    include_str!("../../scripts/godot/godot-4.7.2-pr123946-pr123546-pr123391.sha512");
+/// Official 4.7.2 plus upstream Godot PRs #123946, #123546 and #123391, and the local
+/// glyph-atlas, material update-list and Skeleton3D full-override patches in scripts/godot/.
+const GODOT_SHA512: &str = include_str!(
+    "../../scripts/godot/godot-4.7.2-pr123946-pr123546-pr123391-matlist-bonepose.sha512"
+);
 
 /// Pinned patched Godot under the user cache, checksum-verified on every launch.
 fn pinned_godot(root: &Path) -> Result<PathBuf, String> {

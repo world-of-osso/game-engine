@@ -172,7 +172,7 @@ def main():
     for name in ('engine', 'server', 'definitions', 'output', 'resolver', 'resolver-cache',
                  'baseline', 'world', 'canonical-engine', 'canonical-server', 'cache-importer'):
         parser.add_argument('--' + name, type=Path, required=True)
-    parser.add_argument('--godot', type=Path, default=Path.home() / '.cache/game-engine/godot/4.7.2-pr123946-pr123546-pr123391/godot-4.7.2-pr123946-pr123546-pr123391')
+    parser.add_argument('--godot', type=Path, default=Path.home() / '.cache/game-engine/godot/4.7.2-pr123946-pr123546-pr123391-matlist-bonepose/godot-4.7.2-pr123946-pr123546-pr123391-matlist-bonepose')
     parser.add_argument('--schema-commit', default=refresh_db2_install.DBD_COMMIT)
     parser.add_argument('--install', type=Path, default=Path('/syncthing/World of Warcraft'))
     args = parser.parse_args()

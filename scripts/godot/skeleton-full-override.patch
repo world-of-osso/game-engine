@@ -1,0 +1,16 @@
+diff --git a/scene/3d/skeleton_3d.cpp b/scene/3d/skeleton_3d.cpp
+--- a/scene/3d/skeleton_3d.cpp
++++ b/scene/3d/skeleton_3d.cpp
+@@ -1149,7 +1149,11 @@ void Skeleton3D::_force_update_bone_children_transforms(int p_bone_idx) const {
+ 			}
+ 		}
+ 		if (b.global_pose_override_amount >= CMP_EPSILON) {
+-			b.global_pose = b.global_pose.interpolate_with(b.global_pose_override, b.global_pose_override_amount);
++			if (b.global_pose_override_amount == 1.0) {
++				b.global_pose = b.global_pose_override;
++			} else {
++				b.global_pose = b.global_pose.interpolate_with(b.global_pose_override, b.global_pose_override_amount);
++			}
+ 		}
+ 		if (b.global_pose_override_reset) {
+ 			b.global_pose_override_amount = 0.0;

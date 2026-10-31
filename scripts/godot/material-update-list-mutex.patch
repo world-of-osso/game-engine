@@ -1,0 +1,40 @@
+diff --git a/servers/rendering/renderer_rd/storage_rd/material_storage.cpp b/servers/rendering/renderer_rd/storage_rd/material_storage.cpp
+index d4906c9..c364ba3 100644
+--- a/servers/rendering/renderer_rd/storage_rd/material_storage.cpp
++++ b/servers/rendering/renderer_rd/storage_rd/material_storage.cpp
+@@ -2421,19 +2421,17 @@ void MaterialStorage::_material_queue_update(Material *material, bool p_uniform,
+ }
+ 
+ void MaterialStorage::_update_queued_materials() {
+-	SelfList<Material>::List copy;
++	LocalVector<Material *> copy;
+ 	{
+ 		MutexLock lock(material_update_list_mutex);
+ 		while (SelfList<Material> *E = material_update_list.first()) {
+ 			DEV_ASSERT(E == &E->self()->update_element);
+ 			material_update_list.remove(E);
+-			copy.add(E);
++			copy.push_back(E->self());
+ 		}
+ 	}
+ 
+-	while (SelfList<Material> *E = copy.first()) {
+-		Material *material = E->self();
+-		copy.remove(E);
++	for (Material *material : copy) {
+ 		bool uniforms_changed = false;
+ 
+ 		if (material->data) {
+@@ -2475,6 +2473,12 @@ void MaterialStorage::material_free(RID p_rid) {
+ 	material_set_shader(p_rid, RID()); //clean up shader
+ 	material->dependency.deleted_notify(p_rid);
+ 
++	{
++		MutexLock lock(material_update_list_mutex);
++		if (material->update_element.in_list()) {
++			material_update_list.remove(&material->update_element);
++		}
++	}
+ 	material_owner.free(p_rid);
+ }
+ 

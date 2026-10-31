@@ -44,7 +44,7 @@ assert not (generated / 'runtime/editor').exists()
             cargo = tools / 'cargo'
             cargo.write_text('#!/usr/bin/python3\n')
             cargo.chmod(0o755)
-            version = '4.7.2-pr123946-pr123546-pr123391'
+            version = '4.7.2-pr123946-pr123546-pr123391-matlist-bonepose'
             cache = root / 'cache/game-engine/godot' / version
             cache.mkdir(parents=True)
             editor = cache / f'godot-{version}'
@@ -72,7 +72,7 @@ Path(sys.argv[sys.argv.index('--path') + 1], 'editor-ran').write_text('yes')
             original = Path(__file__).parents[1] / 'godot'
             for name in ('build-patched-godot.sh', 'pinned.sh'):
                 shutil.copy2(original / name, scripts / name)
-            version = '4.7.2-pr123946-pr123546-pr123391'
+            version = '4.7.2-pr123946-pr123546-pr123391-matlist-bonepose'
             (scripts / f'godot-{version}-template-release.sha512').write_text(hashlib.sha512(b'template').hexdigest() + '\n')
             work = root / 'work'
             sdk = work / 'x86_64-godot-linux-gnu_sdk-buildroot'

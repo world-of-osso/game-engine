@@ -22,7 +22,7 @@ CAPTURES = ROOT / "data/diagnostics/skyborne-charcreate"
 RESULT = CAPTURES / "child-result.json"
 PINNED = (
     Path.home()
-    / ".cache/game-engine/godot/4.7.2-pr123946-pr123546-pr123391/godot-4.7.2-pr123946-pr123546-pr123391"
+    / ".cache/game-engine/godot/4.7.2-pr123946-pr123546-pr123391-matlist-bonepose/godot-4.7.2-pr123946-pr123546-pr123391-matlist-bonepose"
 )
 
 
