@@ -50,13 +50,16 @@ func run_test() -> void:
 	var deadline := Time.get_ticks_msec() + 90000
 	var saw_wait := false
 	var arrived := false
+	var arrived_at := 0
 	push_key(true)
 	while Time.get_ticks_msec() < deadline:
 		await process_frame
 		var state: Dictionary = client.account_state()
 		if state.local_player_epoch == old_epoch:
 			continue
-		arrived = true
+		if not arrived:
+			arrived = true
+			arrived_at = Time.get_ticks_msec()
 		if state.teleport_ground_waiting:
 			saw_wait = true
 			if player.position.distance_to(destination) > 0.1:
@@ -68,6 +71,10 @@ func run_test() -> void:
 	if not arrived or not saw_wait or client.account_state().teleport_ground_waiting:
 		push_key(false)
 		fail("Did not observe a complete destination wait: " + str(client.account_state()))
+		return
+	if Time.get_ticks_msec() - arrived_at >= 59000:
+		push_key(false)
+		fail("Destination wait ended at the timeout, not on collision readiness")
 		return
 	var resumed_at := player.position
 	for _frame in 30:
