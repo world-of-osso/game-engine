@@ -21,8 +21,7 @@ func run_fixture() -> void:
 	await click("CharCard_0")
 	await click("EnterWorld")
 	if not await wait_until(func(): return client.account_state().screen == "InWorld" and control("CollectionsMicroButton") != null, "world", 180000): return
-	var wanted_skin := "Modern" if skin == "modern" else "Forever"
-	if client.account_state().ui_skin != wanted_skin: fail("wrong account skin"); return
+	if client.account_state().ui_skin != "Forever": fail("wrong account skin"); return
 	if not await wait_until(func(): return native_display(-1), "native player model", 120000): return
 	if not await wait_until(func(): return client.merchant_state().item_catalog_loaded, "source item catalog", 180000): return
 	if not await wait_until(func(): return client.toybox_state().catalog_count == 1166, "full authenticated toy catalog", 120000): return

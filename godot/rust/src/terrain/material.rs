@@ -9,7 +9,8 @@ use game_engine_core::{adt, blp};
 use godot::{
     classes::{
         ArrayMesh, CollisionShape3D, ConcavePolygonShape3D, Image, ImageTexture, MeshInstance3D,
-        Node3D, Shader, ShaderMaterial, StaticBody3D, image,
+        Node3D, Shader, ShaderMaterial, StaticBody3D, geometry_instance_3d::ShadowCastingSetting,
+        image,
     },
     prelude::*,
 };
@@ -17,7 +18,8 @@ use godot::{
 use super::{
     assets::NativeTerrainTile, streaming::StreamedTerrain, textures::TerrainLayerTextures,
 };
-use crate::lighting::TerrainLight;
+use crate::{lighting::TerrainLight, wmo::portals::HalfSpace};
+use glam::Vec3;
 
 type Tile = (u32, u32);
 
@@ -31,6 +33,14 @@ type BuiltChunk = (
     Gd<ShaderMaterial>,
     Gd<ConcavePolygonShape3D>,
 );
+
+struct TerrainChunkVisibility {
+    mesh: Gd<MeshInstance3D>,
+    min: Vec3,
+    max: Vec3,
+    shadows: ShadowCastingSetting,
+    camera_admitted: bool,
+}
 
 /// A tile whose chunks are being built over several frames.
 struct TileBuild {
@@ -53,6 +63,7 @@ pub(crate) struct TerrainMaterials {
     placeholder: Option<Gd<ImageTexture>>,
     shader: Option<Gd<Shader>>,
     materials: Vec<Gd<ShaderMaterial>>,
+    chunks: Vec<TerrainChunkVisibility>,
     light: Option<TerrainLight>,
     water: super::water::WaterMaterials,
 }
@@ -73,6 +84,29 @@ impl TerrainMaterials {
 
     pub fn failures(&self) -> &BTreeMap<(u32, u32), String> {
         &self.failures
+    }
+
+    /// Reject terrain from the camera while keeping its shadow and collision.
+    pub fn cull_outdoor(&mut self, windows: Option<&[Vec<HalfSpace>]>, interiors: &[(Vec3, Vec3)]) {
+        let Some(root) = &self.root else {
+            return;
+        };
+        let world = super::objects::affine(root.get_global_transform());
+        for chunk in &mut self.chunks {
+            let (min, max) = world_box(world, chunk.min, chunk.max);
+            let admitted = super::scenery::outdoor_box_admitted(min, max, windows, interiors);
+            if admitted == chunk.camera_admitted {
+                continue;
+            }
+            if chunk.shadows == ShadowCastingSetting::ON {
+                chunk.mesh.set_cast_shadows_setting(if admitted {
+                    chunk.shadows
+                } else {
+                    ShadowCastingSetting::SHADOWS_ONLY
+                });
+            }
+            chunk.camera_admitted = admitted;
+        }
     }
 
     /// Build GPU resources with the loading budget while priority tiles are set,
@@ -161,6 +195,7 @@ impl TerrainMaterials {
         self.textures.clear();
         self.placeholder = None;
         self.materials.clear();
+        self.chunks.clear();
         self.light = None;
         self.water = super::water::WaterMaterials::default();
     }
@@ -263,7 +298,18 @@ impl TerrainMaterials {
             root.add_child(&water);
         }
         for (name, mesh, material, collision) in build.chunks {
-            root.add_child(&spawn_chunk(&name, &mesh, &material, &collision));
+            let instance = spawn_chunk(&name, &mesh, &material, &collision);
+            let bounds = mesh.get_aabb();
+            let min = Vec3::from_array(bounds.position.to_array());
+            let max = min + Vec3::from_array(bounds.size.to_array());
+            self.chunks.push(TerrainChunkVisibility {
+                shadows: instance.get_cast_shadows_setting(),
+                mesh: instance.clone(),
+                min,
+                max,
+                camera_admitted: true,
+            });
+            root.add_child(&instance);
             self.materials.push(material);
         }
         Ok(root)
@@ -403,6 +449,22 @@ impl<'a> ChunkMaterialInputs<'a> {
     }
 }
 
+fn world_box(transform: glam::Affine3A, min: Vec3, max: Vec3) -> (Vec3, Vec3) {
+    let mut world_min = Vec3::splat(f32::INFINITY);
+    let mut world_max = Vec3::splat(f32::NEG_INFINITY);
+    for bits in 0..8 {
+        let point = Vec3::new(
+            if bits & 1 == 0 { min.x } else { max.x },
+            if bits & 2 == 0 { min.y } else { max.y },
+            if bits & 4 == 0 { min.z } else { max.z },
+        );
+        let point = transform.transform_point3(point);
+        world_min = world_min.min(point);
+        world_max = world_max.max(point);
+    }
+    (world_min, world_max)
+}
+
 fn collision_from_geometry(geometry: &adt::Geometry) -> Gd<ConcavePolygonShape3D> {
     let faces: Vec<Vector3> = geometry
         .indices
@@ -458,6 +520,14 @@ mod tests {
 
     use super::*;
     use crate::terrain::assets::{cached_assets, test_data_root};
+
+    #[test]
+    fn outdoor_terrain_bounds_follow_world_transform() {
+        let transform = glam::Affine3A::from_translation(Vec3::new(10.0, 3.0, -2.0));
+        let (min, max) = world_box(transform, Vec3::ZERO, Vec3::new(2.0, 1.0, 3.0));
+        assert_eq!(min, Vec3::new(10.0, 3.0, -2.0));
+        assert_eq!(max, Vec3::new(12.0, 4.0, 1.0));
+    }
 
     /// Every authored tile a campsite streams, as the character-select background requests it.
     fn campsite_tiles(scene_id: u32) -> Vec<NativeTerrainTile> {

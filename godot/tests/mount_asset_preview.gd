@@ -37,8 +37,7 @@ func run_fixture() -> void:
 	if not await wait_until(func(): return FileAccess.file_exists(OS.get_environment("MOUNT_ASSET_GO")), 180000):
 		finish("owned diagnostic setup timeout")
 		return
-	var expected_skin := "Forever" if OS.get_environment("MOUNT_ASSET_SKIN") == "forever" else "Modern"
-	if client.account_state().ui_skin != expected_skin:
+	if client.account_state().ui_skin != "Forever":
 		finish("wrong active skin: " + str(client.account_state().ui_skin))
 		return
 	await click("MinimapLauncherButton")
