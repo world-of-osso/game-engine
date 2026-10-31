@@ -542,9 +542,7 @@ impl AnimationState {
             return selected;
         }
         match current_id {
-            ANIM_JUMP_START if finished => self.select_animation_id(ANIM_JUMP, true),
-            ANIM_JUMP_START => Ok(false),
-            ANIM_JUMP if !jumping => {
+            ANIM_JUMP_START | ANIM_JUMP if !jumping => {
                 let landing_id = if running_forward
                     && self.sequences.iter().any(|sequence| {
                         sequence.id == ANIM_JUMP_LAND_RUN && sequence.variation_id == 0
@@ -555,7 +553,8 @@ impl AnimationState {
                 };
                 self.select_animation_id(landing_id, false)
             }
-            ANIM_JUMP => Ok(false),
+            ANIM_JUMP_START if finished => self.select_animation_id(ANIM_JUMP, true),
+            ANIM_JUMP_START | ANIM_JUMP => Ok(false),
             ANIM_JUMP_END | ANIM_JUMP_LAND_RUN if finished => {
                 self.select_animation_id(movement_id, true)
             }
@@ -1247,6 +1246,36 @@ impl WowAnimationPlayer {
         self.footstep_phase()
             .map(|(_, id, _, _)| i32::from(id))
             .unwrap_or(-1)
+    }
+
+    /// Read-only playback state for native animation diagnostics.
+    #[cfg(debug_assertions)]
+    #[func]
+    fn animation_trace(&self) -> VarDictionary {
+        let mut trace = VarDictionary::new();
+        let Some(animation) = &self.animation else {
+            return trace;
+        };
+        trace.set(
+            "sequence",
+            i32::from(animation.sequences[animation.current].id),
+        );
+        trace.set("source", i32::from(animation.source_id));
+        trace.set("time_ms", animation.time_ms);
+        if let Some(transition) = &animation.transition {
+            let outgoing = match &transition.outgoing {
+                Outgoing::Sequence { index, .. } => i32::from(animation.sequences[*index].id),
+                Outgoing::Snapshot(_) => -1,
+            };
+            trace.set("outgoing", outgoing);
+            trace.set("incoming_weight", transition.weight());
+            trace.set("blend_duration_ms", transition.duration_ms);
+        } else {
+            trace.set("outgoing", -1);
+            trace.set("incoming_weight", 1.0f32);
+            trace.set("blend_duration_ms", 0.0f32);
+        }
+        trace
     }
 
     /// Read-only base-variation inventory for source-qualified native fixtures.

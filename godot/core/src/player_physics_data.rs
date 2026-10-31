@@ -101,9 +101,15 @@ pub fn clamp_movement_to_walls(
     Vec3::new(clamped.x, proposed.y, clamped.z)
 }
 
-pub fn update_grounded(y: f32, ground: GroundState, snap_threshold: f32) -> bool {
+pub fn update_grounded(
+    y: f32,
+    ground: GroundState,
+    snap_threshold: f32,
+    was_grounded: bool,
+) -> bool {
     match ground {
-        GroundState::Supported(height) => (y - height).abs() < snap_threshold,
+        GroundState::Supported(height) if was_grounded => (y - height).abs() < snap_threshold,
+        GroundState::Supported(height) => y <= height,
         GroundState::Unsupported => false,
         GroundState::Unloaded => true,
     }

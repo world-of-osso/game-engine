@@ -402,6 +402,7 @@ impl PlayerMovement {
             position.y,
             ground.probe(position),
             shared::movement::GROUND_SNAP_THRESHOLD,
+            self.grounded,
         );
         if let Some(proposed) =
             build_proposed_ground_movement(position, frame.direction.into(), frame.speed, delta)
@@ -417,9 +418,10 @@ impl PlayerMovement {
                 position.y,
                 ground.probe(position),
                 shared::movement::GROUND_SNAP_THRESHOLD,
+                self.grounded,
             );
         }
-        self.update_jump(position, jump_pressed, ground);
+        self.start_jump(jump_pressed);
         // `JumpOrAscendStart` in the air: a player who can fly takes off. A skyrider's
         // takeoff is Skyward Ascent (JUMP, JUMP: Blizzard_Tutorials_RPE.lua:391-395), which
         // spends a Skyriding Charge: ask the server to cast it and keep falling until its
@@ -453,6 +455,9 @@ impl PlayerMovement {
         self.grounded = vertical.grounded;
         if self.grounded {
             self.takeoff = None;
+            if self.vertical_velocity <= 0.0 {
+                self.jumping = false;
+            }
         }
         position.y = vertical.y;
         position
@@ -562,22 +567,11 @@ impl PlayerMovement {
         moved.with_y(y)
     }
 
-    fn update_jump(
-        &mut self,
-        position: Vec3,
-        pressed: bool,
-        ground: &crate::ground::TerrainGround<'_>,
-    ) {
+    fn start_jump(&mut self, pressed: bool) {
         if pressed && self.grounded && !self.jumping {
             self.jumping = true;
-            self.vertical_velocity = 7.0;
-        }
-        let landed = match ground.probe(position) {
-            GroundState::Supported(height) => position.y <= height + 0.05,
-            _ => true,
-        };
-        if self.jumping && self.vertical_velocity <= 0.0 && self.grounded && landed {
-            self.jumping = false;
+            self.grounded = false;
+            self.vertical_velocity = shared::movement::JUMP_IMPULSE;
         }
     }
 
@@ -1505,6 +1499,42 @@ mod tests {
             std::thread::sleep(std::time::Duration::from_millis(10));
         }
         terrain
+    }
+
+    #[test]
+    fn jump_contact_reports_landing_in_the_same_frame() {
+        let terrain = swimming_terrain();
+        let floor = terrain.height_at(SHORE.x, SHORE.z).expect("shore height");
+        let ground = TerrainGround {
+            terrain: &terrain,
+            walls: &|_, _, _| None,
+            step_wall_blocked: &|_, _, _| false,
+            game_object_floor: &|_| None,
+        };
+        let mut movement = PlayerMovement {
+            grounded: false,
+            jumping: true,
+            vertical_velocity: -3.0,
+            reported_motion: true,
+            ..Default::default()
+        };
+        let frame = super::MovementFrame {
+            direction: [0.0; 3],
+            speed: 0.0,
+            vertical: 0.0,
+        };
+        let feet = movement.predict(
+            Vec3::new(SHORE.x, floor + 0.02, SHORE.z),
+            frame,
+            false,
+            &ground,
+            &mut |_, to, _| to,
+            DT,
+        );
+        assert!((feet.y - floor).abs() < 0.001);
+        assert!(movement.grounded);
+        assert!(!movement.jumping);
+        assert!(!movement.network_input(0.0, feet, 1).unwrap().jumping);
     }
 
     /// Hold `input` for `frames` frames at `yaw` and camera `pitch`.

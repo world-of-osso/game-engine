@@ -22,6 +22,11 @@ The Godot client predicts the local player's movement and reports each moved pos
 - Clearing the flag restores ordinary input. Forced movement must not enable persistent autorun or replace scripted-forward behavior.
 - This generic input contract does not establish individual toy mount/body availability, rendered pixels or fresh wire acceptance.
 
+### Jump and touchdown
+- Client prediction and server height validation use the same shared jump impulse and gravity: 7.955547 yd/s upward (2018 Retail `CMSG_MOVE_JUMP` packet, https://www.noob-club.ru/index.php?topic=58503.90) and 19.291103 yd/s² (TrinityCore 15e0ed76 `MovementTypedefs.h`).
+- An airborne player descends to the supporting surface before becoming grounded. The 0.3 yd grounded step-snap threshold does not end a jump early.
+- A flat jump at 60 Hz reaches contact in approximately 0.82 s. While airborne, JumpStart leads into Jump. At contact, JumpEnd or forward-running JumpLandRun starts immediately, even if JumpStart is unfinished. Crossfades retain the 150 ms minimum. Source: 12340-era `solarityclient` `crates/systems/src/movement/unit_animation.rs`, `resolve_unit_landing_animation` (commit `00cde39d`); this is not direct current-Retail proof.
+
 ### Stop input
 - [x] The first idle frame after a moving or jumping input sends exactly one `PlayerInput` with no direction, no jump, the final predicted position and the adopted epoch; later idle frames in that epoch send nothing.
 - [x] Adopting a new teleport epoch reports current movement intent once even while stationary; a stop reported under the previous epoch cannot establish the new epoch's stopped state.

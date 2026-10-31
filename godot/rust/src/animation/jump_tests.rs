@@ -135,18 +135,24 @@ fn assert_pose_continuous(
 }
 
 #[test]
-fn early_landing_waits_for_start_and_airborne_loop_does_not_restart() {
+fn early_landing_interrupts_jump_start_without_a_pose_snap() {
+    for (movement, forward, landing) in [(0, false, 39), (5, true, 187)] {
+        let mut player = player(true);
+        assert_pose_continuous(&mut player, movement, true, forward);
+        assert_eq!(current_id(&player), 37);
+        player.advance(75.0).unwrap();
+        assert_pose_continuous(&mut player, movement, false, forward);
+        assert_eq!(current_id(&player), landing);
+        assert!(!player.looping);
+    }
+}
+
+#[test]
+fn airborne_jump_start_enters_loop_without_restarting_it() {
     let mut player = player(true);
     assert_pose_continuous(&mut player, 0, true, false);
-    assert_eq!(current_id(&player), 37);
-    player.advance(75.0).unwrap();
-    let time = player.time_ms;
-    let pose = player.poses()[0].origin;
-    assert!(!player.update_locomotion(0, false, false).unwrap());
-    assert_eq!(player.time_ms, time);
-    assert_eq!(player.poses()[0].origin, pose);
-    player.advance(125.0).unwrap();
-    assert_pose_continuous(&mut player, 0, false, false);
+    player.advance(200.0).unwrap();
+    assert_pose_continuous(&mut player, 0, true, false);
     assert_eq!(current_id(&player), 38);
     assert!(player.looping);
     player.advance(650.0).unwrap();

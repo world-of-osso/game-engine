@@ -5,7 +5,7 @@ use game_engine_core::player_physics_data::{
 };
 use glam::Vec3;
 
-const GRAVITY: f32 = 19.6;
+use shared::movement::{GRAVITY, JUMP_IMPULSE};
 
 #[test]
 fn toyfx2_feather_fall_caps_prediction_and_removal_restores_gravity() {
@@ -149,7 +149,7 @@ fn snapping_requires_target_within_step_below_current_height() {
 }
 
 fn step(state: VerticalState, ground: GroundState, dt: f32) -> VerticalState {
-    let grounded = update_grounded(state.y, ground, SNAP);
+    let grounded = update_grounded(state.y, ground, SNAP, state.grounded);
     apply_gravity_and_ground_snap(
         VerticalState { grounded, ..state },
         ground,
@@ -178,10 +178,32 @@ fn proposal_normalizes_entire_direction_before_displacement() {
 
 #[test]
 fn supported_ground_uses_strict_snap_threshold() {
-    assert!(update_grounded(2.29, GroundState::Supported(2.0), SNAP));
-    assert!(!update_grounded(SNAP, GroundState::Supported(0.0), SNAP));
-    assert!(!update_grounded(0.0, GroundState::Unsupported, SNAP));
-    assert!(update_grounded(0.0, GroundState::Unloaded, SNAP));
+    assert!(update_grounded(
+        2.29,
+        GroundState::Supported(2.0),
+        SNAP,
+        true
+    ));
+    assert!(!update_grounded(
+        SNAP,
+        GroundState::Supported(0.0),
+        SNAP,
+        true
+    ));
+    assert!(!update_grounded(
+        2.29,
+        GroundState::Supported(2.0),
+        SNAP,
+        false
+    ));
+    assert!(update_grounded(
+        2.0,
+        GroundState::Supported(2.0),
+        SNAP,
+        false
+    ));
+    assert!(!update_grounded(0.0, GroundState::Unsupported, SNAP, true));
+    assert!(update_grounded(0.0, GroundState::Unloaded, SNAP, false));
 }
 
 #[test]
@@ -195,8 +217,8 @@ fn unsupported_ground_falls_from_rest() {
         GroundState::Unsupported,
         0.1,
     );
-    assert!((result.vertical_velocity + 1.96).abs() < 1e-6);
-    assert!((result.y - 1.804).abs() < 1e-6);
+    assert!((result.vertical_velocity + 1.9291103).abs() < 1e-6);
+    assert!((result.y - 1.807089).abs() < 1e-6);
     assert!(!result.grounded);
 }
 
@@ -227,7 +249,7 @@ fn grounded_nonpositive_velocity_snaps_to_supported_height() {
             VerticalState {
                 y: 2.1,
                 vertical_velocity: -2.0,
-                grounded: false
+                grounded: true
             },
             GroundState::Supported(2.0),
             0.1
@@ -251,9 +273,51 @@ fn upward_jump_integrates_even_when_grounded() {
         GroundState::Supported(2.0),
         0.1,
     );
-    assert!((result.vertical_velocity - 5.04).abs() < 1e-6);
-    assert!((result.y - 2.504).abs() < 1e-6);
+    assert!((result.vertical_velocity - 5.0708895).abs() < 1e-6);
+    assert!((result.y - 2.507089).abs() < 1e-6);
     assert!(result.grounded);
+}
+
+#[test]
+fn flat_jump_lands_at_contact_with_shared_impulse() {
+    let floor = 94.25972;
+    let mut state = VerticalState {
+        y: floor,
+        vertical_velocity: JUMP_IMPULSE,
+        grounded: false,
+    };
+    let mut peak = floor;
+    let mut landing_frame = None;
+    for frame in 1..=60 {
+        state = step(state, GroundState::Supported(floor), 1.0 / 60.0);
+        peak = f32::max(peak, state.y);
+        if state.grounded && state.vertical_velocity <= 0.0 {
+            landing_frame = Some(frame);
+            break;
+        }
+    }
+    assert!(peak - floor > 1.0);
+    assert_eq!(landing_frame, Some(49));
+    assert_eq!(state.y, floor);
+    assert_eq!(state.vertical_velocity, 0.0);
+}
+
+#[test]
+fn airborne_descent_ignores_step_snap_until_contact() {
+    let ground = GroundState::Supported(94.0);
+    let before = VerticalState {
+        y: 94.2,
+        vertical_velocity: -1.0,
+        grounded: false,
+    };
+    let falling = step(before, ground, 0.01);
+    assert!(!falling.grounded);
+    assert!(falling.y > 94.0 && falling.y < before.y);
+
+    let landed = step(falling, ground, 0.2);
+    assert!(landed.grounded);
+    assert_eq!(landed.y, 94.0);
+    assert_eq!(landed.vertical_velocity, 0.0);
 }
 
 #[test]
