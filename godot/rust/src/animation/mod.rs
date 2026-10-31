@@ -192,6 +192,8 @@ pub struct AnimationState {
     current: usize,
     replacements: std::collections::HashMap<u16, u16>,
     source_id: u16,
+    /// Resolved successor for an explicitly selected game-object transition.
+    completion_id: Option<u16>,
     time_ms: f64,
     looping: bool,
     /// World idles vary; a staged battle repeats its base idle without roaming flourishes.
@@ -293,6 +295,7 @@ impl AnimationState {
                 .find(|sequence| sequence.id == ANIM_STAND)
                 .unwrap_or(&model.sequences[0])
                 .id,
+            completion_id: None,
             time_ms: 0.0,
             looping: true,
             vary_loops: true,
@@ -447,6 +450,7 @@ impl AnimationState {
         if self.sequences.get(index).is_none() {
             return Err(format!("M2 sequence index {index} is out of range"));
         }
+        self.completion_id = None;
         if self.current == index {
             self.looping = looping;
             return Ok(());
@@ -491,12 +495,42 @@ impl AnimationState {
             .iter()
             .position(|sequence| sequence.id == id && sequence.variation_id == 0)
             .ok_or_else(|| format!("M2 animation ID {id} has no base variation"))?;
+        self.completion_id = None;
         self.source_id = source;
         if self.sequences[self.current].id == id && self.looping == looping {
             return Ok(false);
         }
         self.start_transition(index, looping);
         Ok(true)
+    }
+
+    fn select_game_object_animation(
+        &mut self,
+        requested: u16,
+        looping: bool,
+        fallbacks: &std::collections::HashMap<u16, u16>,
+    ) -> Result<(), String> {
+        let available = self
+            .sequences
+            .iter()
+            .filter(|sequence| sequence.variation_id == 0)
+            .map(|sequence| sequence.id)
+            .collect();
+        let resolve = |id| {
+            game_engine_core::adventure_guide::resolve_plain_animation_clip(
+                id, &available, fallbacks,
+            )
+        };
+        let resolved = resolve(requested)?;
+        let successor = match (requested, looping) {
+            (ANIM_OPEN, false) => Some(resolve(ANIM_OPENED)?),
+            (ANIM_CLOSE, false) => Some(resolve(ANIM_STAND)?),
+            _ => None,
+        };
+        self.select_animation_id(resolved, looping)?;
+        self.source_id = requested;
+        self.completion_id = successor;
+        Ok(())
     }
 
     fn repeat_base_animation(&mut self, id: u16) -> Result<(), String> {
@@ -716,7 +750,7 @@ impl AnimationState {
             ANIM_CLOSE => (ANIM_STAND, true),
             _ => return,
         };
-        let resolved_id = self.replacement_id(next_id);
+        let resolved_id = self.replacement_id(self.completion_id.take().unwrap_or(next_id));
         let Some(next) = self
             .sequences
             .iter()
@@ -1088,6 +1122,21 @@ impl WowAnimationPlayer {
         )?;
         self.play_clip(resolved, looping)?;
         Ok(resolved)
+    }
+
+    /// Play a game-object clip and its resolved settled successor.
+    pub(crate) fn play_game_object_clip(
+        &mut self,
+        requested: u16,
+        looping: bool,
+        fallbacks: &std::collections::HashMap<u16, u16>,
+    ) -> Result<(), String> {
+        self.animation
+            .as_mut()
+            .ok_or("M2 animation has no bound model")?
+            .select_game_object_animation(requested, looping, fallbacks)?;
+        self.write_poses();
+        Ok(())
     }
 
     /// `id`, or the first clip of its `AnimationData.Fallback` chain the model has.
@@ -1815,6 +1864,46 @@ mod tests {
         assert_eq!(model.sequences[player.current].id, 0);
         assert!(player.looping);
         assert_eq!(player.time_ms, 1.0);
+    }
+
+    #[test]
+    fn game_object_animation_uses_authored_fallback_chains() {
+        let data = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
+        let fallbacks =
+            game_engine_core::spell_visual::read_animation_fallbacks(&data.join("db2/active"))
+                .expect("AnimationData");
+        let load = |fdid: u32| {
+            m2::parse_model(
+                &fs::read(data.join(format!("models/{fdid}.m2"))).unwrap(),
+                &fs::read(data.join(format!("models/{fdid}00.skin"))).unwrap(),
+            )
+            .unwrap()
+        };
+        for fdid in [198445, 201103] {
+            let model = load(fdid);
+            let mut player = AnimationState::new(&model).unwrap();
+            assert!(
+                player
+                    .select_game_object_animation(148, false, &fallbacks)
+                    .is_err(),
+                "{fdid}: Open/Close fallback cycle has no authored clip"
+            );
+            assert_eq!(model.sequences[player.current].id, 0);
+            assert!(player.looping);
+        }
+
+        let model = load(200898);
+        let mut player = AnimationState::new(&model).unwrap();
+        player
+            .select_game_object_animation(148, false, &fallbacks)
+            .unwrap();
+        let duration = f64::from(model.sequences[player.current].duration);
+        player.advance(duration).unwrap();
+        assert_eq!(model.sequences[player.current].id, 148);
+        assert!(
+            player.looping,
+            "Opened falls back to the authored Open clip"
+        );
     }
 
     #[test]

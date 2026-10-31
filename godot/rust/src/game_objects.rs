@@ -76,6 +76,7 @@ struct ObjectNode {
 pub(crate) struct GameObjects {
     data_root: PathBuf,
     displays: Option<Result<HashMap<u32, u32>, String>>,
+    animation_fallbacks: Option<Result<HashMap<u16, u16>, String>>,
     objects: HashMap<u64, ObjectNode>,
     transports: HashMap<u64, crate::transport_motion::TransportView>,
     light: Option<TerrainLight>,
@@ -180,6 +181,7 @@ impl GameObjects {
         Self {
             data_root,
             displays: None,
+            animation_fallbacks: None,
             objects: HashMap::new(),
             transports: HashMap::new(),
             light: None,
@@ -373,9 +375,15 @@ impl GameObjects {
                 "game_object_animation",
                 &(animation.animation_id as i64).to_variant(),
             );
-            apply_object_animation(object, *animation)?;
+            apply_object_animation(
+                object,
+                *animation,
+                &self.data_root,
+                &mut self.animation_fallbacks,
+            )?;
         } else if object.node.has_meta("game_object_animation") {
             object.node.remove_meta("game_object_animation");
+            object.animation = None;
         }
         if let Some(state) = unit.get::<shared::components::TransportState>() {
             match self.transports.get_mut(&id) {
@@ -606,10 +614,19 @@ fn apply_object_collision(object: &mut ObjectNode, enabled: bool) {
 fn apply_object_animation(
     object: &mut ObjectNode,
     animation: GameObjectAnimation,
+    data_root: &std::path::Path,
+    cached_fallbacks: &mut Option<Result<HashMap<u16, u16>, String>>,
 ) -> Result<(), String> {
     if object.animation == Some(animation) {
         return Ok(());
     }
+    object.animation = Some(animation);
+    let fallbacks = cached_fallbacks
+        .get_or_insert_with(|| {
+            game_engine_core::spell_visual::read_animation_fallbacks(&data_root.join("db2/active"))
+        })
+        .as_ref()
+        .map_err(Clone::clone)?;
     let mut player = object
         .node
         .get_node_or_null("GameObjectModel/M2Animation")
@@ -622,9 +639,8 @@ fn apply_object_animation(
         })?;
     player
         .bind_mut()
-        .play_clip(animation.animation_id, animation.looping)
+        .play_game_object_clip(animation.animation_id, animation.looping, fallbacks)
         .map_err(|error| format!("Gameobject display {}: {error}", object.display_id))?;
-    object.animation = Some(animation);
     Ok(())
 }
 
