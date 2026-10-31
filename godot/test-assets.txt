@@ -1,4 +1,8 @@
 # data/-relative files uploaded for `scripts/engine-build.py --test`; see docs/remote-builds.md.
+# Kokia's Retail model and child/parent animation banks.
+products/wow/88d5e8ef05ec5a8446cdec93d142d7c6/models/1630402.m2
+products/wow/88d5e8ef05ec5a8446cdec93d142d7c6/models/1834492.skel
+products/wow/88d5e8ef05ec5a8446cdec93d142d7c6/models/1830371.skel
 # Dornogal cross-build M2 texture ownership regression.
 cache/model-asset-index.json
 cache/model-asset-index-noinstall-model-recovery-69933.json

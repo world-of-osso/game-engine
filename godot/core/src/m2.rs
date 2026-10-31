@@ -38,6 +38,15 @@ pub struct Material {
 pub use format::parser::M2TextureUnit as TextureUnit;
 pub use m2_anim::{AnimTrack, BoneAnimTracks, M2AnimSequence as Sequence, M2Bone as Bone};
 
+/// Animation data from the parent of an external skeleton.
+pub struct ParentAnimation {
+    pub bones: Vec<Bone>,
+    pub sequences: Vec<Sequence>,
+    pub bone_tracks: std::sync::Arc<Vec<BoneAnimTracks>>,
+    pub global_sequences: Vec<u32>,
+    pub blacklist: Vec<u16>,
+}
+
 pub struct Model {
     pub vertices: Vec<Vertex>,
     pub indices: Vec<u16>,
@@ -49,6 +58,7 @@ pub struct Model {
     /// Shared: every animated instance of the model reads the same tracks.
     pub bone_tracks: std::sync::Arc<Vec<BoneAnimTracks>>,
     pub global_sequences: Vec<u32>,
+    pub parent_animation: Option<ParentAnimation>,
     pub texture_types: Vec<u32>,
     /// M2Texture flags (0x1 wrap U, 0x2 wrap V), indexed like `texture_types`.
     pub texture_flags: Vec<u32>,
@@ -321,6 +331,26 @@ pub fn bones_are_static(model: &Model) -> bool {
     })
 }
 
+/// Read the parent's independent sequence, hierarchy and keyframe bank.
+pub fn parse_parent_animation(
+    model: &[u8],
+    parent: &[u8],
+    load_anim: impl FnMut(u32) -> Option<Vec<u8>>,
+) -> Result<ParentAnimation, String> {
+    let parsed = format::parser::parse_skel_data_with_anims(parent, load_anim)?;
+    if parsed.bones.is_empty() {
+        return Err("Parent SKB1 skeleton chunk missing or empty".into());
+    }
+    m2_anim::validate_bone_hierarchy(&parsed.bones)?;
+    Ok(ParentAnimation {
+        bones: parsed.bones,
+        sequences: parsed.sequences,
+        bone_tracks: std::sync::Arc::new(parsed.bone_tracks),
+        global_sequences: parsed.global_sequences,
+        blacklist: format::parser::parent_animation_blacklist(model)?,
+    })
+}
+
 pub fn parse_model(model: &[u8], skin: &[u8]) -> Result<Model, String> {
     parse_model_with_skeleton(model, skin, None, |_| None)
 }
@@ -430,6 +460,7 @@ pub fn parse_model_with_skeleton(
         sequences,
         bone_tracks: std::sync::Arc::new(bone_tracks),
         global_sequences,
+        parent_animation: None,
         texture_types: format::parse_texture_types(chunks.md20)?,
         texture_flags: format::parser::parse_texture_flags(chunks.md20)?,
         texture_fdids,

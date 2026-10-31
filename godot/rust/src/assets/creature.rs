@@ -448,8 +448,23 @@ pub(crate) fn cache_model_files(
         }
         None => None,
     };
-    let anim_fdids = m2::external_anim_fdids(&bytes, skeleton.as_deref())
+    let parent = skeleton
+        .as_deref()
+        .map(game_engine_core::asset::m2_format::parser::parent_skeleton_fdid)
+        .transpose()?
+        .flatten()
+        .map(|fdid| {
+            let parent_path = cache_required(resolver, fdid, &models.join(format!("{fdid}.skel")))?;
+            fs::read(&parent_path).map_err(|error| format!("{}: {error}", parent_path.display()))
+        })
+        .transpose()?;
+    let mut anim_fdids = m2::external_anim_fdids(&bytes, skeleton.as_deref())
         .map_err(|error| format!("{}: {error}", path.display()))?;
+    if let Some(parent) = parent.as_deref() {
+        anim_fdids.extend(m2::external_anim_fdids(&bytes, Some(parent))?);
+        anim_fdids.sort_unstable();
+        anim_fdids.dedup();
+    }
     // A `.anim` that can't be extracted leaves its sequence without keyframes (read_model).
     for fdid in anim_fdids {
         let destination = models.join(format!("{fdid}.anim"));

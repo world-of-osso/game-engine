@@ -263,18 +263,31 @@ pub(crate) fn read_model_file(model_path: &Path) -> Result<m2::Model, String> {
         .skeleton_fdid
         .map(|fdid| dependent_asset_path(model_path, fdid, "skel").and_then(|path| read(&path)))
         .transpose()?;
+    let parent = skeleton
+        .as_deref()
+        .map(game_engine_core::asset::m2_format::parser::parent_skeleton_fdid)
+        .transpose()?
+        .flatten()
+        .map(|fdid| dependent_asset_path(model_path, fdid, "skel").and_then(|path| read(&path)))
+        .transpose()?;
     let resolver = model_asset_resolver(model_path)?;
     let _parse = crate::profile::span(|| "phase.m2_parse".to_owned());
     let mut animation_error = None;
-    let parsed = m2::parse_model_with_skeleton(&model, &skin, skeleton.as_deref(), |fdid| {
-        match read_animation_asset(model_path, fdid, &resolver) {
-            Ok(bytes) => bytes,
-            Err(error) => {
-                animation_error.get_or_insert(error);
-                None
-            }
+    let mut load_anim = |fdid| match read_animation_asset(model_path, fdid, &resolver) {
+        Ok(bytes) => bytes,
+        Err(error) => {
+            animation_error.get_or_insert(error);
+            None
         }
-    });
+    };
+    let parsed = m2::parse_model_with_skeleton(&model, &skin, skeleton.as_deref(), &mut load_anim)
+        .and_then(|mut parsed| {
+            parsed.parent_animation = parent
+                .as_deref()
+                .map(|bytes| m2::parse_parent_animation(&model, bytes, &mut load_anim))
+                .transpose()?;
+            Ok(parsed)
+        });
     // The parser's optional callback cannot carry a required-file error.
     if let Some(error) = animation_error {
         return Err(error);
