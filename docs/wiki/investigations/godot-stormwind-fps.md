@@ -105,6 +105,18 @@ WMO doodads (merged `17e44dfa`, `7e839a73`) add 8,694 `WmoDoodad` nodes at the i
 - **Screenshots.** Same spot, `eac376b6` vs `6cb884ec`: 565 of 921,600 pixels differ, all around the animated props next to the player and the FPS counter.
 - **Remaining.** About 5 ms of `cull_doodads` (all doodads, fade and animation LOD per doodad each frame) and 2-3 ms of `cull_wmos` (the camera-interior test over each WMO's interior floor triangles) in debug builds. The node count itself costs nothing per frame that the samples show.
 
+## Linux Cage measurements (2026-10-31)
+
+Engine `93ac8d4b5` release, shared-protocol `41d5928`, and private server binary `27d1a48f21`: NVIDIA RTX 5060 Ti, Forever skin, headless Cage/wlroots Vulkan, 1920×1080 at a configured 144 Hz. An output-management diagnostic applied the custom mode before Godot started. Godot requested disabled VSync, but Vulkan logged a fallback to enabled; this FIFO surface caps presentation at 144 Hz. The fixture reported its requested setting, not proof that the driver accepted it. Each result is a 300-frame sample with the Windows comparison poses and no per-frame render-server GPU queries.
+
+| Pose | FPS, three samples | Main-thread CPU ms/frame | Agents.slice CPU cores |
+|---|---|---|---|
+| Indoor | 57.31 / 57.99 / 54.46 | 11.41 / 11.40 / 12.06 | 9.58 / 9.39 / 10.21 |
+| Stockade exit | 46.90 / 70.74 / 74.15 | 13.13 / 9.29 / 8.86 | 23.25 / 12.21 / 10.45 |
+| Indoor repeat | 72.59 / 70.00 / 66.72 | 8.72 / 9.15 / 9.87 | 5.17 / 6.16 / 6.77 |
+
+A quiet admission window held new builds, but previously admitted jobs continued. Main-thread runqueue wait for the repeat was 0.00–0.02 ms/frame. One other Godot client was present before the indoor run, and two before the repeat; GPU load was shared and varied. A separate timestamp-instrumented Cage run measured roughly 4–5 ms GPU viewport time indoors, but made two synchronous render-server queries each frame and cannot be used as a query-free FPS baseline or directly paired with these samples. Actual CPU/GPU overlap and the remaining wall time are not established. Evidence, including per-second GPU and scheduler records: `data/diagnostics/fps-120-linux-2026-10-31-cage-query-free/` and `data/diagnostics/fps-120-linux-2026-10-31-cage-144hz-quiet/`.
+
 ## Linux Xvfb diagnostic (2026-10-31)
 
 On agent-server, engine `93ac8d4b5` was built in the release profile with shared-protocol `5fe2ff2` to match a private server binary from the `game-server-neltharus-current` checkout. That checkout was at `82499270`; the binary's source revision was not independently established. The Windows receipt fixture ran with the Forever skin, an NVIDIA RTX 5060 Ti and a 1920×1080 Xvfb X11 surface. Each row is three 300-frame samples after 8,059 objects loaded with zero reported failures. Xvfb is not a native Wayland or Cage measurement.
