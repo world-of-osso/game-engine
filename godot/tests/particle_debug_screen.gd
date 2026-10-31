@@ -40,7 +40,10 @@ func run_test() -> void:
 		return
 	client = load("res://scenes/client.tscn").instantiate()
 	root.add_child(client)
-	scene = client.get_node_or_null("ParticleDebug")
+	var deadline := Time.get_ticks_msec() + WAIT_MS
+	while scene == null and Time.get_ticks_msec() < deadline:
+		await process_frame
+		scene = client.get_node_or_null("ParticleDebug")
 	if scene == null:
 		fail("--screen particledebug did not open the particle debug scene")
 		return
@@ -312,7 +315,10 @@ func changed_pixels(a: Image, b: Image) -> int:
 	return count
 
 func save_shot(name: String) -> Image:
-	await RenderingServer.frame_post_draw
+	# Allow scene changes to reach the separate render thread before readback.
+	for frame in 3:
+		await process_frame
+		await RenderingServer.frame_post_draw
 	var image := root.get_texture().get_image()
 	var path := shots.path_join(name)
 	var saved := image.save_png(path)
