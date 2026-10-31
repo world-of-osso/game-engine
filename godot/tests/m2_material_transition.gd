@@ -126,6 +126,27 @@ func run_fixture() -> void:
 				if not before_weights.is_equal_approx(after[index].weights):
 					fail_fixture("midblend material pop: %s -> %s" % [before, after])
 					return
+	# The NPC LOD holds its last material sample, then catches up to the current
+	# player clock when sampling resumes. Explicit samples remain available to doodads.
+	materials.set_sampling(false)
+	materials.set_process(true)
+	var held := parameters()
+	player.play_sequence(1, true)
+	player.advance_time_ms(75.0)
+	for frame in 3:
+		await process_frame
+	if parameters() != held:
+		fail_fixture("unsampled material changed")
+		return
+	materials.set_sampling(true)
+	for frame in 3:
+		await process_frame
+	materials.set_process(false)
+	var resumed := parameters()
+	materials.sample_materials()
+	if resumed != parameters() or resumed == held:
+		fail_fixture("resumed material did not catch up to the current animation")
+		return
 	var file := FileAccess.open(output.path_join(phase + "-parameters.json"), FileAccess.WRITE)
 	file.store_string(JSON.stringify(evidence, "\t"))
 	file.close()

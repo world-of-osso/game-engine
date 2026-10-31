@@ -13,6 +13,7 @@ Replicated NPC models and placed doodads sample their bone animation at a rate c
 - [ ] NPC models beyond 60 yd, or whose model bounds lie outside the camera frustum in the previous frame, do not sample; their joints keep the last written pose. The frustum test is the doodads' box-vs-frustum test, so the decision does not depend on renderer state and a headless client classifies NPCs as a rendered one does.
 - [x] A new binding samples until Bevy has evaluated it once, so an NPC frozen since spawn holds an authored pose, not the bind pose.
 - [ ] A skipped frame writes no joint transform, so the NPC's transform subtree is not dirtied.
+- [x] NPC material animation uses the same sampling decision as its bones, including models with materials but no bone animation. When sampling resumes, it uses the current animation and global clocks.
 - [ ] Models that are neither NPCs nor doodads (the local player, other players, debug scenes) are never rate-limited.
 - [x] Doodads use the same distance bands and rates as NPCs, measured from the camera to the doodad (Godot: its transformed render-box center).
 - [x] A doodad that is not drawn (beyond its scenery distance) or not on screen does not sample, as in the build-12340 reproduction, which culls static placements from their bounds before advancing their playback (solarityclient `crates/runtime/src/application/terrain_frame/m2.rs`, "ADT/WMO placements were culled from compact immutable bounds before touching instance state").
@@ -49,7 +50,7 @@ Replicated NPC models and placed doodads sample their bone animation at a rate c
 ## Known gaps
 
 - Frozen NPCs that are moving slide in their last pose until they re-enter range or view.
-- Thresholds are constants; no client option exposes them.
+- Thresholds are constants inherited from the retired client; no client option exposes them. They are not verified against an external client's animation LOD thresholds.
 
 ## Out of scope
 

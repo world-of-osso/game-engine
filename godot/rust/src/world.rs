@@ -9,6 +9,7 @@ use std::{
 
 use crate::{
     animation::{ActionPriority, WowAnimationPlayer, lod::AnimationLod},
+    assets::uv_animation::WowMaterialAnimation,
     lighting::TerrainLight,
     particles::{ParticlePools, PlacedParticles, view_basis},
     world_models::{
@@ -113,19 +114,25 @@ struct UnitNode {
     passenger: Option<mount::UnitPassenger>,
 }
 
-/// An NPC visual's model node, its bone animation and the merged bounds of its meshes,
-/// looked up once when the visual attaches.
+/// An NPC visual's model, animations and merged mesh bounds, looked up on attachment.
 struct LodTarget {
     model: Gd<Node3D>,
-    animation: Gd<WowAnimationPlayer>,
+    animation: Option<Gd<WowAnimationPlayer>>,
+    materials: Option<Gd<WowMaterialAnimation>>,
     bounds: Aabb,
 }
 
 impl LodTarget {
     fn of(visual: &Gd<Node3D>) -> Option<Self> {
         let model = visual.try_get_node_as::<Node3D>("NpcModel")?;
+        let animation = model.try_get_node_as::<WowAnimationPlayer>("M2Animation");
+        let materials = model.try_get_node_as::<WowMaterialAnimation>("M2MaterialAnimation");
+        if animation.is_none() && materials.is_none() {
+            return None;
+        }
         Some(Self {
-            animation: model.try_get_node_as::<WowAnimationPlayer>("M2Animation")?,
+            animation,
+            materials,
             bounds: crate::world_models::mesh_bounds(&model),
             model,
         })
@@ -1557,10 +1564,13 @@ impl WorldUnits {
                 Vec3::new(camera.x, camera.y, camera.z),
                 frustum,
             );
-            target
-                .animation
-                .bind_mut()
-                .set_sampling(lod.samples_frame(frame, *id));
+            let sampling = target.model.is_visible_in_tree() && lod.samples_frame(frame, *id);
+            if let Some(animation) = &mut target.animation {
+                animation.bind_mut().set_sampling(sampling);
+            }
+            if let Some(materials) = &mut target.materials {
+                materials.bind_mut().set_sampling(sampling);
+            }
         }
     }
 

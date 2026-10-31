@@ -65,6 +65,8 @@ pub struct WowMaterialAnimation {
     /// Some material track changes over time; otherwise the first sample holds and the
     /// node never processes.
     animates: bool,
+    /// Whether the NPC animation LOD permits this frame's material sample.
+    sampling: bool,
 }
 
 #[godot_api]
@@ -77,6 +79,7 @@ impl INode for WowMaterialAnimation {
             clock: None,
             player: None,
             animates: true,
+            sampling: true,
         }
     }
 
@@ -102,7 +105,9 @@ impl INode for WowMaterialAnimation {
 
     fn process(&mut self, _delta: f64) {
         let _timing = crate::profile::node_span("WowMaterialAnimation.process");
-        self.sample_materials();
+        if self.sampling {
+            self.sample_materials();
+        }
     }
 }
 
@@ -139,11 +144,17 @@ impl WowMaterialAnimation {
             clock: None,
             player: None,
             animates,
+            sampling: true,
         }))
     }
 
     pub fn animates(&self) -> bool {
         self.animates
+    }
+
+    #[func]
+    pub(crate) fn set_sampling(&mut self, sampling: bool) {
+        self.sampling = sampling;
     }
 
     #[func]
