@@ -6,6 +6,59 @@ mod guild_perks;
 mod toy_pet;
 
 #[test]
+fn delayed_handshake_delivers_queued_login_over_udp() {
+    use shared::protocol::{AuthChannel, LoginRequest};
+
+    let (mut server, address) = start_fixture_server();
+    server.update();
+    let mut bridge = NetworkBridge::connect(address, 8310).expect("start bridge");
+    bridge
+        .send::<_, AuthChannel>(LoginRequest {
+            token: None,
+            username: "fb_slow".into(),
+            password: "private".into(),
+        })
+        .expect("queue login");
+
+    // The socket stays bound but the server cannot answer until its next frame.
+    thread::sleep(Duration::from_millis(5500));
+    assert!(
+        bridge
+            .drain_events()
+            .unwrap()
+            .iter()
+            .all(|event| !matches!(event, Event::Disconnected(_)))
+    );
+    let deadline = Instant::now() + Duration::from_secs(8);
+    let mut received = false;
+    while Instant::now() < deadline && !received {
+        server.update();
+        let world = server.world_mut();
+        for mut receiver in world
+            .query::<&mut MessageReceiver<LoginRequest>>()
+            .iter_mut(world)
+        {
+            received |= receiver
+                .receive()
+                .any(|request| request.username == "fb_slow" && request.password == "private");
+        }
+        assert!(
+            bridge
+                .drain_events()
+                .unwrap()
+                .iter()
+                .all(|event| !matches!(event, Event::Disconnected(_)))
+        );
+        thread::sleep(Duration::from_millis(5));
+    }
+    bridge.stop().expect("stop bridge");
+    assert!(
+        received,
+        "queued login did not reach the server after the delayed handshake"
+    );
+}
+
+#[test]
 fn housing_default_bridge_receives_authoritative_storage_over_udp() {
     use shared::protocol::{HousingChannel, HousingReply, HousingState, StoredDecor};
     let (mut server, address) = start_fixture_server();

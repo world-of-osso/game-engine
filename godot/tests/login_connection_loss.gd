@@ -4,7 +4,7 @@ extends SceneTree
 # process (SIGSTOP) before this script runs so the connect stays pending; this script kills it.
 # Env: GODOT_TEST_SERVER (host:port), GODOT_TEST_SERVER_PID (the stopped server process).
 
-const EXPECTED_REASON = "Failed to connect: the server did not answer within 5 seconds."
+const EXPECTED_REASON = "Failed to connect: the server did not answer."
 
 func _initialize() -> void:
 	call_deferred("_run")
@@ -46,9 +46,8 @@ func _run() -> void:
 		_fail("Pressing connect must show Connecting... (status %s)" % status.text)
 		return
 	OS.kill(server_pid)
-	# The dead server never answers; the transport gives up at the 5 s handshake timeout
-	# (network/src/lib.rs `HANDSHAKE_TIMEOUT`) and the status names the reason.
-	var deadline = pressed_at + 15000
+	# The dead server never answers; the Netcode token's 10 s timeout ends the handshake.
+	var deadline = pressed_at + 20000
 	while Time.get_ticks_msec() < deadline:
 		await process_frame
 		if status.text == "Connecting...":
@@ -61,12 +60,12 @@ func _run() -> void:
 			_fail("Connect must be enabled again after the loss")
 			return
 		var waited = (Time.get_ticks_msec() - pressed_at) / 1000.0
-		if status.text != EXPECTED_REASON or waited < 4.5 or waited > 7.0:
-			_fail("Expected '%s' about 5 s after Connect, got '%s' after %.1f s" % [EXPECTED_REASON, status.text, waited])
+		if status.text != EXPECTED_REASON or waited < 9.0 or waited > 18.0:
+			_fail("Expected '%s' after the 10 s Netcode timeout, got '%s' after %.1f s" % [EXPECTED_REASON, status.text, waited])
 			return
 		client.queue_free()
 		print("PASS: server loss while connecting replaced Connecting... after %.1f s with: %s" % [waited, status.text])
 		quit(0)
 		return
 	var final_state: Dictionary = client.account_state()
-	_fail("Login status still shows Connecting... 15 s after Connect (session status %s)" % final_state.status)
+	_fail("Login status still shows Connecting... 20 s after Connect (session status %s)" % final_state.status)

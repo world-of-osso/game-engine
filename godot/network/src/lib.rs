@@ -80,12 +80,8 @@ pub use lightyear::prelude::Message as WireMessage;
 /// vendored Netcode server issues its own tokens with 10 s (`CLIENT_TIMEOUT_SECS`,
 /// vendor/lightyear_netcode/src/server.rs:34).
 const CLIENT_TIMEOUT_SECS: i32 = 10;
-/// How long the Netcode handshake (connection request and challenge) may take before the
-/// client gives up. A live local or remote server answers within a round trip.
-pub const HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(5);
-/// The `Disconnected` reason of a handshake that ran out of `HANDSHAKE_TIMEOUT`.
-pub const HANDSHAKE_TIMEOUT_REASON: &str =
-    "Failed to connect: the server did not answer within 5 seconds.";
+/// User-facing reason when Netcode times out during its handshake.
+pub const HANDSHAKE_TIMEOUT_REASON: &str = "Failed to connect: the server did not answer.";
 const NETWORK_HZ: u128 = 60;
 const NANOS_PER_SECOND: u128 = 1_000_000_000;
 const SIMULATION_INTERVAL: Duration = Duration::from_millis(50);
@@ -572,16 +568,11 @@ fn connect_transport(
             netcode,
         ))
         .id();
-    let started = world.resource::<Time<Real>>().elapsed();
-    world.entity_mut(entity).insert(HandshakeDeadline {
-        deadline: started + timeout.map_or(HANDSHAKE_TIMEOUT, Duration::from_secs),
-        timeout: timeout.map_or(HANDSHAKE_TIMEOUT, Duration::from_secs),
-    });
     world.trigger(client_network::Connect { entity });
     Ok(())
 }
 
-/// An explicit private-test timeout applies to the handshake and connect token.
+/// An explicit private-test timeout applies to the connect token.
 fn network_timeout(value: Option<std::ffi::OsString>) -> Result<Option<u64>, String> {
     let Some(value) = value else { return Ok(None) };
     let seconds = value
@@ -595,44 +586,16 @@ fn network_timeout(value: Option<std::ffi::OsString>) -> Result<Option<u64>, Str
     Ok(Some(seconds))
 }
 
-/// `Time<Real>` elapsed by which the Netcode handshake must have connected.
-#[derive(Component)]
-struct HandshakeDeadline {
-    deadline: Duration,
-    timeout: Duration,
-}
-
-/// The handshake ran out of time; the link was dropped for it.
-#[derive(Component)]
-struct HandshakeTimedOut(Duration);
-
-/// Drop a link whose Netcode handshake has not connected by its deadline.
-fn expire_handshake(
-    pending: Query<(Entity, &HandshakeDeadline, Has<client_network::Connected>)>,
-    time: Res<Time<Real>>,
-    mut commands: Commands,
-) {
-    for (entity, deadline, connected) in &pending {
-        if connected {
-            commands.entity(entity).remove::<HandshakeDeadline>();
-        } else if time.elapsed() >= deadline.deadline {
-            commands
-                .entity(entity)
-                .remove::<HandshakeDeadline>()
-                .insert(HandshakeTimedOut(deadline.timeout));
-            commands.trigger(client_network::Disconnect { entity });
-        }
-    }
-}
-
 fn install_lifecycle(app: &mut App, events: Sender<Event>) {
-    app.add_systems(PreUpdate, expire_handshake);
     app.add_systems(
         PostUpdate,
         move |verified: Query<(), Added<protocol::ProtocolVerified>>,
               rejected: Query<&protocol::ProtocolRejected, Added<protocol::ProtocolRejected>>,
               disconnected: Query<
-            (&client_network::Disconnected, Option<&HandshakeTimedOut>),
+            (
+                &client_network::Disconnected,
+                &client_network::NetcodeClient,
+            ),
             Added<client_network::Disconnected>,
         >| {
             for () in &verified {
@@ -645,16 +608,18 @@ fn install_lifecycle(app: &mut App, events: Sender<Event>) {
                     .send(Event::ProtocolRejected(reason.clone()))
                     .expect("host event receiver closed");
             }
-            for (state, timed_out) in &disconnected {
-                let reason = if let Some(timeout) = timed_out {
-                    Some(format!(
-                        "Failed to connect: the server did not answer within {} seconds.",
-                        timeout.0.as_secs()
-                    ))
+            for (state, client) in &disconnected {
+                use lightyear::netcode::client::ClientState;
+                let timed_out = matches!(
+                    client.inner.state(),
+                    ClientState::ConnectionRequestTimedOut | ClientState::ChallengeResponseTimedOut
+                );
+                let reason = if timed_out {
+                    Some(HANDSHAKE_TIMEOUT_REASON.to_owned())
                 } else {
                     state.reason.clone()
                 };
-                battleground_trace::record_disconnect(reason.as_deref(), timed_out.is_some());
+                battleground_trace::record_disconnect(reason.as_deref(), timed_out);
                 events
                     .send(Event::Disconnected(reason))
                     .expect("host event receiver closed");

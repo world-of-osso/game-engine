@@ -38,7 +38,7 @@ func run_test() -> void:
 
 func connect_private_account() -> bool:
 	# Retry only the SDK's terminal transport timeout, before any character/world mutation.
-	const TRANSPORT_TIMEOUT := "Failed to connect: the server did not answer within 5 seconds."
+	const TRANSPORT_TIMEOUT := "Failed to connect: the server did not answer."
 	for attempt in range(3):
 		var error: String = client.connect_account(OS.get_environment("GODOT_TEST_SERVER"), OS.get_environment("BANK_ACCOUNT"), PASSWORD, false)
 		if error != "":
