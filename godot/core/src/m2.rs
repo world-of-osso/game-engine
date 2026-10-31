@@ -331,6 +331,16 @@ pub fn bones_are_static(model: &Model) -> bool {
     })
 }
 
+/// Whether the parent's bone indices can use the child's existing hierarchy.
+pub fn parent_hierarchy_matches(model: &Model, parent: &ParentAnimation) -> bool {
+    parent.bones.len() == model.bones.len()
+        && parent
+            .bones
+            .iter()
+            .zip(&model.bones)
+            .all(|(parent, child)| parent.parent_bone_id == child.parent_bone_id)
+}
+
 /// Read the parent's independent sequence, hierarchy and keyframe bank.
 pub fn parse_parent_animation(
     model: &[u8],

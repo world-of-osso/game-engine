@@ -42,6 +42,18 @@ fn kokia_selects_child_stand_and_animates_parent_death() {
 }
 
 #[test]
+fn different_hierarchy_keeps_child_animations_available() {
+    let mut model = kokia();
+    let parent = model.parent_animation.as_mut().unwrap();
+    parent.bones[0].parent_bone_id = 1;
+    let mut state = AnimationState::new(&model).unwrap();
+    assert!(!state.select_animation_id(0, true).unwrap());
+    assert!(state.select_animation_id(1, false).is_err());
+    state.advance(100.0).unwrap();
+    assert_eq!(state.sequences[state.current].id, 0);
+}
+
+#[test]
 fn blacklist_blocks_parent_but_not_child_and_child_only_still_plays() {
     let mut model = kokia();
     model

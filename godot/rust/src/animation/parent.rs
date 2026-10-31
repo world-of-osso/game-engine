@@ -22,17 +22,11 @@ impl ParentBank {
         let Some(parent) = &model.parent_animation else {
             return Ok(None);
         };
-        if parent.bones.len() != model.bones.len() || parent.bones.len() != parent.bone_tracks.len()
-        {
-            return Err("Parent skeleton does not provide a track for each model bone".into());
+        if !m2::parent_hierarchy_matches(model, parent) {
+            return Ok(None);
         }
-        if parent
-            .bones
-            .iter()
-            .zip(&model.bones)
-            .any(|(parent, child)| parent.parent_bone_id != child.parent_bone_id)
-        {
-            return Err("Parent skeleton has a different hierarchy".into());
+        if parent.bones.len() != parent.bone_tracks.len() {
+            return Err("Parent skeleton does not provide a track for each model bone".into());
         }
         let globals = parent.global_sequences.len();
         if parent.bone_tracks.iter().any(|track| {

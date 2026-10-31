@@ -282,10 +282,15 @@ pub(crate) fn read_model_file(model_path: &Path) -> Result<m2::Model, String> {
     };
     let parsed = m2::parse_model_with_skeleton(&model, &skin, skeleton.as_deref(), &mut load_anim)
         .and_then(|mut parsed| {
-            parsed.parent_animation = parent
-                .as_deref()
-                .map(|bytes| m2::parse_parent_animation(&model, bytes, &mut load_anim))
-                .transpose()?;
+            if let Some(bytes) = parent.as_deref() {
+                let metadata = m2::parse_parent_animation(&model, bytes, |_| None)?;
+                if m2::parent_hierarchy_matches(&parsed, &metadata) {
+                    parsed.parent_animation =
+                        Some(m2::parse_parent_animation(&model, bytes, &mut load_anim)?);
+                } else {
+                    warn_parent_hierarchy_once(model_path);
+                }
+            }
             Ok(parsed)
         });
     // The parser's optional callback cannot carry a required-file error.
@@ -293,6 +298,25 @@ pub(crate) fn read_model_file(model_path: &Path) -> Result<m2::Model, String> {
         return Err(error);
     }
     parsed
+}
+
+fn warn_parent_hierarchy_once(model_path: &Path) {
+    use std::{
+        collections::HashSet,
+        path::PathBuf,
+        sync::{Mutex, OnceLock},
+    };
+    static WARNED: OnceLock<Mutex<HashSet<PathBuf>>> = OnceLock::new();
+    let mut warned = WARNED
+        .get_or_init(|| Mutex::new(HashSet::new()))
+        .lock()
+        .expect("parent hierarchy warnings");
+    if warned.insert(model_path.to_owned()) {
+        godot_warn!(
+            "M2 {}: parent skeleton hierarchy differs; parent sequences are unsupported, child sequences remain available",
+            model_path.display()
+        );
+    }
 }
 
 fn model_asset_resolver(model_path: &Path) -> Result<CascListfileResolver, String> {
