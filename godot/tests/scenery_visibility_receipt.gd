@@ -19,7 +19,7 @@ static func write(client: Node, path: String) -> int:
 			var child: Node = descendants.pop_back()
 			descendants.append_array(child.get_children())
 			if child is MeshInstance3D:
-				var visible := child.is_visible_in_tree()
+				var visible: bool = child.is_visible_in_tree()
 				meshes.append(JSON.stringify({"path": str(node.get_path_to(child)),
 					"visible": visible, "shadow": int(child.cast_shadow) if visible else null}))
 		meshes.sort()
