@@ -284,11 +284,11 @@ pub(crate) fn read_model_file(model_path: &Path) -> Result<m2::Model, String> {
         .and_then(|mut parsed| {
             if let Some(bytes) = parent.as_deref() {
                 let metadata = m2::parse_parent_animation(&model, bytes, |_| None)?;
-                if m2::parent_hierarchy_matches(&parsed, &metadata) {
+                if m2::parent_animation_supported(&parsed, &metadata) {
                     parsed.parent_animation =
                         Some(m2::parse_parent_animation(&model, bytes, &mut load_anim)?);
                 } else {
-                    warn_parent_hierarchy_once(model_path);
+                    warn_unsupported_parent_once(model_path);
                 }
             }
             Ok(parsed)
@@ -300,7 +300,7 @@ pub(crate) fn read_model_file(model_path: &Path) -> Result<m2::Model, String> {
     parsed
 }
 
-fn warn_parent_hierarchy_once(model_path: &Path) {
+fn warn_unsupported_parent_once(model_path: &Path) {
     use std::{
         collections::HashSet,
         path::PathBuf,
@@ -313,7 +313,7 @@ fn warn_parent_hierarchy_once(model_path: &Path) {
         .expect("parent hierarchy warnings");
     if warned.insert(model_path.to_owned()) {
         godot_warn!(
-            "M2 {}: parent skeleton hierarchy differs; parent sequences are unsupported, child sequences remain available",
+            "M2 {}: parent skeleton hierarchy or affine flags differ; parent sequences are unsupported, child sequences remain available",
             model_path.display()
         );
     }

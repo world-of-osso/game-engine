@@ -22,7 +22,7 @@ impl ParentBank {
         let Some(parent) = &model.parent_animation else {
             return Ok(None);
         };
-        if !m2::parent_hierarchy_matches(model, parent) {
+        if !m2::parent_animation_supported(model, parent) {
             return Ok(None);
         }
         if parent.bones.len() != parent.bone_tracks.len() {
@@ -121,8 +121,8 @@ impl ParentBank {
                     .map(|s| Vector3::new(s[0], s[2], s[1]))
                     .unwrap_or(Vector3::ONE);
                 let bind_offset = wow_vec3(self.child_bones[index].pivot) - pivot;
-                let rotated_offset =
-                    super::Basis::from_quaternion(rotation).scaled(scale) * bind_offset;
+                let rotated_offset = super::Basis::from_quaternion(rotation)
+                    * (super::Basis::from_scale(scale) * bind_offset);
                 BonePose {
                     position: pivot - parent_pivot + translation - parent_offset + rotated_offset,
                     rotation,

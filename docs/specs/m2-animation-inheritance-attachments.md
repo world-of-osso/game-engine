@@ -6,7 +6,7 @@ Authored M2 bone-parent selection and attachment participation follow the user-s
 
 ### Parent skeleton animations
 - [ ] Resolve base animations in the child skeleton first, then its SKPD parent unless PABC excludes the ID. Sample the selected bank's sequences, bone tracks, global timelines, hierarchy, pivots and flags.
-- [ ] Preserve smooth transitions and attachment/bone correspondence when the two skeleton hierarchies differ. WebWowViewerCpp `animationManager.cpp:101–127,392–405,410–413,472–490` selects the parent's complete bone definitions for inherited clips.
+- [ ] Preserve smooth transitions and attachment/bone correspondence when the two skeleton hierarchies or affine flags differ. Until supported, retain child clips and warn once per model. WebWowViewerCpp `animationManager.cpp:101–127,392–405,410–413,472–490` selects the parent's complete bone definitions for inherited clips. Of 31 locally available Retail creature models with SKPD parents, six have differing hierarchies and one more has matching hierarchy but different affine flags; 6,278 catalog models were unavailable for this census.
 - [ ] Verify Kokia's inherited Death with real assets and a native corpse capture, plus a child-only control.
 
 ### A6

@@ -42,10 +42,54 @@ fn kokia_selects_child_stand_and_animates_parent_death() {
 }
 
 #[test]
+fn parent_pivot_offset_uses_local_nonuniform_scale_before_rotation() {
+    let mut model = kokia();
+    model.bones[0].pivot = [1.0, 0.0, 0.0];
+    let parent = model.parent_animation.as_mut().unwrap();
+    parent.bones[0].pivot = [0.0; 3];
+    let death = parent
+        .sequences
+        .iter()
+        .position(|clip| clip.id == 1 && clip.variation_id == 0)
+        .unwrap();
+    let track = &mut std::sync::Arc::make_mut(&mut parent.bone_tracks)[0];
+    track.translation.global_sequence = -1;
+    track.rotation.global_sequence = -1;
+    track.scale.global_sequence = -1;
+    track.translation.sequences = vec![(Vec::new(), Vec::new()); parent.sequences.len()];
+    track.rotation.sequences = vec![(Vec::new(), Vec::new()); parent.sequences.len()];
+    track.scale.sequences = vec![(Vec::new(), Vec::new()); parent.sequences.len()];
+    track.rotation.sequences[death] = (vec![0], vec![[32767, 32767, -9597, -9597]]);
+    track.scale.sequences[death] = (vec![0], vec![[2.0, 4.0, 3.0]]);
+    let mut state = AnimationState::new(&model).unwrap();
+    state.select_animation_id(1, false).unwrap();
+    let root = state.sample_sequence(state.current, 0.0)[0];
+    assert!(
+        root.position
+            .distance_to(godot::builtin::Vector3::new(0.0, 0.0, -2.0))
+            < 0.001,
+        "{:?}",
+        root.position
+    );
+}
+
+#[test]
 fn different_hierarchy_keeps_child_animations_available() {
     let mut model = kokia();
     let parent = model.parent_animation.as_mut().unwrap();
     parent.bones[0].parent_bone_id = 1;
+    let mut state = AnimationState::new(&model).unwrap();
+    assert!(!state.select_animation_id(0, true).unwrap());
+    assert!(state.select_animation_id(1, false).is_err());
+    state.advance(100.0).unwrap();
+    assert_eq!(state.sequences[state.current].id, 0);
+}
+
+#[test]
+fn different_parent_affine_flags_keep_child_animations_available() {
+    let mut model = kokia();
+    let parent = model.parent_animation.as_mut().unwrap();
+    parent.bones[1].flags ^= 1;
     let mut state = AnimationState::new(&model).unwrap();
     assert!(!state.select_animation_id(0, true).unwrap());
     assert!(state.select_animation_id(1, false).is_err());

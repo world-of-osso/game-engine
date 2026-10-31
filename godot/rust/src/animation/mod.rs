@@ -10,10 +10,13 @@ use game_engine_core::{
     },
 };
 use godot::{
-    builtin::{Basis, Quaternion, Transform3D, Vector3},
+    builtin::{Basis, Quaternion, Vector3},
     classes::{INode, MeshInstance3D, Node, Skeleton3D},
     prelude::*,
 };
+
+#[cfg(test)]
+use godot::builtin::Transform3D;
 
 mod action;
 mod attachment;
@@ -90,6 +93,7 @@ struct BonePose {
 }
 
 impl BonePose {
+    #[cfg(test)]
     fn transform(self) -> Transform3D {
         Transform3D::new(
             Basis::from_quaternion(self.rotation).scaled(self.scale),

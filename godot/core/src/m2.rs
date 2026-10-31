@@ -295,7 +295,11 @@ pub fn has_single_bind_pose(model: &Model) -> bool {
     let [bone] = model.bones.as_slice() else {
         return false;
     };
-    bone.parent_bone_id == -1
+    model
+        .parent_animation
+        .as_ref()
+        .is_none_or(|parent| !parent_animation_supported(model, parent))
+        && bone.parent_bone_id == -1
         && bone.flags == 0
         && model.attachments.is_empty()
         && model.bone_tracks.iter().all(|track| {
@@ -324,21 +328,31 @@ pub fn has_single_bind_pose(model: &Model) -> bool {
 
 /// No bone track of `model` changes its pose over time.
 pub fn bones_are_static(model: &Model) -> bool {
-    model.bone_tracks.iter().all(|bone| {
-        track_is_constant(&bone.translation)
-            && track_is_constant(&bone.rotation)
-            && track_is_constant(&bone.scale)
-    })
+    fn static_tracks(tracks: &[BoneAnimTracks]) -> bool {
+        tracks.iter().all(|bone| {
+            track_is_constant(&bone.translation)
+                && track_is_constant(&bone.rotation)
+                && track_is_constant(&bone.scale)
+        })
+    }
+    static_tracks(&model.bone_tracks)
+        && model.parent_animation.as_ref().is_none_or(|parent| {
+            !parent_animation_supported(model, parent) || static_tracks(&parent.bone_tracks)
+        })
 }
 
-/// Whether the parent's bone indices can use the child's existing hierarchy.
-pub fn parent_hierarchy_matches(model: &Model, parent: &ParentAnimation) -> bool {
+/// Whether the parent's bone hierarchy and affine flags use the child's native skeleton.
+pub fn parent_animation_supported(model: &Model, parent: &ParentAnimation) -> bool {
+    const AFFINE_FLAGS: u32 = 0x0400_007f;
     parent.bones.len() == model.bones.len()
         && parent
             .bones
             .iter()
             .zip(&model.bones)
-            .all(|(parent, child)| parent.parent_bone_id == child.parent_bone_id)
+            .all(|(parent, child)| {
+                parent.parent_bone_id == child.parent_bone_id
+                    && (parent.flags ^ child.flags) & AFFINE_FLAGS == 0
+            })
 }
 
 /// Read the parent's independent sequence, hierarchy and keyframe bank.
