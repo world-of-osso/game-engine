@@ -31,7 +31,7 @@ fn file_axes(local: Vec3) -> [f32; 3] {
 }
 
 /// A frustum plane; points with `normal.dot(p) + d >= 0` are inside.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub(crate) struct HalfSpace {
     pub normal: Vec3,
     pub d: f32,

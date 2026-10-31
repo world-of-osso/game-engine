@@ -1229,20 +1229,25 @@ impl TerrainObjects {
         frame: u64,
     ) {
         let camera = Vec3::new(camera.x, camera.y, camera.z);
-        for &index in self.scenery_index.update(camera) {
+        self.scenery_index
+            .update_admission(self.outdoor_windows.as_deref(), &self.interior_bounds);
+        let (work, admission) = self.scenery_index.update_with_admission(camera);
+        for &index in work {
             let doodad = &mut self.doodads[index];
             let group_drawn = doodad.group_drawn(&self.wmos);
             let camera_admitted = doodad.wmo_groups.is_some()
                 || !doodad.portal_cull_safe
                 || doodad.bones.is_some()
                 || doodad.materials.is_some()
-                || self.outdoor_windows.as_ref().is_none_or(|windows| {
-                    self.interior_bounds
-                        .iter()
-                        .any(|&(min, max)| doodad.scenery.overlaps_box(min, max))
-                        || windows
+                || admission[index].unwrap_or_else(|| {
+                    self.outdoor_windows.as_ref().is_none_or(|windows| {
+                        self.interior_bounds
                             .iter()
-                            .any(|window| doodad.scenery.box_in_frustum(window))
+                            .any(|&(min, max)| doodad.scenery.overlaps_box(min, max))
+                            || windows
+                                .iter()
+                                .any(|window| doodad.scenery.box_in_frustum(window))
+                    })
                 });
             doodad.fade(camera, group_drawn);
             doodad.fade.set_camera_admitted(camera_admitted);

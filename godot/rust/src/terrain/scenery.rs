@@ -105,6 +105,10 @@ impl SceneryDistance {
         AnimationLod::new(self.center.distance(camera), self.box_in_frustum(frustum))
     }
 
+    pub(super) fn world_bounds(&self) -> (Vec3, Vec3) {
+        (self.world_min, self.world_max)
+    }
+
     /// Whether this placement's world bounds overlap another world-space box.
     pub fn overlaps_box(&self, min: Vec3, max: Vec3) -> bool {
         boxes_overlap(self.world_min, self.world_max, min, max)

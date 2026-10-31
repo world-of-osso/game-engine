@@ -5,14 +5,25 @@ use std::collections::HashMap;
 
 use glam::Vec3;
 
-use super::scenery::SceneryDistance;
+use super::scenery::{SceneryDistance, box_in_frustum, boxes_overlap};
+use crate::wmo::portals::HalfSpace;
 
 const CELL_YARDS: f32 = 100.0;
 const WORD_BITS: usize = u64::BITS as usize;
 
+struct Cell {
+    min: Vec3,
+    max: Vec3,
+    indices: Vec<usize>,
+}
+
 #[derive(Default)]
 pub(super) struct SceneryIndex {
-    cells: HashMap<(i32, i32, usize), Vec<usize>>,
+    cells: HashMap<(i32, i32, usize), Cell>,
+    admission: Vec<Option<bool>>,
+    cached_windows: Option<Vec<Vec<HalfSpace>>>,
+    cached_interiors: Vec<(Vec3, Vec3)>,
+    admission_current: bool,
     always: Vec<u64>,
     previous: Vec<u64>,
     current: Vec<u64>,
@@ -30,11 +41,21 @@ impl SceneryIndex {
             self.previous.push(0);
             self.current.push(0);
         }
+        self.admission.push(None);
+        self.admission_current = false;
         if let Some((center, class)) = scenery.grid_position().filter(|_| !animated) {
-            self.cells
+            let (min, max) = scenery.world_bounds();
+            let cell = self
+                .cells
                 .entry((cell(center.x), cell(center.z), class))
-                .or_default()
-                .push(index);
+                .or_insert_with(|| Cell {
+                    min,
+                    max,
+                    indices: Vec::new(),
+                });
+            cell.min = cell.min.min(min);
+            cell.max = cell.max.max(max);
+            cell.indices.push(index);
         } else {
             set_bit(&mut self.always, index);
         }
@@ -48,8 +69,8 @@ impl SceneryIndex {
         for (class, radius) in SceneryDistance::grid_radii().iter().enumerate() {
             for x in cell(camera.x - radius)..=cell(camera.x + radius) {
                 for z in cell(camera.z - radius)..=cell(camera.z + radius) {
-                    if let Some(indices) = self.cells.get(&(x, z, class)) {
-                        for &index in indices {
+                    if let Some(cell) = self.cells.get(&(x, z, class)) {
+                        for &index in &cell.indices {
                             set_bit(&mut self.current, index);
                         }
                     }
@@ -74,6 +95,70 @@ impl SceneryIndex {
         }
         &self.work
     }
+
+    /// Classifies static cells against the same portal windows and interior boxes as
+    /// each placement. Boundary cells keep the original per-placement test.
+    pub fn update_admission(
+        &mut self,
+        windows: Option<&[Vec<HalfSpace>]>,
+        interiors: &[(Vec3, Vec3)],
+    ) {
+        if self.admission_current
+            && self.cached_windows.as_deref() == windows
+            && self.cached_interiors.as_slice() == interiors
+        {
+            return;
+        }
+        for cell in self.cells.values() {
+            let result = classify_cell(cell.min, cell.max, windows, interiors);
+            for &index in &cell.indices {
+                self.admission[index] = result;
+            }
+        }
+        self.cached_windows = windows.map(<[Vec<HalfSpace>]>::to_vec);
+        self.cached_interiors.clear();
+        self.cached_interiors.extend_from_slice(interiors);
+        self.admission_current = true;
+    }
+
+    pub fn update_with_admission(&mut self, camera: Vec3) -> (&[usize], &[Option<bool>]) {
+        self.update(camera);
+        (&self.work, &self.admission)
+    }
+}
+
+fn classify_cell(
+    min: Vec3,
+    max: Vec3,
+    windows: Option<&[Vec<HalfSpace>]>,
+    interiors: &[(Vec3, Vec3)],
+) -> Option<bool> {
+    let Some(windows) = windows else {
+        return Some(true);
+    };
+    if interiors
+        .iter()
+        .any(|&(a, b)| min.cmpge(a).all() && max.cmple(b).all())
+        || windows.iter().any(|window| {
+            window.iter().all(|plane| {
+                let corner = Vec3::select(plane.normal.cmpge(Vec3::ZERO), min, max);
+                plane.normal.dot(corner) + plane.d >= 0.0
+            })
+        })
+    {
+        return Some(true);
+    }
+    if interiors
+        .iter()
+        .any(|&(a, b)| boxes_overlap(min, max, a, b))
+        || windows
+            .iter()
+            .any(|window| box_in_frustum(min, max, window))
+    {
+        None
+    } else {
+        Some(false)
+    }
 }
 
 fn cell(position: f32) -> i32 {
@@ -89,7 +174,8 @@ mod tests {
     use glam::{Affine3A, Vec3};
 
     use super::SceneryIndex;
-    use crate::terrain::scenery::SceneryDistance;
+    use crate::terrain::scenery::{SceneryDistance, outdoor_box_admitted};
+    use crate::wmo::portals::HalfSpace;
 
     fn placement(center: Vec3, size: f32) -> SceneryDistance {
         let half = Vec3::splat(size / 2.0);
@@ -128,6 +214,57 @@ mod tests {
                 .collect();
             assert_eq!(indexed_visible, reference, "camera {camera:?}");
         }
+    }
+
+    #[test]
+    fn cell_admission_matches_individual_boxes_when_inputs_change() {
+        let mut placements = vec![
+            placement(Vec3::new(-250.0, 0.0, 0.0), 2.0),
+            placement(Vec3::new(-10.0, 0.0, 0.0), 2.0),
+            placement(Vec3::new(10.0, 0.0, 0.0), 2.0),
+            placement(Vec3::new(70.0, 0.0, 0.0), 2.0),
+            placement(Vec3::new(250.0, 0.0, 0.0), 2.0),
+        ];
+        let mut index = SceneryIndex::default();
+        for scenery in &placements {
+            index.push(*scenery, false);
+        }
+        let window = |normal, d| vec![vec![HalfSpace { normal, d }]];
+        let windows = [window(Vec3::X, 0.0), window(Vec3::NEG_X, 50.0), vec![]];
+        let interior = [(Vec3::new(-20.0, -5.0, -5.0), Vec3::new(-5.0, 5.0, 5.0))];
+        for (window, interiors) in [
+            (Some(windows[0].as_slice()), &interior[..]),
+            (Some(windows[0].as_slice()), &interior[..]),
+            (Some(windows[1].as_slice()), &interior[..]),
+            (Some(windows[2].as_slice()), &[][..]),
+            (None, &[][..]),
+        ] {
+            index.update_admission(window, interiors);
+            let (_, admission) = index.update_with_admission(Vec3::ZERO);
+            for (scenery, result) in placements.iter().zip(admission) {
+                let (min, max) = scenery.world_bounds();
+                let expected = outdoor_box_admitted(min, max, window, interiors);
+                assert_eq!(result.unwrap_or(expected), expected);
+            }
+        }
+        index.update_admission(Some(&windows[0]), &interior);
+        let (_, admission) = index.update_with_admission(Vec3::ZERO);
+        assert_eq!(admission[0], Some(false));
+        assert_eq!(admission[1], None);
+        assert_eq!(admission[2], Some(true));
+        assert_eq!(admission[4], Some(true));
+
+        // A new placement must invalidate a previously classified cell.
+        index.update_admission(Some(&windows[0]), &[]);
+        placements.push(placement(Vec3::new(1.0, 0.0, 0.0), 4.0));
+        index.push(*placements.last().unwrap(), false);
+        index.update_admission(Some(&windows[0]), &[]);
+        let (_, admission) = index.update_with_admission(Vec3::ZERO);
+        let scenery = placements.last().unwrap();
+        let (min, max) = scenery.world_bounds();
+        let expected = outdoor_box_admitted(min, max, Some(&windows[0]), &[]);
+        assert_eq!(*admission.last().unwrap(), None);
+        assert_eq!(admission.last().unwrap().unwrap_or(expected), expected);
     }
 
     #[test]
