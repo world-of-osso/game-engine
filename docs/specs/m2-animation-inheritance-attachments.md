@@ -4,6 +4,11 @@ Authored M2 bone-parent selection and attachment participation follow the user-s
 
 ## What it must do
 
+### Parent skeleton animations
+- [ ] Resolve base animations in the child skeleton first, then its SKPD parent unless PABC excludes the ID. Sample the selected bank's sequences, bone tracks, global timelines, hierarchy, pivots and flags.
+- [ ] Preserve smooth transitions and attachment/bone correspondence when the two skeleton hierarchies differ. WebWowViewerCpp `animationManager.cpp:101–127,392–405,410–413,472–490` selects the parent's complete bone definitions for inherited clips.
+- [ ] Verify Kokia's inherited Death with real assets and a native corpse capture, plus a child-only control.
+
 ### A6
 - [x] Preserve ordinary inheritance for unflagged bones and ignore low inheritance bits on roots.
 - [x] With identity model transform and zero pivots, parent uniform scale2 produces child vertex length2 for flags0 and length1 for flags2.

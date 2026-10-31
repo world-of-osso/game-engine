@@ -61,6 +61,7 @@ pub(super) fn player(with_running_landing: bool) -> AnimationState {
         sequences,
         global_sequences: Vec::new(),
         global_ms: 0.0,
+        parent: None,
         tracks: vec![m2::BoneAnimTracks {
             translation,
             rotation: track(vec![

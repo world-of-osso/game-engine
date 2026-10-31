@@ -10,13 +10,10 @@ use game_engine_core::{
     },
 };
 use godot::{
-    builtin::{Quaternion, Vector3},
+    builtin::{Basis, Quaternion, Transform3D, Vector3},
     classes::{INode, MeshInstance3D, Node, Skeleton3D},
     prelude::*,
 };
-
-#[cfg(test)]
-use godot::builtin::{Basis, Transform3D};
 
 mod action;
 mod attachment;
@@ -24,6 +21,9 @@ mod billboard;
 pub(crate) use attachment::{refresh_attachment_shadows, take_gate_time_ms};
 mod momentum;
 mod mount_special;
+mod parent;
+#[cfg(test)]
+mod parent_tests;
 #[cfg(test)]
 mod replacement_tests;
 pub(crate) use action::ActionPriority;
@@ -90,7 +90,6 @@ struct BonePose {
 }
 
 impl BonePose {
-    #[cfg(test)]
     fn transform(self) -> Transform3D {
         Transform3D::new(
             Basis::from_quaternion(self.rotation).scaled(self.scale),
@@ -182,6 +181,7 @@ fn keyframed<T>(track: &m2_anim::AnimTrack<T>, sequence: usize) -> bool {
 pub struct AnimationState {
     sequences: Vec<m2::Sequence>,
     tracks: std::sync::Arc<Vec<m2::BoneAnimTracks>>,
+    parent: Option<parent::ParentBank>,
     material_tracks: MaterialTracks,
     material_snapshot: MaterialSnapshot,
     /// Global sequence durations (ms) and the model's global clock, which runs
@@ -264,7 +264,7 @@ impl AnimationState {
                 }
             })
             .collect();
-        let sequence_animated = (0..model.sequences.len())
+        let mut sequence_animated: Vec<bool> = (0..model.sequences.len())
             .map(|index| {
                 model.bone_tracks.iter().any(|track| {
                     keyframed(&track.translation, index)
@@ -273,13 +273,20 @@ impl AnimationState {
                 })
             })
             .collect();
+        let mut sequences = model.sequences.clone();
+        let parent = parent::ParentBank::new(model, &mut sequences, &mut sequence_animated)?;
+        let mut release_ms = action::missile_release_times(model);
+        release_ms.resize(sequences.len(), None);
+        let mut action_events = action::reported_events(model);
+        action_events.resize(sequences.len(), Vec::new());
         let material_tracks = MaterialTracks::of(model);
         let material_snapshot = MaterialSnapshot::new(&material_tracks);
         Ok(Self {
             material_tracks,
             material_snapshot,
-            sequences: model.sequences.clone(),
+            sequences,
             tracks: model.bone_tracks.clone(),
+            parent,
             global_sequences: model.global_sequences.clone(),
             global_ms: 0.0,
             local_pivots,
@@ -307,8 +314,8 @@ impl AnimationState {
             rider_kits: None,
             kit_bones: mount_special::bone_masks(model),
             upper_body: action::upper_body_bones(model),
-            release_ms: action::missile_release_times(model),
-            action_events: action::reported_events(model),
+            release_ms,
+            action_events,
             fired_events: Vec::new(),
             legs_free: true,
             locomotion_speed: None,
@@ -390,6 +397,11 @@ impl AnimationState {
     }
 
     fn sample_sequence(&self, index: usize, time_ms: f64) -> Vec<BonePose> {
+        if let Some(parent) = &self.parent
+            && parent.contains(index)
+        {
+            return parent.sample(index, time_ms, self.global_ms);
+        }
         self.tracks
             .iter()
             .zip(&self.local_pivots)
