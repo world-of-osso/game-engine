@@ -291,34 +291,57 @@ impl TerrainGround<'_> {
 
     fn has_step_landing(&self, current: Vec3, target: Vec3, obstacle_height: f32) -> bool {
         let direction = (target - current).with_y(0.0).normalize_or_zero();
-        let reach = 2.0 * shared::los::body::BODY_RADIUS;
+        let radius = shared::los::body::BODY_RADIUS;
+        let side = Vec3::new(-direction.z, 0.0, direction.x) * radius;
+        let reach = 2.0 * radius;
         [0.25, 0.5, 1.0].into_iter().any(|fraction| {
             let probe_distance = reach * fraction;
             if probe_distance < (target - current).with_y(0.0).length() {
                 return false;
             }
-            let probe = current + direction * probe_distance;
-            let landing = self
-                .static_ground(probe, true)
-                .into_iter()
-                .chain(self.m2_ground(probe, true))
-                .max_by(|a, b| a.height.total_cmp(&b.height));
-            let Some(landing) = landing else {
-                return false;
-            };
-            if (landing.height - current.y).abs() > STEP_UP_HEIGHT
-                || (obstacle_height - landing.height).abs() > STEP_UP_HEIGHT
-                || self
-                    .sample(probe)
-                    .is_none_or(|solid| solid.height > landing.height)
-            {
-                return false;
-            }
-            let raised = current.with_y(landing.height);
-            let destination = probe.with_y(landing.height);
-            let clear = clamp_movement_to_walls(raised, destination, self.walls) == destination;
-            clear && !(self.step_wall_blocked)(raised, destination, current.y + STEP_UP_HEIGHT)
+            let center = current + direction * probe_distance;
+            // The body's sides can rest on a walkable top beside a steep edge under
+            // its center; ground below the contact beside it is no step.
+            [
+                (center, false),
+                (center + side, true),
+                (center - side, true),
+            ]
+            .into_iter()
+            .any(|(probe, beside)| {
+                self.step_landing_is_clear(current, probe, obstacle_height, beside)
+            })
         })
+    }
+
+    fn step_landing_is_clear(
+        &self,
+        current: Vec3,
+        probe: Vec3,
+        obstacle_height: f32,
+        beside: bool,
+    ) -> bool {
+        let landing = self
+            .static_ground(probe, true)
+            .into_iter()
+            .chain(self.m2_ground(probe, true))
+            .max_by(|a, b| a.height.total_cmp(&b.height));
+        let Some(landing) = landing else {
+            return false;
+        };
+        if (landing.height - current.y).abs() > STEP_UP_HEIGHT
+            || (obstacle_height - landing.height).abs() > STEP_UP_HEIGHT
+            || (beside && landing.height < obstacle_height)
+            || self
+                .sample(probe)
+                .is_none_or(|solid| solid.height > landing.height)
+        {
+            return false;
+        }
+        let raised = current.with_y(landing.height);
+        let destination = probe.with_y(landing.height);
+        let clear = clamp_movement_to_walls(raised, destination, self.walls) == destination;
+        clear && !(self.step_wall_blocked)(raised, destination, current.y + STEP_UP_HEIGHT)
     }
 
     pub(crate) fn probe_admission(&self, current: Vec3, direction: Vec3) -> serde_json::Value {
@@ -847,6 +870,59 @@ mod tests {
                 "Halls frame {frame} blocked at {feet:?}: {reason:?}"
             );
             feet = moved;
+        }
+    }
+
+    #[test]
+    fn floodgate_player_climbs_ramp_beside_its_steep_bevel() {
+        let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
+        let assets = crate::terrain::NativeTerrainAssets::new(root.clone());
+        let mut terrain = StreamedTerrain::new(root);
+        terrain.map_wdt = Some(assets.read_map_wdt("2773").unwrap());
+        // Recorded MOMMA->Duo climb: terrain feet at the foot of a WMO ramp whose
+        // 30 degree top starts 0.2 yd to the side, behind a 55 degree bevel.
+        let start = Vec3::new(1665.157, 352.14734, 2854.4751);
+        let tile = bevy_to_tile_coords(start.x, start.z);
+        terrain
+            .parsed_tiles
+            .insert(tile, assets.read_tile("2773", tile.0, tile.1).unwrap());
+        let faces = wmo_faces(&terrain);
+        let vertices: Vec<Vec3> = faces.iter().flatten().copied().collect();
+        let indices = (0..faces.len() as u32)
+            .map(|i| [3 * i, 3 * i + 1, 3 * i + 2])
+            .collect();
+        let walls = shared::los::LosTile::build(32, 32, vertices, indices);
+        let ground = TerrainGround {
+            terrain: &terrain,
+            walls: &|origin, direction, length| {
+                walls
+                    .first_hit(origin, origin + direction * length)
+                    .map(|fraction| fraction * length)
+            },
+            step_wall_blocked: &|from, to, top| {
+                game_engine_core::step_clearance::step_wall_blocked(
+                    &faces,
+                    from,
+                    to,
+                    top,
+                    shared::ground::min_walkable_normal_y(),
+                )
+            },
+            game_object_floor: &|_| None,
+        };
+        for yaw in [-77.0f32, -90.0] {
+            let direction = Vec3::new(yaw.to_radians().sin(), 0.0, yaw.to_radians().cos());
+            let mut feet = start;
+            for frame in 0..24 {
+                let proposed = feet + direction * 0.116667;
+                let (moved, reason) = ground.validate_move_with_reason(feet, proposed, true);
+                assert!(
+                    (moved - feet).with_y(0.0).length() > 0.1,
+                    "yaw {yaw} frame {frame} blocked at {feet:?}: {reason:?}"
+                );
+                feet = moved;
+            }
+            assert!(feet.y > 354.0, "yaw {yaw} did not climb the ramp: {feet:?}");
         }
     }
 
