@@ -105,6 +105,20 @@ WMO doodads (merged `17e44dfa`, `7e839a73`) add 8,694 `WmoDoodad` nodes at the i
 - **Screenshots.** Same spot, `eac376b6` vs `6cb884ec`: 565 of 921,600 pixels differ, all around the animated props next to the player and the FPS counter.
 - **Remaining.** About 5 ms of `cull_doodads` (all doodads, fade and animation LOD per doodad each frame) and 2-3 ms of `cull_wmos` (the camera-interior test over each WMO's interior floor triangles) in debug builds. The node count itself costs nothing per frame that the samples show.
 
+## Linux Xvfb diagnostic (2026-10-31)
+
+On agent-server, engine `93ac8d4b5` was built in the release profile with shared-protocol `5fe2ff2` to match a private server at `82499270`. The Windows receipt fixture ran with the Forever skin, an NVIDIA RTX 5060 Ti and a 1920×1080 Xvfb X11 surface. Each row is three 300-frame samples after 8,059 objects loaded with zero reported failures. Xvfb is not a native Wayland or Cage measurement.
+
+| Pose | FPS, three samples | Mean main-thread CPU time/frame |
+|---|---|---|
+| Indoor | 9.40 / 9.52 / 9.34 | 23.16 / 21.78 / 21.50 ms |
+| Stockade exit | 11.93 / 16.02 / 17.80 | 16.92 / 12.48 / 10.45 ms |
+| Indoor repeat | 8.04 / 11.55 / 12.49 | 23.18 / 19.42 / 17.82 ms |
+
+Two other Godot clients used about 4 GiB of the 8 GiB GPU before and after the first two poses; a third was present after the repeat. GPU contention during the samples was not recorded. These numbers do not isolate rendering from Xvfb presentation or host contention and do not establish the native Wayland FPS. GPU timestamp evidence is still pending. Xvfb startup reported a mailbox-to-enabled VSync fallback; the fixture later reported its requested disabled mode, which does not establish the actual Vulkan present mode.
+
+A separate Cage attempt used the release client with Vulkan and failed the 1920×1080 fixture check before world entry. It also logged that disabled VSync was unavailable and fell back to enabled. It provides no FPS measurement. Evidence: `data/diagnostics/fps-120-linux-2026-10-31-xvfb-frozen/` and `data/diagnostics/fps-120-linux-2026-10-31-retry1/`.
+
 ## Windows exact-revision comparison (2026-10-31)
 
 Four Windows release builds were measured consecutively in one desktop session at 1920×1080 with the Forever skin. Each pose used three 300-frame samples after world loading settled; the indoor view was repeated. The exit screenshot looks down the Stockade stairs and does not establish a view of outdoor content.
