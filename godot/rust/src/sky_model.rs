@@ -119,7 +119,15 @@ impl SkyModel {
             None
         };
         let span = crate::profile::span(|| "sky.prepare_batches".to_owned());
-        let prepared = prepare_batches(&model, data_root).map_err(&context)?;
+        let texture_root = if model_path.starts_with(data_root.join("products")) {
+            model_path
+                .parent()
+                .and_then(Path::parent)
+                .ok_or("Sky model has no asset root")?
+        } else {
+            data_root
+        };
+        let prepared = prepare_batches(&model, texture_root).map_err(&context)?;
         drop(span);
         let _span = crate::profile::span(|| "sky.assemble".to_owned());
         let mut sky =

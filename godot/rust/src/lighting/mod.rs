@@ -330,8 +330,12 @@ impl WorldLighting {
                 stale.node.free();
             }
             if !self.skyboxes.contains_key(&draw.fdid) {
-                let path = assets::cache_sky_model(&catalog.data_root, draw.fdid)
-                    .map_err(|error| format!("Skybox {}: {error}", draw.fdid))?;
+                let path = assets::cache_sky_model(
+                    &catalog.data_root,
+                    catalog.sky_product(map_id),
+                    draw.fdid,
+                )
+                .map_err(|error| format!("Skybox {}: {error}", draw.fdid))?;
                 let mut model = match fraction {
                     Some(fraction) if map_id == 2991 && draw.fdid == 7345733 => {
                         SkyModel::load_zephras_at_fraction(&catalog.data_root, &path, fraction)?

@@ -25,7 +25,11 @@ use game_engine_core::{
     sky_lightdata_data::{RetailFog, SkyColorSet, retail_fog, sample_light_blend},
 };
 
-use crate::assets::creature::{cache_model_files, local_resolver};
+use crate::assets::creature::{
+    authored_asset_resolver, cache_model_files, cache_required, local_resolver,
+};
+use game_engine_core::asset_product::AssetProduct;
+use osso_asset_resolver::CascListfileResolver;
 
 pub(crate) struct LightingCatalog {
     lights: Vec<LightEntry>,
@@ -125,6 +129,14 @@ impl LightingCatalog {
             forever_maps: HashSet::new(),
             forever_catalog: None,
         })
+    }
+
+    pub(crate) fn sky_product(&self, map_id: u32) -> AssetProduct {
+        if self.forever_maps.contains(&map_id) {
+            AssetProduct::Forever
+        } else {
+            AssetProduct::Retail
+        }
     }
 
     pub fn sample(
@@ -322,7 +334,7 @@ fn forever_only_map_ids(retail: &str, forever: &str) -> Result<HashSet<u32>, Str
 /// Extracts the stars model, its skin and its TXID textures from local CASC (no listfile
 /// lookups: the sky loader reads textures by FDID).
 fn cache_stars(data_root: &Path) -> Result<PathBuf, String> {
-    cache_sky_model(data_root, STARS_FDID)
+    cache_sky_model_with_resolver(&local_resolver(data_root), data_root, STARS_FDID)
 }
 
 /// Extracts the sun and moon disc textures from local CASC.
@@ -339,9 +351,21 @@ fn cache_planet_textures(data_root: &Path) -> Result<(), String> {
 
 /// Extracts sky model `fdid` (stars, a LightSkybox) with its skin and batch textures from
 /// local CASC; returns the cached model path.
-pub(crate) fn cache_sky_model(data_root: &Path, fdid: u32) -> Result<PathBuf, String> {
-    let resolver = local_resolver(data_root);
-    let path = cache_model_files(&resolver, data_root, fdid)?;
+pub(crate) fn cache_sky_model(
+    data_root: &Path,
+    product: AssetProduct,
+    fdid: u32,
+) -> Result<PathBuf, String> {
+    let resolver = authored_asset_resolver(data_root, product, fdid, "m2")?;
+    cache_sky_model_with_resolver(&resolver, data_root, fdid)
+}
+
+fn cache_sky_model_with_resolver(
+    resolver: &CascListfileResolver,
+    data_root: &Path,
+    fdid: u32,
+) -> Result<PathBuf, String> {
+    let path = cache_model_files(resolver, data_root, fdid)?;
     let model = crate::assets::read_model_file(&path)?;
     for batch in game_engine_core::m2::resolve_render_batches(&model, &[0; 3], true, |_| None)? {
         for texture in [batch.texture_fdid, batch.texture_2_fdid]
@@ -350,9 +374,7 @@ pub(crate) fn cache_sky_model(data_root: &Path, fdid: u32) -> Result<PathBuf, St
             .chain(batch.extra_texture_fdids)
         {
             let destination = data_root.join("textures").join(format!("{texture}.blp"));
-            resolver
-                .ensure_cached(texture, &destination)?
-                .ok_or_else(|| format!("texture {texture} not in local CASC"))?;
+            cache_required(resolver, texture, &destination)?;
         }
     }
     Ok(path)
@@ -484,6 +506,28 @@ fn lerp_rgb(a: [f32; 3], b: [f32; 3], t: f32) -> [f32; 3] {
 #[cfg(test)]
 mod db2_header_tests {
     use super::*;
+
+    #[test]
+    fn real_dornogal_skybox_loads_primary_skin_from_its_owner_receipt() {
+        use game_engine_core::model_asset_index::ModelAssetIndex;
+
+        let data = std::env::var_os("SKY_OWNER_TEST_DATA")
+            .map(PathBuf::from)
+            .unwrap_or_else(|| PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"));
+        let index = ModelAssetIndex::load(&data).unwrap();
+        let model = index.receipt(AssetProduct::Retail, 5412968, "m2").unwrap();
+        let skin = index
+            .receipt(AssetProduct::Retail, 5412970, "skin")
+            .unwrap();
+        let path = cache_sky_model(&data, AssetProduct::Retail, 5412968).unwrap();
+        assert_eq!(path, data.join(&model.path));
+        let model_bytes = fs::read(&path).unwrap();
+        let references = game_engine_core::m2::parse_asset_references(&model_bytes).unwrap();
+        assert_eq!(references.skin_fdids.first(), Some(&5412970));
+        let skin_path = crate::assets::read_primary_skin_path(path.to_str().unwrap()).unwrap();
+        assert_eq!(PathBuf::from(skin_path), data.join(&skin.path));
+        assert!(!data.join("models/5412970.skin").exists());
+    }
 
     #[test]
     fn db2_header_skyboxes_read_installed_export_with_name_column() {
