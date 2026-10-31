@@ -12,9 +12,9 @@ use game_engine_core::{
 use glam::{Mat3, Mat4, Vec3};
 use godot::{
     classes::{
-        ImageTexture, MultiMesh, MultiMeshInstance3D, Node3D, PhysicsRayQueryParameters3D,
-        RenderingServer, ShaderMaterial, Skeleton3D, geometry_instance_3d::ShadowCastingSetting,
-        multi_mesh::TransformFormat,
+        BoneAttachment3D, ImageTexture, MultiMesh, MultiMeshInstance3D, Node3D,
+        PhysicsRayQueryParameters3D, RenderingServer, ShaderMaterial, Skeleton3D,
+        geometry_instance_3d::ShadowCastingSetting, multi_mesh::TransformFormat,
     },
     prelude::*,
 };
@@ -438,6 +438,23 @@ pub(crate) struct PlacedParticles {
     drawn: usize,
 }
 
+/// BoneAttachment3D updates its node transform after animation processing. Read the
+/// current skeleton pose directly so attached particles follow the same-frame hand.
+fn current_model_transform(root: &Gd<Node3D>) -> Transform3D {
+    let attached = || {
+        let point = root.get_parent()?.try_cast::<Node3D>().ok()?;
+        let bone = point.get_parent()?.try_cast::<BoneAttachment3D>().ok()?;
+        let skeleton = bone.get_parent()?.try_cast::<Skeleton3D>().ok()?;
+        Some(
+            skeleton.get_global_transform()
+                * skeleton.get_bone_global_pose(bone.get_bone_idx())
+                * point.get_transform()
+                * root.get_transform(),
+        )
+    };
+    attached().unwrap_or_else(|| root.get_global_transform())
+}
+
 impl PlacedParticles {
     /// Advances the emitters by the time owed plus `delta` under `root`'s transform
     /// and draws them into their pools faded by `fade`.
@@ -452,7 +469,7 @@ impl PlacedParticles {
         let dt = self.owed_seconds + delta;
         self.owed_seconds = 0.0;
         self.drawn = 0;
-        let world_from_model = root.get_global_transform();
+        let world_from_model = current_model_transform(root);
         let playback = self
             .player
             .as_ref()
