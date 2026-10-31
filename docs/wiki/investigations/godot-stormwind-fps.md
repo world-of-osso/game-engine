@@ -222,6 +222,17 @@ One-minute host load during the samples was 32–47 indoors and 52–59 at the e
 
 Within `GameClient.process` wall-time spans, the indoor shares across the three samples were Culling 29–31%, World units 10–12%, World hover 9–11%, Spell visuals 9%, and World lighting 6%. At the exit they were 27%, 11–12%, 9–10%, 9%, and 6–7%, respectively. These are wall-time shares under load, not CPU attribution; node callbacks overlap the client span. The shipped Godot and extension are stripped, so this capture cannot name render-thread hot functions. The older symbolized profile above is a separate attribution, not proof of the exact shipped build. Culling is the largest measured client step; whether its WMO portal work, doodads, particles, or unit LOD dominates still needs current-build attribution.
 
+### Batched shipped master run under a limited quiet window
+
+The same `4c9584c99` release extension and checksum-verified pinned Godot template ran in six independent clients, alternating the indoor and exit poses three times. Each client recorded three 300-frame samples at 1080p, Forever. The admission window prevented new builds but did not stop existing work or reserve the GPU. The batch took 6m14s; the window was cleared when it ended. At launches, one-minute load was 21.96 / 21.75 / 14.34 indoors and 22.97 / 16.57 / 12.84 at the exit. GPU samples showed 2–4 non-Cage graphics processes including this client.
+
+| Pose | Median FPS for each of three launches | Main CPU ms/frame, sample range | Render CPU ms/frame, estimated range |
+|---|---|---|---|
+| Indoor | 32.92 / 50.94 / 51.63 | 8.65–19.86 | 7.70–21.69 |
+| Exit | 83.70 / 71.12 / 88.04 | 6.32–8.58 | 5.39–7.74 |
+
+Across the nine samples per pose, the median wall-time shares within `GameClient.process` were Culling 31.7% / 29.8%, World hover 11.5% / 13.2%, World units 9.2% / 8.1%, Spell visuals 8.9% / 9.6%, and World lighting 6.5% / 7.9%, indoor / exit. These spans are not isolated CPU time; render-thread and main-thread times overlap. The scene remains below 120 FPS. Changes in load, GPU sharing, engine, and server make the morning baseline unsuitable for a causal comparison. The shipped binaries are stripped, so the prior symbolized profile cannot be treated as exact current-build attribution. Evidence: `data/diagnostics/fps-120-linux-master-4c-quiet/`.
+
 ### Liquid clock and draw identities
 
 The global liquid clock landed as `99d4f7c4c` / `90e914106`. Pinned Vulkan fixtures passed the one-hour clock wrap and water, eight other liquid, and borrowed-water pixel checks. Three loaded, interleaved A/B pairs used the same older non-shipped symbolized Godot and matched before/after release builds. FPS varied substantially with contention, so the runs do not establish a frame-time gain. Evidence: `data/diagnostics/fps-120-liquid-fixtures2/` and `data/diagnostics/fps-120-linux-liquid-{before,after}-{1,2,3}/`.
