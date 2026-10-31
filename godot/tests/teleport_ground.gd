@@ -100,7 +100,8 @@ func enter_world() -> Node3D:
 	while Time.get_ticks_msec() < deadline:
 		await process_frame
 		ui = client.get_node_or_null("CharacterSelectUI")
-		if client.account_state().screen == "CharacterSelect" and ui != null:
+		var state: Dictionary = client.account_state()
+		if state.screen == "CharacterSelect" and state.reply_received and ui != null:
 			break
 	if ui == null:
 		fail("Character select unavailable")
