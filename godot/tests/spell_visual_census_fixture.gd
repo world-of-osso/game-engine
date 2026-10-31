@@ -95,6 +95,36 @@ func run_test() -> void:
 	if not capture.get("active_models", []).has(1283017):
 		fail("Slam impact model did not appear: " + str(capture))
 		return
+	error = fixture.prepare_kit(190791, 279337, 376079)
+	if not error.is_empty() or not (await wait_kit(fixture)):
+		fail("prepare Champion's Spear: " + error)
+		return
+	played = fixture.start_kit()
+	if not String(played.error).is_empty():
+		fail("start Champion's Spear: " + str(played))
+		return
+	error = fixture.tick(0.1, camera.global_transform)
+	if not error.is_empty():
+		fail("Champion's Spear placement: " + error)
+		return
+	var effect: Node3D = fixture.find_child("SpellEffect3174182", true, false)
+	if effect == null or effect.get_parent().name != "Attachment22":
+		fail("Champion's Spear model is not attached to the right hand")
+		return
+	var hand := effect.get_parent() as Node3D
+	var bone := hand.get_parent() as BoneAttachment3D
+	var owner_rig := bone.get_parent() as Skeleton3D
+	var effect_rig := effect.get_node("Skeleton3D") as Skeleton3D
+	var current_hand := owner_rig.global_transform * owner_rig.get_bone_global_pose(bone.bone_idx) * hand.transform
+	var emitter_origin := (current_hand * effect.transform * effect_rig.get_bone_global_pose(1)).origin
+	var pool := fixture.find_child("Particles3174182_0", true, false) as MultiMeshInstance3D
+	if pool == null or pool.multimesh.visible_instance_count == 0:
+		fail("Champion's Spear emitted no particles")
+		return
+	var particle_origin := pool.multimesh.get_instance_transform(0).origin
+	if particle_origin.distance_to(emitter_origin) > 0.02:
+		fail("particle did not follow the current hand pose: %s != %s" % [particle_origin, emitter_origin])
+		return
 	error = fixture.begin_caster(1, 10, 0)
 	if not error.is_empty():
 		fail("legal Human Monk caster: " + error)
