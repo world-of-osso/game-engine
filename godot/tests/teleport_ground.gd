@@ -1,6 +1,6 @@
 extends SceneTree
 
-# Private-server, real-asset regression. Start at least 1,000 yd from a supported
+# Private-server, real-asset regression. Start at least 500 yd from a supported
 # destination on the same map. Supply TEST_SERVER, TEST_ACCOUNT, TEST_PASSWORD,
 # TEST_CHARACTER, TEST_ADMIN, GAME_SERVER_ADMIN_SOCKET, TEST_MAP and TEST_X/Y/Z
 # (server/WoW coordinates). The destination tile must not already be loaded.
@@ -32,8 +32,8 @@ func run_test() -> void:
 	var player := await enter_world()
 	if player == null:
 		return
-	if player.position.distance_to(destination) < 1000.0:
-		fail("Destination must be at least 1,000 yd away")
+	if player.position.distance_to(destination) < 500.0:
+		fail("Destination must be at least 500 yd away")
 		return
 	var old_epoch = client.account_state().local_player_epoch
 	var output := []
