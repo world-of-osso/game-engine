@@ -858,12 +858,13 @@ impl TerrainObjects {
                     .clone();
                 let doodad_sets = objects.wmo_active_doodad_sets(wmo);
                 let build = WmoBuild::new(&asset, &doodad_sets)?;
+                let resolver = wmo_resolver(&self.data_root, product, root_fdid)?;
                 self.spawned_wmos.insert(wmo.unique_id);
                 self.building = Some(WmoSpawn {
                     tile,
                     index,
                     asset,
-                    resolver: wmo_resolver(&self.data_root, product, root_fdid)?,
+                    resolver,
                     doodad_sets,
                     build,
                     model: wmo_model_label(&self.resolver, root_fdid, wmo.name_set),
