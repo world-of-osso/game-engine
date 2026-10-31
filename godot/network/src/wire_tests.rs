@@ -5,11 +5,26 @@ mod guild_perks;
 #[path = "wire_toy_pet_tests.rs"]
 mod toy_pet;
 
+#[derive(Resource, Default)]
+struct ReceivedLogins(Vec<shared::protocol::LoginRequest>);
+
+fn collect_logins(
+    mut receivers: Query<&mut MessageReceiver<shared::protocol::LoginRequest>>,
+    mut logins: ResMut<ReceivedLogins>,
+) {
+    for mut receiver in &mut receivers {
+        logins.0.extend(receiver.receive());
+    }
+}
+
 #[test]
 fn delayed_handshake_delivers_queued_login_over_udp() {
     use shared::protocol::{AuthChannel, LoginRequest};
 
-    let (mut server, address) = start_fixture_server();
+    let (mut server, address) = start_fixture_server_with(|app| {
+        app.init_resource::<ReceivedLogins>()
+            .add_systems(Update, collect_logins);
+    });
     server.update();
     let mut bridge = NetworkBridge::connect(address, 8310).expect("start bridge");
     bridge
@@ -32,19 +47,14 @@ fn delayed_handshake_delivers_queued_login_over_udp() {
     let deadline = Instant::now() + Duration::from_secs(8);
     let mut received = false;
     let mut connected = false;
-    let mut receiver_count = 0;
     while Instant::now() < deadline && !received {
         server.update();
-        let world = server.world_mut();
-        for mut receiver in world
-            .query::<&mut MessageReceiver<LoginRequest>>()
-            .iter_mut(world)
-        {
-            receiver_count += 1;
-            received |= receiver
-                .receive()
-                .any(|request| request.username == "fb_slow" && request.password == "private");
-        }
+        received = server
+            .world()
+            .resource::<ReceivedLogins>()
+            .0
+            .iter()
+            .any(|request| request.username == "fb_slow" && request.password == "private");
         for event in bridge.drain_events().unwrap() {
             assert!(
                 !matches!(event, Event::Disconnected(_)),
@@ -57,7 +67,7 @@ fn delayed_handshake_delivers_queued_login_over_udp() {
     bridge.stop().expect("stop bridge");
     assert!(
         received,
-        "queued login did not reach the server after the delayed handshake (connected={connected}, receiver observations={receiver_count})"
+        "queued login did not reach the server after the delayed handshake (connected={connected})"
     );
 }
 
