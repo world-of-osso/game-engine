@@ -70,6 +70,7 @@ impl GlobalWmoScene {
             &placed.asset,
             &self.resolver,
             &self.data_root,
+            None,
             &doodad_sets,
             self.light.as_ref(),
         ) {
