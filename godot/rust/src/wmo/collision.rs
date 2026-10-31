@@ -131,6 +131,26 @@ impl WmoCollisionBodies {
         })
     }
 
+    /// Whether the destination's known collision groups have been built.
+    pub fn destination_ready(&self, terrain: &StreamedTerrain, player: Vec3) -> bool {
+        let Some(map) = terrain.map_wdt.as_ref() else {
+            return false;
+        };
+        let queued = if map.global_wmo.is_some() {
+            self.queued.contains(&PlacementKey::Global)
+        } else {
+            let tile =
+                game_engine_core::terrain_height_data::bevy_to_tile_coords(player.x, player.z);
+            self.tiles.contains(&tile)
+        };
+        queued
+            && !self.pending.iter().any(|pending| {
+                let placement = &self.placements[pending.placement];
+                group_distance(placement, &pending.group, player)
+                    <= crate::terrain::object_progress::ENTRY_RADIUS
+            })
+    }
+
     /// Local groups, including a WMO queued by a neighbouring tile. Collision
     /// outside the entry bubble keeps building after the loading screen hides.
     pub fn nearby_pending(&self, player: Vec3) -> Option<usize> {

@@ -15,6 +15,7 @@ use game_engine_core::{
 use game_engine_network::movement_control::{ScriptedMovement, ScriptedMovementStep};
 use game_engine_session::SessionScreen;
 use glam::Vec3;
+use godot::prelude::godot_error;
 use shared::{
     components::{MovementSpeed, PlayerMotion, UnitFlags2},
     movement::{FLIGHT_SPEED, RUN_SPEED, SWIM_SPEED, WALK_SPEED, swim_top},
@@ -32,6 +33,35 @@ use crate::swim::{at_swim_surface, swim_height};
 const MAX_STEP_SECONDS: f32 = 1.0 / 60.0;
 /// Height over the floor at which a descending flyer touches down.
 const LANDING_SLACK: f32 = 0.05;
+/// Do not hold the player forever when destination assets cannot load.
+const TELEPORT_GROUND_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(60);
+
+#[derive(Default)]
+pub(crate) struct TeleportGroundWait {
+    started: Option<std::time::Instant>,
+}
+
+impl TeleportGroundWait {
+    fn start(&mut self) {
+        self.started = Some(std::time::Instant::now());
+    }
+
+    pub(crate) fn waiting(&self) -> bool {
+        self.started.is_some()
+    }
+
+    /// Returns true only when a wait expires without collision.
+    fn finish_if_ready(&mut self, ready: bool) -> bool {
+        let Some(started) = self.started else {
+            return false;
+        };
+        let timed_out = !ready && started.elapsed() >= TELEPORT_GROUND_TIMEOUT;
+        if ready || timed_out {
+            self.started = None;
+        }
+        timed_out
+    }
+}
 
 pub(crate) struct PlayerMovement {
     pub running: bool,
@@ -653,6 +683,14 @@ impl PlayerMovement {
         })
     }
 
+    fn reset_after_teleport(&mut self) {
+        self.stop();
+        self.vertical_velocity = 0.0;
+        self.grounded = false;
+        self.takeoff = None;
+        self.takeoff_unsent = false;
+    }
+
     pub fn stop(&mut self) {
         self.autorun = false;
         self.direction = MoveDirection::None;
@@ -661,6 +699,43 @@ impl PlayerMovement {
 }
 
 impl crate::GameClient {
+    /// Adopt server teleports before accepting movement, then wait for destination collision.
+    pub(super) fn update_teleport_ground(
+        &mut self,
+        previous_epoch: Option<u32>,
+    ) -> Result<(), String> {
+        let current_epoch = self.world.local_player_epoch();
+        if self.account.session.screen == SessionScreen::InWorld
+            && previous_epoch.is_some()
+            && current_epoch != previous_epoch
+            && !self.world.local_player_controlled()
+        {
+            self.player_movement.reset_after_teleport();
+            self.scripted_movement.stop();
+            self.teleport_ground.start();
+        }
+        if !self.teleport_ground.waiting() {
+            return Ok(());
+        }
+        let mut request = Ok(());
+        let ready = if let Some(transform) = self.world.local_player_transform() {
+            let origin = transform.origin;
+            let player = Vec3::new(origin.x, origin.y, origin.z);
+            if let Some(map) = self.terrain.map_name().map(str::to_owned) {
+                let tile =
+                    game_engine_core::terrain_height_data::bevy_to_tile_coords(player.x, player.z);
+                request = self.terrain.request_map(map, tile);
+            }
+            self.wmo_collision.destination_ready(&self.terrain, player)
+        } else {
+            false
+        };
+        if self.teleport_ground.finish_if_ready(ready) {
+            godot_error!("Teleport destination ground/collision did not load within 60 seconds");
+        }
+        request
+    }
+
     pub(super) fn update_player_animation(&mut self) -> Result<(), String> {
         // World entry now loads unit visuals asynchronously. Local gameplay animation
         // starts at the same Loading → InWorld barrier as input and footsteps.
@@ -697,7 +772,10 @@ impl crate::GameClient {
             self.halt_player_movement();
             return Ok(());
         }
-        if !self.transport_ready() {
+        if !self.transport_ready()
+            || self.teleport_ground.waiting()
+            || self.world.local_player_epoch() != self.world.local_player_server_epoch()
+        {
             return Ok(());
         }
         self.adopt_server_speed();
@@ -915,6 +993,8 @@ impl crate::GameClient {
         if !self.gameplay_input_allowed()
             || self.world.local_player_controlled()
             || !self.transport_ready()
+            || self.teleport_ground.waiting()
+            || self.world.local_player_epoch() != self.world.local_player_server_epoch()
         {
             return Ok(());
         }
@@ -1086,7 +1166,7 @@ fn scripted_step(
 
 #[cfg(test)]
 mod tests {
-    use super::{PlayerMovement, turn_animation_id};
+    use super::{PlayerMovement, TELEPORT_GROUND_TIMEOUT, TeleportGroundWait, turn_animation_id};
     use crate::input::PhysicalInput;
     use game_engine_core::input_bindings_data::{
         BindingKey, BindingMouseButton, InputBindingsData,
@@ -1100,6 +1180,33 @@ mod tests {
 
     /// The Stockade entrance (`tdb_world_safe_locs` 3599), world space.
     const FEET: Vec3 = Vec3::new(56.682, -19.269, -0.624);
+
+    #[test]
+    fn teleport_wait_releases_on_resident_collision_or_timeout() {
+        let mut wait = TeleportGroundWait::default();
+        wait.start();
+        assert!(!wait.finish_if_ready(false));
+        assert!(wait.waiting());
+        assert!(!wait.finish_if_ready(true));
+        assert!(!wait.waiting());
+        wait.started = Some(std::time::Instant::now() - TELEPORT_GROUND_TIMEOUT);
+        assert!(wait.finish_if_ready(false));
+        assert!(!wait.waiting());
+    }
+
+    #[test]
+    fn teleport_clears_fall_velocity_and_old_movement() {
+        let mut movement = PlayerMovement::default();
+        movement.vertical_velocity = -40.0;
+        movement.jumping = true;
+        movement.autorun = true;
+        movement.direction = MoveDirection::Forward;
+        movement.reset_after_teleport();
+        assert_eq!(movement.vertical_velocity, 0.0);
+        assert!(!movement.jumping);
+        assert!(!movement.autorun);
+        assert_eq!(movement.direction, MoveDirection::None);
+    }
 
     /// A scripted step runs forward along the facing with no key held and reports it
     /// as forward running on the wire.

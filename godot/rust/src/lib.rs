@@ -310,6 +310,7 @@ pub struct GameClient {
     /// Ctrl+R (`TOGGLEFPS`) flips the saved FPS overlay preference for this session.
     framerate_toggled: bool,
     player_movement: gameplay::PlayerMovement,
+    teleport_ground: gameplay::TeleportGroundWait,
     movement_trace: movement_trace::MovementTrace,
     local_transport: Option<transport_motion::LocalTransport>,
     /// IPC `ScriptedMovementForward`: forward steps for a bounded time.
@@ -474,6 +475,7 @@ impl INode3D for GameClient {
             client_options,
             framerate_toggled: false,
             player_movement: gameplay::PlayerMovement::default(),
+            teleport_ground: gameplay::TeleportGroundWait::default(),
             movement_trace: Default::default(),
             local_transport: None,
             scripted_movement: Default::default(),
@@ -1134,6 +1136,7 @@ impl GameClient {
                 godot_error!("Cannot serialize native PvP diagnostic snapshot: {error}");
             }
         }
+        state.set("teleport_ground_waiting", self.teleport_ground.waiting());
         state.set(
             "local_player_epoch",
             &self
@@ -2272,7 +2275,9 @@ impl GameClient {
             ("Reputation bar", |c, _| c.update_reputation_bar()),
             ("Group frames", |c, d| c.update_group_frames(d)),
             ("World units", |c, d| {
+                let previous_epoch = c.world.local_player_epoch();
                 c.world.advance(d);
+                c.update_teleport_ground(previous_epoch)?;
                 c.world.check_local_visual(&c.replica, d);
                 c.update_transport_motion(0.0)?;
                 Ok(())
@@ -3041,6 +3046,7 @@ impl GameClient {
         self.creation_scene.reset();
         self.physical_input.clear();
         self.player_movement = gameplay::PlayerMovement::default();
+        self.teleport_ground = gameplay::TeleportGroundWait::default();
         self.map_waypoint = None;
         self.waypoint_path.clear();
         self.current_zone = None;

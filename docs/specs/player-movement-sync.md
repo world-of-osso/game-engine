@@ -16,6 +16,11 @@ The Godot client predicts the local player's movement and reports each moved pos
 - [x] Live: in deep water the client swims at 4.72 yd/s (7.0 before) and the server ends where the client does (`godot/tests/world_speed_walk.gd`, `SPEED_SWIM=1`, `--fixed-fps 60`).
 - [ ] Live: under a snare or speed aura the server's position stays with the client's.
 
+### Server teleports
+- [ ] On a new uncontrolled server movement epoch, suspend local movement and gravity at the authoritative destination until the destination terrain and known nearby WMO collision are resident. Request the destination tile even on a same-map teleport. Clear velocity from the previous position.
+- [ ] If collision is not resident after 60 seconds, log an error and resume. A loaded but unsupported destination is not treated as unloaded.
+- [ ] A long same-map teleport with real terrain holds the player at the destination while loading and resumes movement once collision is resident.
+
 ### Forced-forward aura
 
 - The local player's replicated `UnitFlags2::FORCE_MOVEMENT` (0x40, aura241) forces forward input exactly1 even while idle or holding backward. Strafe remains independent; both mouse buttons cannot add another forward contribution.
