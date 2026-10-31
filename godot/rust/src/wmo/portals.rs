@@ -585,6 +585,34 @@ mod tests {
     }
 
     #[test]
+    fn split_child_camera_uses_parent_exterior_portal() {
+        let mut portals = courtyard_and_room();
+        let parent = &mut portals.groups[1];
+        let child = PortalGroup {
+            index: 2,
+            bbox_min: parent.bbox_min,
+            bbox_max: parent.bbox_max,
+            exterior: false,
+            split_parent: Some(1),
+            first_child: None,
+            next_child: None,
+            floor: std::mem::take(&mut parent.floor),
+        };
+        parent.first_child = Some(2);
+        portals.groups.push(child);
+        portals.adjacency.push(Vec::new());
+        let eye = Vec3::new(5.0, 1.0, 8.0);
+        let windows = portals
+            .exterior_frusta(Affine3A::IDENTITY, &view(eye, -Vec3::Z), eye)
+            .unwrap();
+        assert_eq!(windows.len(), 1);
+        assert_eq!(
+            drawn_indices(portals.visible_groups(Affine3A::IDENTITY, &view(eye, -Vec3::Z), eye)),
+            [0, 1, 2]
+        );
+    }
+
+    #[test]
     fn outdoor_window_rejects_a_second_door_outside_the_first_window() {
         let mut portals = courtyard_and_room();
         let bbox_min = portals.groups[1].bbox_min;
@@ -594,6 +622,9 @@ mod tests {
             bbox_min,
             bbox_max,
             exterior: false,
+            split_parent: None,
+            first_child: None,
+            next_child: None,
             floor: Vec::new(),
         });
         portals.adjacency = vec![vec![(1, 2)], vec![(0, 2)], vec![(0, 1), (1, 0)]];
