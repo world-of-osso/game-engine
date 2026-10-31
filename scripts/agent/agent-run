@@ -27,6 +27,9 @@ runs_cargo=""
 for arg in "$@"; do [ "$(basename -- "$arg")" = cargo ] && runs_cargo=1 && break; done
 # fmt only rewrites sources; agents waited on the build gate just to format (2026-10-30).
 for arg in "$@"; do [ "$arg" = fmt ] && runs_cargo="" && break; done
+# Multi-seed batches of an already-built binary also need ADD (agent rules) but run no cargo;
+# AGENT_RUN_GATE=1 puts them in the same FIFO instead of a hand-rolled poll (2026-10-31).
+[ "${AGENT_RUN_GATE:-}" = 1 ] && runs_cargo=1
 if [ -n "$runs_cargo" ] && [ -x "$capacity" ]; then
     # Capture the verdict instead of piping into `grep -q`: under pipefail, tee's SIGPIPE after
     # grep's early exit discarded granted ADDs and held tank73 for 2 h 45 min (2026-10-29).
