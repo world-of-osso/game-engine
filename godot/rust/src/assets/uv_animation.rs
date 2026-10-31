@@ -37,13 +37,18 @@ impl WowMaterialClock {
     }
 
     #[func]
+    fn liquid_time_ms(&self) -> f32 {
+        (self.elapsed_ms % 3_600_000.0) as f32
+    }
+
+    #[func]
     fn advance_time_ms(&mut self, delta_ms: f64) -> bool {
         if !delta_ms.is_finite() || delta_ms < 0.0 {
             godot_error!("M2 material clock requires a finite nonnegative delta");
             return false;
         }
         self.elapsed_ms += delta_ms;
-        let liquid_time = (self.elapsed_ms % 3_600_000.0) as f32;
+        let liquid_time = self.liquid_time_ms();
         RenderingServer::singleton()
             .global_shader_parameter_set("liquid_animation_time_ms", &liquid_time.to_variant());
         true

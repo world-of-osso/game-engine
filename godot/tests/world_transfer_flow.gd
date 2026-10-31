@@ -164,7 +164,7 @@ func wait_for_water_clock(water: Dictionary) -> bool:
 			return false
 		var expected: float = fmod(clock.elapsed_time_ms() / 1000.0, 3600.0)
 		# The shared liquid clock writes milliseconds wrapped at one hour.
-		var sampled: float = RenderingServer.global_shader_parameter_get("liquid_animation_time_ms") / 1000.0
+		var sampled: float = clock.liquid_time_ms() / 1000.0
 		if frame > 0 and absf(sampled - expected) > 0.2:
 			fail("Destination Water clock diverged: sampled=%s expected=%s" % [sampled, expected])
 			return false

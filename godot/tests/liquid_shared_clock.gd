@@ -21,7 +21,7 @@ func run() -> void:
 	quit(0)
 
 func close_clock(expected: float) -> bool:
-	var actual: float = RenderingServer.global_shader_parameter_get("liquid_animation_time_ms")
+	var actual: float = root.get_node("M2MaterialClock").liquid_time_ms()
 	if absf(actual - expected) > 0.01:
 		fail("Liquid clock %s, expected %s" % [actual, expected])
 		return false
