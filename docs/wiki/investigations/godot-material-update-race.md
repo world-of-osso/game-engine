@@ -37,6 +37,10 @@ nonfatal) under headless cage, because it needs a real RenderingDevice.
 | Previous production pin `4.7.2-pr123946-pr123546-pr123391` | 1 | hang, killed by 300 s timeout (exit 124); 32,381,490 `self_list.h` errors (`p_elem->_root != this`, `p_elem->_root`), the live Stonevault symptom |
 | New production editor `…-matlist-bonepose` | 1 | exit 0, 4,000,000 materials in 155 frames, zero `self_list` errors |
 
+The Windows MinGW editor and release template (`scripts/windows-worker.py`) apply the
+same patch, which applied cleanly to the Windows source tree; the Windows template is pinned
+separately. The stress test was not run on Windows.
+
 The unpatched `add`/`remove` pair matches the live Stonevault log. A single
 40,000-material round passed without the patch, so smaller runs are not proof.
 Logs: `data/diagnostics/godot-matlist-2026-10-31/`. The live client hang has
