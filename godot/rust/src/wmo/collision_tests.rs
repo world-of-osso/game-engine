@@ -643,28 +643,31 @@ fn player_runs_down_and_back_up_the_stockade_stairs_between_the_walls() {
 
 /// Outside the Jasperlode Mine (azeroth_33_49, WMO 111538), on the terrain in front of the
 /// entrance ramp. Kobold Miner 281565 spawns on the mouth floor at WoW z 62.95 (TDB).
-const JASPERLODE_OUTSIDE: [f32; 3] = [-9205.0, -599.0, 61.8];
-/// Up the entrance ramp (WMO group 6, from WoW x -9197) between the frame's posts and the
-/// rock (lane y -598.5 to -599.5), over the terrain hole of the mouth, then along the tunnel
-/// floor to the exploration trigger (Jasperlode 87, centre -9077.3, -552.9): a breadth-first
-/// search over `validate_move` on this ground keeping a yard clear of every blocked move,
-/// in WoW (x, y) legs of at most 4.5 yd (2.25 through the mouth).
+const JASPERLODE_OUTSIDE: [f32; 3] = [-9205.0, -604.5, 61.8];
+/// Up the entrance ramp (WMO group 6, from WoW x -9196) along lane y -604.5, where its
+/// walkable faces rise from the terrain at 60 between the frame's posts onto the mouth floor
+/// at 63, over the terrain hole of the mouth, then along the tunnel floor to the exploration
+/// trigger (Jasperlode 87, centre -9077.3, -552.9): a breadth-first search over
+/// `validate_move` on this ground keeping a yard clear of every blocked move, in WoW (x, y)
+/// legs of at most 4.5 yd (2.25 through the mouth). North of the ramp, lane y -599 runs over
+/// the rock's 58 degree flank into the frame's side panel; it was walkable only while steep
+/// WMO faces gave no support and the player fell through the flank to the terrain under it.
 /// `godot/tests/world_quest_flow.gd` walks the same route.
 const JASPERLODE_ROUTE: [[f32; 2]; 49] = [
-    [-9202.75, -599.0],
-    [-9200.5, -599.0],
-    [-9198.25, -599.0],
-    [-9196.0, -599.0],
-    [-9193.75, -599.0],
-    [-9191.5, -599.0],
-    [-9189.25, -599.0],
-    [-9187.0, -599.0],
-    [-9184.75, -599.0],
-    [-9182.5, -599.0],
-    [-9180.25, -599.0],
-    [-9178.0, -599.0],
-    [-9175.75, -599.0],
-    [-9173.5, -599.0],
+    [-9202.75, -604.5],
+    [-9200.5, -604.5],
+    [-9198.25, -604.5],
+    [-9196.0, -604.5],
+    [-9193.75, -604.5],
+    [-9191.5, -604.5],
+    [-9189.25, -604.5],
+    [-9187.0, -604.5],
+    [-9184.75, -604.5],
+    [-9182.5, -604.5],
+    [-9180.25, -604.5],
+    [-9178.0, -604.5],
+    [-9175.75, -604.5],
+    [-9173.5, -601.75],
     [-9171.25, -599.0],
     [-9169.0, -599.0],
     [-9166.75, -599.0],

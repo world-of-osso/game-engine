@@ -64,16 +64,16 @@ const FIRES := 8
 ## WoW world positions: amid the vineyard fire spawns; outside each mine's exploration
 ## trigger (Fargodeep 197, radius 9; Jasperlode 87, radius 30) and the walk to its centre.
 ## Jasperlode's trigger lies deep in the mine, under the hill: the walk goes up the
-## entrance ramp of the mine's south mouth between the frame's posts and the rock, then
-## along the tunnel floor (the route of the client's ground test
+## entrance ramp of the mine's south mouth between the frame's posts, then along the
+## tunnel floor (the route of the client's ground test
 ## godot/rust/src/wmo/collision_tests.rs JASPERLODE_ROUTE).
 const VINEYARD_AT := [-9050.0, -325.0, 74.0]
 const FARGODEEP_OUTSIDE_AT := [-9781.2, 157.8, 25.4]
 const FARGODEEP_ROUTE := [[-9796.2, 157.8, 25.4]]
-const JASPERLODE_OUTSIDE_AT := [-9205.0, -599.0, 61.8]
-const JASPERLODE_ROUTE := [[-9202.75, -599.0], [-9200.5, -599.0], [-9198.25, -599.0], [-9196.0, -599.0], [-9193.75, -599.0],
-	[-9191.5, -599.0], [-9189.25, -599.0], [-9187.0, -599.0], [-9184.75, -599.0], [-9182.5, -599.0],
-	[-9180.25, -599.0], [-9178.0, -599.0], [-9175.75, -599.0], [-9173.5, -599.0], [-9171.25, -599.0],
+const JASPERLODE_OUTSIDE_AT := [-9205.0, -604.5, 61.8]
+const JASPERLODE_ROUTE := [[-9202.75, -604.5], [-9200.5, -604.5], [-9198.25, -604.5], [-9196.0, -604.5], [-9193.75, -604.5],
+	[-9191.5, -604.5], [-9189.25, -604.5], [-9187.0, -604.5], [-9184.75, -604.5], [-9182.5, -604.5],
+	[-9180.25, -604.5], [-9178.0, -604.5], [-9175.75, -604.5], [-9173.5, -601.75], [-9171.25, -599.0],
 	[-9169.0, -599.0], [-9166.75, -599.0], [-9164.5, -599.0], [-9162.25, -599.0], [-9160.0, -599.0],
 	[-9160.0, -598.0], [-9158.0, -596.0], [-9153.8, -596.0], [-9149.6, -596.0], [-9145.4, -596.0],
 	[-9141.2, -596.0], [-9137.0, -596.0], [-9134.5, -593.5], [-9132.0, -591.0], [-9129.5, -588.5],
