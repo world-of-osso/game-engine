@@ -71,6 +71,28 @@ func run_cases() -> void:
 	passed = await assert_pixel("changed second texture layer", Color.CYAN) and passed
 	layer_two.set_image(solid_image(Color.YELLOW))
 	passed = await assert_pixel("changed third texture layer", Color.GREEN) and passed
+	var shared := ImageTexture.create_from_image(solid_image(Color.RED))
+	material.set_shader_parameter("pixel_shader", 0)
+	material.set_shader_parameter("texture_0", shared)
+	var second = probe.quad_node(0, FIXTURE + "/textures", PARTICLE_FDID, Color.WHITE, 1.0, 1.5)
+	if not second is Node3D:
+		push_error("second particle pool: %s" % [second])
+		quit(1)
+		return
+	viewport.add_child(second)
+	(second.material_override as ShaderMaterial).set_shader_parameter("texture_0", shared)
+	passed = await assert_pixel("shared texture in two pools", Color.RED) and passed
+	particle.free()
+	particle = second
+	await process_frame
+	await RenderingServer.frame_post_draw
+	var before_shared_change: int = probe.texture_lookup_count()
+	shared.set_image(solid_image(Color.BLUE))
+	passed = await assert_pixel("shared texture after first pool is freed", Color.BLUE) and passed
+	var shared_lookups: int = probe.texture_lookup_count() - before_shared_change
+	if shared_lookups != 1:
+		push_error("remaining shared texture performed %d lookups, expected one" % shared_lookups)
+		passed = false
 	particle.free()
 	cleanup()
 	probe = null
