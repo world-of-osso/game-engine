@@ -107,7 +107,7 @@ WMO doodads (merged `17e44dfa`, `7e839a73`) add 8,694 `WmoDoodad` nodes at the i
 
 ## Linux Xvfb diagnostic (2026-10-31)
 
-On agent-server, engine `93ac8d4b5` was built in the release profile with shared-protocol `5fe2ff2` to match a private server at `82499270`. The Windows receipt fixture ran with the Forever skin, an NVIDIA RTX 5060 Ti and a 1920×1080 Xvfb X11 surface. Each row is three 300-frame samples after 8,059 objects loaded with zero reported failures. Xvfb is not a native Wayland or Cage measurement.
+On agent-server, engine `93ac8d4b5` was built in the release profile with shared-protocol `5fe2ff2` to match a private server binary from the `game-server-neltharus-current` checkout. That checkout was at `82499270`; the binary's source revision was not independently established. The Windows receipt fixture ran with the Forever skin, an NVIDIA RTX 5060 Ti and a 1920×1080 Xvfb X11 surface. Each row is three 300-frame samples after 8,059 objects loaded with zero reported failures. Xvfb is not a native Wayland or Cage measurement.
 
 | Pose | FPS, three samples | Mean main-thread CPU time/frame |
 |---|---|---|
