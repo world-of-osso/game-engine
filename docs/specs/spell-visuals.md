@@ -25,7 +25,7 @@ Behavioral fixture: `godot/core/tests/spell_visual.rs::toyfx6_spitzy_inverted_au
 
 ## Positioner attachment (2026-10-30)
 
-- [ ] Resolve a model's nonzero Positioner through its first state's position entry. For SrcValType 1, use SrcVal as the attachment override, including -1 for the origin. This mapping is inferred: Wowhead's viewer consumes a pre-resolved Positioner as an attachment index, and Champion's Spear's casthand model has SrcVal 22 (SpellRightHand). The viewer does not expose the raw SrcValType mapping.
+- [ ] Resolve a model's nonzero Positioner through its first state's position entry. For SrcValType 1, use nonnegative SrcVal as the attachment override; -1 leaves the authored AttachmentID unchanged, as in the viewer. This mapping is inferred: Wowhead's viewer consumes a pre-resolved Positioner as an attachment index, and Champion's Spear's casthand model has SrcVal 22 (SpellRightHand). The viewer does not expose the raw SrcValType mapping.
 - [ ] Log and count positioners with unsupported or missing position entries; retain the model's AttachmentID for those cases. Other positioner transforms and state transitions are not implemented.
 - [ ] Prove the native placement and Forever before/after pixels for Champion's Spear and three other census cases.
 

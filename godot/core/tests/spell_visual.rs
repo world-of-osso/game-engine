@@ -435,7 +435,7 @@ fn battle_shout_roars_once_with_a_base_effect_and_buffs_each_hit_unit() {
         })
     );
     assert_eq!(cast[0].models[0].model_fdid, 1138011);
-    assert_eq!(cast[0].models[0].attachment, None);
+    assert_eq!(cast[0].models[0].attachment, Some(19));
     let impact = catalog.kits(visual, VisualEvent::Impact);
     assert_eq!(impact[0].target, KitTarget::HitUnits);
     assert_eq!(impact[0].models[0].model_fdid, 6194303);
