@@ -231,7 +231,7 @@ mod tests {
         }
         let window = |normal, d| vec![vec![HalfSpace { normal, d }]];
         let windows = [window(Vec3::X, 0.0), window(Vec3::NEG_X, 50.0), vec![]];
-        let interior = [(Vec3::new(-20.0, -5.0, -5.0), Vec3::new(-5.0, 5.0, 5.0))];
+        let interior = [(Vec3::new(-10.5, -5.0, -5.0), Vec3::new(-9.5, 5.0, 5.0))];
         for (window, interiors) in [
             (Some(windows[0].as_slice()), &interior[..]),
             (Some(windows[0].as_slice()), &interior[..]),
