@@ -30,7 +30,8 @@ Indoor cameras admit outdoor scene content through visible exterior portal windo
 
 ## Known gaps (current cycle)
 
-- [ ] Integrate split-child traversal, terrain and WMO admission, and rendered world proof.
+- [ ] Admit other WMOs, liquids and sky-adjacent content through exterior windows.
+- [ ] Verify terrain shadow preservation and views through an exterior doorway in the rendered world.
 
 ## Out of scope
 
