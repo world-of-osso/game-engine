@@ -750,7 +750,8 @@ impl AnimationState {
             ANIM_CLOSE => (ANIM_STAND, true),
             _ => return,
         };
-        let resolved_id = self.replacement_id(self.completion_id.take().unwrap_or(next_id));
+        let completion_id = self.completion_id.take().unwrap_or(next_id);
+        let resolved_id = self.replacement_id(completion_id);
         let Some(next) = self
             .sequences
             .iter()
