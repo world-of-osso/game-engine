@@ -203,7 +203,11 @@ An eight-second CPU-clock profile after the grid and material changes, but befor
 3. **Main thread — scene transforms, scenery cull, and animation:** top sampled self functions include `Node3D::_propagate_transform_changed`, `cull_doodads`, transform notification flushing, Godot FFI thread checks, and M2 rotation/position sampling. The scenery and material changes have not yet been isolated in a quiet shipped-runtime comparison.
 4. **Physics:** the separate Godot viewport ray was removed. The remaining explicit selection, camera, and collision rays still need attribution before further changes.
 
-The exit render profile similarly contains 826/2,435 samples in `_render_list` and 55/2,435 in `_update_queued_materials`. See [client performance techniques](client-performance-techniques.md) for source-backed portal-window admission, compatible-surface consolidation, and shared rigid-instance candidates; none is yet proven to reduce these particular submissions. Evidence and per-thread reports: `data/diagnostics/fps-120-linux-2026-10-31-physics-dwarf/`.
+The exit render profile similarly contains 826/2,435 samples in `_render_list` and 55/2,435 in `_update_queued_materials`. The fixture reports 3,632–3,635 indoor draws; it does not classify these by pass or material. See [client performance techniques](client-performance-techniques.md) for source-backed portal-window admission, compatible-surface consolidation, and shared rigid-instance candidates; none is yet proven to reduce these particular submissions.
+
+For uniform updates, the exit main-thread stacks include both `WaterMaterials::sample_clock` → `LiquidSurface::set_time` and `SceneryFade::set_opacity`. Every liquid surface receives the same clock but writes its own `animation_time_ms` each frame (`godot/rust/src/terrain/water.rs`). A shared global **float** is a candidate: Godot's scalar-global path marks a shared buffer dirty, whereas its global-texture path queues dependent materials (`servers/rendering/renderer_rd/storage_rd/material_storage.cpp`). Per-material animated texture frames must still update when they change. Measure the affected liquid count and rendered impact first; existing water pixel and clock tests read the current material parameter and would need an equivalent observable assertion. Per-instance scenery opacity is a separate candidate with fade, shared-material and shadow behavior to preserve. Neither candidate has a measured A/B.
+
+Evidence and per-thread reports: `data/diagnostics/fps-120-linux-2026-10-31-physics-dwarf/`.
 
 ## Sources
 
