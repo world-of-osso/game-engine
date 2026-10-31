@@ -1,3 +1,7 @@
+## 2026-10-31 — Netcode handshake timeout
+
+[Godot conversion](systems/godot-conversion.md) records the single Netcode timeout and the delayed-handshake and silent-peer UDP tests; the updated native login fixture remains unrun.
+
 ## 2026-10-31 — Linux Stormwind performance status
 
 [Stormwind FPS](investigations/godot-stormwind-fps.md#linux-120-fps-status-and-remaining-cpu-costs-2026-10-31) records landed changes, loaded picking comparisons, and remaining main/render-thread profile costs.
