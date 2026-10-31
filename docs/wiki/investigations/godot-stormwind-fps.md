@@ -17,7 +17,7 @@ The Godot client ran Stormwind at about 13–20 FPS (debug build, 1280x720, head
 
 ## Target and Bevy baseline
 
-Target (user, 2026-10-28): at least 120 FPS (8.3 ms per frame) in Stormwind both outdoors and indoors, in a release build at 1080p on this host. Neither client has reached it. At the current 7–55 FPS the client is unusable (user, 2026-10-28). The engine stays Godot.
+Target (user, 2026-10-28): at least 120 FPS (8.3 ms per frame) in Stormwind both outdoors and indoors, in a release build at 1080p. The user described the then-observed 7–55 FPS as unusable. The later Windows measurements below meet 120 FPS for the two tested views under the recorded load; they do not qualify other hardware or scenes. The engine stays Godot.
 
 No Bevy Stormwind FPS measurement was found in `docs/`. The retired Bevy client's recorded in-world numbers:
 
@@ -104,6 +104,21 @@ WMO doodads (merged `17e44dfa`, `7e839a73`) add 8,694 `WmoDoodad` nodes at the i
 - **Tried and dropped.** Skipping hidden doodads until the camera could reach their far radius cut nothing measurable (`cull_doodads` 5.4-6.1 ms either way) and was reverted.
 - **Screenshots.** Same spot, `eac376b6` vs `6cb884ec`: 565 of 921,600 pixels differ, all around the animated props next to the player and the FPS counter.
 - **Remaining.** About 5 ms of `cull_doodads` (all doodads, fade and animation LOD per doodad each frame) and 2-3 ms of `cull_wmos` (the camera-interior test over each WMO's interior floor triangles) in debug builds. The node count itself costs nothing per frame that the samples show.
+
+## Windows exact-revision comparison (2026-10-31)
+
+Four Windows release builds are being measured consecutively in one desktop session at 1920×1080 with the Forever skin. Each pose uses three 300-frame samples after world loading settles; the indoor view is repeated. The first three builds completed:
+
+| Revision | Indoor FPS | Stockade exit FPS | Indoor repeat FPS |
+|---|---|---|---|
+| `d23d8d8f6` — before split traversal | 136.38 / 136.62 / 130.52 | 166.74 / 157.85 / 164.77 | 132.53 / 136.84 / 129.59 |
+| `4b04d5dcb` — split traversal | 130.91 / 137.57 / 130.44 | 167.25 / 165.77 / 176.39 | 126.61 / 136.25 / 139.00 |
+| `260b3b651` — master with split traversal and particle RD cache | 140.17 / 148.39 / 143.20 | 178.06 / 172.21 / 168.84 | 148.45 / 149.37 / 145.01 |
+| `f4c272add` — other-WMO admission prototype | Pending | Pending | Pending |
+
+The WoW process was absent before and after each completed run. During the indoor samples, median GPU utilization was 37% / 37% / 36% and GPU memory was 3,878 / 3,885 / 3,886 MiB, respectively. At the exit these were 40% / 39% / 39% and 3,885 / 3,885 / 3,879 MiB. The three builds have identical WMO batch path, tree-visibility and shadow-mode receipts at each pose: 2,990 camera-mode visible batches indoors and 2,983 at the exit, from 4,597 total. Placement receipts match at 16,816 rows. Tree visibility does not prove GPU frustum submission. The split change added no visible groups at these poses, and neither split nor the particle-cache master shows the earlier large FPS drop.
+
+An earlier prototype capture measured only 66–69 FPS indoors and 74–80 at the exit, but WoW was open and sampled GPU memory was near 9 GiB. The earlier 137–139 FPS portal-only capture had no WoW window and sampled about 3.5 GiB. This load difference confounds that comparison; it does not prove a cause. No user applications were closed. Exact candidate and per-frame WMO admission cost remain under investigation. Evidence: `data/diagnostics/fps-120-2026-10-30/windows-qualification-{before-split-exact,split-exact,master-exact}/` and `windows-qualification-particle-split/`.
 
 ## Windows fat-LTO trial (2026-10-30)
 
