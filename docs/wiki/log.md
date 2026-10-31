@@ -1,3 +1,7 @@
+## 2026-10-31 — SKPD parent animation banks
+
+[Animation](systems/animation.md#skpd-parent-animation-banks--2026-10-31) records Kokia's inherited Death and the bounded hierarchy/flag census.
+
 ## 2026-10-31 — Netcode handshake timeout
 
 [Godot conversion](systems/godot-conversion.md) records the single Netcode timeout and the delayed-handshake and silent-peer UDP tests; the updated native login fixture remains unrun.

@@ -170,6 +170,12 @@ Billboard targets stage the pivot-corrected Bevy result in `SphericalBillboard.p
 
 Sequence-local constant TRS tracks fold to the existing fixed raw-pose curve when every channel is non-global and has at most one timestamp and one value in the selected sequence. Missing sequences use the existing sampler defaults. Varying/global tracks retain normal sampling; targets, joints and blending remain intact. At `50454f89`, 87 scoped animation tests and fmt/check passed. Catalog construction improved in characterization; the clock-confounded native pair establishes no additional steady-state CPU gain. See [CPU investigation](../investigations/movement-performance.md#constant-curve-follow-up).
 
+## SKPD parent animation banks — 2026-10-31
+
+Kokia Blazehoof's model 1630402 uses child skeleton 1834492, which has no Death clip, and parent 1830371, which has a 1900 ms Death clip. WebWowViewerCpp `animationManager.cpp:101–127,392–405,410–413,472–490` selects the child sequence first; if absent and not in PABC, it uses the parent's full bone definitions, including hierarchy, pivots, flags, tracks and global clocks.
+
+The native player samples compatible parent banks and adjusts local positions for the parent/child bind-pivot difference. It keeps child clips and warns once when hierarchy or affine flags differ. In a local census of 3,193 available of 9,471 Retail creature-display models, 31 had SKPD parents: six had different parent indices and one additional model had different affine flags. These seven are unsupported for inherited clips; unavailable models were not counted. See the [animation contract](../../specs/m2-animation-inheritance-attachments.md).
+
 ## Authored parent contribution (A6) — 2026-10-15
 
 The [A6/A7 contract](../../specs/m2-animation-inheritance-attachments.md) separates authored low bits from billboard bits. `m2_inheritance::select_parent` works on converted world-space skin matrices: case2 retains parent basis directions with model lengths; case4 retains parent lengths with model directions; case6 uses the model basis. Bit1 selects model translation; otherwise translation compensates around the parent's transformed child pivot. Roots never enter parent selection.
