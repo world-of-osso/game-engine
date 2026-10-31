@@ -1,3 +1,4 @@
+- [Ruby Life Pools flame wall](investigations/ruby-flame-wall.md) — GO377194 open-state animation, observed particle drain and matched views.
 - [M2 animation transform errors](investigations/m2-nonfinite-transforms.md) — sequence alias parsing and zero-scale full bone override causes, fixes, and qualified live samples.
 - [Godot material update-list race](investigations/godot-material-update-race.md) — unlocked intrusive-list removals; unpatched dev stress 3/3 assertion aborts, patched 3/3 pass; pinned in `4.7.2-pr123946-pr123546-pr123391-matlist-bonepose` with the Skeleton3D full-override patch.
 - [Confirmed guild disband](systems/guilds.md#confirmed-disband) — source-gated local Yes/No and typed current-guild deletion; actual both-skin action and fresh-process readback accepted.

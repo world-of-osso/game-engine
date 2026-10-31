@@ -1,3 +1,7 @@
+## 2026-10-31 — Ruby Life Pools flame wall
+
+[Ruby flame wall](investigations/ruby-flame-wall.md) records the GO377194 open-state fix, measured particle drain and qualified distance comparison.
+
 ## 2026-10-31 — SKPD parent animation banks
 
 [Animation](systems/animation.md#skpd-parent-animation-banks--2026-10-31) records Kokia's inherited Death and the bounded hierarchy/flag census.
