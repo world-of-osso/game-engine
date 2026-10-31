@@ -52,3 +52,4 @@ not been re-run on the patched build.
 ## See also
 
 - [Wayland shutdown hang and patched Godot build](godot-wayland-exit-hang.md)
+- [M2 animation transform errors](m2-nonfinite-transforms.md) — full bone override patch in the same pin.

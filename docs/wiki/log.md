@@ -1,3 +1,7 @@
+## 2026-10-31 — M2 animation transform errors
+
+[M2 animation transform errors](investigations/m2-nonfinite-transforms.md) records sequence alias and full-weight bone override causes, fixes, and qualified Karazhan and Stormwind samples.
+
 ## 2026-10-31 — Godot material update-list race
 
 [Material update-list race](investigations/godot-material-update-race.md) records the source audit, unpatched 3/3 assertion aborts and patched 3/3 passes. The pin moves to `4.7.2-pr123946-pr123546-pr123391-matlist-bonepose`, which also carries the Skeleton3D full-override patch.
