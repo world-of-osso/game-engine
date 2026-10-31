@@ -48,7 +48,7 @@ fn human_male_sequence_208_uses_sequence_60_external_bone_keys() {
     let alias = sequence_index(&model, 208);
     assert_eq!((target, alias), (44, 45));
     let mut populated = 0;
-    for bone in &model.bone_tracks {
+    for bone in model.bone_tracks.iter() {
         for track in [&bone.translation, &bone.scale] {
             assert_eq!(track.sequences.get(alias), track.sequences.get(target));
             if let Some((_, values)) = track.sequences.get(target) {
