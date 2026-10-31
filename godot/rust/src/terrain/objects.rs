@@ -37,8 +37,9 @@ use crate::{
         build_model,
         creature::{
             CachedModel, DecodedTextures, authored_model_resolver, cache_authored_texture,
-            cache_model_textures, decode_new_textures, decode_texture_file, load_model_files,
-            local_resolver, model_asset_root, publish_decoded_texture, wmo_resolver,
+            cache_model_textures, decode_new_textures, decode_unpublished_textures,
+            load_model_files, local_resolver, model_asset_root, publish_decoded_texture,
+            wmo_resolver,
         },
         uv_animation::WowMaterialAnimation,
     },
@@ -136,16 +137,16 @@ fn load_asset(data_root: &Path, asset: ObjectAsset) -> Result<LoadedAsset, Strin
                 Some(product),
             )?;
             let fdids = crate::wmo::scene::texture_fdids(&asset);
-            let textures = fdids
+            let addresses = fdids
                 .into_iter()
                 .map(|fdid| {
-                    let address = cache_authored_texture(
+                    cache_authored_texture(
                         data_root,
                         game_engine_core::asset_product::AssetTexture { product, fdid },
-                    )?;
-                    decode_texture_file(address)
+                    )
                 })
-                .collect::<Result<DecodedTextures, String>>()?;
+                .collect::<Result<Vec<_>, String>>()?;
+            let textures = decode_unpublished_textures(addresses)?;
             Ok(LoadedAsset::Wmo(Arc::new(asset), textures))
         }
     }

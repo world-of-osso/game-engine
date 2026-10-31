@@ -330,23 +330,27 @@ pub(crate) fn decode_new_textures(
     data_root: &Path,
     fdids: &BTreeSet<u32>,
 ) -> Result<DecodedTextures, String> {
+    let addresses = fdids.iter().map(|&fdid| TextureAddress {
+        dir: data_root.join("textures"),
+        fdid,
+    });
+    decode_unpublished_textures(addresses)
+}
+
+pub(crate) fn decode_unpublished_textures(
+    addresses: impl IntoIterator<Item = TextureAddress>,
+) -> Result<DecodedTextures, String> {
     let fresh: Vec<TextureAddress> = {
         let published = PUBLISHED_TEXTURES.lock().expect("published textures");
-        fdids
-            .iter()
-            .map(|&fdid| TextureAddress {
-                dir: data_root.join("textures"),
-                fdid,
-            })
+        addresses
+            .into_iter()
             .filter(|address| !published.contains(address))
             .collect()
     };
     fresh.into_iter().map(decode_texture_file).collect()
 }
 
-pub(crate) fn decode_texture_file(
-    address: TextureAddress,
-) -> Result<(TextureAddress, blp::GpuImage), String> {
+fn decode_texture_file(address: TextureAddress) -> Result<(TextureAddress, blp::GpuImage), String> {
     let file = address.dir.join(format!("{}.blp", address.fdid));
     let io = crate::profile::span(|| "phase.asset_io.blp".to_owned());
     let bytes = fs::read(&file)
