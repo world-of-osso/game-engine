@@ -26,6 +26,8 @@ window/vsync/vsync_mode=0
 ; clocks fell behind the server on slow frames. 100 (the setting's maximum) credits up to
 ; 1.67 s; the physics space holds only static collision bodies.
 common/max_physics_steps_per_frame=100
+; World selection uses UnitPicker; UI uses Control input, not physics-object events.
+common/enable_object_picking=false
 
 [rendering]
 driver/threads/thread_model=2

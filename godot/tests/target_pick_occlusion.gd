@@ -12,6 +12,7 @@ const OTHER := 7
 const PLAYER := 99
 
 var failed := false
+var ui_pressed := false
 
 func _initialize() -> void:
 	call_deferred("run_test")
@@ -84,6 +85,23 @@ func run_test() -> void:
 	var hit := camera.get_world_3d().direct_space_state.intersect_ray(body_ray)
 	if hit.is_empty() or hit.collider != wall:
 		fail("Default body ray should pass the pick shape and hit the wall: " + str(hit))
+		return
+	# Control input is independent of the physics-object picker.
+	var button := Button.new()
+	button.position = Vector2(10, 10)
+	button.size = Vector2(100, 30)
+	button.pressed.connect(func(): ui_pressed = true)
+	root.add_child(button)
+	await process_frame
+	for down in [true, false]:
+		var event := InputEventMouseButton.new()
+		event.button_index = MOUSE_BUTTON_LEFT
+		event.pressed = down
+		event.position = Vector2(20, 20)
+		event.global_position = event.position
+		root.push_input(event)
+	if not ui_pressed:
+		fail("Control button did not receive the click")
 		return
 	if failed:
 		quit(1)
