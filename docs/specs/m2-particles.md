@@ -27,6 +27,7 @@ M2 `ParticleSystem2` emitters on placed doodads (ADT MDDF and WMO MODD), creatur
 - [ ] Blend 0/1 particles write depth. **Named gap PARTICLES_NO_DEPTH_WRITE:** the composite samples the resolved depth and attaches none, so opaque/alpha-key particles occlude scene geometry correctly but not each other.
 - [ ] Particles sort among other transparent geometry. **Named gap PARTICLES_COMPOSITE_AFTER_ALL_TRANSPARENT_GEOMETRY:** pools draw after all transparent geometry.
 - [x] Multiply colour into the texel in authored space; combine multitexture layers (Particle_Mod, 2Color_3Alpha, 3Color_3Alpha).
+- [x] Reuse each pool's rendering-device texture handles on steady frames; refresh them when a texture changes or is replaced, and retain textures while a render snapshot uses them.
 - [x] Select Refraction for non-multitexture flag0x100000 and omit those emitters from the forward pass while no refraction pass exists, matching WebWowViewerCpp; never draw displacement textures as ordinary colour. Multitexture classification takes priority; AW's colour/UV emitters remain drawable.
 - [x] Draw one pooled `MultiMeshInstance3D` per (model FDID, emitter index), shared by every placement; pool capacity = sum of placement capacities capped at 4096.
 - [x] Update and draw only the emitters of doodads that are drawn (scenery distance, WMO group portal cull) and whose box is in the view frustum; fade their particles with the doodad's scenery fade.

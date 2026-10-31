@@ -3,7 +3,11 @@
 //! draw, and attaches one compositor effect to each camera that sees pools. Godot never
 //! draws the pool nodes themselves: their MultiMesh has no mesh.
 
-use std::{cell::RefCell, collections::HashMap};
+use std::{
+    cell::{Cell, RefCell},
+    collections::{hash_map::Entry, HashMap},
+    rc::Rc,
+};
 
 use godot::{
     classes::{
@@ -25,6 +29,49 @@ struct Published {
     instances: PackedByteArray,
     count: usize,
     center: Vector3,
+    textures: [Option<TextureBinding>; 3],
+}
+
+/// A texture's RD handle remains valid until the resource changes or is released.
+struct TextureBinding {
+    texture: Gd<Texture2D>,
+    changed: Callable,
+    dirty: Rc<Cell<bool>>,
+    rd_texture: Rid,
+}
+
+impl TextureBinding {
+    fn new(mut texture: Gd<Texture2D>) -> Result<Self, String> {
+        let dirty = Rc::new(Cell::new(true));
+        let notified = Rc::clone(&dirty);
+        let changed = Callable::from_fn("particle_texture_changed", move |_| notified.set(true));
+        let result = texture.connect("changed", &changed);
+        if result != godot::global::Error::OK {
+            return Err(format!("Cannot watch particle texture changes: {result:?}"));
+        }
+        Ok(Self {
+            texture,
+            changed,
+            dirty,
+            rd_texture: Rid::Invalid,
+        })
+    }
+
+    fn rd_texture(&mut self) -> Rid {
+        if self.dirty.replace(false) {
+            self.rd_texture =
+                RenderingServer::singleton().texture_get_rd_texture(self.texture.get_rid());
+        }
+        self.rd_texture
+    }
+}
+
+impl Drop for TextureBinding {
+    fn drop(&mut self) {
+        if self.texture.is_instance_valid() && self.texture.is_connected("changed", &self.changed) {
+            self.texture.disconnect("changed", &self.changed);
+        }
+    }
 }
 
 #[derive(Default)]
@@ -83,16 +130,28 @@ pub(crate) fn publish(
                 &Callable::from_fn("particle_composite_sync", |_| sync()),
             );
         }
-        composite.pools.insert(
-            node.instance_id(),
-            Published {
-                node: node.clone(),
-                material: material.clone(),
-                instances: PackedByteArray::from(bytes.as_slice()),
-                count,
-                center,
-            },
-        );
+        match composite.pools.entry(node.instance_id()) {
+            Entry::Occupied(mut entry) => {
+                let pool = entry.get_mut();
+                if pool.material.instance_id() != material.instance_id() {
+                    pool.material = material.clone();
+                    pool.textures = Default::default();
+                }
+                pool.instances = PackedByteArray::from(bytes.as_slice());
+                pool.count = count;
+                pool.center = center;
+            }
+            Entry::Vacant(entry) => {
+                entry.insert(Published {
+                    node: node.clone(),
+                    material: material.clone(),
+                    instances: PackedByteArray::from(bytes.as_slice()),
+                    count,
+                    center,
+                    textures: Default::default(),
+                });
+            }
+        }
     });
 }
 
@@ -107,7 +166,7 @@ fn sync() {
             .effects
             .retain(|_, (camera, _)| camera.is_instance_valid());
         let mut by_camera: HashMap<InstanceId, (Gd<Camera3D>, VarArray)> = HashMap::new();
-        for pool in composite.pools.values() {
+        for pool in composite.pools.values_mut() {
             if pool.count == 0 || !pool.node.is_visible_in_tree() {
                 continue;
             }
@@ -167,22 +226,34 @@ fn new_effect() -> Result<Gd<Resource>, String> {
 }
 
 /// The effect's draw dictionary for `pool`.
-fn pool_draw(pool: &Published) -> Result<VarDictionary, String> {
-    let material = &pool.material;
-    let parameter = |name: &str| material.get_shader_parameter(name);
-    let texture = |layer: usize| -> Option<Rid> {
-        let texture = parameter(&format!("texture_{layer}"))
+fn pool_draw(pool: &mut Published) -> Result<VarDictionary, String> {
+    let mut texture_rids = [None; 3];
+    let mut texture_refs = VarArray::new();
+    for (layer, slot) in pool.textures.iter_mut().enumerate() {
+        let texture = pool
+            .material
+            .get_shader_parameter(&format!("texture_{layer}"))
             .try_to::<Gd<Texture2D>>()
-            .ok()?;
-        Some(RenderingServer::singleton().texture_get_rd_texture(texture.get_rid()))
-    };
-    let base = texture(0).ok_or("no texture_0")?;
+            .ok();
+        if slot.as_ref().map(|binding| binding.texture.instance_id())
+            != texture.as_ref().map(|texture| texture.instance_id())
+        {
+            *slot = texture.map(TextureBinding::new).transpose()?;
+        }
+        if let Some(binding) = slot {
+            texture_rids[layer] = Some(binding.rd_texture());
+            texture_refs.push(&binding.texture.to_variant());
+        }
+    }
+    let base = texture_rids[0].ok_or("no texture_0")?;
     // Unbound layers are never sampled by the selected combiner.
     let textures = VarArray::from(&[
         base.to_variant(),
-        texture(1).unwrap_or(base).to_variant(),
-        texture(2).unwrap_or(base).to_variant(),
+        texture_rids[1].unwrap_or(base).to_variant(),
+        texture_rids[2].unwrap_or(base).to_variant(),
     ]);
+    let material = &pool.material;
+    let parameter = |name: &str| material.get_shader_parameter(name);
     let float = |name: &str| parameter(name).try_to::<f32>().unwrap_or(0.0);
     let int = |name: &str| parameter(name).try_to::<i32>().unwrap_or(0);
     let vec2 = |name: &str| parameter(name).try_to::<Vector2>().unwrap_or(Vector2::ONE);
@@ -202,6 +273,8 @@ fn pool_draw(pool: &Published) -> Result<VarDictionary, String> {
     draw.set("instances", &pool.instances);
     draw.set("count", pool.count as i64);
     draw.set("textures", &textures);
+    // Keep texture resources alive while the render callback owns this snapshot.
+    draw.set("texture_refs", &texture_refs);
     draw.set("params", &PackedByteArray::from(params.as_slice()));
     draw.set("gx_blend", gx_blend);
     draw.set("center", pool.center);
