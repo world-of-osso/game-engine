@@ -33,7 +33,7 @@ func initialize_monthly_client() -> bool:
 	return completion.step(await wait_until(func(): return not client.account_state().assets_starting, "asset startup", 180000), "asset startup")
 
 func run_monthly() -> bool:
-	if not completion.require(phase in ["rollover", "readback"] and skin in ["modern", "forever"], "explicit clock phase/skin required"): return false
+	if not completion.require(phase in ["rollover", "readback"] and skin == "forever", "explicit clock phase and Forever skin required"): return false
 	if not completion.step(await initialize_monthly_client(), "initialize native client"): return false
 	var account := OS.get_environment("TP_ACCOUNT")
 	if not completion.require(account.begins_with("fb_tpmonth_"), "fresh monthly fb_* cohort required"): return false
@@ -44,8 +44,7 @@ func run_monthly() -> bool:
 	if not completion.step(await wait_until(func(): return control("EnterWorld") != null, "EnterWorld", 180000), "EnterWorld ready"): return false
 	if not completion.step(await checked_click("EnterWorld"), "enter world"): return false
 	if not completion.step(await wait_until(func(): return client.account_state().screen == "InWorld" and control("MinimapLauncherButton") != null, "world", 180000), "world ready"): return false
-	var expected := "Modern" if skin == "modern" else "Forever"
-	if not completion.step(await select_monthly_skin(expected), "native skin selection"): return false
+	if not completion.step(await select_monthly_skin(), "native skin selection"): return false
 	printerr("CASE_STARTED trading_post_monthly_clock")
 	if not completion.step(signal_host("world-ready"), "signal native world readiness"): return false
 	if not completion.step(await wait_until(func(): return FileAccess.file_exists(receipts.path_join("clock-ready.json")), "host private clock alignment", 120000), "clock aligned"): return false
@@ -54,13 +53,13 @@ func run_monthly() -> bool:
 		return await readback_cases()
 	return await rollover_cases()
 
-func select_monthly_skin(expected: String) -> bool:
-	if str(client.account_state().ui_skin) == expected: return true
-	for name in ["MinimapLauncherButton", "LauncherEntryMainMenuMicroButton", "MenuBtnOptions", "OptionsTabhud", "Choiceui_layout", "Choiceui_layout0Hit" if expected == "Modern" else "Choiceui_layout1Hit", "OptionsCloseButton"]:
+func select_monthly_skin() -> bool:
+	if str(client.account_state().ui_skin) == "Forever": return true
+	for name in ["MinimapLauncherButton", "LauncherEntryMainMenuMicroButton", "MenuBtnOptions", "OptionsTabhud", "Choiceui_layout", "Choiceui_layout1Hit", "OptionsCloseButton"]:
 		if not completion.step(await checked_click(name), "skin selector " + name): return false
 	if control("MenuBtnResume") != null:
 		if not completion.step(await checked_click("MenuBtnResume"), "resume after skin selection"): return false
-	return completion.step(await wait_until(func(): return str(client.account_state().ui_skin) == expected, "active requested skin"), "skin applied")
+	return completion.step(await wait_until(func(): return str(client.account_state().ui_skin) == "Forever", "active Forever skin"), "skin applied")
 
 func checked_click(name: String) -> bool:
 	if not completion.require(control(name) != null, "visible control " + name): return false

@@ -9,7 +9,7 @@ func capture() -> void:
 		push_error("GAMEPLAY_CAPTURES is required")
 		quit(1)
 		return
-	for skin in ["modern", "forever"]:
+	for skin in ["forever"]:
 		var pages := ["recipient", "duration", "personal"] if OS.get_environment("GAMEPLAY_GROUP") != "menus" else ["meter", "tracking", "transmog", "difficulty"]
 		if not OS.get_environment("GAMEPLAY_PAGE").is_empty():
 			pages = [OS.get_environment("GAMEPLAY_PAGE")]

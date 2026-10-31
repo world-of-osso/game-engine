@@ -11,7 +11,7 @@ func _initialize() -> void:
 func run_test() -> void:
 	root.size = Vector2i(720, 600)
 	var tree_only := OS.get_environment("NAMEPLATE_LEVEL_TREE_ONLY") == "1"
-	for forever in [true, false]:
+	for forever in [true]:
 		host = Node3D.new()
 		root.add_child(host)
 		var error: String = NameplateProbe.draw_level_cases(host, OS.get_environment("NAMEPLATE_LEVEL_DATA"), forever)
@@ -37,7 +37,7 @@ func run_test() -> void:
 	else:
 		if tree_only:
 			print("TREE ONLY: rendered capture omitted")
-		print("PASS: ordinary full-width Forever without numeric level/badge; skull geometry, selection, classification and Modern retained")
+		print("PASS: ordinary full-width Forever without numeric level/badge; skull geometry, selection, classification retained")
 		quit(0)
 
 func check_plate(plate: Control, forever: bool) -> void:

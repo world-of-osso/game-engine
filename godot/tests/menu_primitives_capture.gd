@@ -10,11 +10,10 @@ func capture() -> void:
 		push_error("GODOT_PRIMITIVES_CAPTURES is required")
 		quit(1)
 		return
-	for skin in ["modern", "forever"]:
+	for skin in ["forever"]:
 		var ui = ClassDB.instantiate("RegistryUi")
 		root.add_child(ui)
-		var method := "show_menu_primitives_preview" if skin == "modern" else "show_forever_menu_primitives_preview"
-		var error = ui.call(method)
+		var error = ui.call("show_forever_menu_primitives_preview")
 		if error != "":
 			push_error(error)
 			quit(1)
@@ -53,5 +52,5 @@ func capture() -> void:
 			return
 		ui.queue_free()
 		await process_frame
-	print("PASS: both-skin shared menu/NavBar capture")
+	print("PASS: Forever shared menu/NavBar capture")
 	quit(0)

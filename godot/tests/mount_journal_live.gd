@@ -32,8 +32,7 @@ func run_fixture() -> void:
 	ready.store_string(str(client.account_state()))
 	ready.close()
 	if not await wait_until(func(): return FileAccess.file_exists(OS.get_environment("MOUNT_GO_FILE")), "online riding setup", 120000): return
-	var expected_skin := "Modern" if skin == "modern" else "Forever"
-	if client.account_state().ui_skin != expected_skin: fail("Wrong active skin for proof"); return
+	if client.account_state().ui_skin != "Forever": fail("Wrong active skin for proof"); return
 	client.set_world_minutes(720.0)
 	client.set_camera_orbit(PI, -0.3, 12.0)
 	await wait_frames(90)

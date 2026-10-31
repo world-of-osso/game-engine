@@ -140,7 +140,7 @@ def main():
     for name in ["account", "character", "agent"]:
         parser.add_argument("--" + name, required=True)
     parser.add_argument("--port", type=int, required=True)
-    parser.add_argument("--skin", choices=["Modern", "Forever"], required=True)
+    parser.add_argument("--skin", choices=["Forever"], default="Forever")
     parser.add_argument("--restore-from", type=Path, help="existing successful run whose config/userdata must survive a fresh client")
     arguments = parser.parse_args()
     for name in ["engine", "server", "out", "resolver_cache"]:

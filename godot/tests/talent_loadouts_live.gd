@@ -28,14 +28,14 @@ func _run() -> void:
 		await metadata_draft()
 	elif phase == "inspect":
 		await inspect_loadouts()
-	elif skin == "modern":
-		await modern_lifecycle()
-	elif skin == "forever":
-		await forever_relog()
-	else:
-		abort("Unknown explicit skin")
+	elif skin != "forever":
+		abort("Forever is the only tested skin")
 		return
-	var proof_suffix := "-" + phase if phase in ["inspect", "metadata", "existing"] else ""
+	elif phase == "lifecycle" or phase == "rename":
+		await loadout_lifecycle()
+	else:
+		await forever_relog()
+	var proof_suffix := "-" + phase if phase in ["inspect", "metadata", "existing", "lifecycle", "rename"] else ""
 	var proof_name := skin + proof_suffix + "-proof.json"
 	var file := FileAccess.open(directory.path_join(proof_name), FileAccess.WRITE)
 	file.store_string(JSON.stringify(evidence, "\t"))
@@ -128,7 +128,7 @@ func inspect_loadouts() -> void:
 	await menu()
 	await capture("relog-persisted")
 
-func modern_lifecycle() -> void:
+func loadout_lifecycle() -> void:
 	if OS.get_environment("TALENT_LOADOUT_PHASE") == "rename":
 		await expect_caption("Raid")
 		await rename_delete_relog()

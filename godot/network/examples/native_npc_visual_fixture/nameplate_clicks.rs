@@ -53,8 +53,8 @@ pub(super) fn seed_layout(project: &FixtureProject, address: SocketAddr) -> Resu
     stage_authored_inputs(project)?;
     let skin = std::env::var("GODOT_NAMEPLATE_CLICK_SKIN")
         .map_err(|error| format!("Required click-fixture skin: {error}"))?;
-    if !["Modern", "Forever"].contains(&skin.as_str()) {
-        return Err(format!("Unknown click-fixture skin {skin}"));
+    if skin != "Forever" {
+        return Err(format!("Forever is the only tested skin, got {skin}"));
     }
     let base = project.root.join("config/world-of-osso/ui_layout.ron");
     let path = game_engine_core::ui_layout_account::account_layout_path(

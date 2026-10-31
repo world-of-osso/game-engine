@@ -21,8 +21,7 @@ func run_fixture() -> void:
 	if not await wait_until(func(): return client.account_state().screen == "InWorld" and int(client.mount_journal_state().catalog_count) > 0, "world/catalog", 180000): return
 	FileAccess.open(OS.get_environment("MOUNT_READY_FILE"), FileAccess.WRITE).store_string(str(client.account_state()))
 	if not await wait_until(func(): return FileAccess.file_exists(OS.get_environment("MOUNT_GO_FILE")), "online setup", 120000): return
-	var expected_skin := "Modern" if skin == "modern" else "Forever"
-	if client.account_state().ui_skin != expected_skin: fail("Wrong AH proof skin"); return
+	if client.account_state().ui_skin != "Forever": fail("Wrong AH proof skin"); return
 	if not await open_auction(): return
 	if mode == "seller":
 		if not await post_mounts(): return

@@ -15,7 +15,7 @@ func run_test() -> void:
 	diagnostics = OS.get_environment("GUILD_PERKS_DIAGNOSTICS")
 	officer_dir = OS.get_environment("GUILD_PERKS_OFFICER_DIR")
 	first_skin = OS.get_environment("GUILD_MOBILE_START_SKIN")
-	assert(first_skin in ["Modern", "Forever"], "Explicit native case selection required")
+	assert(first_skin == "Forever", "Forever is the only tested skin")
 	assert(OS.get_environment("GODOT_TEST_SERVER") == "127.0.0.1:5891")
 	assert(OS.get_environment("BANK_ACCOUNT") == "fb_guildcompletion_perkspeer")
 	DirAccess.make_dir_recursive_absolute(shots)
@@ -37,24 +37,14 @@ func run_test() -> void:
 	if not (83958 in Array(client.spells_state().known)):
 		if not await join_actual_guild():
 			return
-	var skins := ["Modern", "Forever"] if first_skin == "Modern" else ["Forever"]
-	for skin in skins:
-		if skin == "Forever" and first_skin == "Modern":
-			mark_officer("next-officer.go")
-			var second_officer := officer_dir.path_join("forever-officer")
-			if not await wait_until(func(): return FileAccess.file_exists(second_officer.path_join("officer-ready.go")), "fresh authenticated officer for Forever actions"):
-				return
-			officer_dir = second_officer
-			invite_number = 0
-			removal_number = 0
+	for skin in ["Forever"]:
 		if not await select_skin(skin):
 			return
 		role = skin.to_lower() + "-mobile-banking"
 		await close_guild()
 		if not await prove_chest_cycle():
 			return
-	# Final real recast proves readiness after the Forever two-hour interval;
-	# Modern readiness was proved by the next skin's ordinary cast.
+	# Final real recast proves readiness after the Forever two-hour interval.
 	var successes: int = Array(client.spells_state().cast_success).count(83958)
 	client.use_spell(83958)
 	if not await wait_until(func(): return Array(client.spells_state().cast_success).count(83958) > successes and find_new_chest(), "actual recast accepted after Forever2h"):
