@@ -1,3 +1,7 @@
+## 2026-10-30 — WMO material 13 UVs
+
+[Liquid investigation](investigations/northshire-pale-water.md#material-13-wmo-lava-uvs--partial-proof) records Neltharus LiquidType 1192, authored MLIQ extents, WMO UV correction and bounded GPU/geometry proof. Visual and performance acceptance remain open.
+
 ## 2026-10-28 — Stormwind material uniform updates
 
 [Stormwind FPS](investigations/godot-stormwind-fps.md#material-uniform-updates-2026-10-28) records the persistent cubemap and global water inputs, provisional release measurements, passing pixel fixtures, and outstanding visual proof.

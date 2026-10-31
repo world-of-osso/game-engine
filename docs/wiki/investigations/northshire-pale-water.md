@@ -27,6 +27,14 @@ Every LiquidMaterial now has its shader, selected as in `LiquidMaterialManager.c
 
 LiquidObject vertices use their material's LVF: the parser keeps their bytes and `WaterLayer::decode_object_vertices` re-reads them. Magma objects are LVF 1. LVF 1 and 3 are separate height, UV and depth arrays (wowdev MH2O), no longer interleaved.
 
+## Material 13 WMO lava UVs — partial proof
+
+Neltharus groups 4331781, 4331789, 4331797, 4334603, 4383364 and 4621843 contain MLIQ group LiquidType 1192. The active DB2 names it molten lava and selects Material 13, not legacy magma Material 2. Its six cached MLIQs contain no hidden tiles; each has a constant authored height. Their rectangular extents alone do not prove a mask failure. Material 13 uses the Fel shader with source flow, animated normal and emissive textures, and a depth-buffer shore calculation. Its Float13 is 1, selecting the unlit base.
+
+The Fel shader formerly ignored WMO mesh UVs. It now uses them when `mesh_uv` is set; ADT liquids retain world-position UVs. WebWowViewerCpp `wowViewerLib/src/engine/geometry/wmoGroupGeom.cpp:566-579` supplies WMO-local UVs, and `wowViewerLib/shaders/slang/forwardRendering/liquids/forwardLiquidShader_text.slang:175-195` passes them to the Fel material; `common/liquid/liquidFelMat.slang:157-173` uses scene depth for the shore and outputs alpha 1. wow.export `src/js/3D/loaders/ADTLoader.js:168-179,216-255` reads MH2O offsets, dimensions, bitmap and vertex arrays; solarityclient `crates/systems/src/collision/liquid.rs:178-239` applies offsets and tests each existence cell. These are reference implementations, not direct Retail captures.
+
+At `a25391937`, the native GPU material-13 fixture passed its WMO UV-change assertion and reported 9,216 covered and 1,120 animated pixels; the existing MH2O and MLIQ geometry fixtures passed 3/3 and 5/5. A matching in-lake before/after, outdoor lava capture and Stormwind ≥120 FPS remain unproved. The host's headless compositor reported V-Sync fallback and the unsettled Stormwind run measured below the target; it is not a valid performance qualification.
+
 ## WMO liquids (MLIQ)
 
 WMO group liquids were parsed but never drawn. They now follow WebWowViewerCpp (`game_engine_core::wmo_liquid`, `godot/rust/src/terrain/wmo_liquid.rs`):
