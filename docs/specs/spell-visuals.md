@@ -21,7 +21,7 @@ Behavioral fixture: `godot/core/tests/spell_visual.rs::toyfx6_spitzy_inverted_au
 
 - Auras with `SpellEffect.Effect` 6 and `EffectAura` 17 or 19 (stealth/invisibility detection) show their AuraStart and AuraEnd visual kits only when the local viewer has an active aura with `EffectAura` 16 or 18 (stealth/invisibility). Other aura visuals are unchanged.
 - A viewer entering concealment starts already-present detection aura visuals; leaving it removes those visuals without playing their AuraEnd kits. Actual aura removal plays AuraEnd only while visible.
-- Retail observations: the [spell 18950 comment](https://www.wowhead.com/spell=18950/invisibility-and-stealth-detection) describes the eye as visible while stealthed; [Warcraft Wiki](https://warcraft.wiki.gg/wiki/Stealth) describes the same rule and shows Officer Jaxon. Generalizing it to these aura types is an approved project policy. No DB2 visibility bit was established: link4992 viewer/caster conditions and visual8089/kit7034 flags are zero; model attach279645 flags12 have unknown semantics.
+- Observations: a [Wowhead Officer Jaxon comment](https://www.wowhead.com/mop-classic/npc=14423/officer-jaxon) reports seeing the eye only while stealthed; [Warcraft Wiki](https://warcraft.wiki.gg/wiki/Stealth_(mechanic)) identifies his eye as a stealth-detection indicator. The comment is historical; current Retail behavior was not independently captured. Generalizing it to these aura types is an approved project policy. No DB2 visibility bit was established: link4992 viewer/caster conditions and visual8089/kit7034 flags are zero; model attach279645 flags12 have unknown semantics.
 - The separate quest detection ground circle is out of scope.
 
 ## Aura procedural alpha (2026-10-27)
