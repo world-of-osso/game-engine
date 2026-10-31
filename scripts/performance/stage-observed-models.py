@@ -35,8 +35,10 @@ import verify_legacy_product_assets as verifier
 from import_forever_skyborne import validate_magic
 
 
+# capacity.sh holds builds below 160 GiB free (user decision 2026-10-25); staging adds at most
+# its 20 GiB budget on top, so it must not start or continue below 180 GiB.
 def check_disk(initial=False):
-    if shutil.disk_usage('/').free < (340 if initial else 335) * 2**30:
+    if shutil.disk_usage('/').free < 180 * 2**30:
         raise RuntimeError('Terrain staging disk floor')
 
 
