@@ -41,6 +41,21 @@ fn warrior(main_hand_subclass: Option<u8>) -> CasterContext {
 }
 
 #[test]
+fn detection_aura_visuals_follow_viewer_concealment() {
+    let catalog = catalog();
+    let visual = catalog
+        .visual_for_spell(18950, &CasterContext::default())
+        .unwrap();
+    let kits = catalog.kits(visual, VisualEvent::AuraStart);
+    assert!(kits.iter().any(|kit| kit.kit_id == 7034));
+    assert!(!catalog.aura_visual_visible(18950, &[]));
+    assert!(catalog.aura_visual_visible(18950, &[1784]));
+    assert!(catalog.aura_visual_visible(18950, &[66]));
+    assert!(catalog.aura_visual_visible(122, &[]));
+    assert!(!catalog.aura_visual_visible(18950, &[122]));
+}
+
+#[test]
 fn champions_spear_cast_model_uses_positioner_right_hand() {
     let kit = catalog().diagnostic_kit(190791, 279337).unwrap();
     let model = kit

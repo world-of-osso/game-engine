@@ -17,6 +17,13 @@ The Godot client selects Retail DB2 spell visuals and plays their event kits on 
 
 Behavioral fixture: `godot/core/tests/spell_visual.rs::toyfx6_spitzy_inverted_aura_condition_shows_without_disabling_aura`. Actual journal Spitzy kits/models were captured in both configured skins; precise rear-view attachment alignment and live present-aura exclusion are not certified. Mortar live acceptance remains pending; see the [toy evidence boundary](../wiki/systems/toy-box.md#toy-effects6-conditional-selection-and-summon-coverage-2026-10-10).
 
+## Detection aura visibility (2026-10-31)
+
+- Auras with `SpellEffect.Effect` 6 and `EffectAura` 17 or 19 (stealth/invisibility detection) show their AuraStart and AuraEnd visual kits only when the local viewer has an active aura with `EffectAura` 16 or 18 (stealth/invisibility). Other aura visuals are unchanged.
+- A viewer entering concealment starts already-present detection aura visuals; leaving it removes those visuals without playing their AuraEnd kits. Actual aura removal plays AuraEnd only while visible.
+- Retail observations: the [spell 18950 comment](https://www.wowhead.com/spell=18950/invisibility-and-stealth-detection) describes the eye as visible while stealthed; [Warcraft Wiki](https://warcraft.wiki.gg/wiki/Stealth) describes the same rule and shows Officer Jaxon. Generalizing it to these aura types is an approved project policy. No DB2 visibility bit was established: link4992 viewer/caster conditions and visual8089/kit7034 flags are zero; model attach279645 flags12 have unknown semantics.
+- The separate quest detection ground circle is out of scope.
+
 ## Aura procedural alpha (2026-10-27)
 
 - [ ] Type-1 procedural subtype 14 reads `SpellProceduralEffect.Value_0`, clamps it to 0–1, and applies it to the kit's target while an AuraStart→AuraEnd kit is active. Invisibility 66 / kit 42982 uses 0.5.

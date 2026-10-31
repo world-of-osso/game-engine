@@ -1,6 +1,9 @@
 ## 2026-10-31 — Linux Stormwind performance status
 
 [Stormwind FPS](investigations/godot-stormwind-fps.md#linux-120-fps-status-and-remaining-cpu-costs-2026-10-31) records landed changes, loaded picking comparisons, and remaining main/render-thread profile costs.
+## 2026-10-31 — Detection aura viewer visibility
+
+[Spell visuals](systems/spell-visuals.md#detection-aura-viewer-visibility-2026-10-31) records Officer Jaxon's eye, the Retail observation, and the approved viewer-concealment policy.
 
 ## 2026-10-31 — M2 animation transform errors
 

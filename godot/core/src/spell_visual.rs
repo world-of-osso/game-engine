@@ -9,7 +9,7 @@
 //! from the visual's `SpellVisualMissile` set. `AnimationData.Fallback`
 //! ([`read_animation_fallbacks`]) substitutes a clip a model lacks.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
@@ -28,9 +28,10 @@ pub use melee::{MeleeHand, SwingResult};
 pub use voice::{UnitSound, VoiceSource, player_displays};
 
 /// Bump when the cached catalog layout or its build rules change.
-const CACHE_FORMAT: u32 = 16;
+const CACHE_FORMAT: u32 = 17;
 
-const SOURCE_TABLES: [&str; 29] = [
+const SOURCE_TABLES: [&str; 30] = [
+    "SpellEffect",
     "ChrSpecialization",
     "SpellXSpellVisual",
     "SpellVisual",
@@ -368,6 +369,8 @@ struct EffectName {
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct SpellVisualCatalog {
     spells: HashMap<u32, Vec<VisualChoice>>,
+    detection_auras: HashSet<u32>,
+    concealment_auras: HashSet<u32>,
     visuals: HashMap<u32, VisualRow>,
     kits: HashMap<u32, KitRow>,
     anim_kits: HashMap<u32, Vec<SegmentRow>>,
@@ -530,6 +533,7 @@ impl SpellVisualCatalog {
     pub fn build(dir: &Path) -> Result<Self, String> {
         let mut catalog = Self::default();
         catalog.read_spell_visuals(dir)?;
+        catalog.read_aura_effects(dir)?;
         catalog.read_visuals(dir)?;
         catalog.read_kits(dir)?;
         catalog.read_anims(dir)?;
@@ -542,6 +546,39 @@ impl SpellVisualCatalog {
         catalog.read_melee(dir)?;
         catalog.read_sound_kits(dir)?;
         Ok(catalog)
+    }
+
+    fn read_aura_effects(&mut self, dir: &Path) -> Result<(), String> {
+        const APPLY_AURA: i64 = 6;
+        const MOD_STEALTH: i64 = 16;
+        const MOD_STEALTH_DETECT: i64 = 17;
+        const MOD_INVISIBILITY: i64 = 18;
+        const MOD_INVISIBILITY_DETECT: i64 = 19;
+        for [spell, effect, aura] in
+            Table::read(dir, "SpellEffect")?.ints(["SpellID", "Effect", "EffectAura"])?
+        {
+            if effect != APPLY_AURA {
+                continue;
+            }
+            match aura {
+                MOD_STEALTH | MOD_INVISIBILITY => {
+                    self.concealment_auras.insert(spell as u32);
+                }
+                MOD_STEALTH_DETECT | MOD_INVISIBILITY_DETECT => {
+                    self.detection_auras.insert(spell as u32);
+                }
+                _ => {}
+            }
+        }
+        Ok(())
+    }
+
+    /// Whether a persistent aura's visual is available to the local viewer.
+    pub fn aura_visual_visible(&self, spell_id: u32, viewer_auras: &[u32]) -> bool {
+        !self.detection_auras.contains(&spell_id)
+            || viewer_auras
+                .iter()
+                .any(|id| self.concealment_auras.contains(id))
     }
 
     fn read_display_state_kits(&mut self, dir: &Path) -> Result<(), String> {

@@ -61,18 +61,42 @@ impl SpellEffects {
                     })
             })
             .collect();
-        let keys: HashSet<(u64, u32)> = present.iter().map(AuraRef::key).collect();
-        let gone: Vec<(u64, u32)> = self
+        let viewer_auras: Vec<u32> = world
+            .local_player_id()
+            .and_then(|id| units.unit(id))
+            .and_then(|unit| unit.get::<UnitAuras>())
+            .into_iter()
+            .flat_map(|auras| &auras.auras)
+            .map(|aura| aura.spell_id)
+            .collect();
+        let held: Vec<((u64, u32), u32)> = self
             .auras
-            .keys()
-            .filter(|key| !keys.contains(key))
-            .copied()
+            .iter()
+            .map(|(&key, aura)| (key, aura.spell_id))
+            .collect();
+        let Some(catalog) = self.catalog()? else {
+            return Ok(());
+        };
+        let all_keys: HashSet<(u64, u32)> = present.iter().map(AuraRef::key).collect();
+        let visible: Vec<AuraRef> = present
+            .into_iter()
+            .filter(|aura| catalog.aura_visual_visible(aura.spell_id, &viewer_auras))
+            .collect();
+        let visible_keys: HashSet<(u64, u32)> = visible.iter().map(AuraRef::key).collect();
+        let gone: Vec<((u64, u32), bool)> = held
+            .into_iter()
+            .filter(|(key, _)| !visible_keys.contains(key))
+            .map(|(key, spell_id)| {
+                let play_end = !all_keys.contains(&key)
+                    && catalog.aura_visual_visible(spell_id, &viewer_auras);
+                (key, play_end)
+            })
             .collect();
         let mut errors = Vec::new();
-        for key in gone {
-            errors.extend(self.end_aura(key, units, world).err());
+        for (key, play_end) in gone {
+            errors.extend(self.end_aura(key, play_end, units, world).err());
         }
-        for aura in present {
+        for aura in visible {
             if !self.auras.contains_key(&aura.key()) {
                 errors.extend(self.begin_aura(aura, units, world).err());
             }
@@ -138,6 +162,7 @@ impl SpellEffects {
     fn end_aura(
         &mut self,
         key: (u64, u32),
+        play_end: bool,
         units: &Replica,
         world: &mut WorldUnits,
     ) -> Result<(), String> {
@@ -153,13 +178,22 @@ impl SpellEffects {
         self.pending.retain(|pending| pending.lifetime != lifetime);
         self.sounds
             .end(SoundHold::Aura { unit, instance }, self.clock);
-        for effect in &mut self.active {
-            if effect.lifetime == lifetime && matches!(effect.phase, Phase::Start(_) | Phase::Hold)
-            {
+        self.active.retain_mut(|effect| {
+            if effect.lifetime != lifetime {
+                return true;
+            }
+            if !play_end {
+                if effect.node.is_instance_valid() {
+                    effect.node.clone().free();
+                }
+                return false;
+            }
+            if matches!(effect.phase, Phase::Start(_) | Phase::Hold) {
                 effect.finish();
             }
-        }
-        if units.unit(unit).is_none_or(|unit| !is_unit(unit)) {
+            true
+        });
+        if !play_end || units.unit(unit).is_none_or(|unit| !is_unit(unit)) {
             return Ok(());
         }
         let key = AuraRef {

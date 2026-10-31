@@ -1,5 +1,9 @@
 # Spell Visuals
 
+## Detection aura viewer visibility (2026-10-31)
+
+Officer Jaxon (entry14423, spawn20313917) carries aura18950: visual8089 → event3123 → kit7034 → attachment279645 → effect3253 → model165945 on attachment20. A Forever before capture shows this eye to a non-stealthed viewer. The [visibility policy and source limits](../../specs/spell-visuals.md#detection-aura-visibility-2026-10-31) distinguish the Retail observation from the approved aura-type generalization; no DB2 visibility bit was established. The client reevaluates held aura kits when viewer concealment changes.
+
 The Godot client plays each spell's Retail visual kits on replicated units. That means the caster's cast animation, the kit M2 models on attachment points, missiles, and impact kits on hit units. The data is the spell visual DB2 chain, exported from local CASC 12.1.0.69933. Server `SpellGo` and replicated `CastState` drive it. Melee swings and hit reactions come from `CombatEvent` (see [[animation]]).
 
 ## Data
