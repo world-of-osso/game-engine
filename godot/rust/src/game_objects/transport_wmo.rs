@@ -11,7 +11,7 @@ use osso_asset_resolver::CascListfileResolver;
 use crate::{
     lighting::TerrainLight,
     wmo::{
-        assets::{NativeWmoAsset, read_wmo},
+        assets::{NativeWmoAsset, read_wmo_with_product},
         scene::build_wmo_node,
     },
 };
@@ -40,7 +40,12 @@ fn read_transport_wmo(
             "Transport display FDID {fdid} is {path}, not a WMO root"
         ));
     }
-    let asset = read_wmo(&resolver, data_root, fdid)?;
+    let asset = read_wmo_with_product(
+        &resolver,
+        data_root,
+        fdid,
+        Some(game_engine_core::asset_product::AssetProduct::Retail),
+    )?;
     Ok((asset, resolver))
 }
 
@@ -142,7 +147,7 @@ pub(crate) mod tests {
         .unwrap();
         let source = data_root();
         let resolver = crate::assets::creature::local_resolver(&source);
-        let original = read_wmo(&resolver, &source, 307812).unwrap();
+        let original = crate::wmo::assets::read_wmo(&resolver, &source, 307812).unwrap();
         let mut assets = Vec::new();
         for (fdid, kind, directory) in [307812, 318242, 318243, 318244, 318245, 318246]
             .into_iter()
@@ -153,7 +158,13 @@ pub(crate) mod tests {
                     .map(|fdid| (fdid, "blp", "textures")),
             )
         {
+            let key = if fdid == 318242 {
+                "11111111111111111111111111111111"
+            } else {
+                key
+            };
             let path = format!("products/wow/{key}/{directory}/{fdid}.{kind}");
+            std::fs::create_dir_all(data.join(&path).parent().unwrap()).unwrap();
             let bytes = std::fs::read(source.join(format!("{directory}/{fdid}.{kind}"))).unwrap();
             std::fs::write(data.join(&path), &bytes).unwrap();
             assets.push(serde_json::json!({"product":"wow", "build_key":key, "build":"fixture", "fdid":fdid, "kind":kind, "path":path, "bytes":bytes.len(), "sha256":"a".repeat(64), "content_key":"b".repeat(32)}));

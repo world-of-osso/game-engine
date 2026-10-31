@@ -110,12 +110,29 @@ pub(crate) fn read_wmo(
     data_root: &Path,
     root_fdid: u32,
 ) -> Result<NativeWmoAsset, String> {
+    read_wmo_with_product(resolver, data_root, root_fdid, None)
+}
+
+pub(crate) fn read_wmo_with_product(
+    resolver: &CascListfileResolver,
+    data_root: &Path,
+    root_fdid: u32,
+    product: Option<game_engine_core::asset_product::AssetProduct>,
+) -> Result<NativeWmoAsset, String> {
     let root = read_root(resolver, data_root, root_fdid)?;
     let group_fdids = resolve_group_fdids(resolver, root_fdid, &root)?;
     let mut groups = Vec::with_capacity(group_fdids.len());
     for (index, fdid) in group_fdids.into_iter().enumerate() {
+        let group_resolver = product
+            .map(|product| crate::assets::creature::wmo_resolver(data_root, product, fdid))
+            .transpose()?;
         groups.push(read_group(
-            resolver, data_root, root_fdid, &root, index, fdid,
+            group_resolver.as_ref().unwrap_or(resolver),
+            data_root,
+            root_fdid,
+            &root,
+            index,
+            fdid,
         )?);
     }
     Ok(NativeWmoAsset {

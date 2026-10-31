@@ -129,7 +129,12 @@ fn load_asset(data_root: &Path, asset: ObjectAsset) -> Result<LoadedAsset, Strin
         }
         ObjectAsset::Wmo(product, fdid) => {
             let resolver = wmo_resolver(data_root, product, fdid)?;
-            let asset = crate::wmo::assets::read_wmo(&resolver, data_root, fdid)?;
+            let asset = crate::wmo::assets::read_wmo_with_product(
+                &resolver,
+                data_root,
+                fdid,
+                Some(product),
+            )?;
             let fdids = crate::wmo::scene::texture_fdids(&asset);
             for &texture in &fdids {
                 let path = data_root.join("textures").join(format!("{texture}.blp"));
