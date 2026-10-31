@@ -15,6 +15,7 @@ fn player(ids: &[u16]) -> AnimationState {
             frequency: 1,
             replay: [0, 0],
             variation_next: -1,
+            alias_next: 0,
             bounds: [[0.0; 3]; 2],
         })
         .collect();
