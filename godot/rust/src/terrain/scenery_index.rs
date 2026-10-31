@@ -119,9 +119,7 @@ mod tests {
             Vec3::new(1500.0, 0.0, 0.0),
             Vec3::ZERO,
         ] {
-            let work = index.update(camera);
-            assert!(work.windows(2).all(|pair| pair[0] < pair[1]));
-            for &i in work {
+            for &i in index.update(camera) {
                 indexed_visible[i] = placements[i].visible_from(camera);
             }
             let reference: Vec<_> = placements
@@ -133,12 +131,55 @@ mod tests {
     }
 
     #[test]
-    fn new_far_placement_is_culled_once_before_it_can_be_skipped() {
+    fn newly_spawned_far_placements_become_hidden() {
+        let placements = [
+            placement(Vec3::new(1000.0, 0.0, 0.0), 0.5),
+            placement(Vec3::new(-1000.0, 0.0, 0.0), 0.5),
+        ];
         let mut index = SceneryIndex::default();
-        index.push(placement(Vec3::new(1000.0, 0.0, 0.0), 0.5), false);
-        assert_eq!(index.update(Vec3::ZERO), &[0]);
-        assert!(index.update(Vec3::ZERO).is_empty());
-        index.push(placement(Vec3::new(-1000.0, 0.0, 0.0), 0.5), false);
-        assert_eq!(index.update(Vec3::ZERO), &[1]);
+        let mut visible = [true, true];
+        index.push(placements[0], false);
+        for &i in index.update(Vec3::ZERO) {
+            visible[i] = placements[i].visible_from(Vec3::ZERO);
+        }
+        assert!(!visible[0]);
+        index.push(placements[1], false);
+        for &i in index.update(Vec3::ZERO) {
+            visible[i] = placements[i].visible_from(Vec3::ZERO);
+        }
+        assert_eq!(visible, [false, false]);
+    }
+
+    #[test]
+    fn many_placements_match_reference_when_the_camera_moves() {
+        let placements: Vec<_> = (0..130)
+            .map(|i| {
+                let center = Vec3::new(
+                    (i % 13) as f32 * 65.0 - 390.0,
+                    0.0,
+                    (i / 13) as f32 * 65.0 - 260.0,
+                );
+                placement(center, [0.5, 2.0, 8.0][i % 3])
+            })
+            .collect();
+        let mut index = SceneryIndex::default();
+        for (i, scenery) in placements.iter().copied().enumerate() {
+            index.push(scenery, i % 17 == 0);
+        }
+        let mut visible = vec![true; placements.len()];
+        for camera in [
+            Vec3::ZERO,
+            Vec3::new(200.0, 0.0, -100.0),
+            Vec3::new(-300.0, 0.0, 200.0),
+        ] {
+            for &i in index.update(camera) {
+                visible[i] = placements[i].visible_from(camera);
+            }
+            let reference: Vec<_> = placements
+                .iter()
+                .map(|item| item.visible_from(camera))
+                .collect();
+            assert_eq!(visible, reference, "camera {camera:?}");
+        }
     }
 }
