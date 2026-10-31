@@ -786,9 +786,16 @@ mod tests {
             portals.camera_interior_group(transform.inverse().transform_point3(camera)),
             Some(13)
         );
-        let drawn = portals.visible_groups(transform, &[], camera);
+        let visibility = portals.visibility(transform, &[], camera);
+        assert!(
+            visibility.exterior_windows.is_some(),
+            "camera must be inside the WMO"
+        );
         for group in [12, 13, 14, 15] {
-            assert!(drawn[group], "central chamber group {group} was hidden");
+            assert!(
+                visibility.groups[group],
+                "central chamber group {group} was hidden"
+            );
         }
 
         let entrance_camera = Vec3::new(70.6, 79.5, 793.2);
