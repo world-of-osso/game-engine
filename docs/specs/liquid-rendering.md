@@ -22,7 +22,7 @@ WMO MLIQ and terrain MH2O liquids use LiquidType-backed material data. The [liqu
 
 ## Tests asserting this spec
 
-- `godot/core/tests/wmo_liquid.rs` — WMO resolution, geometry and Neltharus material inputs.
+- `godot/core/tests/wmo_liquid.rs` — WMO resolution and geometry.
 - `godot/core/tests/liquid_water.rs` — magma/slime material and real MH2O vertex inputs.
 
 ## Known gaps (current cycle)
