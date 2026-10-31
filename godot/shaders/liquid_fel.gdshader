@@ -42,6 +42,7 @@ global uniform vec3 specular_color;
 const float SPECULAR_POWER = 1.0;
 const float DEGREES = 0.017453292;
 
+uniform bool mesh_uv = false;
 varying vec3 wow_position;
 varying float vertex_depth;
 
@@ -125,7 +126,7 @@ void fragment() {
 	float normal_frames = frame_counts_3.z;  // v98
 
 	// Exterior ADT liquid maps world position * 0.06 (LiquidInstance.cpp generateTexCoordsFromPos).
-	vec2 uv = wow_position.xy * 0.06;  // v7
+	vec2 uv = mesh_uv ? UV : wow_position.xy * 0.06;  // v7
 	float flow_speed = flow.x;  // v17
 	float flow_angle = flow.y * DEGREES;  // v71
 	vec2 uv_0 = f0 * uv + scroll_along(time, (flow.y + f1) * DEGREES, f2 * flow_speed);  // v100

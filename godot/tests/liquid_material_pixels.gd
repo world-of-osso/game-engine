@@ -25,6 +25,7 @@ const CASES := {
 	"fog": [733, 0, 0],
 	"ley_line": [868, 0, 0],
 	"fel": [869, 0, 0],
+	"wmo_lava": [1192, 0, 0],
 	"swamp": [897, 0, 0],
 	"azerite": [940, 0, 0],
 }
@@ -60,6 +61,9 @@ func check_case(name: String, liquid: Array) -> String:
 		return "load_liquid_material: " + str(result.error)
 	var material: ShaderMaterial = result.material
 	quad.set_surface_override_material(0, material)
+	if name == "wmo_lava":
+		var uv_error := await check_wmo_uv(material)
+		if uv_error != "": return uv_error
 	material.set_shader_parameter("animation_time_ms", 1000.0)
 	quad.visible = false
 	backing.albedo_color = Color(0.8, 0.1, 0.1)
@@ -92,6 +96,20 @@ func check_case(name: String, liquid: Array) -> String:
 		return "Liquid did not animate with the clock: %d pixels moved" % moved
 	if name in ["magma", "slime"]:
 		return check_magma(name, mean(red), response)
+	return ""
+
+## WMO material coordinates must follow the mesh rather than world position.
+func check_wmo_uv(material: ShaderMaterial) -> String:
+	material.set_shader_parameter("mesh_uv", true)
+	quad.mesh = liquid_quad(0.0)
+	var first := await capture()
+	quad.mesh = liquid_quad(0.37)
+	var second := await capture()
+	quad.mesh = liquid_quad()
+	material.set_shader_parameter("mesh_uv", false)
+	var changed := changed_pixels(first, second, 0.004)
+	if changed < 200:
+		return "WMO lava ignored mesh UVs: %d pixels changed" % changed
 	return ""
 
 ## Magma is opaque and its colour comes from its lava textures over the Int[2] orange.
@@ -133,7 +151,7 @@ func make_viewport() -> void:
 	viewport.add_child(plane)
 
 ## A 200 yd liquid quad with authored vertex depth 80/255.
-func liquid_quad() -> ArrayMesh:
+func liquid_quad(uv_offset: float = 0.0) -> ArrayMesh:
 	var vertices := PackedVector3Array()
 	for corner in [Vector2(-100, -100), Vector2(100, -100), Vector2(-100, 100), Vector2(100, 100)]:
 		vertices.append(CENTRE + Vector3(corner.x, 0.0, corner.y))
@@ -144,6 +162,7 @@ func liquid_quad() -> ArrayMesh:
 	arrays.resize(Mesh.ARRAY_MAX)
 	arrays[Mesh.ARRAY_VERTEX] = vertices
 	arrays[Mesh.ARRAY_NORMAL] = PackedVector3Array([Vector3.UP, Vector3.UP, Vector3.UP, Vector3.UP])
+	arrays[Mesh.ARRAY_TEX_UV] = PackedVector2Array([Vector2(uv_offset, 0.0), Vector2(1.0 + uv_offset, 0.0), Vector2(uv_offset, 1.0), Vector2(1.0 + uv_offset, 1.0)])
 	arrays[Mesh.ARRAY_COLOR] = colors
 	arrays[Mesh.ARRAY_INDEX] = PackedInt32Array([0, 1, 2, 1, 3, 2])
 	var mesh := ArrayMesh.new()
