@@ -37,15 +37,29 @@ func run_cases() -> void:
 		await RenderingServer.frame_post_draw
 	# Bracket only settled frames: the runner checks that the render server reports no
 	# texture_get_rd_texture synchronization during this interval.
+	var lookups_before: int = probe.texture_lookup_count()
 	print("PARTICLE_TEXTURE_STEADY_BEGIN")
 	for frame in 120:
 		await process_frame
 		await RenderingServer.frame_post_draw
 	print("PARTICLE_TEXTURE_STEADY_END")
+	var steady_lookups: int = probe.texture_lookup_count() - lookups_before
+	print("PARTICLE_TEXTURE_STEADY_LOOKUPS ", steady_lookups)
+	if steady_lookups != 0:
+		push_error("steady particle frames performed %d texture lookups" % steady_lookups)
+		passed = false
 	texture.set_image(solid_image(Color.GREEN))
 	passed = await assert_pixel("changed particle texture resource", Color.GREEN) and passed
+	var changed_lookups: int = probe.texture_lookup_count() - lookups_before
+	if changed_lookups != 1:
+		push_error("texture change performed %d lookups, expected one" % changed_lookups)
+		passed = false
 	material.set_shader_parameter("texture_0", ImageTexture.create_from_image(solid_image(Color.BLUE)))
 	passed = await assert_pixel("replaced particle texture resource", Color.BLUE) and passed
+	var replacement_lookups: int = probe.texture_lookup_count() - lookups_before - changed_lookups
+	if replacement_lookups != 1:
+		push_error("texture replacement performed %d lookups, expected one" % replacement_lookups)
+		passed = false
 	particle.free()
 	cleanup()
 	probe = null

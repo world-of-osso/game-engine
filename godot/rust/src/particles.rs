@@ -796,6 +796,12 @@ impl IRefCounted for WowParticleProbe {
 
 #[godot_api]
 impl WowParticleProbe {
+    /// Number of particle texture lookups issued to the rendering server.
+    #[func]
+    fn texture_lookup_count(&self) -> i64 {
+        crate::particle_composite::texture_lookup_count() as i64
+    }
+
     /// Sets one scene fog uniform as `TerrainLight::bind_scene` does.
     #[func]
     fn set_scene_fog(&self, name: GString, value: Variant) {

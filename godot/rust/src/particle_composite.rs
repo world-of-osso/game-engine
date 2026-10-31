@@ -59,6 +59,7 @@ impl TextureBinding {
 
     fn rd_texture(&mut self) -> Rid {
         if self.dirty.replace(false) {
+            TEXTURE_LOOKUPS.with(|count| count.set(count.get() + 1));
             self.rd_texture =
                 RenderingServer::singleton().texture_get_rd_texture(self.texture.get_rid());
         }
@@ -85,6 +86,11 @@ struct Composite {
 
 thread_local! {
     static COMPOSITE: RefCell<Composite> = RefCell::new(Composite::default());
+    static TEXTURE_LOOKUPS: Cell<u64> = const { Cell::new(0) };
+}
+
+pub(crate) fn texture_lookup_count() -> u64 {
+    TEXTURE_LOOKUPS.with(Cell::get)
 }
 
 /// Drops the pools and camera effects before the engine shuts down.
