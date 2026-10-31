@@ -46,6 +46,26 @@ func prove_toy(sample: Array) -> void:
 	if not await wait_until(func(): return bag_count(2672) == meat - 1 and bag_count(2679) == food + 1, "real recipe reagents/output"): return
 	receipts.append({"phase": "source-fire-cooking", "item": sample[0], "entry": sample[2], "display": sample[4], "fdid": sample[6], "scale": object.scale.x, "meshes": model.find_children("*", "MeshInstance3D", true, false).size(), "particles": client.account_state().get("game_object_particles"), "source_emitters": int(object.get_meta("game_object_particle_emitters")), "submitted_quads": int(object.get_meta("game_object_particle_quads")), "meat_before": meat, "meat_after": bag_count(2672), "food_before": food, "food_after": bag_count(2679), "spells": client.spells_state()})
 	await capture_fire(object, "cooking-toy%d" % sample[0])
+	await prove_particle_frustum(object, model)
+
+func prove_particle_frustum(object: Node3D, model: Node3D) -> void:
+	var original := model.position
+	model.position = original + Vector3(0.0, 100000.0, 0.0)
+	await process_frame
+	await process_frame
+	if int(object.get_meta("game_object_particle_quads", -1)) != 0:
+		model.position = original
+		fail("off-screen fire still submits particles")
+		return
+	await create_timer(1.0).timeout
+	model.position = original
+	await process_frame
+	await process_frame
+	if int(object.get_meta("game_object_particle_quads", 0)) <= 0:
+		fail("returning fire did not replay deferred particles")
+		return
+	receipts.append({"phase": "game-object-particle-frustum", "returned_quads": int(object.get_meta("game_object_particle_quads"))})
+	await capture_fire(object, "cooking-toy-returned")
 
 func fail(message: String) -> void:
 	if client != null:
