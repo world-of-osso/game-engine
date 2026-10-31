@@ -1,6 +1,6 @@
 ## 2026-10-31 — Windows Stormwind exact comparison
 
-[Stormwind FPS](investigations/godot-stormwind-fps.md#windows-exact-revision-comparison-2026-10-31) records split and particle-cache master samples, matching WMO visibility and placement receipts, and the WoW-open load confound. Prototype comparison remains pending.
+[Stormwind FPS](investigations/godot-stormwind-fps.md#windows-exact-revision-comparison-2026-10-31) records all four Windows samples, WMO visibility and placement receipts, the WoW-open load confound and the decision to drop the unlanded WMO prototype.
 
 ## 2026-10-28 — Stormwind material uniform updates
 

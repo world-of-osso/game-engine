@@ -107,18 +107,20 @@ WMO doodads (merged `17e44dfa`, `7e839a73`) add 8,694 `WmoDoodad` nodes at the i
 
 ## Windows exact-revision comparison (2026-10-31)
 
-Four Windows release builds are being measured consecutively in one desktop session at 1920×1080 with the Forever skin. Each pose uses three 300-frame samples after world loading settles; the indoor view is repeated. The first three builds completed:
+Four Windows release builds were measured consecutively in one desktop session at 1920×1080 with the Forever skin. Each pose used three 300-frame samples after world loading settled; the indoor view was repeated. The exit screenshot looks down the Stockade stairs and does not establish a view of outdoor content.
 
 | Revision | Indoor FPS | Stockade exit FPS | Indoor repeat FPS |
 |---|---|---|---|
 | `d23d8d8f6` — before split traversal | 136.38 / 136.62 / 130.52 | 166.74 / 157.85 / 164.77 | 132.53 / 136.84 / 129.59 |
 | `4b04d5dcb` — split traversal | 130.91 / 137.57 / 130.44 | 167.25 / 165.77 / 176.39 | 126.61 / 136.25 / 139.00 |
 | `260b3b651` — master with split traversal and particle RD cache | 140.17 / 148.39 / 143.20 | 178.06 / 172.21 / 168.84 | 148.45 / 149.37 / 145.01 |
-| `f4c272add` — other-WMO admission prototype | Pending | Pending | Pending |
+| `f4c272add` — other-WMO admission prototype | 140.24 / 139.10 / 140.02 | 171.43 / 169.24 / 178.77 | 145.47 / 139.28 / 144.25 |
 
-The WoW process was absent before and after each completed run. During the indoor samples, median GPU utilization was 37% / 37% / 36% and GPU memory was 3,878 / 3,885 / 3,886 MiB, respectively. At the exit these were 40% / 39% / 39% and 3,885 / 3,885 / 3,879 MiB. The three builds have identical WMO batch path, tree-visibility and shadow-mode receipts at each pose: 2,990 camera-mode visible batches indoors and 2,983 at the exit, from 4,597 total. Placement receipts match at 16,816 rows. Tree visibility does not prove GPU frustum submission. The split change added no visible groups at these poses, and neither split nor the particle-cache master shows the earlier large FPS drop.
+The WoW process was absent before and after every run. During the indoor samples, median GPU utilization was 37% / 37% / 36% / 38% and GPU memory was 3,878 / 3,885 / 3,886 / 3,886 MiB, respectively. At the exit these were 40% / 39% / 39% / 39% and 3,885 / 3,885 / 3,879 / 3,886 MiB. The first three builds have identical WMO batch path, tree-visibility and shadow-mode receipts at each pose: 2,990 camera-mode visible batches indoors and 2,983 at the exit, from 4,597 total. The prototype has 727 / 723 camera-mode visible and 2,227 / 2,224 shadow-only batches. All placement receipts match at 16,816 rows. Tree visibility does not prove GPU frustum submission. The split change added no visible groups at these poses, and neither split nor the particle-cache master shows the earlier large FPS drop.
 
-An earlier prototype capture measured only 66–69 FPS indoors and 74–80 at the exit, but WoW was open and sampled GPU memory was near 9 GiB. The earlier 137–139 FPS portal-only capture had no WoW window and sampled about 3.5 GiB. This load difference confounds that comparison; it does not prove a cause. No user applications were closed. Exact candidate and per-frame WMO admission cost remain under investigation. Evidence: `data/diagnostics/fps-120-2026-10-30/windows-qualification-{before-split-exact,split-exact,master-exact}/` and `windows-qualification-particle-split/`.
+**Decision:** Drop the unlanded other-WMO prototype. At these poses it reduced draw calls but produced no measured FPS gain over master: median FPS was 140.02 versus 143.20 indoors and 171.43 versus 172.21 at the exit. The measured `Culling` step rose from a median 1.548 to 1.727 ms indoors and from 1.416 to 1.596 ms at the exit. The builds also differ in other code, so this comparison does not prove that WMO admission alone caused the difference. The prototype evaluates outdoor admission per WMO batch on each culling pass before its state-change check; it is not a candidate to land on these results. The inspected screenshots at the two poses show no obvious missing content, but do not prove pixel identity, all doorway views or shadow equivalence.
+
+An earlier prototype capture measured only 66–69 FPS indoors and 74–80 at the exit, but WoW was open and sampled GPU memory was near 9 GiB. The earlier 137–139 FPS portal-only capture had no WoW window and sampled about 3.5 GiB. This load difference confounds that comparison; it does not prove a cause. No user applications were closed. Evidence: `data/diagnostics/fps-120-2026-10-30/windows-qualification-{before-split-exact,split-exact,master-exact,candidate-exact}/`, `windows-exact-comparison.json`, and `windows-qualification-particle-split/`.
 
 ## Windows fat-LTO trial (2026-10-30)
 
