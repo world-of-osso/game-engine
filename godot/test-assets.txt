@@ -292,6 +292,8 @@ models/136075300.skin
 # game-engine-core tests/: models
 models/boar.m2
 models/boar00.skin
+models/4558758.m2
+models/4558793.skin
 models/humanmale_hd.m2
 models/humanmale_hd00.skin
 models/humanmale_hd.skel

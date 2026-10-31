@@ -34,6 +34,9 @@ const MIN_MOVEMENT_BLEND_MS: f32 = 150.0;
 const ANIM_DEATH: u16 = 1;
 const ANIM_DEAD: u16 = 6;
 const ANIM_STAND: u16 = 0;
+const ANIM_CLOSE: u16 = 146;
+const ANIM_OPEN: u16 = 148;
+const ANIM_OPENED: u16 = 149;
 const ANIM_JUMP_START: u16 = 37;
 const ANIM_JUMP: u16 = 38;
 const ANIM_JUMP_END: u16 = 39;
@@ -706,22 +709,29 @@ impl AnimationState {
         Ok(())
     }
 
-    fn finish_death(&mut self, remaining_ms: f64) {
-        if self.source_id != ANIM_DEATH {
-            return;
-        }
-        // Most models have no Dead clip and author the corpse as Death's last frame.
-        let dead_id = self.replacement_id(ANIM_DEAD);
-        let Some(dead) = self
+    fn finish_non_looping(&mut self, remaining_ms: f64) {
+        let (next_id, looping) = match self.source_id {
+            ANIM_DEATH => (ANIM_DEAD, false),
+            ANIM_OPEN => (ANIM_OPENED, true),
+            ANIM_CLOSE => (ANIM_STAND, true),
+            _ => return,
+        };
+        let resolved_id = self.replacement_id(next_id);
+        let Some(next) = self
             .sequences
             .iter()
-            .position(|clip| clip.id == dead_id && clip.variation_id == 0)
+            .position(|clip| clip.id == resolved_id && clip.variation_id == 0)
         else {
             return;
         };
-        self.start_transition(dead, false);
-        self.source_id = ANIM_DEAD;
-        self.time_ms = remaining_ms.min(f64::from(self.sequences[dead].duration));
+        self.start_transition(next, looping);
+        self.source_id = next_id;
+        let duration = f64::from(self.sequences[next].duration);
+        self.time_ms = if looping && duration > 0.0 {
+            remaining_ms % duration
+        } else {
+            remaining_ms.min(duration)
+        };
         self.tick_transition(remaining_ms);
     }
 
@@ -748,7 +758,7 @@ impl AnimationState {
             };
             self.tick_transition(delta_ms / rate);
             if !self.looping && elapsed >= duration {
-                self.finish_death(elapsed - duration);
+                self.finish_non_looping(elapsed - duration);
             }
             return Ok(());
         }
@@ -1778,6 +1788,33 @@ mod tests {
                 .zip(player.poses())
                 .all(|(a, b)| near_pose(*a, b))
         );
+    }
+
+    #[test]
+    fn ruby_fire_barrier_open_and_close_advance_to_looping_states() {
+        let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/models");
+        let model = m2::parse_model(
+            &fs::read(root.join("4558758.m2")).expect("Ruby fire barrier"),
+            &fs::read(root.join("4558793.skin")).expect("Ruby fire barrier skin"),
+        )
+        .expect("authored fire barrier model");
+        let mut player = AnimationState::new(&model).expect("animated fire barrier");
+        player.select_animation_id(148, false).expect("Open");
+        player.advance(2_999.0).unwrap();
+        assert_eq!(model.sequences[player.current].id, 148);
+        assert!(!player.looping);
+        player.advance(1.0).unwrap();
+        assert_eq!(model.sequences[player.current].id, 149);
+        assert!(player.looping);
+        player.advance(700.0).unwrap();
+        assert_eq!(model.sequences[player.current].id, 149);
+        assert!((player.time_ms - 33.0).abs() < 0.001);
+
+        player.select_animation_id(146, false).expect("Close");
+        player.advance(4_001.0).unwrap();
+        assert_eq!(model.sequences[player.current].id, 0);
+        assert!(player.looping);
+        assert_eq!(player.time_ms, 1.0);
     }
 
     #[test]

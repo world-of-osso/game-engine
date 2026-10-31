@@ -503,6 +503,54 @@ fn keyframed_emission_follows_the_playing_sequence_time() {
     assert_eq!(sim.particles().len(), 0);
 }
 
+#[test]
+fn ruby_fire_barrier_emitters_follow_open_and_close_tracks() {
+    let root = format!("{}/../../data/models", env!("CARGO_MANIFEST_DIR"));
+    let model = m2::parse_model(
+        &std::fs::read(format!("{root}/4558758.m2")).unwrap(),
+        &std::fs::read(format!("{root}/4558793.skin")).unwrap(),
+    )
+    .unwrap();
+    let sequence = |id| {
+        model
+            .sequences
+            .iter()
+            .position(|clip| clip.id == id)
+            .unwrap()
+    };
+    for emitter in &model.particle_emitters {
+        let emitted = |id, time_ms| {
+            let mut sim = EmitterSim::new(emitter, 3);
+            sim.set_animation(
+                emitter,
+                &m2::AnimTime {
+                    sequence: sequence(id),
+                    time_ms,
+                    global_ms: 0.0,
+                    global_sequences: &model.global_sequences,
+                },
+            );
+            for _ in 0..30 {
+                sim.update(
+                    emitter,
+                    1.0 / 60.0,
+                    Mat4::IDENTITY,
+                    wow_to_godot(),
+                    1.0,
+                    &mut |_, _| None,
+                );
+            }
+            sim.particles().len()
+        };
+        assert!(emitted(0, 0) > 0, "Stand emits");
+        assert!(emitted(148, 667) > 0, "Open starts emitting");
+        assert_eq!(emitted(148, 700), 0, "Open disables the emitter");
+        assert_eq!(emitted(149, 0), 0, "Opened remains disabled");
+        assert_eq!(emitted(146, 0), 0, "Close starts disabled");
+        assert!(emitted(146, 33) > 0, "Close resumes emission");
+    }
+}
+
 /// world/unk_exp11_6323400/6323400.m2 (one sequence, global sequences 50000/5333/14667 ms)
 /// drives emitter 0's rate on global sequence 1 (5333 ms, timeline 0): 149.13/s from
 /// 3167 to 3300 ms, 10/s from 833 to 1233 ms; particles live 0.3 s. The rate follows the
