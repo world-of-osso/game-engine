@@ -1,6 +1,6 @@
 # Rare vignettes and target classification
 
-Verified 2026-10-09 against imported server world.db, local CASC and Retail Mainline UI. A rare classification does not create a minimap vignette. Forever's target frame also bypassed the existing classification elements; its target overlay now includes them without changing other frame shapes.
+Verified 2026-10-09 against imported server world.db, local CASC and Retail Mainline UI. A rare classification does not create a minimap vignette. The earlier Forever classification overlay is superseded by the 2026-10-31 correction below.
 
 ## Classification and vignette are independent
 
@@ -12,7 +12,11 @@ A name join would assign the wrong creatures: Ruul2602 has no vignette, while Ru
 
 Local CASC Creature FDID841631/layout6E14C900 has23,031 readable IDs but none of these315;48 encrypted records were skipped, so no DB2 rank agreement was asserted. Local Vignette FDID892861/layout1A5A691B decodes7,226 IDs including copies, exactly matching all imported IDs and Flags. Neither table defines a creature-to-vignette foreign key. TrinityCore a352b1fa's DB2Structure.h contains only VignetteEntry itself, not another creature mapping. No missing vignette import was reproduced. Wowhead and wago page fetches:0.
 
-## Forever target classification gap
+## Forever target classification correction (2026-10-31)
+
+The earlier Forever overlay below reused the Retail portrait anchor on a portraitless 240×60 FlareUI bar, placing the dragon over the target name. FlareUI `Modules/UnitFrames.lua:107-108,278-295` hides the Blizzard target frame; `:354-373` shows classification as level suffixes `+`, `R`, or `R+`, with difficulty colour, and no dragon or star. Forever target and focus now use those suffixes. Boss and party renderers do not use the target classification-art helper. Retail's portrait anchor and atlas are not a placement reference for this Forever bar.
+
+## Earlier Forever target classification gap
 
 Native run1 selected real Ruul2602 on grounded terrain but found no classification controls: `target_frame` returned the Forever frame before calling `classification_art`. The target already carries its full UnitFrameState into `FlareUnit.aura_state`, so its existing overlay can draw the shared classification elements without adding state plumbing or changing non-target frames.
 
