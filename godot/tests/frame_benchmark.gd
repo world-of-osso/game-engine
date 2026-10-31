@@ -104,8 +104,12 @@ func run_test() -> void:
 		return
 	var receipt_path := OS.get_environment("BENCH_SCENERY_RECEIPT")
 	if receipt_path != "":
-		if client.account_state().get("ui_skin") != "Forever":
+		var state: Dictionary = client.account_state()
+		if state.get("ui_skin") != "Forever":
 			fail("Scenery receipt requires the Forever skin")
+			return
+		if state.world_objects.failures != 0:
+			fail("Scenery receipt has failed objects: " + str(state.world_objects))
 			return
 		var count: int = SceneryReceipt.write(client, receipt_path)
 		if count < 1000:
