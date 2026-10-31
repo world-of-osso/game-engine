@@ -33,6 +33,7 @@ fn target_frames_in_skin(
         player: UnitFrameState::named("Fbunitrank"),
         target: Some(UnitFrameState {
             level_text: "10".into(),
+            forever_level_color: "1.0,0.5,0.25,1.0".into(),
             classification,
             ..UnitFrameState::named(name)
         }),
@@ -152,6 +153,7 @@ fn forever_classification_is_a_level_suffix_without_name_overlap() {
             panic!("level is not a font string");
         };
         assert_eq!(label.text, expected);
+        assert_eq!(label.color, [1.0, 0.5, 0.25, 1.0]);
         let (Val::Px(name_x), _, Dimension::Fixed(name_w), _) = rect(&registry, "TargetName")
         else {
             panic!("name has no fixed rectangle");

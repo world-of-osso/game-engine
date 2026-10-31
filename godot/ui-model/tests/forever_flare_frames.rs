@@ -36,6 +36,7 @@ fn load_atlas_tables() {
 fn unit(name: &str, power: PowerType) -> UnitFrameState {
     UnitFrameState {
         level_text: "60".into(),
+        forever_level_color: "1.0,0.82,0.0,1.0".into(),
         health_fraction: 0.75,
         reaction: Some(Reaction::Hostile),
         power: Some(PowerBarState {

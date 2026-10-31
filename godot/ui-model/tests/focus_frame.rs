@@ -32,6 +32,23 @@ fn hogger(health_fraction: f32) -> SmallUnitFrameState {
     }
 }
 
+#[test]
+fn forever_focus_classification_uses_level_suffix_without_dragon() {
+    use shared::components::CreatureClassification::{Elite, Rare, RareElite};
+    for (classification, expected) in [(Elite, "11+"), (Rare, "11R"), (RareElite, "11R+")] {
+        let mut focus = hogger(1.0);
+        focus.classification = classification;
+        let registry = unit_frames(ActiveSkin::Forever, Some(focus));
+        assert_eq!(text(&registry, "FocusLevelText"), expected);
+        assert!(
+            registry
+                .get_by_name("FocusBossPortraitFrameTexture")
+                .is_none()
+        );
+        assert!(registry.get_by_name("FocusBossIcon").is_none());
+    }
+}
+
 fn unit_frames(skin: ActiveSkin, focus: Option<SmallUnitFrameState>) -> FrameRegistry {
     unit_frames_with_target_of(skin, focus, None)
 }
