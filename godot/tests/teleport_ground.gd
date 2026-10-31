@@ -23,6 +23,12 @@ func run_test() -> void:
 	client = load("res://scenes/client.tscn").instantiate()
 	root.add_child(client)
 	var startup_deadline := Time.get_ticks_msec() + WORLD_WAIT_MS
+	var ready_file := OS.get_environment("TEST_READY_FILE")
+	while not ready_file.is_empty() and not FileAccess.file_exists(ready_file) and Time.get_ticks_msec() < startup_deadline:
+		await process_frame
+	if not ready_file.is_empty() and not FileAccess.file_exists(ready_file):
+		fail("Private server was not made ready")
+		return
 	while client.account_state().get("assets_starting", true) and Time.get_ticks_msec() < startup_deadline:
 		await process_frame
 	var error: String = client.connect_account(server, OS.get_environment("TEST_ACCOUNT"), OS.get_environment("TEST_PASSWORD"), false)
