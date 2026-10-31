@@ -77,6 +77,9 @@ pub(crate) struct QuestHud {
     poi_catalog: Option<game_engine_ui_model::quest_poi::QuestPoiCatalog>,
     pub(crate) map_blob_art: Option<game_engine_core::quest_area_data::QuestAreaArt>,
     pub(crate) minimap_blob_art: Option<game_engine_core::quest_area_data::QuestAreaArt>,
+    /// Why the POI catalog or its art failed to load; returned instead of re-reading
+    /// the DB2 and art files every frame.
+    poi_load_error: Option<String>,
     /// Marker model shown per quest giver.
     markers: HashMap<u64, u32>,
 }
@@ -344,25 +347,14 @@ impl GameClient {
     }
 
     pub(super) fn load_and_apply_quest_pois(&mut self) -> Result<(), String> {
-        if self.quests.poi_catalog.is_none() {
-            let catalog = game_engine_ui_model::quest_poi::QuestPoiCatalog::load(
-                &self.data_root.join("db2/active"),
-            )?;
-            for error in &catalog.unresolved {
-                godot_warn!("{error}");
-            }
-            godot_print!(
-                "Quest POI catalog: {} conditional blobs excluded",
-                catalog.conditional_blobs
-            );
-            self.quests.map_blob_art = Some(game_engine_core::quest_area_data::QuestAreaArt::load(
-                &self.data_root,
-                false,
-            )?);
-            self.quests.minimap_blob_art = Some(
-                game_engine_core::quest_area_data::QuestAreaArt::load(&self.data_root, true)?,
-            );
-            self.quests.poi_catalog = Some(catalog);
+        if let Some(error) = &self.quests.poi_load_error {
+            return Err(error.clone());
+        }
+        if self.quests.poi_catalog.is_none()
+            && let Err(error) = self.load_quest_pois()
+        {
+            self.quests.poi_load_error = Some(error.clone());
+            return Err(error);
         }
         self.quests
             .poi_catalog
@@ -379,6 +371,29 @@ impl GameClient {
         }) {
             self.quests.ui.super_tracked = None;
         }
+        Ok(())
+    }
+
+    fn load_quest_pois(&mut self) -> Result<(), String> {
+        let catalog = game_engine_ui_model::quest_poi::QuestPoiCatalog::load(
+            &self.data_root.join("db2/active"),
+        )?;
+        for error in &catalog.unresolved {
+            godot_warn!("{error}");
+        }
+        godot_print!(
+            "Quest POI catalog: {} conditional blobs excluded",
+            catalog.conditional_blobs
+        );
+        self.quests.map_blob_art = Some(game_engine_core::quest_area_data::QuestAreaArt::load(
+            &self.data_root,
+            false,
+        )?);
+        self.quests.minimap_blob_art = Some(game_engine_core::quest_area_data::QuestAreaArt::load(
+            &self.data_root,
+            true,
+        )?);
+        self.quests.poi_catalog = Some(catalog);
         Ok(())
     }
 
