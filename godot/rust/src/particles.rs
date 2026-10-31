@@ -227,16 +227,11 @@ impl ParticlePool {
         if self.count == 0 && self.uploaded == 0 {
             return;
         }
-        // Grow by powers of two up to the reservation: the buffer uploaded each frame
-        // scales with the particles drawn, not with every placement's capacity.
+        // Keep the node's diagnostic instance count within its allocation.
         if self.count > self.allocated {
             self.allocated = self.count.next_power_of_two().min(self.reserved);
             self.multimesh.set_instance_count(self.allocated as i32);
         }
-        self.buffer
-            .resize(self.allocated * FLOATS_PER_INSTANCE, 0.0);
-        self.multimesh
-            .set_buffer(&PackedFloat32Array::from(self.buffer.as_slice()));
         self.multimesh.set_visible_instance_count(self.count as i32);
         self.uploaded = self.count;
         crate::particle_composite::publish(&self.node, &self.material, &self.buffer, self.count);
