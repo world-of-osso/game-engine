@@ -611,37 +611,49 @@ fn apply_object_collision(object: &mut ObjectNode, enabled: bool) {
     }
 }
 
+fn apply_replicated_animation(
+    previous: &mut Option<GameObjectAnimation>,
+    animation: GameObjectAnimation,
+    apply: impl FnOnce() -> Result<(), String>,
+) -> Result<(), String> {
+    if *previous == Some(animation) {
+        return Ok(());
+    }
+    *previous = Some(animation);
+    apply()
+}
+
 fn apply_object_animation(
     object: &mut ObjectNode,
     animation: GameObjectAnimation,
     data_root: &std::path::Path,
     cached_fallbacks: &mut Option<Result<HashMap<u16, u16>, String>>,
 ) -> Result<(), String> {
-    if object.animation == Some(animation) {
-        return Ok(());
-    }
-    object.animation = Some(animation);
-    let fallbacks = cached_fallbacks
-        .get_or_insert_with(|| {
-            game_engine_core::spell_visual::read_animation_fallbacks(&data_root.join("db2/active"))
-        })
-        .as_ref()
-        .map_err(Clone::clone)?;
-    let mut player = object
-        .node
-        .get_node_or_null("GameObjectModel/M2Animation")
-        .and_then(|node| node.try_cast::<crate::animation::WowAnimationPlayer>().ok())
-        .ok_or_else(|| {
-            format!(
-                "Gameobject display {} has no M2 animation player",
-                object.display_id
-            )
-        })?;
-    player
-        .bind_mut()
-        .play_game_object_clip(animation.animation_id, animation.looping, fallbacks)
-        .map_err(|error| format!("Gameobject display {}: {error}", object.display_id))?;
-    Ok(())
+    apply_replicated_animation(&mut object.animation, animation, || {
+        let fallbacks = cached_fallbacks
+            .get_or_insert_with(|| {
+                game_engine_core::spell_visual::read_animation_fallbacks(
+                    &data_root.join("db2/active"),
+                )
+            })
+            .as_ref()
+            .map_err(Clone::clone)?;
+        let mut player = object
+            .node
+            .get_node_or_null("GameObjectModel/M2Animation")
+            .and_then(|node| node.try_cast::<crate::animation::WowAnimationPlayer>().ok())
+            .ok_or_else(|| {
+                format!(
+                    "Gameobject display {} has no M2 animation player",
+                    object.display_id
+                )
+            })?;
+        let result = player
+            .bind_mut()
+            .play_game_object_clip(animation.animation_id, animation.looping, fallbacks)
+            .map_err(|error| format!("Gameobject display {}: {error}", object.display_id));
+        result
+    })
 }
 
 #[cfg(test)]
@@ -675,6 +687,41 @@ mod tests {
     /// WoW `(x, y, z)` in engine coordinates (game-server `wow_to_bevy`).
     fn engine(x: f32, y: f32, z: f32) -> Vector3 {
         Vector3::new(x, z, -y)
+    }
+
+    #[test]
+    fn unresolved_replicated_animation_is_reported_once_per_change() {
+        let mut previous = None;
+        let mut attempts = 0;
+        let open = GameObjectAnimation {
+            animation_id: 148,
+            looping: false,
+        };
+        let error = apply_replicated_animation(&mut previous, open, || {
+            attempts += 1;
+            Err("animation fallback cycle".to_owned())
+        });
+        assert_eq!(error.unwrap_err(), "animation fallback cycle");
+        assert!(
+            apply_replicated_animation(&mut previous, open, || {
+                attempts += 1;
+                Ok(())
+            })
+            .is_ok()
+        );
+        assert_eq!(attempts, 1);
+        let close = GameObjectAnimation {
+            animation_id: 146,
+            looping: false,
+        };
+        assert!(
+            apply_replicated_animation(&mut previous, close, || {
+                attempts += 1;
+                Ok(())
+            })
+            .is_ok()
+        );
+        assert_eq!(attempts, 2);
     }
 
     #[test]
