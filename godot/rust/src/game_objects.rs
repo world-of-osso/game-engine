@@ -26,7 +26,7 @@ use shared::protocol::{
 };
 use std::{collections::HashMap, path::PathBuf, rc::Rc};
 
-mod transport_wmo;
+pub(crate) mod transport_wmo;
 
 /// Separate from baked scenery: only these live meshes follow GO collision state.
 pub(crate) const GAME_OBJECT_LAYER: u32 = 1 << 5;
@@ -433,7 +433,7 @@ impl GameObjects {
             })?;
         let resolver = local_resolver(&self.data_root);
         if info.go_type == transport_wmo::GAMEOBJECT_TYPE_MAP_OBJ_TRANSPORT {
-            return self.load_transport(&resolver, info, fdid);
+            return self.load_transport(info, fdid);
         }
         let path = cache_model_files(&resolver, &self.data_root, fdid).map_err(|e| {
             format!(
@@ -465,18 +465,18 @@ impl GameObjects {
     }
     fn load_transport(
         &self,
-        resolver: &osso_asset_resolver::CascListfileResolver,
         info: &GameObjectInfo,
         fdid: u32,
     ) -> Result<(Gd<Node3D>, Option<Rc<ModelParticles>>), String> {
         let mut model =
-            transport_wmo::load_transport_wmo(resolver, &self.data_root, fdid, self.light.as_ref())
-                .map_err(|e| {
+            transport_wmo::load_transport_wmo(&self.data_root, fdid, self.light.as_ref()).map_err(
+                |e| {
                     format!(
                         "Game object entry {} display {}: {e}",
                         info.entry, info.display_id
                     )
-                })?;
+                },
+            )?;
         model.set_name("GameObjectModel");
         model.set_meta("model_file_data_id", &(fdid as i64).to_variant());
         // WMO and M2 local axes match (ADT MODF and MDDF share `placement_rotation`).

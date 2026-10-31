@@ -732,14 +732,15 @@ fn read_wmo_texture(
 ) -> Result<Gd<ImageTexture>, String> {
     let dir = data_root.join("textures");
     let destination = dir.join(format!("{fdid}.blp"));
-    resolver.ensure_cached(fdid, &destination)?.ok_or_else(|| {
+    let path = resolver.ensure_cached(fdid, &destination)?.ok_or_else(|| {
         format!(
             "Local CASC WMO texture FDID {fdid} unavailable at {}",
             destination.display()
         )
     })?;
+    let texture_dir = path.parent().ok_or("WMO texture directory missing")?;
     let mut missing = PackedInt32Array::new();
-    crate::assets::material::shared_texture(fdid, &dir, &mut missing)?.ok_or_else(|| {
+    crate::assets::material::shared_texture(fdid, texture_dir, &mut missing)?.ok_or_else(|| {
         format!(
             "WMO texture FDID {fdid} missing at {}",
             destination.display()

@@ -239,6 +239,22 @@ pub(crate) fn cache_authored_texture(
     })
 }
 
+/// Use a receipt's product/build namespace when present; legacy flat WMOs have no receipt.
+pub(crate) fn wmo_resolver(
+    data_root: &Path,
+    product: game_engine_core::asset_product::AssetProduct,
+    fdid: u32,
+) -> Result<CascListfileResolver, String> {
+    if data_root.join("cache/model-asset-index.json").is_file()
+        && load_asset_index(data_root)?
+            .receipt(product, fdid, "wmo")
+            .is_ok()
+    {
+        return authored_asset_resolver(data_root, product, fdid, "wmo");
+    }
+    Ok(local_resolver(data_root))
+}
+
 pub(crate) fn local_resolver(data_root: &Path) -> CascListfileResolver {
     CascListfileResolver::new(
         AssetResolverConfig::new()

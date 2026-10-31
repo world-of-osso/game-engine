@@ -2,6 +2,19 @@
 use super::*;
 
 #[test]
+fn terrain_wmo_loads_receipt_only_root_groups_and_textures() {
+    let data = crate::game_objects::transport_wmo::tests::receipt_only_fixture();
+    let loaded = load_asset(&data, ObjectAsset::Wmo(AssetProduct::Retail, 307812)).unwrap();
+    let LoadedAsset::Wmo(asset, textures) = loaded else {
+        panic!("WMO placement returned a model");
+    };
+    assert_eq!(asset.groups.len(), 5);
+    assert!(!textures.is_empty());
+    assert!(!data.join("models/307812.wmo").exists());
+    std::fs::remove_dir_all(data).unwrap();
+}
+
+#[test]
 fn terrain_model_asset_skyborne_579120_keeps_authored_sfid_namespace() {
     const CHILD: &str = "TERRAIN_MODEL_ASSET_SKYBORNE_CHILD";
     if std::env::var_os(CHILD).is_none() {
@@ -30,12 +43,8 @@ fn terrain_model_asset_skyborne_579120_keeps_authored_sfid_namespace() {
     let map = maps.by_id(2991).expect("authored Skyborne map");
     assert_eq!(map.directory, "2991");
     assert_eq!(map.source_product, AssetProduct::Forever);
-    let loaded = load_asset(
-        &local_resolver(&data),
-        &data,
-        ObjectAsset::Model(map.source_product, 579120),
-    )
-    .unwrap_or_else(|error| panic!("map2991 model579120 failed acquisition: {error}"));
+    let loaded = load_asset(&data, ObjectAsset::Model(map.source_product, 579120))
+        .unwrap_or_else(|error| panic!("map2991 model579120 failed acquisition: {error}"));
     let LoadedAsset::Model(cached, _) = loaded else {
         panic!("M2 placement returned a WMO");
     };

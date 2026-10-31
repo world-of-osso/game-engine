@@ -38,7 +38,7 @@ use crate::{
         creature::{
             CachedModel, DecodedTextures, authored_model_resolver, cache_model_textures,
             decode_new_textures, load_model_files, local_resolver, model_asset_root,
-            publish_decoded_texture,
+            publish_decoded_texture, wmo_resolver,
         },
         uv_animation::WowMaterialAnimation,
     },
@@ -104,7 +104,7 @@ struct ParsedModel {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 enum ObjectAsset {
     Model(AssetProduct, u32),
-    Wmo(u32),
+    Wmo(AssetProduct, u32),
 }
 
 /// A worker's result: parsed files and the textures it decoded.
@@ -117,11 +117,7 @@ enum LoadedAsset {
 const WORKERS: usize = 2;
 
 /// Worker: extract and parse `asset` and decode the textures it draws with.
-fn load_asset(
-    resolver: &CascListfileResolver,
-    data_root: &Path,
-    asset: ObjectAsset,
-) -> Result<LoadedAsset, String> {
+fn load_asset(data_root: &Path, asset: ObjectAsset) -> Result<LoadedAsset, String> {
     let _span = crate::profile::span(|| format!("objects.worker {asset:?}"));
     match asset {
         ObjectAsset::Model(product, fdid) => {
@@ -131,15 +127,18 @@ fn load_asset(
             let textures = decode_new_textures(model_asset_root(&cached)?, &fdids)?;
             Ok(LoadedAsset::Model(cached, textures))
         }
-        ObjectAsset::Wmo(fdid) => {
-            let asset = crate::wmo::assets::read_wmo(resolver, data_root, fdid)?;
+        ObjectAsset::Wmo(product, fdid) => {
+            let resolver = wmo_resolver(data_root, product, fdid)?;
+            let asset = crate::wmo::assets::read_wmo(&resolver, data_root, fdid)?;
             let fdids = crate::wmo::scene::texture_fdids(&asset);
             for &texture in &fdids {
                 let path = data_root.join("textures").join(format!("{texture}.blp"));
                 // Local-CASC misses remain optional; shipped misses fail this load.
                 resolver.ensure_cached(texture, &path)?;
             }
-            let textures = decode_new_textures(data_root, &fdids)?;
+            let texture_dir = resolver.cache_path(&data_root.join("textures"))?;
+            let texture_root = texture_dir.parent().ok_or("WMO texture root missing")?;
+            let textures = decode_new_textures(texture_root, &fdids)?;
             Ok(LoadedAsset::Wmo(Arc::new(asset), textures))
         }
     }
@@ -160,6 +159,7 @@ struct WmoSpawn {
     /// The placement's index in the tile's MODF.
     index: usize,
     asset: Arc<NativeWmoAsset>,
+    resolver: CascListfileResolver,
     doodad_sets: Vec<u16>,
     build: WmoBuild,
     /// `WMO_MODEL_META` for the placed root.
@@ -417,8 +417,8 @@ pub(crate) struct TerrainObjects {
     /// Loaded doodad models, or why they cannot load, by FDID; kept across `reset` like
     /// the loader's record of what it loaded.
     models: HashMap<(AssetProduct, u32), Result<ParsedModel, String>>,
-    /// Loaded WMOs, or why they cannot load, by root FDID; kept across `reset`.
-    wmo_assets: HashMap<u32, Result<Arc<NativeWmoAsset>, String>>,
+    /// Loaded WMOs, or why they cannot load, by product and root FDID; kept across `reset`.
+    wmo_assets: HashMap<(AssetProduct, u32), Result<Arc<NativeWmoAsset>, String>>,
     light: Option<TerrainLight>,
     liquids: WmoLiquids,
     failures: usize,
@@ -430,10 +430,9 @@ impl TerrainObjects {
     pub fn new(name: &'static str, budget: Duration, data_root: PathBuf) -> Self {
         let resolver = Arc::new(local_resolver(&data_root));
         let loader = {
-            let resolver = Arc::clone(&resolver);
             let data_root = data_root.clone();
             AssetLoader::new("world-objects", WORKERS, move |&asset: &ObjectAsset| {
-                load_asset(&resolver, &data_root, asset)
+                load_asset(&data_root, asset)
             })
         };
         Self {
@@ -671,8 +670,11 @@ impl TerrainObjects {
             }
             Pending::Wmo(tile, index) => {
                 let placement = &tile_objects(tile).wmos[index];
+                let product = self
+                    .source_product
+                    .ok_or("Terrain WMO request has no authored map product")?;
                 crate::wmo::assets::resolve_placement_fdid(&self.resolver, placement)
-                    .map(ObjectAsset::Wmo)
+                    .map(|fdid| ObjectAsset::Wmo(product, fdid))
             }
             Pending::WmoDoodad(wmo, index) => {
                 let (doodad, _) = &self.wmo_doodads[&wmo].doodads[index];
@@ -691,7 +693,7 @@ impl TerrainObjects {
     fn is_loaded(&self, asset: ObjectAsset) -> bool {
         match asset {
             ObjectAsset::Model(product, fdid) => self.models.contains_key(&(product, fdid)),
-            ObjectAsset::Wmo(fdid) => self.wmo_assets.contains_key(&fdid),
+            ObjectAsset::Wmo(product, fdid) => self.wmo_assets.contains_key(&(product, fdid)),
         }
     }
 
@@ -727,14 +729,14 @@ impl TerrainObjects {
                 });
                 self.models.insert((product, fdid), parsed);
             }
-            (ObjectAsset::Wmo(fdid), Ok(LoadedAsset::Wmo(wmo, _))) => {
-                self.wmo_assets.insert(fdid, Ok(wmo));
+            (ObjectAsset::Wmo(product, fdid), Ok(LoadedAsset::Wmo(wmo, _))) => {
+                self.wmo_assets.insert((product, fdid), Ok(wmo));
             }
             (ObjectAsset::Model(product, fdid), Err(error)) => {
                 self.models.insert((product, fdid), Err(error));
             }
-            (ObjectAsset::Wmo(fdid), Err(error)) => {
-                self.wmo_assets.insert(fdid, Err(error));
+            (ObjectAsset::Wmo(product, fdid), Err(error)) => {
+                self.wmo_assets.insert((product, fdid), Err(error));
             }
             (asset, Ok(_)) => unreachable!("{asset:?} loaded as another asset kind"),
         }
@@ -842,7 +844,10 @@ impl TerrainObjects {
                     return Ok(());
                 }
                 let root_fdid = crate::wmo::assets::resolve_placement_fdid(&self.resolver, wmo)?;
-                let asset = self.wmo_assets[&root_fdid]
+                let product = self
+                    .source_product
+                    .ok_or("Terrain WMO request has no authored map product")?;
+                let asset = self.wmo_assets[&(product, root_fdid)]
                     .as_ref()
                     .map_err(|error| format!("WMO {root_fdid}: {error}"))?
                     .clone();
@@ -853,6 +858,7 @@ impl TerrainObjects {
                     tile,
                     index,
                     asset,
+                    resolver: wmo_resolver(&self.data_root, product, root_fdid)?,
                     doodad_sets,
                     build,
                     model: wmo_model_label(&self.resolver, root_fdid, wmo.name_set),
@@ -878,7 +884,7 @@ impl TerrainObjects {
             crate::profile::span(|| format!("objects.wmo_step tile={tile:?} index={index}"));
         let done = spawn.build.step(
             &spawn.asset,
-            &self.resolver,
+            &spawn.resolver,
             &self.data_root,
             self.light.as_ref(),
             || Instant::now() >= deadline,

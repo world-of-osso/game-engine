@@ -24,10 +24,14 @@ const DEFAULT_DOODAD_SETS: [u16; 1] = [0];
 
 /// The WMO root `fdid` and its groups; the local listfile must name it a `.wmo`.
 fn read_transport_wmo(
-    resolver: &CascListfileResolver,
     data_root: &Path,
     fdid: u32,
-) -> Result<NativeWmoAsset, String> {
+) -> Result<(NativeWmoAsset, CascListfileResolver), String> {
+    let resolver = crate::assets::creature::wmo_resolver(
+        data_root,
+        game_engine_core::asset_product::AssetProduct::Retail,
+        fdid,
+    )?;
     let path = resolver
         .resolve_path(fdid)
         .ok_or_else(|| format!("Transport display FDID {fdid} is not in the listfile"))?;
@@ -36,7 +40,8 @@ fn read_transport_wmo(
             "Transport display FDID {fdid} is {path}, not a WMO root"
         ));
     }
-    read_wmo(resolver, data_root, fdid)
+    let asset = read_wmo(&resolver, data_root, fdid)?;
+    Ok((asset, resolver))
 }
 
 /// Every MOPY-collidable triangle of the WMO, flattened, in WMO-local engine axes.
@@ -51,13 +56,12 @@ fn collision_faces(asset: &NativeWmoAsset) -> Vec<Vec3> {
 
 /// The drawn WMO of a transport display with its authored collision body attached.
 pub(super) fn load_transport_wmo(
-    resolver: &CascListfileResolver,
     data_root: &Path,
     fdid: u32,
     light: Option<&TerrainLight>,
 ) -> Result<Gd<Node3D>, String> {
-    let asset = read_transport_wmo(resolver, data_root, fdid)?;
-    let built = build_wmo_node(&asset, resolver, data_root, &DEFAULT_DOODAD_SETS, light)?;
+    let (asset, resolver) = read_transport_wmo(data_root, fdid)?;
+    let built = build_wmo_node(&asset, &resolver, data_root, &DEFAULT_DOODAD_SETS, light)?;
     if !built.batch_errors.is_empty() {
         built.node.free();
         return Err(format!(
@@ -84,9 +88,9 @@ pub(super) fn load_transport_wmo(
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
-    use crate::{assets::creature::local_resolver, game_objects::parse_displays};
+    use crate::game_objects::parse_displays;
     use std::path::PathBuf;
 
     fn data_root() -> PathBuf {
@@ -113,6 +117,69 @@ mod tests {
             .reduce(f32::max)
     }
 
+    pub(crate) fn receipt_only_fixture() -> PathBuf {
+        use std::sync::atomic::{AtomicUsize, Ordering};
+        static NEXT: AtomicUsize = AtomicUsize::new(0);
+        let data = std::env::temp_dir().join(format!(
+            "wmo-receipt-{}-{}",
+            std::process::id(),
+            NEXT.fetch_add(1, Ordering::Relaxed)
+        ));
+        let key = "d718abcc42604d8efbd35aecfa5bb75b";
+        std::fs::create_dir_all(data.join(format!("products/wow/{key}/models"))).unwrap();
+        std::fs::create_dir_all(data.join(format!("products/wow/{key}/textures"))).unwrap();
+        std::fs::create_dir_all(data.join("cache")).unwrap();
+        std::fs::create_dir_all(data.join("db2/active")).unwrap();
+        std::fs::write(
+            data.join("community-listfile.csv"),
+            "307812;world/wmo/northrend/buildings/human/nd_alliancegunship_bg.wmo\n",
+        )
+        .unwrap();
+        std::fs::write(
+            data.join("db2/active/GameObjectDisplayInfo.csv"),
+            "ID,FileDataID\n9002,307812\n",
+        )
+        .unwrap();
+        let source = data_root();
+        let resolver = crate::assets::creature::local_resolver(&source);
+        let original = read_wmo(&resolver, &source, 307812).unwrap();
+        let mut assets = Vec::new();
+        for (fdid, kind, directory) in [307812, 318242, 318243, 318244, 318245, 318246]
+            .into_iter()
+            .map(|fdid| (fdid, "wmo", "models"))
+            .chain(
+                crate::wmo::scene::texture_fdids(&original)
+                    .into_iter()
+                    .map(|fdid| (fdid, "blp", "textures")),
+            )
+        {
+            let path = format!("products/wow/{key}/{directory}/{fdid}.{kind}");
+            let bytes = std::fs::read(source.join(format!("{directory}/{fdid}.{kind}"))).unwrap();
+            std::fs::write(data.join(&path), &bytes).unwrap();
+            assets.push(serde_json::json!({"product":"wow", "build_key":key, "build":"fixture", "fdid":fdid, "kind":kind, "path":path, "bytes":bytes.len(), "sha256":"a".repeat(64), "content_key":"b".repeat(32)}));
+        }
+        std::fs::write(
+            data.join("cache/model-asset-index.json"),
+            serde_json::json!({"version":1,"assets":assets}).to_string(),
+        )
+        .unwrap();
+        data
+    }
+
+    #[test]
+    fn game_object_display_loads_receipt_only_wmo() {
+        let data = receipt_only_fixture();
+        let displays = parse_displays(
+            &std::fs::read_to_string(data.join("db2/active/GameObjectDisplayInfo.csv")).unwrap(),
+        )
+        .unwrap();
+        let (asset, _) = read_transport_wmo(&data, displays[&9002]).unwrap();
+        assert_eq!(asset.groups.len(), 5);
+        assert!(!collision_faces(&asset).is_empty());
+        assert!(!data.join("models/307812.wmo").exists());
+        std::fs::remove_dir_all(data).unwrap();
+    }
+
     #[test]
     fn battleground_gunship_displays_name_their_authored_wmo_roots() {
         let text =
@@ -127,8 +194,7 @@ mod tests {
     #[test]
     fn alliance_gunship_draws_its_wmo_groups_and_carries_its_authored_deck() {
         let data = data_root();
-        let resolver = local_resolver(&data);
-        let asset = read_transport_wmo(&resolver, &data, 307812).unwrap();
+        let (asset, _) = read_transport_wmo(&data, 307812).unwrap();
         // nd_alliancegunship_bg_000..004.wmo, FDIDs 318242..318246.
         assert_eq!(asset.groups.len(), 5);
         assert!(
@@ -152,9 +218,8 @@ mod tests {
     #[test]
     fn m2_displays_are_not_read_as_transport_wmos() {
         let data = data_root();
-        let resolver = local_resolver(&data);
         // Goldshire Mailbox display 1907 is the M2 FDID 199999.
-        let error = read_transport_wmo(&resolver, &data, 199999)
+        let error = read_transport_wmo(&data, 199999)
             .err()
             .expect("an M2 FDID is not a WMO root");
         assert!(error.contains("199999"), "{error}");
