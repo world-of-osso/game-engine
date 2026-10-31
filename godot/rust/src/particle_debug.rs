@@ -54,7 +54,7 @@ pub(crate) struct DebugModel {
 
 /// Models the screen cycles through; the first is the original screen's torch at its
 /// original 3-yard orbit about the model origin.
-pub(crate) const MODELS: [DebugModel; 4] = [
+pub(crate) const MODELS: [DebugModel; 6] = [
     DebugModel {
         fdid: 145304,
         name: "club_1h_torch_a_01",
@@ -86,6 +86,22 @@ pub(crate) const MODELS: [DebugModel; 4] = [
         focus_height: 1.181_361_4,
         focus_x: 0.0,
         distance: 3.0,
+        yaw: 0.0,
+    },
+    DebugModel {
+        fdid: 4532603,
+        name: "10can_volcanic_lavastreak04",
+        focus_height: 2.0,
+        focus_x: 0.0,
+        distance: 35.0,
+        yaw: 0.0,
+    },
+    DebugModel {
+        fdid: 4558758,
+        name: "10fx_generic_fire_barrier",
+        focus_height: 5.0,
+        focus_x: 0.0,
+        distance: 35.0,
         yaw: 0.0,
     },
 ];
