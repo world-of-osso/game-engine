@@ -197,7 +197,7 @@ pub(crate) fn authored_asset_resolver(
     ))
 }
 
-fn load_asset_index(
+pub(super) fn load_asset_index(
     data_root: &Path,
 ) -> Result<Arc<game_engine_core::model_asset_index::ModelAssetIndex>, String> {
     use game_engine_core::model_asset_index::ModelAssetIndex;
@@ -378,7 +378,11 @@ pub(crate) fn decode_unpublished_textures(
 }
 
 fn decode_texture_file(address: TextureAddress) -> Result<(TextureAddress, blp::GpuImage), String> {
-    let file = address.dir.join(format!("{}.blp", address.fdid));
+    let file = super::dependent_asset_path(
+        &address.dir.join(format!("{}.blp", address.fdid)),
+        address.fdid,
+        "blp",
+    )?;
     let io = crate::profile::span(|| "phase.asset_io.blp".to_owned());
     let bytes = fs::read(&file)
         .map_err(|error| format!("Texture {} at {}: {error}", address.fdid, file.display()))?;
@@ -449,23 +453,40 @@ pub(crate) fn cache_model_files(
     // A `.anim` that can't be extracted leaves its sequence without keyframes (read_model).
     for fdid in anim_fdids {
         let destination = models.join(format!("{fdid}.anim"));
-        if resolver.ensure_cached(fdid, &destination)?.is_none() {
-            godot_error!(
-                "{}: .anim FDID {fdid} not extractable to {}",
-                path.display(),
-                destination.display()
-            );
+        if let Err(error) = cache_required(resolver, fdid, &destination) {
+            godot_error!("{}: .anim FDID {fdid}: {error}", path.display());
         }
     }
     Ok(path)
 }
 
-pub(super) fn cache_required(
+pub(crate) fn cache_required(
     resolver: &CascListfileResolver,
     fdid: u32,
     destination: &Path,
 ) -> Result<PathBuf, String> {
-    resolver.ensure_cached_checked(fdid, destination)
+    let scoped = resolver.cache_path(destination)?;
+    let kind = destination
+        .extension()
+        .and_then(|ext| ext.to_str())
+        .ok_or_else(|| format!("Asset {} has no extension", destination.display()))?;
+    let owner = super::dependent_asset_path(&scoped, fdid, kind)?;
+    if owner == scoped {
+        return resolver.ensure_cached_checked(fdid, destination);
+    }
+    let asset_root = owner
+        .parent()
+        .and_then(Path::parent)
+        .ok_or_else(|| format!("Asset {} has no owner root", owner.display()))?;
+    let (root, identity) = super::published_model_identity(asset_root)?
+        .ok_or_else(|| format!("Asset {} has no owner identity", owner.display()))?;
+    let owner_resolver = CascListfileResolver::new(
+        AssetResolverConfig::new()
+            .with_data_root(&root)
+            .with_shared_data_root(&root)
+            .with_identity(identity),
+    );
+    owner_resolver.ensure_cached_checked(fdid, destination)
 }
 
 /// Cache the local-CASC textures an already parsed model's batches and particles
@@ -480,7 +501,7 @@ pub(crate) fn cache_model_textures(
     for &fdid in &textures {
         let path = data_root.join("textures").join(format!("{fdid}.blp"));
         // Local-CASC misses remain optional; shipped misses fail the worker load.
-        resolver.ensure_cached(fdid, &path)?;
+        cache_required(resolver, fdid, &path)?;
     }
     Ok(textures)
 }
@@ -515,6 +536,29 @@ mod tests {
 
     fn cached_data_root() -> PathBuf {
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data")
+    }
+
+    #[test]
+    fn dornogal_model_texture_uses_the_index_owner_build() {
+        use game_engine_core::asset::m2_format;
+        use game_engine_core::asset_product::AssetProduct;
+
+        let data = cached_data_root();
+        let index = load_asset_index(&data).unwrap();
+        let model_receipt = index.receipt(AssetProduct::Retail, 645372, "m2").unwrap();
+        assert_eq!(model_receipt.build_key, "dcfc90fffd79ba00406ae46f5f657592");
+        let bytes = fs::read(data.join(&model_receipt.path)).unwrap();
+        let chunks = m2_format::parse_chunks(&bytes).unwrap();
+        assert!(m2_format::parse_txid(chunks.txid.unwrap()).contains(&305632));
+        let texture = index.receipt(AssetProduct::Retail, 305632, "blp").unwrap();
+        assert_eq!(texture.build_key, "d718abcc42604d8efbd35aecfa5bb75b");
+        let resolver = authored_model_resolver(&data, AssetProduct::Retail, 645372).unwrap();
+        let actual = cache_required(&resolver, 305632, &data.join("textures/305632.blp")).unwrap();
+        assert_eq!(actual, data.join(&texture.path));
+        assert_eq!(
+            fs::read(actual).unwrap(),
+            fs::read(data.join(&texture.path)).unwrap()
+        );
     }
 
     #[test]

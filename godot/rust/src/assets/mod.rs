@@ -217,6 +217,27 @@ pub(crate) fn read_primary_skin_path(model_path: &str) -> Result<String, String>
         .into_owned())
 }
 
+pub(super) fn dependent_asset_path(
+    asset_path: &Path,
+    fdid: u32,
+    kind: &str,
+) -> Result<std::path::PathBuf, String> {
+    let asset_root = asset_path
+        .parent()
+        .and_then(Path::parent)
+        .ok_or_else(|| format!("Asset {} has no asset root", asset_path.display()))?;
+    let Some((root, identity)) = published_model_identity(asset_root)? else {
+        return Ok(asset_path.with_file_name(format!("{fdid}.{kind}")));
+    };
+    let product = match identity.product() {
+        "wow" => game_engine_core::asset_product::AssetProduct::Retail,
+        "wow_classic_beta" => game_engine_core::asset_product::AssetProduct::Forever,
+        other => return Err(format!("Unsupported asset product {other}")),
+    };
+    let index = creature::load_asset_index(&root)?;
+    Ok(root.join(&index.receipt(product, fdid, kind)?.path))
+}
+
 fn primary_skin_path(
     model_path: &Path,
     references: &m2::AssetReferences,
@@ -225,7 +246,7 @@ fn primary_skin_path(
         .skin_fdids
         .first()
         .ok_or_else(|| format!("{}: no primary SFID", model_path.display()))?;
-    Ok(model_path.with_file_name(format!("{fdid}.skin")))
+    dependent_asset_path(model_path, *fdid, "skin")
 }
 
 /// Parse an M2 with its SFID skin, optional SKID skeleton and AFID animations.
@@ -240,7 +261,7 @@ pub(crate) fn read_model_file(model_path: &Path) -> Result<m2::Model, String> {
     let skin = read(&primary_skin_path(model_path, &references)?)?;
     let skeleton = references
         .skeleton_fdid
-        .map(|fdid| read(&model_path.with_file_name(format!("{fdid}.skel"))))
+        .map(|fdid| dependent_asset_path(model_path, fdid, "skel").and_then(|path| read(&path)))
         .transpose()?;
     let resolver = model_asset_resolver(model_path)?;
     let _parse = crate::profile::span(|| "phase.m2_parse".to_owned());
@@ -310,11 +331,15 @@ fn read_animation_asset(
     fdid: u32,
     resolver: &CascListfileResolver,
 ) -> Result<Option<Vec<u8>>, String> {
-    let path = model_path.with_file_name(format!("{fdid}.anim"));
+    let path = dependent_asset_path(model_path, fdid, "anim")?;
     let cached = if path.is_file() {
         Some(path.clone())
     } else {
-        resolver.ensure_cached(fdid, &path)?
+        Some(creature::cache_required(
+            resolver,
+            fdid,
+            &model_path.with_file_name(format!("{fdid}.anim")),
+        )?)
     };
     let loaded = cached
         .ok_or_else(|| format!("Cannot extract animation to {}", path.display()))

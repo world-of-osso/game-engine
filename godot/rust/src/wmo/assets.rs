@@ -244,8 +244,7 @@ fn read_required_wmo(
     context: &str,
 ) -> Result<PathBuf, String> {
     let cache_path = data_root.join("models").join(format!("{fdid}.wmo"));
-    resolver
-        .ensure_cached_checked(fdid, &cache_path)
+    crate::assets::creature::cache_required(resolver, fdid, &cache_path)
         .map_err(|error| format!("WMO {context}: {error}"))
 }
 
