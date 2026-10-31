@@ -421,12 +421,14 @@ impl PlayerMovement {
                 self.grounded,
             );
         }
+        // A press on the ground jumps; only a player already airborne takes off.
+        let airborne = !self.grounded;
         self.start_jump(jump_pressed);
         // `JumpOrAscendStart` in the air: a player who can fly takes off. A skyrider's
         // takeoff is Skyward Ascent (JUMP, JUMP: Blizzard_Tutorials_RPE.lua:391-395), which
         // spends a Skyriding Charge: ask the server to cast it and keep falling until its
         // `SpellGo` launches (`skyriding_spell`).
-        if self.can_fly && !self.grounded && frame.vertical > 0.0 {
+        if self.can_fly && airborne && frame.vertical > 0.0 {
             if !self.can_adv_fly {
                 self.flying = true;
                 self.jumping = false;
