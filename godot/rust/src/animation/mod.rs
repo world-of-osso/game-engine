@@ -746,8 +746,8 @@ impl AnimationState {
     fn finish_non_looping(&mut self, remaining_ms: f64) {
         let (next_id, looping) = match self.source_id {
             ANIM_DEATH => (ANIM_DEAD, false),
-            ANIM_OPEN => (ANIM_OPENED, true),
-            ANIM_CLOSE => (ANIM_STAND, true),
+            ANIM_OPEN if self.completion_id.is_some() => (ANIM_OPENED, true),
+            ANIM_CLOSE if self.completion_id.is_some() => (ANIM_STAND, true),
             _ => return,
         };
         let completion_id = self.completion_id.take().unwrap_or(next_id);
@@ -1849,7 +1849,9 @@ mod tests {
         )
         .expect("authored fire barrier model");
         let mut player = AnimationState::new(&model).expect("animated fire barrier");
-        player.select_animation_id(148, false).expect("Open");
+        player
+            .select_game_object_animation(148, false, &Default::default())
+            .expect("Open");
         player.advance(2_999.0).unwrap();
         assert_eq!(model.sequences[player.current].id, 148);
         assert!(!player.looping);
@@ -1860,11 +1862,18 @@ mod tests {
         assert_eq!(model.sequences[player.current].id, 149);
         assert!((player.time_ms - 33.0).abs() < 0.001);
 
-        player.select_animation_id(146, false).expect("Close");
+        player
+            .select_game_object_animation(146, false, &Default::default())
+            .expect("Close");
         player.advance(4_001.0).unwrap();
         assert_eq!(model.sequences[player.current].id, 0);
         assert!(player.looping);
         assert_eq!(player.time_ms, 1.0);
+
+        player.select_animation_id(148, false).expect("plain Open");
+        player.advance(3_000.0).unwrap();
+        assert_eq!(model.sequences[player.current].id, 148);
+        assert!(!player.looping);
     }
 
     #[test]
