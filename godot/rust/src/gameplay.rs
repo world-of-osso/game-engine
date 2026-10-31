@@ -708,7 +708,6 @@ impl crate::GameClient {
         if self.account.session.screen == SessionScreen::InWorld
             && previous_epoch.is_some()
             && current_epoch != previous_epoch
-            && !self.world.local_player_controlled()
         {
             self.player_movement.reset_after_teleport();
             self.scripted_movement.stop();

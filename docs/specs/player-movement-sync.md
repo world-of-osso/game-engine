@@ -17,7 +17,7 @@ The Godot client predicts the local player's movement and reports each moved pos
 - [ ] Live: under a snare or speed aura the server's position stays with the client's.
 
 ### Server teleports
-- [ ] On a new uncontrolled server movement epoch, suspend local movement and gravity at the authoritative destination until the destination terrain and known nearby WMO collision are resident. Request the destination tile even on a same-map teleport. Clear velocity from the previous position.
+- [ ] On a new server movement epoch, suspend local movement and gravity at the authoritative destination until the destination terrain and known nearby WMO collision are resident. Request the destination tile even on a same-map teleport. Clear velocity from the previous position.
 - [ ] If collision is not resident after 60 seconds, log an error and resume. A loaded but unsupported destination is not treated as unloaded.
 - [ ] A long same-map teleport with real terrain holds the player at the destination while loading and resumes movement once collision is resident.
 
