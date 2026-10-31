@@ -50,6 +50,7 @@ func run_test() -> void:
 	var saw_wait := false
 	var arrived := false
 	var arrived_at := 0
+	var arrival_position := Vector3.ZERO
 	push_key(true)
 	while Time.get_ticks_msec() < deadline:
 		await process_frame
@@ -59,9 +60,14 @@ func run_test() -> void:
 		if not arrived:
 			arrived = true
 			arrived_at = Time.get_ticks_msec()
+			arrival_position = state.local_server_position
+			if Vector2(arrival_position.x - destination.x, arrival_position.z - destination.z).length() > 0.1 or absf(arrival_position.y - destination.y) > 3.0:
+				push_key(false)
+				fail("Server did not place the player at the destination: " + str(arrival_position))
+				return
 		if state.teleport_ground_waiting:
 			saw_wait = true
-			if player.position.distance_to(destination) > 0.1:
+			if player.position.distance_to(arrival_position) > 0.1:
 				push_key(false)
 				fail("Player moved or fell while destination loaded: " + str(player.position))
 				return
