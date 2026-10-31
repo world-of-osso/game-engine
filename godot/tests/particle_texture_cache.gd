@@ -1,5 +1,10 @@
 extends "res://tests/particle_blend_pixels.gd"
 
+var control_texture: Texture2D
+
+func control_sync() -> void:
+	RenderingServer.texture_get_rd_texture(control_texture.get_rid())
+
 func solid_image(color: Color) -> Image:
 	var image := Image.create(2, 2, false, Image.FORMAT_RGBA8)
 	image.fill(color)
@@ -20,11 +25,12 @@ func run_cases() -> void:
 	material.set_shader_parameter("texture_0", texture)
 	var passed := await assert_pixel("initial particle texture", Color.RED)
 	# Positive control: prove that this Godot build reports repeated texture syncs.
+	control_texture = texture
 	print("PARTICLE_TEXTURE_CONTROL_BEGIN")
+	RenderingServer.frame_pre_draw.connect(control_sync)
 	for frame in 60:
-		RenderingServer.texture_get_rd_texture(texture.get_rid())
 		await process_frame
-		await RenderingServer.frame_post_draw
+	RenderingServer.frame_pre_draw.disconnect(control_sync)
 	print("PARTICLE_TEXTURE_CONTROL_END")
 	for frame in 10:
 		await process_frame

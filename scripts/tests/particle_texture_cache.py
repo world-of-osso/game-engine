@@ -22,7 +22,8 @@ def main() -> int:
         print(__doc__, file=sys.stderr)
         return 2
     result = subprocess.run(
-        [sys.argv[1], "--path", str(ROOT / "godot"), "-s", "res://tests/particle_texture_cache.gd"],
+        [sys.argv[1], "--display-driver", "x11", "--audio-driver", "Dummy", "--path",
+         str(ROOT / "godot"), "-s", "res://tests/particle_texture_cache.gd"],
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         text=True,
