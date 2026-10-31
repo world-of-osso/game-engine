@@ -74,6 +74,40 @@ fn parent_pivot_offset_uses_local_nonuniform_scale_before_rotation() {
 }
 
 #[test]
+fn unanimated_parent_bone_ignores_authored_tracks() {
+    let mut model = kokia();
+    let parent = model.parent_animation.as_mut().unwrap();
+    parent.bones[0].flags &= !0x280;
+    let death = parent
+        .sequences
+        .iter()
+        .position(|clip| clip.id == 1 && clip.variation_id == 0)
+        .unwrap();
+    let track = &mut std::sync::Arc::make_mut(&mut parent.bone_tracks)[0];
+    track.translation.global_sequence = -1;
+    track.translation.sequences = vec![(Vec::new(), Vec::new()); parent.sequences.len()];
+    track.translation.sequences[death] = (vec![0], vec![[10.0, 0.0, 0.0]]);
+    let mut state = AnimationState::new(&model).unwrap();
+    state.select_animation_id(1, false).unwrap();
+    let root = state.sample_sequence(state.current, 0.0)[0];
+    let expected = super::wow_vec3(model.bones[0].pivot);
+    assert!(root.position.distance_to(expected) < 0.001);
+}
+
+#[test]
+fn inherited_motion_prevents_static_model_classification() {
+    let mut model = kokia();
+    for track in std::sync::Arc::make_mut(&mut model.bone_tracks) {
+        track.translation.sequences.clear();
+        track.rotation.sequences.clear();
+        track.scale.sequences.clear();
+    }
+    assert!(!m2::bones_are_static(&model));
+    model.parent_animation = None;
+    assert!(m2::bones_are_static(&model));
+}
+
+#[test]
 fn different_hierarchy_keeps_child_animations_available() {
     let mut model = kokia();
     let parent = model.parent_animation.as_mut().unwrap();

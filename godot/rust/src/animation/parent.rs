@@ -106,6 +106,17 @@ impl ParentBank {
                             - wow_vec3(self.bones[parent].pivot)
                     })
                     .unwrap_or(Vector3::ZERO);
+                if bone.flags & 0x280 == 0 {
+                    let child_pivot = wow_vec3(self.child_bones[index].pivot);
+                    let child_parent_pivot = parent_index
+                        .map(|parent| wow_vec3(self.child_bones[parent].pivot))
+                        .unwrap_or(Vector3::ZERO);
+                    return BonePose {
+                        position: child_pivot - child_parent_pivot,
+                        rotation: Quaternion::IDENTITY,
+                        scale: Vector3::ONE,
+                    };
+                }
                 let (timeline, time) = track_time(&track.translation);
                 let translation = m2_anim::evaluate_vec3_track(&track.translation, timeline, time)
                     .map(wow_vec3)
