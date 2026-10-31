@@ -55,7 +55,7 @@ tokio = { version = "1", features = ["rt", "sync", "net", "macros", "time", "io-
 
 [target.'cfg(unix)'.dependencies]
 # Preserve the public CLI MessagePack framing and peer credential identification.
-peercred-ipc = { git = "https://github.com/Osso/peercred-ipc.git", tag = "v0.2.0" }
+peercred-ipc = { git = "https://github.com/Osso/peercred-ipc.git", rev = "9f6050675df2de9d8cc7995db74352a105c7dbe3" }
 
 [target.'cfg(windows)'.dependencies]
 # Same MessagePack framing over local-only Windows named pipes.
