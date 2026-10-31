@@ -1185,19 +1185,17 @@ impl TerrainObjects {
         self.outdoor_windows = None;
         self.interior_bounds.clear();
         for wmo in &mut self.wmos {
-            if let Some(windows) =
-                wmo.portals
-                    .exterior_frusta(wmo.world_from_local, frustum, camera)
-            {
+            let visibility = wmo
+                .portals
+                .visibility(wmo.world_from_local, frustum, camera);
+            if let Some(windows) = visibility.exterior_windows {
                 self.outdoor_windows
                     .get_or_insert_with(Vec::new)
                     .extend(windows);
                 self.interior_bounds
                     .extend(wmo.portals.interior_bounds(wmo.world_from_local));
             }
-            let drawn = wmo
-                .portals
-                .visible_groups(wmo.world_from_local, frustum, camera);
+            let drawn = visibility.groups;
             // Only groups whose state changed touch their batch nodes.
             let previous = wmo.drawn.take();
             for (&group, batches) in &mut wmo.groups {

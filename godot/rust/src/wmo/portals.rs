@@ -50,6 +50,12 @@ struct PortalGroup {
     floor: Vec<[Vec3; 3]>,
 }
 
+/// Visibility and exterior windows from the same camera and portal traversal.
+pub(crate) struct WmoVisibility {
+    pub groups: Vec<bool>,
+    pub exterior_windows: Option<Vec<Vec<HalfSpace>>>,
+}
+
 /// Portal graph and group volumes of one WMO, in WMO-local engine axes.
 pub(crate) struct WmoPortals {
     groups: Vec<PortalGroup>,
@@ -81,15 +87,23 @@ impl WmoPortals {
         }
     }
 
-    /// Per group index, whether to draw it for a camera at world `camera` looking
-    /// through `frustum`.
-    pub fn visible_groups(
+    /// Group visibility and exterior windows for one camera and frustum.
+    pub fn visibility(
         &self,
         world_from_local: Affine3A,
         frustum: &[HalfSpace],
         camera: Vec3,
-    ) -> Vec<bool> {
+    ) -> WmoVisibility {
         let local_camera = world_from_local.inverse().transform_point3(camera);
+        let interior = self.camera_interior_group(local_camera);
+        let exterior_windows = interior.map(|group| {
+            self.exterior_frusta_from_group(
+                self.split_parent(group),
+                world_from_local,
+                frustum,
+                camera,
+            )
+        });
         let exterior: Vec<u16> = self
             .groups
             .iter()
@@ -101,12 +115,12 @@ impl WmoPortals {
                 self.portal_visible(portal, world_from_local, frustum, camera)
             })
         };
-        let mut visible = match self.camera_interior_group(local_camera) {
+        let mut visible = match interior {
             Some(group) => {
                 let parent = self.split_parent(group);
                 let mut visible = traverse(&[parent]);
-                if self
-                    .exterior_frusta(world_from_local, frustum, camera)
+                if exterior_windows
+                    .as_ref()
                     .is_some_and(|windows| !windows.is_empty())
                 {
                     for (drawn, outside) in visible.iter_mut().zip(traverse(&exterior)) {
@@ -122,7 +136,10 @@ impl WmoPortals {
                 self.show_split_children(group.index, &mut visible);
             }
         }
-        visible
+        WmoVisibility {
+            groups: visible,
+            exterior_windows,
+        }
     }
 
     /// A camera in a split child traverses the parent and draws all of its children
@@ -154,17 +171,15 @@ impl WmoPortals {
         }
     }
 
-    /// Visible outdoor windows, or `None` when the camera is not inside this WMO.
-    /// Each path is clipped through every portal it crossed. A camera close to a
-    /// portal keeps its current frustum, conservatively avoiding doorway pop-in.
-    pub(crate) fn exterior_frusta(
+    /// Clip every exterior path from the camera's interior group through its portals.
+    /// A camera close to a portal keeps its current frustum to avoid doorway pop-in.
+    fn exterior_frusta_from_group(
         &self,
+        group: u16,
         world_from_local: Affine3A,
         frustum: &[HalfSpace],
         camera: Vec3,
-    ) -> Option<Vec<Vec<HalfSpace>>> {
-        let local_camera = world_from_local.inverse().transform_point3(camera);
-        let group = self.split_parent(self.camera_interior_group(local_camera)?);
+    ) -> Vec<Vec<HalfSpace>> {
         let mut windows = Vec::new();
         let mut pending = vec![(group, frustum.to_vec(), vec![group])];
         while let Some((current, planes, path)) = pending.pop() {
@@ -196,7 +211,7 @@ impl WmoPortals {
                 }
             }
         }
-        Some(windows)
+        windows
     }
 
     /// Conservative world bounds of the interior groups of this WMO.
@@ -485,6 +500,27 @@ fn triangle_height_at(triangle: &[Vec3; 3], x: f32, z: f32) -> Option<f32> {
 mod tests {
     use super::*;
 
+    impl WmoPortals {
+        fn visible_groups(
+            &self,
+            world_from_local: Affine3A,
+            frustum: &[HalfSpace],
+            camera: Vec3,
+        ) -> Vec<bool> {
+            self.visibility(world_from_local, frustum, camera).groups
+        }
+
+        fn exterior_frusta(
+            &self,
+            world_from_local: Affine3A,
+            frustum: &[HalfSpace],
+            camera: Vec3,
+        ) -> Option<Vec<Vec<HalfSpace>>> {
+            self.visibility(world_from_local, frustum, camera)
+                .exterior_windows
+        }
+    }
+
     /// Exterior group 0 (a courtyard) and interior group 1 (a 10x4x10 room at
     /// x,z in 0..10), joined by a 2x2 doorway portal in the plane z = 0.
     fn courtyard_and_room() -> WmoPortals {
@@ -561,6 +597,19 @@ mod tests {
             &view(eye, forward),
             eye,
         ))
+    }
+
+    #[test]
+    fn inside_camera_returns_matching_groups_and_exterior_windows() {
+        let portals = courtyard_and_room();
+        let eye = Vec3::new(5.0, 1.0, 8.0);
+        let open = portals.visibility(Affine3A::IDENTITY, &view(eye, -Vec3::Z), eye);
+        assert_eq!(drawn_indices(open.groups), [0, 1]);
+        assert_eq!(open.exterior_windows.unwrap().len(), 1);
+
+        let closed = portals.visibility(Affine3A::IDENTITY, &view(eye, Vec3::Z), eye);
+        assert_eq!(drawn_indices(closed.groups), [1]);
+        assert!(closed.exterior_windows.unwrap().is_empty());
     }
 
     #[test]
