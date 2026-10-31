@@ -60,6 +60,17 @@ func run_cases() -> void:
 	if replacement_lookups != 1:
 		push_error("texture replacement performed %d lookups, expected one" % replacement_lookups)
 		passed = false
+	var layer_one := ImageTexture.create_from_image(solid_image(Color.WHITE))
+	var layer_two := ImageTexture.create_from_image(solid_image(Color.WHITE))
+	material.set_shader_parameter("texture_0", ImageTexture.create_from_image(solid_image(Color.WHITE)))
+	material.set_shader_parameter("texture_1", layer_one)
+	material.set_shader_parameter("texture_2", layer_two)
+	material.set_shader_parameter("pixel_shader", 2)
+	passed = await assert_pixel("three particle texture layers", Color.WHITE) and passed
+	layer_one.set_image(solid_image(Color.CYAN))
+	passed = await assert_pixel("changed second texture layer", Color.CYAN) and passed
+	layer_two.set_image(solid_image(Color.YELLOW))
+	passed = await assert_pixel("changed third texture layer", Color.GREEN) and passed
 	particle.free()
 	cleanup()
 	probe = null
