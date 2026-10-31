@@ -1111,6 +1111,36 @@ fn native_bridge_tracks_combat_and_rest_transitions_over_udp() {
 }
 
 #[test]
+fn native_bridge_sends_transport_board_frame_on_reliable_channel() {
+    let (mut server, address) = start_fixture_server();
+    let mut host = Host::connect(address, 8193);
+    await_connected(&mut server, &mut host);
+    let frame = shared::components::TransportPassenger {
+        transport: 1234,
+        position: [4.0, -2.0, 3.0],
+        orientation: 0.75,
+    };
+    let input = PlayerInput {
+        transport: Some(frame),
+        direction: [0.0; 3],
+        facing_yaw: 0.75,
+        jumping: false,
+        running: false,
+        swimming: false,
+        flying: false,
+        position: [12.0, 34.0, 56.0],
+        epoch: 7,
+    };
+    host.bridge
+        .send::<PlayerInput, shared::protocol::AuthChannel>(input)
+        .expect("queue reliable board frame");
+    let received = await_input(&mut server, &mut host);
+    assert_eq!(received.transport, Some(frame));
+    assert_eq!(received.epoch, 7);
+    host.stop();
+}
+
+#[test]
 fn native_bridge_decodes_udp_input_and_receives_control_epochs() {
     let (mut server, address) = start_fixture_server();
     let mut host = Host::connect(address, 8192);
