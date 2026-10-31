@@ -136,6 +136,25 @@ For context, Windows exact-master `260b3b651` thread counters gave about 6.52–
 
 Evidence: `data/diagnostics/fps-120-linux-2026-10-31-cage-profile-noscreenshot/` (perf data, relative per-thread reports, scheduler and GPU samples, and fixture logs), `data/diagnostics/fps-120-linux-server/` (profile binaries), and `data/diagnostics/fps-120-2026-10-30/windows-qualification-master-exact/`. GPU time remains unqualified under shared load.
 
+### Static scenery candidate grid: loaded-host A/B
+
+The index evaluates short-range static placements from a 100-yard horizontal grid and retains the prior candidate set for visibility transitions. Animated and long-range placements still run each frame. Three interleaved A/B pairs used the same non-shipped symbolized Godot and release `debug=1` extension at the two poses, 1920×1080 Cage/Vulkan FIFO 144 Hz and Forever. The A extension was built from `05ae361ae`; B adds the scenery-index series, now landed as `d3131172b` through `a8a435df9`. The test predates later Godot, M2 and game-object changes on master. Each run completed three 300-frame records; the diagnostic runtime logged skeleton-disconnect and render-device-finalization errors and did not emit a completion marker.
+
+| Pose | Pair | Main CPU ms/frame A → B | Render CPU ms/frame A → B | Agents.slice cores A → B |
+|---|---:|---:|---:|---:|
+| Indoor | 1 | 18.18 → 14.33 | 18.01 → 15.48 | 26.8 → 23.9 |
+| Indoor | 2 | 21.73 → 20.14 | 22.42 → 22.03 | 30.5 → 22.5 |
+| Indoor | 3 | 18.99 → 20.43 | 20.17 → 22.23 | 30.8 → 29.8 |
+| Exit | 1 | 11.57 → 18.65 | 10.28 → 19.05 | 12.2 → 30.2 |
+| Exit | 2 | 9.45 → 17.66 | 8.12 → 17.30 | 11.3 → 27.6 |
+| Exit | 3 | 17.63 → 15.32 | 16.71 → 14.75 | 28.7 → 31.1 |
+
+Values are medians of each run's three samples. Other GPU clients varied between one and three in the before/after snapshots. The loaded-host results do not establish a whole-frame improvement: CPU load and render time changed substantially between variants. Three-second CPU-clock samples estimate `cull_doodads` self CPU indoors at 1.64/2.07/1.74 → 0.49/0.83/0.57 ms and at the exit at 1.66/0.96/1.78 → 0.78/0.65/0.69 ms. These are approximate sample-share × main-CPU estimates, not measured total savings; index work can be inlined into that symbol.
+
+All three pairs produced identical in-tree visibility and effective shadow-mode receipts for **16,691 real doodads per pose**. First-pair 1080p screenshots, inspected side by side, showed no obvious missing scenery; they do not prove full motion or pixel identity. Synthetic tests additionally cover movement across grid and fade boundaries, far spawns, and more than 64 placements. Evidence: `data/diagnostics/fps-120-linux-grid-{before,after}-{1,2,3}/`, `data/diagnostics/fps-120-linux-grid-comparison/`, and `scripts/tests/scenery_visibility_compare.py`. A fresh check against current master remains required.
+
+A later 499 Hz CPU-clock profile on `05ae361ae` found `std::thread::current` at 4.41%/4.52% of main CPU indoors/at the exit, plus `ensure_main_thread` at 3.84%/3.88%. This differs from the earlier cycle-weighted estimate; neither attributes the call sites reliably. Evidence: `data/diagnostics/fps-120-linux-2026-10-31-cage-profile-hires/`.
+
 ## Linux Xvfb diagnostic (2026-10-31)
 
 On agent-server, engine `93ac8d4b5` was built in the release profile with shared-protocol `5fe2ff2` to match a private server binary from the `game-server-neltharus-current` checkout. That checkout was at `82499270`; the binary's source revision was not independently established. The Windows receipt fixture ran with the Forever skin, an NVIDIA RTX 5060 Ti and a 1920×1080 Xvfb X11 surface. Each row is three 300-frame samples after 8,059 objects loaded with zero reported failures. Xvfb is not a native Wayland or Cage measurement.
