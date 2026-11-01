@@ -981,6 +981,47 @@ impl TerrainObjects {
             .add_child(model);
     }
 
+    /// Fixture entry for a real M2 copied into a product directory. It goes through
+    /// the same model build, attachment and culling path as a streamed doodad.
+    pub(super) fn attach_fixture_model(
+        &mut self,
+        parent: &mut Gd<Node3D>,
+        path: PathBuf,
+        skin: PathBuf,
+        fdid: u32,
+    ) -> Result<Gd<Node3D>, String> {
+        let bytes = std::fs::read(&path).map_err(|error| error.to_string())?;
+        let skin = std::fs::read(&skin).map_err(|error| error.to_string())?;
+        let cached = Arc::new(CachedModel {
+            path: path.clone(),
+            model: game_engine_core::m2::parse_model(&bytes, &skin)?,
+        });
+        let particles = ModelParticles::from_cached(fdid, &cached)?;
+        let collision = doodad_collision::collision_shape(cached.model.collision.as_ref());
+        let product = AssetProduct::Retail;
+        self.source_product = Some(product);
+        self.models.insert(
+            (product, fdid),
+            Ok(ParsedModel {
+                path: GString::from(path.to_string_lossy().as_ref()),
+                model: cached,
+                particles,
+                collision,
+            }),
+        );
+        let mut built = self.build_doodad_model(fdid)?;
+        built.node.set_name("DoodadRibbonFixture");
+        let scenery =
+            SceneryDistance::new(built.render_box.0, built.render_box.1, Affine3A::IDENTITY);
+        let node = built.node.clone();
+        if let Some(pools) = &mut self.particles {
+            pools.attach(parent);
+        }
+        self.attach(parent, &node);
+        self.push_doodad(built, scenery, 1, None);
+        Ok(node)
+    }
+
     /// Tracks a spawned doodad for culling, with its particle emitters when enabled.
     fn push_doodad(
         &mut self,
