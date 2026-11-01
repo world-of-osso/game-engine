@@ -1,6 +1,6 @@
 # Native M2 ribbons
 
-Spell-kit M2 models must render their authored trailing ribbons. Source: authenticated Retail M2 records and local WebWowViewerCpp `M2FileHeader.h`, `animationManager.cpp::calcRibbonEmitters`, and `CRibbonEmitter`. [Format and current proof](../wiki/formats/m2-format.md#ribbon-emitter-scalars-2026-10-13).
+Spell-kit and world M2 models must render their authored trailing ribbons. Source: authenticated Retail M2 records and local WebWowViewerCpp `M2FileHeader.h`, `animationManager.cpp::calcRibbonEmitters`, and `CRibbonEmitter`. [Format and current proof](../wiki/formats/m2-format.md#ribbon-emitter-scalars-2026-10-13).
 
 ## What it must do
 
@@ -10,6 +10,7 @@ Spell-kit M2 models must render their authored trailing ribbons. Source: authent
 - [x] When model flag0x20000 enables ribbon UV transforms, each material pass resolves emitter lookup base+pass. A negative lookup selects identity; valid transforms follow local/global playback and transform sampled ribbon UVs.
 
 ### Presentation and lifecycle
+- [x] NPC, equipped item, game-object and terrain/WMO doodad M2s place ribbons from the model's product texture root. World ribbons stop updating when their existing visibility and frustum rules exclude them; WMO doodads also obey portal visibility.
 - [x] Emit world-space trailing strips at source-normalized density (ceil) and lifetime (minimum0.25s), following animated bone and object scale. The first update warms one interval plus0.0001s; later long-frame delta clamps to lifetime while interpolating the complete movement segment.
 - [x] Current animated texture slot applies to every surviving edge. Tile axes follow M2Object's Initialize(textureCols, textureRows) call: authored rows2/cols1/slot1 selects the horizontal half, not the vertical half. Preserve colour/alpha and material culling/depth/fog/light flags; source opaque ribbons alpha-blend, matching CRibbonEmitter.
 - [x] Apply authored priority plane to native material draw ordering. Priorities outside Godot's-128..127 range fail explicitly; no clamping or substituted order.
@@ -29,6 +30,7 @@ Spell-kit M2 models must render their authored trailing ribbons. Source: authent
 
 ## Tests asserting this spec
 - `godot/core/tests/m2_ribbons.rs` — authenticated1417024 scalar/reference/track values; real1865728 enabled per-pass UV lookup/global translation; concrete fractional rate, minimum lifetime, long-frame movement and rows2/cols1 current-tile regressions.
+- `godot/tests/world_ribbon_product_fixture.gd` — actual Ashbringer M2 148234, placed as a world doodad with ribbon texture 167227 only in its product directory. It checks visible geometry, changed pixels and off-screen culling.
 - `godot/tests/m2_ribbon_material_pixels.gd` — production shader/mesh raster: source blend0 with0.25 alpha, farther high-priority green over nearer low-priority red, explicit out-of-range priority refusal. `RIBBON_MATERIAL_OUTPUT` selects the required output directory; the fixture saves `native-ribbon-alpha.png`, `native-ribbon-priority.png`, and sanitized `material-raster-receipts.json` with pixels, inputs, dimensions and `RIBBON_MATERIAL_REVISION`. The same production update path samples real1865728 global-sequence translation at0/633ms and moves a synthetic red/green test texture from green to red; this proves texture-matrix application, not that fixture model's art.
 - `godot/tests/toy_effects26_rainbow_live.gd` — physical movement and rendered trailing rainbow pixels.
 - `godot/tests/toy_effects26_bauble_live.gd` — native aura/kit/recovery observations and natural removal.
