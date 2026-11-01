@@ -1329,8 +1329,9 @@ mod tests {
                 (EquipmentSlot::Waist, 2_429_554)
             ]
         );
-        // AttachmentGeosetGroup_0 0 selects 1801, the collection's only belt part.
-        assert_eq!(belt_models[0].geosets, ItemGeosets::Attachment(None));
+        // GeosetGroupOverride 0 gives the buckle 1801; AttachmentGeosetGroup_0 0 selects
+        // 1801, the collection's only belt part.
+        assert_eq!(belt_models[0].geosets, ItemGeosets::Attachment(Some(1801)));
         assert_eq!(belt_models[1].geosets, ItemGeosets::Collection(vec![1801]));
         let bracer = tauren(vec![entry(EquipmentVisualSlot::Wrist, 190091)]);
         assert_eq!(bracer.len(), 1);
