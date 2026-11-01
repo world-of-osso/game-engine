@@ -56,6 +56,8 @@ Windows uses a local-only named pipe `\\\\.\\pipe\\game-engine-<pid>` instead of
 
 ### Client requests
 
+- `death stuck` sends the server's `UseStuckEscape` request on `DeathChannel` and reports submission. The server decides whether the escape succeeds.
+
 The client answers these from its live state (`godot/rust/src/ipc/dev.rs`, `world.rs`, `items.rs`) in the original response text; other requests reach the unported error.
 
 - [x] `status network`: bridge endpoint, game state, Netcode `Connected`, client id, zone, replicated entity count, local player, chat messages.
