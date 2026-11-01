@@ -1,6 +1,6 @@
 //! Debug-only raster fixture through the production ribbon material/mesh path.
 use super::{
-    RibbonMaterial, create_ribbon_material, place_ribbon, spawn_ribbon_mesh,
+    RibbonMaterial, create_ribbon_material, place_ribbon, spawn_ribbon_mesh, update_geometry,
     update_texture_transforms, upload_geometry,
 };
 use game_engine_core::{
@@ -48,6 +48,7 @@ fn create_uv_fixture_texture() -> Result<Gd<ImageTexture>, String> {
 struct RibbonMaterialFixture {
     base: Base<Node3D>,
     last_uv_matrix: Option<game_engine_core::m2_material::TextureMatrix>,
+    dynamic_capacity: usize,
 }
 
 #[godot_api]
@@ -69,6 +70,14 @@ impl RibbonMaterialFixture {
     }
 
     #[func]
+    fn set_dynamic_strip(&mut self, color: Color, vertex_count: i32) -> GString {
+        match self.update_dynamic_strip(color, vertex_count) {
+            Ok(()) => GString::new(),
+            Err(error) => error.as_str().into(),
+        }
+    }
+
+    #[func]
     fn sample_real_uv(&mut self, global_ms: u32) -> GString {
         match self.update_real_uv(global_ms) {
             Ok(()) => GString::new(),
@@ -78,6 +87,32 @@ impl RibbonMaterialFixture {
 }
 
 impl RibbonMaterialFixture {
+    fn update_dynamic_strip(&mut self, color: Color, vertex_count: i32) -> Result<(), String> {
+        if ![3, 6, 12].contains(&vertex_count) {
+            return Err(format!(
+                "Invalid dynamic fixture vertex count {vertex_count}"
+            ));
+        }
+        let mesh = self
+            .base()
+            .try_get_node_as::<MeshInstance3D>("M2RibbonStrip")
+            .ok_or("Dynamic fixture strip missing")?;
+        let mut geometry = mesh
+            .get_mesh()
+            .and_then(|mesh| mesh.try_cast::<ArrayMesh>().ok())
+            .ok_or("Dynamic fixture geometry missing")?;
+        let points = [[-3.0, -3.0], [3.0, -3.0], [0.0, 3.0]];
+        let vertices: Vec<_> = (0..vertex_count as usize)
+            .map(|index| RibbonVertex {
+                position: [points[index % 3][0], points[index % 3][1], 0.0],
+                uv: [0.75, 0.75],
+                color: [color.r, color.g, color.b, color.a],
+            })
+            .collect();
+        update_geometry(&mut geometry, &mut self.dynamic_capacity, &vertices);
+        Ok(())
+    }
+
     fn create_chaos_bolt_ribbons(&mut self) -> Result<(), String> {
         let base = ProjectSettings::singleton()
             .globalize_path("res://../data")

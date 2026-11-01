@@ -52,6 +52,18 @@ func prove_materials() -> void:
 	await process_frame
 	strip = ClassDB.instantiate("RibbonMaterialFixture")
 	scene.add_child(strip)
+	assert_input(strip.add_strip(2, 0, Color.WHITE, 0.0))
+	for sample in [[Color.RED, 3], [Color.GREEN, 3], [Color.BLUE, 12], [Color.RED, 3]]:
+		assert_input(strip.set_dynamic_strip(sample[0], sample[1]))
+		await settle()
+		var dynamic_pixel := center_pixel()
+		if maxf(maxf(absf(dynamic_pixel.r - sample[0].r), absf(dynamic_pixel.g - sample[0].g)), absf(dynamic_pixel.b - sample[0].b)) > 0.05:
+			push_error("Dynamic strip update %s painted %s" % [sample, dynamic_pixel])
+			failed = true
+	strip.queue_free()
+	await process_frame
+	strip = ClassDB.instantiate("RibbonMaterialFixture")
+	scene.add_child(strip)
 	assert_input(strip.add_strip(0, 0, Color.WHITE, 0.0))
 	assert_input(strip.sample_real_uv(0))
 	await settle()

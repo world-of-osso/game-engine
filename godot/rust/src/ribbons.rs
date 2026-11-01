@@ -27,7 +27,7 @@ struct PlacedRibbon {
     meshes: Vec<Gd<MeshInstance3D>>,
     materials: Vec<RibbonMaterial>,
     geometry: Gd<ArrayMesh>,
-    has_geometry: bool,
+    vertex_capacity: usize,
     visible: bool,
 }
 
@@ -35,10 +35,9 @@ impl PlacedRibbon {
     fn draw(&mut self, fade: f32) {
         let vertices = self.trail.triangles(fade);
         let has_geometry = !vertices.is_empty();
-        if has_geometry || self.has_geometry {
-            upload_geometry(&mut self.geometry, &vertices);
+        if has_geometry {
+            update_geometry(&mut self.geometry, &mut self.vertex_capacity, &vertices);
         }
-        self.has_geometry = has_geometry;
         if self.visible != has_geometry {
             for mesh in &mut self.meshes {
                 mesh.set_visible(has_geometry);
@@ -225,7 +224,7 @@ fn place_ribbon(
         meshes,
         materials,
         geometry,
-        has_geometry: false,
+        vertex_capacity: 0,
         visible: false,
     })
 }
@@ -354,7 +353,6 @@ fn create_ribbon_material(
 }
 
 fn upload_geometry(mesh: &mut Gd<ArrayMesh>, vertices: &[RibbonVertex]) {
-    let _timing = crate::profile::node_span("M2Ribbon.upload_geometry");
     mesh.clear_surfaces();
     if vertices.is_empty() {
         return;
@@ -386,7 +384,65 @@ fn upload_geometry(mesh: &mut Gd<ArrayMesh>, vertices: &[RibbonVertex]) {
     );
     arrays.set(mesh::ArrayType::TEX_UV.ord() as usize, &uvs.to_variant());
     arrays.set(mesh::ArrayType::COLOR.ord() as usize, &colors.to_variant());
-    mesh.add_surface_from_arrays(mesh::PrimitiveType::TRIANGLES, &arrays);
+    mesh.add_surface_from_arrays_ex(mesh::PrimitiveType::TRIANGLES, &arrays)
+        .flags(mesh::ArrayFormat::FLAG_USE_DYNAMIC_UPDATE)
+        .done();
+}
+
+/// Grow a surface only when its triangle capacity is exhausted; otherwise update its
+/// dynamic vertex and attribute buffers. Padded triangles repeat the last vertex.
+fn update_geometry(mesh: &mut Gd<ArrayMesh>, capacity: &mut usize, vertices: &[RibbonVertex]) {
+    let _timing = crate::profile::node_span("M2Ribbon.upload_geometry");
+    let Some(last) = vertices.last().copied() else {
+        return;
+    };
+    if vertices.len() > *capacity {
+        *capacity = vertices.len().div_ceil(3).next_power_of_two() * 3;
+        let padded: Vec<_> = vertices
+            .iter()
+            .copied()
+            .chain(std::iter::repeat(last))
+            .take(*capacity)
+            .collect();
+        upload_geometry(mesh, &padded);
+    } else {
+        let mut positions = Vec::with_capacity(*capacity * 12);
+        let mut attributes = Vec::with_capacity(*capacity * 12);
+        for vertex in vertices
+            .iter()
+            .copied()
+            .chain(std::iter::repeat(last))
+            .take(*capacity)
+        {
+            for value in vertex.position {
+                positions.extend_from_slice(&value.to_ne_bytes());
+            }
+            // Godot's uncompressed COLOR/UV attribute stride is RGBA8 then two f32s
+            // (RenderingServer::mesh_surface_make_offsets_from_format).
+            for value in vertex.color {
+                attributes.push((value * 255.0).clamp(0.0, 255.0) as u8);
+            }
+            for value in vertex.uv {
+                attributes.extend_from_slice(&value.to_ne_bytes());
+            }
+        }
+        mesh.surface_update_vertex_region(0, 0, &PackedByteArray::from(&positions[..]));
+        mesh.surface_update_attribute_region(0, 0, &PackedByteArray::from(&attributes[..]));
+    }
+    let (min, max) = vertices.iter().fold(
+        (
+            glam::Vec3::splat(f32::INFINITY),
+            glam::Vec3::splat(f32::NEG_INFINITY),
+        ),
+        |(min, max), vertex| {
+            let point = glam::Vec3::from_array(vertex.position);
+            (min.min(point), max.max(point))
+        },
+    );
+    mesh.set_custom_aabb(Aabb::new(
+        Vector3::from_array(min.to_array()),
+        Vector3::from_array((max - min).to_array()),
+    ));
 }
 
 #[cfg(debug_assertions)]
