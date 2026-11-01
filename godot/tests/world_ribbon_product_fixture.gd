@@ -93,15 +93,39 @@ func run_fixture() -> void:
 	for ribbon in ribbons:
 		if ribbon.visible and ribbon.mesh != null and ribbon.mesh.get_surface_count() > 0:
 			visible += 1
+	await RenderingServer.frame_post_draw
+	var shown := root.get_texture().get_image()
 	var screenshot := OS.get_environment("RIBBON_SCREENSHOT")
-	if screenshot != "":
-		await RenderingServer.frame_post_draw
-		if root.get_texture().get_image().save_png(screenshot) != OK:
-			fail("Screenshot write failed")
-			return
+	if screenshot != "" and shown.save_png(screenshot) != OK:
+		fail("Screenshot write failed")
+		return
 	print("WORLD_RIBBON_FIXTURE fdid=%d texture=167227 nodes=%d visible=%d skin=Forever" % [FDID, ribbons.size(), visible])
 	if visible == 0:
 		fail("Real world doodad created no visible ribbon geometry")
 		return
-	print("PASS: real world doodad draws product-root ribbons")
+	for ribbon in ribbons:
+		ribbon.visible = false
+	await process_frame
+	await RenderingServer.frame_post_draw
+	var hidden := root.get_texture().get_image()
+	var changed := 0
+	for y in shown.get_height():
+		for x in shown.get_width():
+			var a := shown.get_pixel(x, y)
+			var b := hidden.get_pixel(x, y)
+			if maxf(maxf(absf(a.r - b.r), absf(a.g - b.g)), absf(a.b - b.b)) > 0.02:
+				changed += 1
+	print("WORLD_RIBBON_PIXELS changed=", changed)
+	if changed == 0:
+		fail("Visible ribbon geometry changed no rendered pixels")
+		return
+	for ribbon in ribbons:
+		ribbon.visible = true
+	camera.look_at(camera.position + Vector3.BACK)
+	probe.advance(camera, 1.0 / 60.0)
+	for ribbon in ribbons:
+		if ribbon.visible:
+			fail("Off-screen ribbon remained visible")
+			return
+	print("PASS: real world doodad draws and culls product-root ribbons")
 	quit(0)

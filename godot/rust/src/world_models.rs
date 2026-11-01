@@ -45,6 +45,9 @@ pub(crate) fn bind_visual_light(visual: &Gd<Node3D>, light: Option<&TerrainLight
         .done();
     for node in meshes.iter_shared() {
         let mesh = node.cast::<MeshInstance3D>();
+        if mesh.get_name().to_string().starts_with("M2RibbonStrip") {
+            continue;
+        }
         // M2 batches and WMO groups each have one surface and one ShaderMaterial.
         let mut material = mesh
             .get_active_material(0)
