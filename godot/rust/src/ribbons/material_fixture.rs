@@ -70,8 +70,8 @@ impl RibbonMaterialFixture {
     }
 
     #[func]
-    fn set_dynamic_strip(&mut self, color: Color, vertex_count: i32) -> GString {
-        match self.update_dynamic_strip(color, vertex_count) {
+    fn set_dynamic_strip(&mut self, color: Color, vertex_count: i32, uv: Vector2) -> GString {
+        match self.update_dynamic_strip(color, vertex_count, uv) {
             Ok(()) => GString::new(),
             Err(error) => error.as_str().into(),
         }
@@ -87,7 +87,12 @@ impl RibbonMaterialFixture {
 }
 
 impl RibbonMaterialFixture {
-    fn update_dynamic_strip(&mut self, color: Color, vertex_count: i32) -> Result<(), String> {
+    fn update_dynamic_strip(
+        &mut self,
+        color: Color,
+        vertex_count: i32,
+        uv: Vector2,
+    ) -> Result<(), String> {
         if ![3, 6, 12].contains(&vertex_count) {
             return Err(format!(
                 "Invalid dynamic fixture vertex count {vertex_count}"
@@ -105,7 +110,7 @@ impl RibbonMaterialFixture {
         let vertices: Vec<_> = (0..vertex_count as usize)
             .map(|index| RibbonVertex {
                 position: [points[index % 3][0], points[index % 3][1], 0.0],
-                uv: [0.75, 0.75],
+                uv: uv.to_array(),
                 color: [color.r, color.g, color.b, color.a],
             })
             .collect();
