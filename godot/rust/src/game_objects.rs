@@ -549,7 +549,7 @@ impl GameObjects {
                     )
                     .box_in_frustum(frustum);
                 if visible {
-                    if let Err(error) = ribbons.update_and_draw(&model, delta, 1.0, true) {
+                    if let Err(error) = ribbons.update_world_and_draw(&model, delta, 1.0) {
                         godot_error!("Game object ribbon: {error}");
                     }
                 } else {

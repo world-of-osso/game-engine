@@ -1246,7 +1246,7 @@ impl WorldUnits {
             }
             if let Some(ribbons) = &mut unit.ribbons {
                 if in_frustum {
-                    if let Err(error) = ribbons.update_and_draw(&model, delta, 1.0, true) {
+                    if let Err(error) = ribbons.update_world_and_draw(&model, delta, 1.0) {
                         godot_error!("Unit ribbon: {error}");
                     }
                 } else {
@@ -1255,7 +1255,7 @@ impl WorldUnits {
             }
             for (ribbons, item) in &mut unit.item_ribbons {
                 if in_frustum && item.is_visible_in_tree() {
-                    if let Err(error) = ribbons.update_and_draw(item, delta, 1.0, true) {
+                    if let Err(error) = ribbons.update_world_and_draw(item, delta, 1.0) {
                         godot_error!("Item ribbon: {error}");
                     }
                 } else {

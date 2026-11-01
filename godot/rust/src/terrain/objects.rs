@@ -1338,7 +1338,7 @@ impl TerrainObjects {
             if let Some(ribbons) = &mut doodad.ribbons {
                 if visible {
                     if let Err(error) =
-                        ribbons.update_and_draw(&doodad.node, delta, doodad.opacity, true)
+                        ribbons.update_world_and_draw(&doodad.node, delta, doodad.opacity)
                     {
                         godot_error!("{} ribbon: {error}", self.name);
                     }

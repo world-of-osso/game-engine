@@ -104,6 +104,16 @@ impl PlacedRibbons {
         self.hidden = true;
     }
 
+    pub(crate) fn update_world_and_draw(
+        &mut self,
+        root: &Gd<Node3D>,
+        delta: f32,
+        fade: f32,
+    ) -> Result<(), String> {
+        let _timing = crate::profile::node_span("M2WorldRibbon.update_and_draw");
+        self.update_and_draw(root, delta, fade, true)
+    }
+
     pub(crate) fn update_and_draw(
         &mut self,
         root: &Gd<Node3D>,
