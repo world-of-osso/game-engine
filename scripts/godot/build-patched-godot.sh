@@ -6,7 +6,8 @@
 # ownership during separate-thread shutdown), plus local fixes: glyph-atlas snapshot,
 # material update-list mutex (docs/wiki/investigations/godot-material-update-race.md) and
 # full-weight Skeleton3D global pose override (assigned directly, so affine overrides are not
-# decomposed by interpolate_with). The editor and optional release
+# decomposed by interpolate_with), and a Vulkan present thread
+# (docs/wiki/investigations/godot-vulkan-present-thread.md). The editor and optional release
 # template are installed only when their SHA-512 matches the corresponding checked-in pin.
 #
 # Toolchain and options follow the official 4.7.2 Linux editor release:
@@ -15,7 +16,8 @@
 #
 # Retire this script, the patches and the pin once the launcher moves to an official Godot
 # release that contains #123946, #123546, #123391, a fix for #122206, and fixes for the RD
-# material update-list race and the full-weight Skeleton3D global pose override.
+# material update-list race, the full-weight Skeleton3D global pose override, and a
+# render thread that does not block in vkQueuePresentKHR.
 set -euo pipefail
 
 # Usage: build-patched-godot.sh [--template-release] [--jobs N]
@@ -84,7 +86,7 @@ git clone --quiet --depth 1 --branch "$tag" https://github.com/godotengine/godot
   exit 1
 }
 git -C "$src" apply "$here/pr123946-wayland-exit-hang.patch" "$here/pr123546-classdb-default-values-race.patch" "$here/pr123391-render-device-thread-ownership.patch" "$here/font-atlas-snapshot.patch" "$here/material-update-list-mutex.patch" \
-  "$here/skeleton-full-override.patch"
+  "$here/skeleton-full-override.patch" "$here/vulkan-present-thread.patch"
 
 template_options=()
 if [ "$target" = template_release ]; then
@@ -93,7 +95,7 @@ fi
 
 # PYTHONHASHSEED: editor/editor_builders.py embeds Python hash() of the docs, randomized
 # per process otherwise, so the binary would differ on every build.
-(cd "$src" && PATH="$sdk/bin:$PATH" BUILD_NAME=pr123946-pr123546-pr123391-fontatlas-matlist-bonepose PYTHONHASHSEED=0 \
+(cd "$src" && PATH="$sdk/bin:$PATH" BUILD_NAME=pr123946-pr123546-pr123391-fontatlas-matlist-bonepose-present PYTHONHASHSEED=0 \
   UV_CACHE_DIR="${UV_CACHE_DIR:-$work/uv-cache}" uvx --from scons==4.10.1 scons \
   -j"$jobs" verbose=yes warnings=all progress=no redirect_build_objects=no \
   platform=linuxbsd arch=x86_64 production=yes accesskit_sdk_path="$accesskit" "target=$target" "${template_options[@]}")

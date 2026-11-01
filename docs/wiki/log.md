@@ -1,6 +1,9 @@
 ## 2026-11-01 — World ribbon cost
 
 [Stormwind FPS](investigations/godot-stormwind-fps.md#world-ribbon-cost-2026-11-01) records matched thread-CPU samples and the qualified NPC equipment check.
+## 2026-11-01 — Godot Vulkan present thread
+
+[Vulkan present thread](investigations/godot-vulkan-present-thread.md) records the blocking NVIDIA Wayland present, the present-thread patch and the instrumented before/after.
 
 ## 2026-10-31 — Ruby Life Pools flame wall
 
