@@ -55,7 +55,7 @@ pub(crate) fn query_item_display_id(conn: &Connection, item_id: u32) -> Result<u
 
 /// Versioned by schema: checkouts with an older schema keep reading their own file.
 fn outfit_links_cache_path(data_dir: &Path) -> PathBuf {
-    data_dir.join("cache/outfit_links-v5.sqlite")
+    data_dir.join("cache/outfit_links-v6.sqlite")
 }
 fn required_outfit_csv_paths(data_dir: &Path) -> [PathBuf; 6] {
     let source = data_dir.join(crate::player_model_data::RETAIL_DB2_DIR);
@@ -240,8 +240,12 @@ fn populate_display_info(conn: &Connection, path: &Path) -> Result<(), String> {
             "INSERT OR REPLACE INTO display_info (
             id, model_res_0, model_res_1, model_mat_res_0, model_mat_res_1,
             geoset_group_0, geoset_group_1, geoset_group_2, geoset_group_3, geoset_group_4,
-            geoset_group_5, helmet_vis_0, helmet_vis_1
-         ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)",
+            geoset_group_5, helmet_vis_0, helmet_vis_1, geoset_group_override,
+            attachment_geoset_group_0, attachment_geoset_group_1, attachment_geoset_group_2,
+            attachment_geoset_group_3, attachment_geoset_group_4, attachment_geoset_group_5,
+            model_type_0, model_type_1
+         ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16,
+            ?17, ?18, ?19, ?20, ?21, ?22)",
         )
         .map_err(|err| format!("prepare display_info insert: {err}"))?;
     insert_display_info_rows(&mut reader, path, &columns, &mut insert)?;
@@ -257,23 +261,21 @@ struct DisplayInfoColumns {
     geoset_groups: [usize; 6],
     helmet_vis_0: usize,
     helmet_vis_1: usize,
+    geoset_group_override: usize,
+    attachment_geoset_groups: [usize; 6],
+    model_types: [usize; 2],
 }
 
-type DisplayInfoRow = (
-    u32,
-    u32,
-    u32,
-    u32,
-    u32,
-    i16,
-    i16,
-    i16,
-    i16,
-    i16,
-    i16,
-    u32,
-    u32,
-);
+struct DisplayInfoRow {
+    id: u32,
+    model_res: [u32; 2],
+    model_mat_res: [u32; 2],
+    geoset_groups: [i16; 6],
+    helmet_vis: [u32; 2],
+    geoset_group_override: i16,
+    attachment_geoset_groups: [i16; 6],
+    model_types: [i16; 2],
+}
 
 fn display_info_columns(headers: &[String], path: &Path) -> Result<DisplayInfoColumns, String> {
     Ok(DisplayInfoColumns {
@@ -292,6 +294,19 @@ fn display_info_columns(headers: &[String], path: &Path) -> Result<DisplayInfoCo
         ],
         helmet_vis_0: header_index(headers, "HelmetGeosetVis_0", path)?,
         helmet_vis_1: header_index(headers, "HelmetGeosetVis_1", path)?,
+        geoset_group_override: header_index(headers, "GeosetGroupOverride", path)?,
+        attachment_geoset_groups: [
+            header_index(headers, "AttachmentGeosetGroup_0", path)?,
+            header_index(headers, "AttachmentGeosetGroup_1", path)?,
+            header_index(headers, "AttachmentGeosetGroup_2", path)?,
+            header_index(headers, "AttachmentGeosetGroup_3", path)?,
+            header_index(headers, "AttachmentGeosetGroup_4", path)?,
+            header_index(headers, "AttachmentGeosetGroup_5", path)?,
+        ],
+        model_types: [
+            header_index(headers, "ModelType_0", path)?,
+            header_index(headers, "ModelType_1", path)?,
+        ],
     })
 }
 
@@ -319,8 +334,33 @@ fn insert_display_info_rows(
         else {
             continue;
         };
+        let [g0, g1, g2, g3, g4, g5] = row.geoset_groups;
+        let [a0, a1, a2, a3, a4, a5] = row.attachment_geoset_groups;
         insert
-            .execute(row)
+            .execute(rusqlite::params![
+                row.id,
+                row.model_res[0],
+                row.model_res[1],
+                row.model_mat_res[0],
+                row.model_mat_res[1],
+                g0,
+                g1,
+                g2,
+                g3,
+                g4,
+                g5,
+                row.helmet_vis[0],
+                row.helmet_vis[1],
+                row.geoset_group_override,
+                a0,
+                a1,
+                a2,
+                a3,
+                a4,
+                a5,
+                row.model_types[0],
+                row.model_types[1],
+            ])
             .map_err(|err| format!("insert display_info row: {err}"))?;
     }
     Ok(())
@@ -336,21 +376,32 @@ fn parse_display_info_row(
     if display_id == 0 {
         return Ok(None);
     }
-    Ok(Some((
-        display_id,
-        get_u32(columns.model_res_0)?,
-        get_u32(columns.model_res_1)?,
-        get_u32(columns.model_mat_res_0)?,
-        get_u32(columns.model_mat_res_1)?,
-        get_i16(columns.geoset_groups[0])?,
-        get_i16(columns.geoset_groups[1])?,
-        get_i16(columns.geoset_groups[2])?,
-        get_i16(columns.geoset_groups[3])?,
-        get_i16(columns.geoset_groups[4])?,
-        get_i16(columns.geoset_groups[5])?,
-        get_u32(columns.helmet_vis_0)?,
-        get_u32(columns.helmet_vis_1)?,
-    )))
+    let get_i16s = |indexes: [usize; 6]| -> Result<[i16; 6], String> {
+        let mut values = [0; 6];
+        for (value, index) in values.iter_mut().zip(indexes) {
+            *value = get_i16(index)?;
+        }
+        Ok(values)
+    };
+    Ok(Some(DisplayInfoRow {
+        id: display_id,
+        model_res: [get_u32(columns.model_res_0)?, get_u32(columns.model_res_1)?],
+        model_mat_res: [
+            get_u32(columns.model_mat_res_0)?,
+            get_u32(columns.model_mat_res_1)?,
+        ],
+        geoset_groups: get_i16s(columns.geoset_groups)?,
+        helmet_vis: [
+            get_u32(columns.helmet_vis_0)?,
+            get_u32(columns.helmet_vis_1)?,
+        ],
+        geoset_group_override: get_i16(columns.geoset_group_override)?,
+        attachment_geoset_groups: get_i16s(columns.attachment_geoset_groups)?,
+        model_types: [
+            get_i16(columns.model_types[0])?,
+            get_i16(columns.model_types[1])?,
+        ],
+    }))
 }
 
 fn populate_model_to_fdid(conn: &Connection, path: &Path) -> Result<(), String> {

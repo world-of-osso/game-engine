@@ -47,7 +47,7 @@ mod baked_display {
             ("items/ItemAppearance.csv", "ID,ItemDisplayInfoID\n"),
             (
                 "ItemDisplayInfo.csv",
-                "ID,ModelResourcesID_0,ModelResourcesID_1,ModelMaterialResourcesID_0,ModelMaterialResourcesID_1,GeosetGroup_0,GeosetGroup_1,GeosetGroup_2,GeosetGroup_3,GeosetGroup_4,GeosetGroup_5,HelmetGeosetVis_0,HelmetGeosetVis_1\n10,100,0,200,0,0,0,0,0,0,0,0,0\n11,101,0,200,0,0,0,0,0,0,0,0,0\n12,100,0,201,0,0,0,0,0,0,0,0,0\n13,100,0,200,0,0,0,0,0,0,0,0,0\n",
+                "ID,ModelResourcesID_0,ModelResourcesID_1,ModelMaterialResourcesID_0,ModelMaterialResourcesID_1,GeosetGroup_0,GeosetGroup_1,GeosetGroup_2,GeosetGroup_3,GeosetGroup_4,GeosetGroup_5,HelmetGeosetVis_0,HelmetGeosetVis_1,GeosetGroupOverride,AttachmentGeosetGroup_0,AttachmentGeosetGroup_1,AttachmentGeosetGroup_2,AttachmentGeosetGroup_3,AttachmentGeosetGroup_4,AttachmentGeosetGroup_5,ModelType_0,ModelType_1\n10,100,0,200,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0\n11,101,0,200,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0\n12,100,0,201,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0\n13,100,0,200,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0\n",
             ),
             (
                 "ItemDisplayInfoMaterialRes.csv",
@@ -426,8 +426,8 @@ fn forever_npc_gear_reports_declared_missing_resources() {
         )
         .unwrap();
     }
-    let header = "ID,ModelResourcesID_0,ModelResourcesID_1,ModelMaterialResourcesID_0,ModelMaterialResourcesID_1,GeosetGroup_0,GeosetGroup_1,GeosetGroup_2,GeosetGroup_3,GeosetGroup_4,GeosetGroup_5,HelmetGeosetVis_0,HelmetGeosetVis_1\n";
-    std::fs::write(dir.join("ItemDisplayInfo.csv"), format!("{header}2000000000,2000000001,0,0,0,0,0,0,0,0,0,0,0\n2000000002,0,0,2000000003,0,0,0,0,0,0,0,0,0\n2000000004,0,0,0,0,0,0,0,0,0,0,0,0\n")).unwrap();
+    let header = "ID,ModelResourcesID_0,ModelResourcesID_1,ModelMaterialResourcesID_0,ModelMaterialResourcesID_1,GeosetGroup_0,GeosetGroup_1,GeosetGroup_2,GeosetGroup_3,GeosetGroup_4,GeosetGroup_5,HelmetGeosetVis_0,HelmetGeosetVis_1,GeosetGroupOverride,AttachmentGeosetGroup_0,AttachmentGeosetGroup_1,AttachmentGeosetGroup_2,AttachmentGeosetGroup_3,AttachmentGeosetGroup_4,AttachmentGeosetGroup_5,ModelType_0,ModelType_1\n";
+    std::fs::write(dir.join("ItemDisplayInfo.csv"), format!("{header}2000000000,2000000001,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0\n2000000002,0,0,2000000003,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0\n2000000004,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0\n")).unwrap();
     std::fs::write(
         dir.join("ModelFileData.csv"),
         "FileDataID,ModelResourcesID\n",
@@ -684,7 +684,7 @@ fn concurrent_first_imports_share_one_complete_local_catalog() {
             worker.join().unwrap();
         }
     });
-    let cache = fixture.join("cache/outfit_links-v5.sqlite");
+    let cache = fixture.join("cache/outfit_links-v6.sqlite");
     let before = std::fs::metadata(&cache).unwrap().modified().unwrap();
     let alias = fixture.join("..").join(fixture.file_name().unwrap());
     crate::outfit_catalog_db::import_outfit_links_cache(&alias).unwrap();

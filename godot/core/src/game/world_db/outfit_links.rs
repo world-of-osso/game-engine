@@ -38,7 +38,16 @@ CREATE TABLE display_info (
     geoset_group_4 INTEGER NOT NULL,
     geoset_group_5 INTEGER NOT NULL,
     helmet_vis_0 INTEGER NOT NULL,
-    helmet_vis_1 INTEGER NOT NULL
+    helmet_vis_1 INTEGER NOT NULL,
+    geoset_group_override INTEGER NOT NULL,
+    attachment_geoset_group_0 INTEGER NOT NULL,
+    attachment_geoset_group_1 INTEGER NOT NULL,
+    attachment_geoset_group_2 INTEGER NOT NULL,
+    attachment_geoset_group_3 INTEGER NOT NULL,
+    attachment_geoset_group_4 INTEGER NOT NULL,
+    attachment_geoset_group_5 INTEGER NOT NULL,
+    model_type_0 INTEGER NOT NULL,
+    model_type_1 INTEGER NOT NULL
 );
 CREATE TABLE material_textures (
     material_resource_id INTEGER NOT NULL,
