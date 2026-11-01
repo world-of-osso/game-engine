@@ -43,6 +43,8 @@ thread_local! {
     /// placement: building textures per material uploaded a copy for every doodad.
     static TEXTURES: RefCell<HashMap<TextureKey, Gd<ImageTexture>>> =
         RefCell::new(HashMap::new());
+    /// The 1×1 opaque white an unbound replaceable item slot samples.
+    static WHITE_TEXTURE: RefCell<Option<Gd<ImageTexture>>> = const { RefCell::new(None) };
     /// `batch_shaders` by pipeline state.
     static BATCH_SHADERS: RefCell<HashMap<Pipeline, (Gd<Shader>, Option<Gd<Shader>>)>> =
         RefCell::new(HashMap::new());
@@ -801,6 +803,18 @@ pub(crate) fn shared_texture(
     let texture = texture_from_gpu_image(image)?;
     TEXTURES.with_borrow_mut(|textures| textures.insert(key, texture.clone()));
     Ok(Some(texture))
+}
+
+/// The cached 1×1 opaque white (0xFFFFFFFF) retail binds to a replaceable item slot
+/// whose display has no ItemDisplayInfoModelMatRes row for its type; the batch's
+/// material modulates it.
+pub(crate) fn white_texture() -> Result<Gd<ImageTexture>, String> {
+    if let Some(texture) = WHITE_TEXTURE.with_borrow(Clone::clone) {
+        return Ok(texture);
+    }
+    let texture = texture_from_rgba(&[0xFF; 4], 1, 1)?;
+    WHITE_TEXTURE.with_borrow_mut(|white| *white = Some(texture.clone()));
+    Ok(texture)
 }
 
 /// Make `image`, decoded off the main thread, the shared texture of file `fdid` in
