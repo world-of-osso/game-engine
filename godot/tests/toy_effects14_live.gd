@@ -1,5 +1,6 @@
 extends "res://tests/toy_objects_live.gd"
 # Owned fb_* accounts, private5911 only. Actual bag learning and Toy Box activation.
+# TOYFX_WORLD_DB must point to the world.db used by the private server.
 var failed := false
 const CASES := [
 	[64646, 91760, 32473, "Bones of Transformation"],
@@ -24,7 +25,9 @@ func run_fixture() -> void:
 	if client.account_state().ui_skin != "Forever": fail("wrong account skin"); return
 	if not await wait_until(func(): return native_display(-1), "native player model", 120000): return
 	if not await wait_until(func(): return client.merchant_state().item_catalog_loaded, "source item catalog", 180000): return
-	if not await wait_until(func(): return client.toybox_state().catalog_count == 1166, "full authenticated toy catalog", 120000): return
+	var expected_toys := expected_toy_count()
+	if failed: return
+	if not await wait_until(func(): return client.toybox_state().catalog_count == expected_toys, "full authenticated toy catalog", 120000): return
 	await capture("native")
 	for sample in proof_cases():
 		await prove_toy(sample)
@@ -33,6 +36,21 @@ func run_fixture() -> void:
 	print("PASS toy-effects14 actual learn/use/native effect/restoration ", skin)
 	client.free()
 	quit(0)
+
+func expected_toy_count() -> int:
+	var path := OS.get_environment("TOYFX_WORLD_DB")
+	if path.is_empty() or not FileAccess.file_exists(path):
+		fail("TOYFX_WORLD_DB must name the private server's world.db")
+		return 0
+	var output: Array = []
+	var result := OS.execute("sqlite3", ["-readonly", path, "SELECT COUNT(DISTINCT ItemID) FROM toy;"], output, true)
+	if result != 0 or output.is_empty() or not str(output[0]).strip_edges().is_valid_int():
+		fail("cannot read toy count from server world.db: " + str(output))
+		return 0
+	var count := int(str(output[0]).strip_edges())
+	if count <= 0:
+		fail("server world.db has no toys")
+	return count
 
 func proof_cases() -> Array:
 	return CASES
