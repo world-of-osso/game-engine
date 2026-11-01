@@ -625,10 +625,12 @@ fn attach_unit_visual(
                     {
                         match crate::ribbons::PlacedRibbons::place_cached(&source, &model) {
                             Ok(ribbons) => unit.ribbons = ribbons,
-                            Err(error) => godot_error!(
-                                "{} ribbon: {error}",
-                                appearance.describe_unit(server_id)
-                            ),
+                            Err(error) => {
+                                godot_error!(
+                                    "{} ribbon: {error}",
+                                    appearance.describe_unit(server_id)
+                                );
+                            }
                         }
                     }
                     for (slot, source) in items {
@@ -643,10 +645,12 @@ fn attach_unit_visual(
                         match crate::ribbons::PlacedRibbons::place_cached(&source, &item) {
                             Ok(Some(ribbons)) => unit.item_ribbons.push((ribbons, item)),
                             Ok(None) => {}
-                            Err(error) => godot_error!(
-                                "{} {slot:?} ribbon: {error}",
-                                appearance.describe_unit(server_id)
-                            ),
+                            Err(error) => {
+                                godot_error!(
+                                    "{} {slot:?} ribbon: {error}",
+                                    appearance.describe_unit(server_id)
+                                );
+                            }
                         }
                     }
                 }
