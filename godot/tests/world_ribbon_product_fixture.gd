@@ -78,7 +78,7 @@ func run_fixture() -> void:
 		return
 	var camera := Camera3D.new()
 	root.add_child(camera)
-	camera.position = bounds.get_center() + Vector3(0.0, 0.0, maxf(bounds.size.length() * 2.0, 4.0))
+	camera.position = bounds.get_center() + Vector3(0.0, 0.0, maxf(bounds.size.length() * 0.8, 2.0))
 	camera.look_at(bounds.get_center())
 	camera.current = true
 	for frame in 120:
