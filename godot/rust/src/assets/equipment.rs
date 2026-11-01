@@ -710,12 +710,13 @@ mod tests {
             .collect()
     }
 
-    /// Rookery Earthen gear (retail 70688 selectors): a helm or shoulder's
-    /// GeosetGroupOverride picks the 27xx/26xx glow variant; a collection shows only
+    /// Rookery Earthen gear (retail 70688 selectors): a helm, shoulder or belt buckle's
+    /// GeosetGroupOverride picks the 27xx/26xx/18xx glow variant; a collection shows only
     /// its AttachmentGeosetGroup parts; ModelType -1 keeps legs 678904 off the character.
     #[test]
     fn item_geoset_variants_follow_the_display_selectors() {
-        use shared::components::EquipmentVisualSlot::{Chest, Head, Legs, Shoulder};
+        use crate::equipment_appearance_data::ItemGeosets;
+        use shared::components::EquipmentVisualSlot::{Chest, Head, Legs, Shoulder, Waist};
         use std::collections::BTreeSet;
         let parts = |values: &[u16]| BTreeSet::from_iter(values.iter().copied());
         assert_eq!(drawn_parts(Head, 671846, 1), [(5172261, parts(&[0, 2702]))]);
@@ -730,6 +731,14 @@ mod tests {
         );
         assert_eq!(drawn_parts(Chest, 671827, 5), [(5686565, parts(&[2201]))]);
         assert!(earthen_male_models(Legs, 678904, 7).is_empty());
+        // The buckle's override selects 1801 or 1802; the model authors only 1802.
+        let [buckle] = earthen_male_models(Waist, 671845, 6).try_into().unwrap();
+        assert_eq!(buckle.geosets, ItemGeosets::Attachment(Some(1801)));
+        assert_eq!(drawn_parts(Waist, 671845, 6), [(5172296, parts(&[0]))]);
+        assert_eq!(
+            drawn_parts(Waist, 671819, 6),
+            [(5172296, parts(&[0, 1802]))]
+        );
     }
 
     /// Display 678904's shape (no model material, no ModelMatRes row) on its sibling

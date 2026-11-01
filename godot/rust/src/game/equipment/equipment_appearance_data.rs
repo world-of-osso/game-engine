@@ -41,8 +41,9 @@ pub struct RuntimeModelAppearance {
 /// `R-item-geoset-variant-selection`).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ItemGeosets {
-    /// An ordinary attachment shows every part, except that a shoulder's 26xx or a helm's
-    /// 27xx range shows only this part (`GeosetGroupOverride`); `None` leaves it unchanged.
+    /// An ordinary attachment shows every part, except that its slot's range (shoulder
+    /// 26xx, helm 27xx, waist 18xx, weapon 52xx) shows only this part
+    /// (`GeosetGroupOverride`); `None` leaves every part shown.
     Attachment(Option<u16>),
     /// A collection clears parts 0–5500, then shows only these `group * 100 + variant`.
     Collection(Vec<u16>),
@@ -585,18 +586,7 @@ fn runtime_slot_models(
         .enumerate()
         .filter_map(|(index, (column, fdid, skin_fdids))| {
             let bound = runtime_model_binds_to_character(slot, index);
-            // ModelType -1 keeps a column out of the collection selector.
-            if bound && display.model_types[column] == -1 {
-                return None;
-            }
-            let geosets = if bound {
-                ItemGeosets::Collection(collection_parts(slot, display.attachment_geoset_groups))
-            } else {
-                ItemGeosets::Attachment(attachment_override_part(
-                    slot,
-                    display.geoset_group_override,
-                ))
-            };
+            let geosets = select_item_geosets(slot, bound, column, &display)?;
             Some((column, fdid, skin_fdids, bound, geosets))
         })
         .map(|(column, fdid, skin_fdids, bound, geosets)| {
@@ -630,12 +620,38 @@ fn runtime_slot_models(
         .collect()
 }
 
-/// A shoulder's 2601 or a helm's 2701, plus `GeosetGroupOverride`; none when it is
-/// negative or the slot has no override range.
+/// The parts model `column` of `display` shows in `slot`, or none when the column stays
+/// out of the collection selector (`ModelType` -1).
+fn select_item_geosets(
+    slot: EquipmentSlot,
+    bound: bool,
+    column: usize,
+    display: &game_engine_core::outfit_data::DisplayInfoResolved,
+) -> Option<ItemGeosets> {
+    Some(match display.model_types[column] {
+        -1 if bound => return None,
+        // Extra-resource modes have no geoset selector.
+        2..=4 => ItemGeosets::Attachment(None),
+        _ if bound => {
+            ItemGeosets::Collection(collection_parts(slot, display.attachment_geoset_groups))
+        }
+        _ => ItemGeosets::Attachment(attachment_override_part(
+            slot,
+            display.geoset_group_override,
+        )),
+    })
+}
+
+/// The one part an ordinary attachment shows in its slot's range: group * 100 + 1 +
+/// `GeosetGroupOverride` (decomp `R-attachment-geoset-selectors`); none when the value is
+/// negative or the slot has no range.
 fn attachment_override_part(slot: EquipmentSlot, value: i16) -> Option<u16> {
     let group = match slot {
         EquipmentSlot::Head => 27,
         EquipmentSlot::ShoulderLeft | EquipmentSlot::ShoulderRight => 26,
+        EquipmentSlot::Waist => 18,
+        // Primary weapons; the ordinary off-hand shield's 52xx range is INFERRED.
+        EquipmentSlot::MainHand | EquipmentSlot::OffHand => 52,
         _ => return None,
     };
     Some(group * 100 + 1 + u16::try_from(value).ok()?)
@@ -1234,6 +1250,59 @@ mod tests {
                 .iter()
                 .any(|(g, _)| *g == 22)
         );
+    }
+
+    /// Retail 70688 selectors per model column mode (decomp
+    /// `R-item-geoset-variant-selection`, `R-attachment-geoset-selectors`).
+    #[test]
+    fn model_column_modes_select_their_geosets() {
+        use EquipmentSlot::{Back, Head, Legs, MainHand, OffHand, Waist, Wrist};
+        use ItemGeosets::{Attachment, Collection};
+        let display = |model_types, geoset_group_override| {
+            game_engine_core::outfit_data::DisplayInfoResolved {
+                model_types,
+                geoset_group_override,
+                attachment_geoset_groups: [1, 0, 0, 0, 0, 0],
+                ..Default::default()
+            }
+        };
+        let select =
+            |slot, bound, column, display| select_item_geosets(slot, bound, column, &display);
+        assert_eq!(
+            select(Waist, false, 0, display([0, -1], 1)),
+            Some(Attachment(Some(1802)))
+        );
+        assert_eq!(
+            select(MainHand, false, 0, display([0, -1], 0)),
+            Some(Attachment(Some(5201)))
+        );
+        assert_eq!(
+            select(OffHand, false, 0, display([0, -1], 1)),
+            Some(Attachment(Some(5202)))
+        );
+        assert_eq!(
+            select(Head, false, 0, display([0, -1], -1)),
+            Some(Attachment(None))
+        );
+        assert_eq!(
+            select(Back, false, 0, display([0, -1], 1)),
+            Some(Attachment(None))
+        );
+        for mode in [2, 3, 4] {
+            assert_eq!(
+                select(Head, true, 1, display([0, mode], 1)),
+                Some(Attachment(None))
+            );
+        }
+        assert_eq!(
+            select(Wrist, true, 0, display([1, -1], 0)),
+            Some(Collection(vec![2302]))
+        );
+        assert_eq!(
+            select(Back, true, 1, display([0, 1], 0)),
+            Some(Collection(vec![1502]))
+        );
+        assert_eq!(select(Legs, true, 0, display([-1, -1], 0)), None);
     }
 
     /// Ancestral Chieftain's Greatbelt 168296 (display 180643): buckle 2429565 in model
