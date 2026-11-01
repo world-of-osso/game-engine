@@ -52,6 +52,8 @@ mod emotes;
 mod mount;
 #[path = "world_stand.rs"]
 pub(crate) mod stand;
+#[path = "world_unit_admission_fixture.rs"]
+mod unit_admission_fixture;
 #[path = "world_unit_transform_fixture.rs"]
 mod unit_transform_fixture;
 #[path = "world_vehicle_fixture.rs"]
@@ -74,6 +76,9 @@ struct UnitNode {
     visual: Option<Gd<Node3D>>,
     /// The parts of `visual` its animation LOD reads every frame.
     lod_target: Option<LodTarget>,
+    /// Whether portal visibility admitted the unit to the camera when its subtree was
+    /// last refreshed; `None` once new geometry needs it applied.
+    camera_admitted: Option<bool>,
     /// Visual request still loading and the sheath state its virtual items are placed
     /// for; `visual` shows the previous appearance until it arrives.
     loading: Option<(u64, SheathState)>,
@@ -156,6 +161,7 @@ impl UnitNode {
         self.item_ribbons.clear();
         self.lod_target = visual.as_ref().and_then(LodTarget::of);
         self.visual = visual;
+        self.camera_admitted = None;
     }
 }
 
@@ -343,6 +349,7 @@ fn spawn_unit(
         appearance: None,
         visual: None,
         lod_target: None,
+        camera_admitted: None,
         loading: None,
         visual_player_model: None,
         death_applied: false,
@@ -1432,6 +1439,7 @@ impl WorldUnits {
                         bind_visual_light(&model, self.light.as_ref());
                         unit.node.add_child(&model);
                         mount.node = Some(model);
+                        unit.camera_admitted = None;
                         mount::seat_rider(unit);
                     }
                     Err(error) => {
@@ -1655,6 +1663,25 @@ impl WorldUnits {
             if let Some(materials) = &mut target.materials {
                 materials.bind_mut().set_sampling(sampling);
             }
+        }
+    }
+
+    /// Rejects remote units outside portal visibility from the camera while keeping
+    /// their shadows: the outdoor admission of terrain and doodads applied to each
+    /// unit's model and mount boxes. The local player is always admitted.
+    pub fn cull_outdoor(&mut self, windows: Option<&[Vec<HalfSpace>]>, interiors: &[(Vec3, Vec3)]) {
+        for (id, unit) in &mut self.units {
+            let admitted = Some(*id) == self.local_player_id
+                || unit_world_box(unit).is_none_or(|(min, max)| {
+                    crate::terrain::scenery::outdoor_box_admitted(min, max, windows, interiors)
+                });
+            if unit.camera_admitted == Some(admitted) {
+                continue;
+            }
+            let mut node = unit.node.clone().upcast::<godot::classes::Node>();
+            crate::animation::set_camera_admitted(&mut node, admitted);
+            crate::animation::refresh_unit_shadows(&node);
+            unit.camera_admitted = Some(admitted);
         }
     }
 
@@ -1931,6 +1958,40 @@ impl WorldUnits {
         };
         self.local_player_id = resolve_selected_player(&self.units, self.local_player_id, name);
     }
+}
+
+/// Held items and animation reach past a model's bind-pose mesh bounds.
+const UNIT_BOX_MARGIN: f32 = 1.0;
+
+/// World box of a unit's model and its mount's model, grown by `UNIT_BOX_MARGIN`;
+/// `None` while it shows neither.
+fn unit_world_box(unit: &UnitNode) -> Option<(Vec3, Vec3)> {
+    let mount = unit.mount.as_ref().and_then(|mount| mount.node.as_ref());
+    [unit.visual.as_ref(), mount]
+        .into_iter()
+        .flatten()
+        .filter_map(|visual| {
+            visual
+                .try_get_node_as::<Node3D>("NpcModel")
+                .or_else(|| visual.try_get_node_as::<Node3D>("PlayerModel"))
+        })
+        .map(|model| {
+            let bounds = crate::world_models::mesh_bounds(&model);
+            let to_glam = |v: Vector3| Vec3::new(v.x, v.y, v.z);
+            SceneryDistance::new(
+                to_glam(bounds.position),
+                to_glam(bounds.end()),
+                crate::terrain::objects::affine(model.get_global_transform()),
+            )
+            .world_bounds()
+        })
+        .reduce(|(low, high), (min, max)| (low.min(min), high.max(max)))
+        .map(|(min, max)| {
+            (
+                min - Vec3::splat(UNIT_BOX_MARGIN),
+                max + Vec3::splat(UNIT_BOX_MARGIN),
+            )
+        })
 }
 
 /// The NPC animation rate for model-space `bounds` placed by `world_from_model`: by
