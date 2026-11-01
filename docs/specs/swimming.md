@@ -9,7 +9,7 @@ References:
 
 ## What it must do
 
-- [x] Swimming starts where terrain water stands `SWIM_DEPTH` (1.25 yd) over the feet above the ground; a floor above the water keeps the character dry.
+- [x] Swimming starts where terrain or WMO water stands `SWIM_DEPTH` (1.25 yd) over the feet above the ground; a floor above the water keeps the character dry. WMO liquid applies only when the feet are within its group's horizontal MOGP bounds and at or above its lower bound. This is a bounded approximation of TrinityCore's group selection: the Halls pool's floor and liquid belong to different groups.
 - [x] A swimmer has no gravity and no jump: idle it stays where it is.
 - [x] Held Jump (default Space) ascends and held Sit/Move Down (`SitOrStand`, default X) descends at `SWIM_SPEED` (4.7222 yd/s) × the server speed modifier ([player movement sync](player-movement-sync.md)); a root holds the swimmer; both held cancel.
 - [x] A swimmer rises no higher than feet `SWIM_DEPTH` under the surface, and one floating there follows the surface while swimming level; it sinks no lower than the ground.
@@ -27,6 +27,8 @@ References:
 - [ ] Not built: underwater camera/fog, swim-surface bobbing animation, jumping out of the water at a ledge, mount dismount on the client, Undead/Water Breathing breath duration.
 
 ## Tests
+
+- `godot/rust/src/ground.rs`: `windrunner_hall_liquid_does_not_reach_the_floors_under_its_group` checks real Windrunner geometry; `halls_wmo_water_drives_local_swim_prediction` retains Halls pool coverage.
 
 - `godot/rust/src/gameplay.rs`: `space_ascends_to_the_surface_and_x_descends_to_the_seabed`, `walking_into_deep_water_floats_at_the_surface_at_swim_speed`, `slow_frames_wade_in_to_the_floating_height`, `mouse_steered_forward_swim_follows_camera_pitch` on cached `azeroth_32_48`.
 - `godot/core/tests/input_bindings_data.rs`: `SitOrStand` default X, label, section.

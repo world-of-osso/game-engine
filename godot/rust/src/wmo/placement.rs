@@ -2,6 +2,7 @@
 
 use game_engine_core::{
     adt::WmoPlacement, campsite_object_data::placement_position, footstep_data::FootstepSurface,
+    wmo_liquid::LiquidTriangle,
 };
 use std::sync::Arc;
 
@@ -17,7 +18,7 @@ pub(crate) struct PlacedWmo {
     pub asset: NativeWmoAsset,
     pub world_from_local: Affine3A,
     pub collision: WmoCollision,
-    pub liquids: Vec<game_engine_core::wmo_liquid::LiquidTriangle>,
+    pub liquids: Option<PlacedLiquid>,
     pub surface: Option<FootstepSurface>,
 }
 
@@ -33,10 +34,7 @@ impl PlacedWmo {
             global_wmo_placement_position(placement.position),
         );
         let collision = placed_collision(world_from_local, &asset);
-        let liquids = asset_liquids(&asset)
-            .iter()
-            .map(|triangle| triangle.transformed(world_from_local))
-            .collect();
+        let liquids = PlacedLiquid::new(collision.clone(), &asset_liquids(&asset));
         Self {
             placement,
             asset,
@@ -48,14 +46,66 @@ impl PlacedWmo {
     }
 }
 
-pub(crate) fn asset_liquids(
-    asset: &NativeWmoAsset,
-) -> Vec<game_engine_core::wmo_liquid::LiquidTriangle> {
+/// A placed WMO's liquid by collision group, in world space. Only a group holding the
+/// feet in its MOGP box across, at or over its bottom, gives the liquid there: TrinityCore
+/// 15e0ed76 `IsInsideOrAboveBound` (`GroupModel::IsInsideObject`). TC then keeps only the
+/// group whose faces lie nearest under the feet; that drops the Halls of Infusion pool
+/// (its floor belongs to another group), where players swim, so it is not applied.
+#[derive(Clone)]
+pub(crate) struct PlacedLiquid {
+    pub collision: WmoCollision,
+    pub groups: Vec<Vec<LiquidTriangle>>,
+}
+
+impl PlacedLiquid {
+    /// `None` for a WMO without liquid; `local` is in the collision's group order.
+    pub fn new(collision: WmoCollision, local: &[Vec<LiquidTriangle>]) -> Option<Self> {
+        if local.iter().all(Vec::is_empty) {
+            return None;
+        }
+        let world = collision.world_from_local();
+        let groups = local
+            .iter()
+            .map(|group| {
+                group
+                    .iter()
+                    .map(|triangle| triangle.transformed(world))
+                    .collect()
+            })
+            .collect();
+        Some(Self { collision, groups })
+    }
+
+    /// The liquid levels over `feet` of the groups holding them.
+    pub fn levels_at(&self, feet: Vec3) -> impl Iterator<Item = f32> + '_ {
+        let local = self
+            .collision
+            .world_from_local()
+            .inverse()
+            .transform_point3(feet);
+        self.groups
+            .iter()
+            .zip(self.collision.groups())
+            .filter(move |(_, group)| {
+                let (low, high) = group.local_bounds();
+                local.x >= low.x
+                    && local.x <= high.x
+                    && local.z >= low.z
+                    && local.z <= high.z
+                    && local.y >= low.y
+            })
+            .flat_map(|(triangles, _)| triangles)
+            .filter_map(move |triangle| triangle.level_at(feet.x, feet.z))
+    }
+}
+
+/// Each group's liquid, in model-local space and the asset's group order.
+pub(crate) fn asset_liquids(asset: &NativeWmoAsset) -> Vec<Vec<LiquidTriangle>> {
     use game_engine_core::wmo_liquid::{group_liquid_type, liquid_triangles};
     asset
         .groups
         .iter()
-        .flat_map(|group| {
+        .map(|group| {
             let Some(kind) = group_liquid_type(asset.root.flags, &group.group.header) else {
                 return Vec::new();
             };
