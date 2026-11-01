@@ -34,7 +34,7 @@ fn source_fixture(name: &str) -> PathBuf {
     let write = |dir: &Path, name: &str, text: &str| {
         std::fs::write(dir.join(format!("{name}.csv")), text).unwrap();
     };
-    let display_header = "ID,ModelResourcesID_0,ModelResourcesID_1,ModelMaterialResourcesID_0,ModelMaterialResourcesID_1,GeosetGroup_0,GeosetGroup_1,GeosetGroup_2,GeosetGroup_3,GeosetGroup_4,GeosetGroup_5,HelmetGeosetVis_0,HelmetGeosetVis_1\n";
+    let display_header = "ID,ModelResourcesID_0,ModelResourcesID_1,ModelMaterialResourcesID_0,ModelMaterialResourcesID_1,GeosetGroup_0,GeosetGroup_1,GeosetGroup_2,GeosetGroup_3,GeosetGroup_4,GeosetGroup_5,HelmetGeosetVis_0,HelmetGeosetVis_1,GeosetGroupOverride,AttachmentGeosetGroup_0,AttachmentGeosetGroup_1,AttachmentGeosetGroup_2,AttachmentGeosetGroup_3,AttachmentGeosetGroup_4,AttachmentGeosetGroup_5,ModelType_0,ModelType_1\n";
     write(
         &root,
         "ItemModifiedAppearance",
@@ -49,7 +49,7 @@ fn source_fixture(name: &str) -> PathBuf {
     write(
         &root,
         "ItemDisplayInfo",
-        &format!("{display_header}1542,7,0,8,0,1,0,0,0,0,0,0,0\n"),
+        &format!("{display_header}1542,7,0,8,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0\n"),
     );
     write(
         &root,

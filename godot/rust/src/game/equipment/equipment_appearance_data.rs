@@ -34,6 +34,32 @@ pub struct RuntimeModelAppearance {
     pub skin_products: [Option<AssetProduct>; 3],
     /// ItemDisplayInfoModelMatRes (M2 texture type, texture FDID) for this model column.
     pub texture_replacements: Vec<(u32, AssetTexture)>,
+    pub geosets: ItemGeosets,
+}
+
+/// The mesh parts a runtime item model shows (retail 12.1.5 70688, decomp
+/// `R-item-geoset-variant-selection`).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ItemGeosets {
+    /// An ordinary attachment shows every part, except that a shoulder's 26xx or a helm's
+    /// 27xx range shows only this part (`GeosetGroupOverride`); `None` leaves it unchanged.
+    Attachment(Option<u16>),
+    /// A collection clears parts 0–5500, then shows only these `group * 100 + variant`.
+    Collection(Vec<u16>),
+}
+
+impl ItemGeosets {
+    pub fn shows(&self, slot: EquipmentSlot, mesh_part: u16) -> bool {
+        match self {
+            Self::Collection(parts) => parts.contains(&mesh_part),
+            Self::Attachment(selected) => {
+                (slot == EquipmentSlot::Waist || runtime_mesh_part_allowed(slot, mesh_part))
+                    && selected.is_none_or(|selected| {
+                        mesh_part / 100 != selected / 100 || mesh_part == selected
+                    })
+            }
+        }
+    }
 }
 
 #[derive(Debug, Clone, Default)]
@@ -245,9 +271,24 @@ fn load_equipment_entries(
             )),
         }
     }
+    claim_collection_groups(&mut resolved.runtime_models);
     apply_body_geosets(&mut resolved, &body);
     layer_item_textures(&mut resolved, &body);
     resolved
+}
+
+/// A group an earlier collection selected is not selected again, and a collection left
+/// with no group is not drawn. Equipment order stands in for retail's group-owner
+/// resolution, which also weighs `GeosetGroup_n` and equipment priority.
+fn claim_collection_groups(models: &mut Vec<RuntimeModelAppearance>) {
+    let mut taken = HashSet::new();
+    models.retain_mut(|model| {
+        let ItemGeosets::Collection(parts) = &mut model.geosets else {
+            return true;
+        };
+        parts.retain(|part| taken.insert(part / 100));
+        !parts.is_empty()
+    });
 }
 
 /// WoWModelViewer WoWItem.cpp / TabardDetails.cpp: the three customizable guild tabards.
@@ -536,10 +577,29 @@ fn runtime_slot_models(
     sex: u8,
 ) -> Result<Vec<RuntimeModelAppearance>, String> {
     let models = runtime_model_columns(outfit_data, display_info_id, slot, race, sex)?;
+    let display = outfit_data
+        .load_display_info(display_info_id)?
+        .ok_or_else(|| format!("display {display_info_id} missing"))?;
     models
         .into_iter()
         .enumerate()
-        .map(|(index, (column, fdid, skin_fdids))| {
+        .filter_map(|(index, (column, fdid, skin_fdids))| {
+            let bound = runtime_model_binds_to_character(slot, index);
+            // ModelType -1 keeps a column out of the collection selector.
+            if bound && display.model_types[column] == -1 {
+                return None;
+            }
+            let geosets = if bound {
+                ItemGeosets::Collection(collection_parts(slot, display.attachment_geoset_groups))
+            } else {
+                ItemGeosets::Attachment(attachment_override_part(
+                    slot,
+                    display.geoset_group_override,
+                ))
+            };
+            Some((column, fdid, skin_fdids, bound, geosets))
+        })
+        .map(|(column, fdid, skin_fdids, bound, geosets)| {
             let (product, material_product) =
                 outfit_data.load_column_products(display_info_id, column)?;
             let skin_products = runtime_skin_products(
@@ -555,7 +615,7 @@ fn runtime_slot_models(
                 slot,
                 fdid,
                 product,
-                bind_to_character: runtime_model_binds_to_character(slot, index),
+                bind_to_character: bound,
                 skin_fdids,
                 skin_products,
                 texture_replacements: outfit_data.load_source_model_textures(
@@ -564,9 +624,50 @@ fn runtime_slot_models(
                     race,
                     sex,
                 )?,
+                geosets,
             })
         })
         .collect()
+}
+
+/// A shoulder's 2601 or a helm's 2701, plus `GeosetGroupOverride`; none when it is
+/// negative or the slot has no override range.
+fn attachment_override_part(slot: EquipmentSlot, value: i16) -> Option<u16> {
+    let group = match slot {
+        EquipmentSlot::Head => 27,
+        EquipmentSlot::ShoulderLeft | EquipmentSlot::ShoulderRight => 26,
+        _ => return None,
+    };
+    Some(group * 100 + 1 + u16::try_from(value).ok()?)
+}
+
+/// Parts a collection in `slot` selects: for each group its `AttachmentGeosetGroup`
+/// field maps to, `group * 100 + (value + 1)` as an unsigned byte; a negative value
+/// selects nothing.
+fn collection_parts(slot: EquipmentSlot, values: [i16; 6]) -> Vec<u16> {
+    collection_geoset_groups(slot)
+        .iter()
+        .filter_map(|&(field, group)| {
+            let value = u16::try_from(values[field]).ok()?;
+            Some(group * 100 + u16::from(value.wrapping_add(1) as u8))
+        })
+        .collect()
+}
+
+/// (`AttachmentGeosetGroup` field, character geoset group) of a collection in `slot`.
+fn collection_geoset_groups(slot: EquipmentSlot) -> &'static [(usize, u16)] {
+    match slot {
+        EquipmentSlot::Head => &[(0, 27), (1, 21)],
+        EquipmentSlot::ShoulderLeft | EquipmentSlot::ShoulderRight => &[(0, 26)],
+        EquipmentSlot::Back => &[(0, 15)],
+        EquipmentSlot::Chest => &[(0, 8), (1, 10), (2, 13), (3, 22), (4, 28)],
+        EquipmentSlot::Hands => &[(0, 4), (1, 23)],
+        EquipmentSlot::Wrist => &[(0, 23)],
+        EquipmentSlot::Waist => &[(0, 18)],
+        EquipmentSlot::Legs => &[(0, 11), (1, 9), (2, 13)],
+        EquipmentSlot::Feet => &[(0, 5), (1, 20)],
+        EquipmentSlot::MainHand | EquipmentSlot::OffHand | EquipmentSlot::Ranged => &[],
+    }
 }
 
 /// wow.export c2fd7bd `tab_characters.js:669-678`: the slot's first model uses its
@@ -744,28 +845,6 @@ pub fn slot_attachment_id(slot: EquipmentSlot) -> u32 {
         EquipmentSlot::OffHand => 2,
         EquipmentSlot::Ranged => 1,
     }
-}
-
-/// Whether a collection model's mesh part belongs to `slot`: a collection file is shared
-/// by several slots' items, each showing the geoset groups of its slot (WMVx
-/// `MergedEquipmentGeosetModifier`; body armor keeps the groups it had); all of the
-/// slot's parts show, whatever the body's variant (the
-/// Tauren heritage belt collection has only 1801 while the belt selects 1802).
-pub fn collection_mesh_part_in_slot(slot: EquipmentSlot, mesh_part_id: u16) -> bool {
-    let groups: &[u16] = match slot {
-        EquipmentSlot::Head => &[21, 24, 27, 37],
-        EquipmentSlot::ShoulderLeft | EquipmentSlot::ShoulderRight => &[26],
-        EquipmentSlot::Back => &[15],
-        EquipmentSlot::Chest => &[22],
-        EquipmentSlot::Hands => &[4],
-        // WMVx wristbands 8xx; the Fanciful Corsage collection's bracer is 2301.
-        EquipmentSlot::Wrist => &[8, 23],
-        EquipmentSlot::Waist => &[18],
-        EquipmentSlot::Legs => &[11, 13],
-        EquipmentSlot::Feet => &[5, 20],
-        EquipmentSlot::MainHand | EquipmentSlot::OffHand | EquipmentSlot::Ranged => &[],
-    };
-    groups.contains(&(mesh_part_id / 100))
 }
 
 pub fn model_attachment_id(slot: EquipmentSlot, path: &Path) -> u32 {
@@ -1181,10 +1260,14 @@ mod tests {
                 (EquipmentSlot::Waist, 2_429_554)
             ]
         );
+        // AttachmentGeosetGroup_0 0 selects 1801, the collection's only belt part.
+        assert_eq!(belt_models[0].geosets, ItemGeosets::Attachment(None));
+        assert_eq!(belt_models[1].geosets, ItemGeosets::Collection(vec![1801]));
         let bracer = tauren(vec![entry(EquipmentVisualSlot::Wrist, 190091)]);
         assert_eq!(bracer.len(), 1);
         assert_eq!(bracer[0].slot, EquipmentSlot::Wrist);
         assert!(bracer[0].bind_to_character);
+        assert_eq!(bracer[0].geosets, ItemGeosets::Collection(vec![2301]));
     }
 
     #[test]

@@ -170,25 +170,33 @@ fn query_display_info_row(
         .prepare(
             "SELECT model_res_0, model_res_1, model_mat_res_0, model_mat_res_1,
                     geoset_group_0, geoset_group_1, geoset_group_2, geoset_group_3,
-                    geoset_group_4, geoset_group_5, helmet_vis_0, helmet_vis_1
+                    geoset_group_4, geoset_group_5, helmet_vis_0, helmet_vis_1,
+                    geoset_group_override, attachment_geoset_group_0,
+                    attachment_geoset_group_1, attachment_geoset_group_2,
+                    attachment_geoset_group_3, attachment_geoset_group_4,
+                    attachment_geoset_group_5, model_type_0, model_type_1
              FROM display_info
              WHERE id = ?1",
         )
         .map_err(|err| format!("prepare display_info single lookup: {err}"))?;
     stmt.query_row([display_info_id], |row| {
-        Ok(build_display_info_row(
+        let i16s = |first: usize| -> rusqlite::Result<[i16; 6]> {
+            let mut values = [0; 6];
+            for (offset, value) in values.iter_mut().enumerate() {
+                *value = row.get(first + offset)?;
+            }
+            Ok(values)
+        };
+        let mut display = build_display_info_row(
             [row.get::<_, u32>(0)?, row.get::<_, u32>(1)?],
             [row.get::<_, u32>(2)?, row.get::<_, u32>(3)?],
-            [
-                row.get::<_, i16>(4)?,
-                row.get::<_, i16>(5)?,
-                row.get::<_, i16>(6)?,
-                row.get::<_, i16>(7)?,
-                row.get::<_, i16>(8)?,
-                row.get::<_, i16>(9)?,
-            ],
+            i16s(4)?,
             [row.get::<_, u32>(10)?, row.get::<_, u32>(11)?],
-        ))
+        );
+        display.geoset_group_override = row.get(12)?;
+        display.attachment_geoset_groups = i16s(13)?;
+        display.model_types = [row.get(19)?, row.get(20)?];
+        Ok(display)
     })
     .optional()
     .map_err(|err| format!("query display_info single row: {err}"))
@@ -234,6 +242,7 @@ fn build_display_info_row(
         model_material_resource_columns: model_material_resources,
         helmet_geoset_vis_ids: collect(helmet_vis_ids),
         geoset_groups,
+        ..DisplayInfoResolved::default()
     }
 }
 

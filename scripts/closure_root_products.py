@@ -227,7 +227,7 @@ def seed_item_displays(graph, displays):
     displays = sorted(set(displays) - {0})
     if not displays:
         return
-    with source_cache(graph, "outfit_links-v5.sqlite") as db:
+    with source_cache(graph, "outfit_links-v6.sqlite") as db:
         if db is None:
             return
         for display in displays:
@@ -237,7 +237,7 @@ def seed_item_displays(graph, displays):
             ).fetchone()
             if row is None:
                 graph.issue(
-                    "missing_metadata_row", f"outfit_links-v5.sqlite display {display}"
+                    "missing_metadata_row", f"outfit_links-v6.sqlite display {display}"
                 )
                 continue
             for resource in sorted(set(row[:2]) - {0}):

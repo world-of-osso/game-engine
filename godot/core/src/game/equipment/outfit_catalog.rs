@@ -37,6 +37,13 @@ pub struct DisplayInfoResolved {
     pub model_material_resource_columns: [u32; 2],
     pub helmet_geoset_vis_ids: Vec<u32>,
     pub geoset_groups: [i16; 6],
+    /// Shoulder/helm attachment variant: replaces part range 2600/2700 with
+    /// 2601/2701 + value; negative leaves the range unchanged.
+    pub geoset_group_override: i16,
+    /// Collection-model variant per slot group (value + 1); negative selects nothing.
+    pub attachment_geoset_groups: [i16; 6],
+    /// Per model column; -1 keeps the column out of the collection selector.
+    pub model_types: [i16; 2],
 }
 
 #[derive(Debug, Default)]
@@ -148,7 +155,10 @@ impl OutfitData {
         }))
     }
 
-    fn load_display_info(&self, display_id: u32) -> Result<Option<DisplayInfoResolved>, String> {
+    pub fn load_display_info(
+        &self,
+        display_id: u32,
+    ) -> Result<Option<DisplayInfoResolved>, String> {
         let data = self.loaded_result()?;
         if let Some(conn) = &data.source_connection {
             return crate::outfit_catalog_db::query_display_info(&conn.lock().unwrap(), display_id);
