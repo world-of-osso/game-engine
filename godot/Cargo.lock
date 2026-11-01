@@ -3192,6 +3192,7 @@ dependencies = [
  "godot",
  "image 0.25.10",
  "ktx2-rw",
+ "libc",
  "peercred-ipc",
  "png",
  "rmp-serde",

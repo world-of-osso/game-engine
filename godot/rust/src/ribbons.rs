@@ -128,6 +128,8 @@ impl PlacedRibbons {
         fade: f32,
     ) -> Result<(), String> {
         let _timing = crate::profile::node_span("M2WorldRibbon.update_and_draw");
+        #[cfg(target_os = "linux")]
+        let _cpu = crate::profile::cpu_node_span("M2WorldRibbon.cpu_ms");
         self.update_and_draw(root, delta, fade, true)
     }
 
@@ -139,6 +141,8 @@ impl PlacedRibbons {
         emitting: bool,
     ) -> Result<(), String> {
         let _timing = crate::profile::node_span("M2Ribbon.update_and_draw");
+        #[cfg(target_os = "linux")]
+        let _cpu = crate::profile::cpu_node_span("M2Ribbon.cpu_ms");
         self.clock_ms += f64::from(delta) * 1000.0;
         if self.hidden {
             for ribbon in &mut self.ribbons {
@@ -393,6 +397,8 @@ fn upload_geometry(mesh: &mut Gd<ArrayMesh>, vertices: &[RibbonVertex]) {
 /// dynamic vertex and attribute buffers. Padded triangles repeat the last vertex.
 fn update_geometry(mesh: &mut Gd<ArrayMesh>, capacity: &mut usize, vertices: &[RibbonVertex]) {
     let _timing = crate::profile::node_span("M2Ribbon.upload_geometry");
+    #[cfg(target_os = "linux")]
+    let _cpu = crate::profile::cpu_node_span("M2Ribbon.upload_cpu_ms");
     let Some(last) = vertices.last().copied() else {
         return;
     };
