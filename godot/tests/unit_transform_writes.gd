@@ -34,13 +34,11 @@ func run_test() -> void:
 	await process_frame
 	for counter in counters:
 		counter.writes = 0
-	for frame in 120:
-		fixture.advance(FRAME)
+	await advance_frames(120)
 	for index in YAWS.size():
 		check(counters[index].writes == 0, "standing unit %d at yaw %s rewrote its transform %d times in 120 frames" % [index, YAWS[index], counters[index].writes])
 	fixture.set_target_yaw(1, 2.0)
-	for frame in 120:
-		fixture.advance(FRAME)
+	await advance_frames(120)
 	var turned := fixture.get_node("WorldUnits/Unit1") as Node3D
 	check(counters[1].writes > 0, "a new facing turned the unit")
 	var target := Quaternion(Vector3.UP, 2.0)
@@ -52,6 +50,12 @@ func run_test() -> void:
 	fixture.queue_free()
 	await process_frame
 	quit(0 if failures.is_empty() else 1)
+
+# Godot flushes transform notifications once per frame, as the client advances units.
+func advance_frames(count: int) -> void:
+	for frame in count:
+		fixture.advance(FRAME)
+		await process_frame
 
 func check(ok: bool, message: String) -> void:
 	if not ok:
