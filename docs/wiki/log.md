@@ -1,3 +1,7 @@
+## 2026-11-01 — World ribbon cost
+
+[Stormwind FPS](investigations/godot-stormwind-fps.md#world-ribbon-cost-2026-11-01) records matched thread-CPU samples and the qualified NPC equipment check.
+
 ## 2026-10-31 — Ruby Life Pools flame wall
 
 [Ruby flame wall](investigations/ruby-flame-wall.md) records the GO377194 open-state fix, measured particle drain and qualified distance comparison.
