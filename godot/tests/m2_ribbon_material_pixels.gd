@@ -62,6 +62,15 @@ func prove_materials() -> void:
 	if uv_start.g < 0.9 or uv_start.r > 0.1 or uv_middle.r < 0.9 or uv_middle.g > 0.1:
 		push_error("Real1865728 UV translation must move green to red: %s → %s" % [uv_start, uv_middle])
 		failed = true
+	assert_input(strip.sample_real_uv(633))
+	await settle()
+	var uv_repeated := center_pixel()
+	assert_input(strip.sample_real_uv(0))
+	await settle()
+	var uv_restored := center_pixel()
+	if uv_repeated.r < 0.9 or uv_repeated.g > 0.1 or uv_restored.g < 0.9 or uv_restored.r > 0.1:
+		push_error("Repeated and restored UV samples changed the wrong pixels: %s → %s" % [uv_repeated, uv_restored])
+		failed = true
 	print("Real ribbon UV raster source1865728 global0=", uv_start, " global633=", uv_middle)
 	print("Ribbon material raster alpha=", alpha_pixel, " priority=", ordered_pixel)
 	if not failed: print("PASS native ribbon source opaque-alpha and priority raster")

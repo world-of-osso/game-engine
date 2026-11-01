@@ -127,5 +127,17 @@ func run_fixture() -> void:
 		if ribbon.visible:
 			fail("Off-screen ribbon remained visible")
 			return
-	print("PASS: real world doodad draws and culls product-root ribbons")
+	camera.look_at(bounds.get_center())
+	for frame in 60:
+		doodad.position.x = sin(float(frame) * 0.06) * 0.7
+		probe.advance(camera, 1.0 / 60.0)
+		await process_frame
+	var resumed := 0
+	for ribbon in ribbons:
+		if ribbon.visible and ribbon.mesh != null and ribbon.mesh.get_surface_count() > 0:
+			resumed += 1
+	if resumed == 0:
+		fail("Ribbon did not resume after culling")
+		return
+	print("PASS: real world doodad draws, culls and resumes product-root ribbons")
 	quit(0)

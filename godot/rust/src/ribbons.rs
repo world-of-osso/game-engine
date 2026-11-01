@@ -15,20 +15,35 @@ use godot::{
 };
 use std::path::Path;
 
+struct RibbonMaterial {
+    material: Gd<ShaderMaterial>,
+    transform: Option<usize>,
+    last_matrix: Option<TextureMatrix>,
+}
+
 struct PlacedRibbon {
     source: M2RibbonEmitter,
     trail: RibbonTrail,
     meshes: Vec<Gd<MeshInstance3D>>,
-    materials: Vec<(Gd<ShaderMaterial>, Option<usize>)>,
+    materials: Vec<RibbonMaterial>,
     geometry: Gd<ArrayMesh>,
+    has_geometry: bool,
+    visible: bool,
 }
 
 impl PlacedRibbon {
     fn draw(&mut self, fade: f32) {
         let vertices = self.trail.triangles(fade);
-        upload_geometry(&mut self.geometry, &vertices);
-        for mesh in &mut self.meshes {
-            mesh.set_visible(!vertices.is_empty());
+        let has_geometry = !vertices.is_empty();
+        if has_geometry || self.has_geometry {
+            upload_geometry(&mut self.geometry, &vertices);
+        }
+        self.has_geometry = has_geometry;
+        if self.visible != has_geometry {
+            for mesh in &mut self.meshes {
+                mesh.set_visible(has_geometry);
+            }
+            self.visible = has_geometry;
         }
     }
 }
@@ -97,8 +112,11 @@ impl PlacedRibbons {
             return;
         }
         for ribbon in &mut self.ribbons {
-            for mesh in &mut ribbon.meshes {
-                mesh.set_visible(false);
+            if ribbon.visible {
+                for mesh in &mut ribbon.meshes {
+                    mesh.set_visible(false);
+                }
+                ribbon.visible = false;
             }
         }
         self.hidden = true;
@@ -189,13 +207,17 @@ fn place_ribbon(
             let transform = m2_ribbons::texture_transform_index(model, source, pass)?;
             let material =
                 load_ribbon_material(model, source.priority_plane, texture, material, texture_dir)?;
-            Ok((material, transform))
+            Ok(RibbonMaterial {
+                material,
+                transform,
+                last_matrix: None,
+            })
         })
         .collect::<Result<Vec<_>, String>>()?;
     let geometry = ArrayMesh::new_gd();
     let meshes = materials
         .iter()
-        .map(|(material, _)| spawn_ribbon_mesh(root, &geometry, material))
+        .map(|material| spawn_ribbon_mesh(root, &geometry, &material.material))
         .collect();
     Ok(PlacedRibbon {
         source: source.clone(),
@@ -203,6 +225,8 @@ fn place_ribbon(
         meshes,
         materials,
         geometry,
+        has_geometry: false,
+        visible: false,
     })
 }
 
@@ -265,15 +289,20 @@ fn spawn_ribbon_mesh(
 }
 
 fn update_texture_transforms(
-    materials: &mut [(Gd<ShaderMaterial>, Option<usize>)],
+    materials: &mut [RibbonMaterial],
     tracks: &MaterialTracks,
     time: MaterialTime,
 ) {
-    for (material, index) in materials {
-        let matrix = index.map_or(m2_material::IDENTITY_MATRIX, |index| {
-            m2_material::texture_matrix(&tracks.transforms[index], tracks, time)
-        });
-        apply_texture_transform(material, matrix);
+    for material in materials {
+        let matrix = material
+            .transform
+            .map_or(m2_material::IDENTITY_MATRIX, |index| {
+                m2_material::texture_matrix(&tracks.transforms[index], tracks, time)
+            });
+        if material.last_matrix != Some(matrix) {
+            apply_texture_transform(&mut material.material, matrix);
+            material.last_matrix = Some(matrix);
+        }
     }
 }
 

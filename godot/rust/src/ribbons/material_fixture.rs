@@ -1,7 +1,7 @@
 //! Debug-only raster fixture through the production ribbon material/mesh path.
 use super::{
-    create_ribbon_material, place_ribbon, spawn_ribbon_mesh, update_texture_transforms,
-    upload_geometry,
+    RibbonMaterial, create_ribbon_material, place_ribbon, spawn_ribbon_mesh,
+    update_texture_transforms, upload_geometry,
 };
 use game_engine_core::{
     m2,
@@ -47,6 +47,7 @@ fn create_uv_fixture_texture() -> Result<Gd<ImageTexture>, String> {
 #[class(base = Node3D, init)]
 struct RibbonMaterialFixture {
     base: Base<Node3D>,
+    last_uv_matrix: Option<game_engine_core::m2_material::TextureMatrix>,
 }
 
 #[godot_api]
@@ -105,7 +106,11 @@ impl RibbonMaterialFixture {
             .ok_or("Real-UV fixture material missing")?;
         let texture = create_uv_fixture_texture()?;
         material.set_shader_parameter("ribbon_texture", &texture.to_variant());
-        let mut materials = [(material, index)];
+        let mut materials = [RibbonMaterial {
+            material,
+            transform: index,
+            last_matrix: self.last_uv_matrix,
+        }];
         update_texture_transforms(
             &mut materials,
             &MaterialTracks::of(&model),
@@ -114,6 +119,7 @@ impl RibbonMaterialFixture {
                 ..Default::default()
             },
         );
+        self.last_uv_matrix = materials[0].last_matrix;
         Ok(())
     }
 
