@@ -157,6 +157,7 @@ struct BuiltDoodad {
     render_box: (Vec3, Vec3),
     rigid_without_attachments: bool,
     particles: Option<std::rc::Rc<ModelParticles>>,
+    ribbons: Option<Arc<CachedModel>>,
 }
 
 /// A WMO placement whose node is being built over frames.
@@ -204,6 +205,7 @@ struct CulledDoodad {
     portal_cull_safe: bool,
     /// Particle emitters, when the model has any and particle effects are on.
     particles: Option<PlacedParticles>,
+    ribbons: Option<crate::ribbons::PlacedRibbons>,
 }
 
 impl CulledDoodad {
@@ -234,6 +236,7 @@ impl CulledDoodad {
             wmo_groups,
             portal_cull_safe,
             particles: None,
+            ribbons: None,
         }
     }
 
@@ -992,7 +995,7 @@ impl TerrainObjects {
             unique_id,
             wmo_groups,
             self.light.is_some(),
-            built.rigid_without_attachments && built.particles.is_none(),
+            built.rigid_without_attachments && built.particles.is_none() && built.ribbons.is_none(),
         );
         if let (Some(pools), Some(particles)) = (&mut self.particles, &built.particles) {
             let (placed, errors) = pools.place(particles, &doodad.node, unique_id);
@@ -1001,6 +1004,17 @@ impl TerrainObjects {
                 godot_error!("{}: {error}", self.name);
             }
             doodad.particles = Some(placed);
+        }
+        if self.particles.is_some()
+            && let Some(model) = &built.ribbons
+        {
+            match crate::ribbons::PlacedRibbons::place_cached(model, &doodad.node) {
+                Ok(ribbons) => doodad.ribbons = ribbons,
+                Err(error) => {
+                    self.failures += 1;
+                    godot_error!("{} ribbon: {error}", self.name);
+                }
+            }
         }
         let animated = doodad.bones.is_some() || doodad.materials.is_some();
         self.scenery_index.push(doodad.scenery, animated);
@@ -1070,6 +1084,7 @@ impl TerrainObjects {
             render_box,
             rigid_without_attachments,
             particles: parsed.particles.clone(),
+            ribbons: (!parsed.model.model.ribbon_emitters.is_empty()).then(|| parsed.model.clone()),
         })
     }
 
@@ -1267,14 +1282,28 @@ impl TerrainObjects {
         pools.begin_frame();
         let mut updated = 0;
         for doodad in &mut self.doodads {
-            let Some(placed) = &mut doodad.particles else {
+            if doodad.particles.is_none() && doodad.ribbons.is_none() {
                 continue;
-            };
-            if doodad.opacity > 0.0 && doodad.scenery.box_in_frustum(frustum) {
-                placed.update_and_draw(&doodad.node, delta, doodad.opacity, &view, pools);
-                updated += placed.emitter_count();
-            } else {
-                placed.defer(delta);
+            }
+            let visible = doodad.opacity > 0.0 && doodad.scenery.box_in_frustum(frustum);
+            if let Some(placed) = &mut doodad.particles {
+                if visible {
+                    placed.update_and_draw(&doodad.node, delta, doodad.opacity, &view, pools);
+                    updated += placed.emitter_count();
+                } else {
+                    placed.defer(delta);
+                }
+            }
+            if let Some(ribbons) = &mut doodad.ribbons {
+                if visible {
+                    if let Err(error) =
+                        ribbons.update_and_draw(&doodad.node, delta, doodad.opacity, true)
+                    {
+                        godot_error!("{} ribbon: {error}", self.name);
+                    }
+                } else {
+                    ribbons.hide();
+                }
             }
         }
         let simulated = Instant::now();

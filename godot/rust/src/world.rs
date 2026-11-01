@@ -104,6 +104,8 @@ struct UnitNode {
     particles: Option<PlacedParticles>,
     /// The particle emitters of `visual`'s item models, on each item model node.
     item_particles: Vec<(PlacedParticles, Gd<Node3D>)>,
+    ribbons: Option<crate::ribbons::PlacedRibbons>,
+    item_ribbons: Vec<(crate::ribbons::PlacedRibbons, Gd<Node3D>)>,
     /// The clip of a held social emote (/dance) the player shows while still.
     emote: Option<u16>,
     /// A player's newest replicated stand state.
@@ -150,6 +152,8 @@ impl UnitNode {
         // The emitters were placed on the previous visual's model and item nodes.
         self.particles = None;
         self.item_particles.clear();
+        self.ribbons = None;
+        self.item_ribbons.clear();
         self.lod_target = visual.as_ref().and_then(LodTarget::of);
         self.visual = visual;
     }
@@ -354,6 +358,8 @@ fn spawn_unit(
         main_hand_subclass: None,
         particles: None,
         item_particles: Vec::new(),
+        ribbons: None,
+        item_ribbons: Vec::new(),
         emote: None,
         stand_state: None,
         stand_anim: None,
@@ -580,6 +586,10 @@ fn attach_unit_visual(
     light: Option<&TerrainLight>,
     particles: Option<&mut ParticlePools>,
 ) {
+    let ribbon_models = loaded
+        .as_ref()
+        .ok()
+        .map(|parts| parts.ribbon_models(models.data_root()));
     let model_particles = loaded.as_ref().ok().and_then(VisualParts::particles);
     let item_particles = loaded
         .as_ref()
@@ -609,6 +619,37 @@ fn attach_unit_visual(
             unit.node.add_child(&visual);
             unit.replace_visual(Some(visual.clone()));
             if let Some(pools) = particles {
+                if let Some((creature, items)) = ribbon_models {
+                    if let (Some(source), Some(model)) =
+                        (creature, visual.try_get_node_as::<Node3D>("NpcModel"))
+                    {
+                        match crate::ribbons::PlacedRibbons::place_cached(&source, &model) {
+                            Ok(ribbons) => unit.ribbons = ribbons,
+                            Err(error) => godot_error!(
+                                "{} ribbon: {error}",
+                                appearance.describe_unit(server_id)
+                            ),
+                        }
+                    }
+                    for (slot, source) in items {
+                        let Some(item) = visual
+                            .find_child_ex(&format!("Equipment{slot:?}"))
+                            .owned(false)
+                            .done()
+                            .and_then(|node| node.try_cast::<Node3D>().ok())
+                        else {
+                            continue;
+                        };
+                        match crate::ribbons::PlacedRibbons::place_cached(&source, &item) {
+                            Ok(Some(ribbons)) => unit.item_ribbons.push((ribbons, item)),
+                            Ok(None) => {}
+                            Err(error) => godot_error!(
+                                "{} {slot:?} ribbon: {error}",
+                                appearance.describe_unit(server_id)
+                            ),
+                        }
+                    }
+                }
                 if let (Some(model_particles), Some(model)) = (
                     model_particles,
                     visual.try_get_node_as::<Node3D>("NpcModel"),
@@ -1155,7 +1196,11 @@ impl WorldUnits {
         let view = view_basis(camera);
         pools.begin_frame();
         for unit in self.units.values_mut() {
-            if unit.particles.is_none() && unit.item_particles.is_empty() {
+            if unit.particles.is_none()
+                && unit.item_particles.is_empty()
+                && unit.ribbons.is_none()
+                && unit.item_ribbons.is_empty()
+            {
                 continue;
             }
             let Some(model) = unit.visual.as_ref().and_then(|visual| {
@@ -1187,6 +1232,24 @@ impl WorldUnits {
                     placed.update_and_draw(item, delta, 1.0, &view, pools);
                 } else {
                     placed.defer(delta);
+                }
+            }
+            if let Some(ribbons) = &mut unit.ribbons {
+                if in_frustum {
+                    if let Err(error) = ribbons.update_and_draw(&model, delta, 1.0, true) {
+                        godot_error!("Unit ribbon: {error}");
+                    }
+                } else {
+                    ribbons.hide();
+                }
+            }
+            for (ribbons, item) in &mut unit.item_ribbons {
+                if in_frustum && item.is_visible_in_tree() {
+                    if let Err(error) = ribbons.update_and_draw(item, delta, 1.0, true) {
+                        godot_error!("Item ribbon: {error}");
+                    }
+                } else {
+                    ribbons.hide();
                 }
             }
         }

@@ -2908,7 +2908,8 @@ impl GameClient {
                 self.world_objects
                     .update_particles(transform, &frustum, delta);
                 self.world.update_particles(transform, &frustum, delta);
-                self.game_objects.update_particles(transform, delta);
+                self.game_objects
+                    .update_particles(transform, &frustum, delta);
             }
             let _span = profile::span(|| "cull.unit_animation_lod".to_owned());
             self.world.apply_animation_lod(camera, &frustum, frame);

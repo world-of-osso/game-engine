@@ -64,6 +64,7 @@ pub(crate) fn mesh_bounds(model: &Gd<Node3D>) -> Aabb {
         .get_children()
         .iter_shared()
         .filter_map(|child| child.try_cast::<MeshInstance3D>().ok())
+        .filter(|mesh| !mesh.get_name().to_string().starts_with("M2RibbonStrip"))
         .map(|mesh| mesh.get_aabb())
         .reduce(|bounds, next| bounds.merge(next))
         .unwrap_or_default()
@@ -143,6 +144,46 @@ pub(crate) enum VisualParts {
 }
 
 impl VisualParts {
+    pub fn ribbon_models(
+        &self,
+        data_root: &std::path::Path,
+    ) -> (
+        Option<Arc<crate::assets::creature::CachedModel>>,
+        Vec<(EquipmentSlot, Arc<crate::assets::creature::CachedModel>)>,
+    ) {
+        let creature = match self {
+            Self::Creature { model, .. } if !model.model.model.ribbon_emitters.is_empty() => {
+                Some(model.model.clone())
+            }
+            _ => None,
+        };
+        let models: Vec<_> = match self {
+            Self::Creature { gear, .. } => gear
+                .items
+                .iter()
+                .map(|(model, _)| model)
+                .chain(&gear.armor_models)
+                .collect(),
+            Self::Player(parts) => parts.runtime_models().iter().collect(),
+        };
+        let items = models
+            .into_iter()
+            .filter_map(|model| {
+                match crate::assets::creature::cached_model(data_root, model.product, model.fdid) {
+                    Ok(Some(cached)) if !cached.model.ribbon_emitters.is_empty() => {
+                        Some((model.slot, cached))
+                    }
+                    Ok(_) => None,
+                    Err(error) => {
+                        godot_error!("Equipment ribbon model: {error}");
+                        None
+                    }
+                }
+            })
+            .collect();
+        (creature, items)
+    }
+
     /// The particle emitters of a creature's display model (the model `build_visual`
     /// names `NpcModel`); `None` for players and emitterless models.
     pub fn particles(&self) -> Option<std::rc::Rc<crate::particles::ModelParticles>> {

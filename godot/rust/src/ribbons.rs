@@ -41,6 +41,7 @@ pub(crate) struct PlacedRibbons {
     global_sequences: Vec<u32>,
     material_tracks: MaterialTracks,
     clock_ms: f64,
+    hidden: bool,
 }
 
 impl PlacedRibbons {
@@ -76,7 +77,31 @@ impl PlacedRibbons {
             global_sequences: model.global_sequences.clone(),
             material_tracks: MaterialTracks::of(model),
             clock_ms: 0.0,
+            hidden: false,
         }))
+    }
+
+    pub(crate) fn place_cached(
+        cached: &crate::assets::creature::CachedModel,
+        root: &Gd<Node3D>,
+    ) -> Result<Option<Self>, String> {
+        if cached.model.ribbon_emitters.is_empty() {
+            return Ok(None);
+        }
+        let texture_dir = crate::assets::creature::model_texture_dir(&cached.path)?;
+        Self::place(&cached.model, root, &texture_dir)
+    }
+
+    pub(crate) fn hide(&mut self) {
+        if self.hidden {
+            return;
+        }
+        for ribbon in &mut self.ribbons {
+            for mesh in &mut ribbon.meshes {
+                mesh.set_visible(false);
+            }
+        }
+        self.hidden = true;
     }
 
     pub(crate) fn update_and_draw(
@@ -87,6 +112,12 @@ impl PlacedRibbons {
         emitting: bool,
     ) -> Result<(), String> {
         self.clock_ms += f64::from(delta) * 1000.0;
+        if self.hidden {
+            for ribbon in &mut self.ribbons {
+                ribbon.trail = RibbonTrail::new(&ribbon.source)?;
+            }
+            self.hidden = false;
+        }
         let (sequence, time_ms, global_ms) = self.playback()?;
         let time = m2::AnimTime {
             sequence,

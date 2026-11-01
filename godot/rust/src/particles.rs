@@ -294,7 +294,7 @@ impl ModelParticles {
         fdid: u32,
         cached: &crate::assets::creature::CachedModel,
     ) -> Result<Option<Rc<Self>>, String> {
-        let texture_dir = crate::assets::creature::model_asset_root(cached)?.join("textures");
+        let texture_dir = crate::assets::creature::model_texture_dir(&cached.path)?;
         Ok(Self::from_model(fdid, &cached.model, texture_dir))
     }
 

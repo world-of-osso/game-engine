@@ -300,6 +300,10 @@ pub(crate) fn model_asset_root(model: &CachedModel) -> Result<&Path, String> {
     asset_root(&model.path)
 }
 
+pub(crate) fn model_texture_dir(path: &Path) -> Result<PathBuf, String> {
+    Ok(asset_root(path)?.join("textures"))
+}
+
 /// The asset root a model file lives under: `<root>/models/<fdid>.m2`.
 pub(crate) fn asset_root(model_path: &Path) -> Result<&Path, String> {
     model_path
@@ -542,6 +546,19 @@ fn creature_texture_fdids(
         textures.extend(batch.overlays.into_iter().map(|overlay| overlay.fdid));
     }
     textures.extend(crate::particles::ModelParticles::texture_fdids(model));
+    for ribbon in &model.ribbon_emitters {
+        for index in ribbon
+            .texture_indices
+            .iter()
+            .take(ribbon.material_indices.len())
+        {
+            let fdid = model
+                .texture_fdids
+                .get(usize::from(*index))
+                .ok_or_else(|| format!("Ribbon{} texture index{index} missing", ribbon.id))?;
+            textures.insert(*fdid);
+        }
+    }
     Ok(textures)
 }
 
@@ -556,6 +573,17 @@ mod tests {
 
     fn cached_data_root() -> PathBuf {
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data")
+    }
+
+    #[test]
+    fn nether_drake_ribbon_texture_is_a_model_dependency() {
+        let data = cached_data_root();
+        let model = fs::read(data.join("models/125168.m2")).unwrap();
+        let skin = fs::read(data.join("models/12516800.skin")).unwrap();
+        let parsed = m2::parse_model(&model, &skin).unwrap();
+        assert_eq!(parsed.ribbon_emitters.len(), 6);
+        let textures = creature_texture_fdids(&local_resolver(&data), &parsed, &[0; 3]).unwrap();
+        assert!(textures.contains(&1113849));
     }
 
     #[test]
