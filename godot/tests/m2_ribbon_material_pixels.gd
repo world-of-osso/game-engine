@@ -54,7 +54,7 @@ func prove_materials() -> void:
 	scene.add_child(strip)
 	assert_input(strip.add_strip(2, 0, Color.WHITE, 0.0))
 	for sample in [[Color.RED, 3], [Color.GREEN, 3], [Color.BLUE, 12], [Color.RED, 3]]:
-		assert_input(strip.set_dynamic_strip(sample[0], sample[1], Vector2(0.75, 0.75)))
+		assert_input(strip.set_dynamic_strip(sample[0], sample[1], Vector2(0.75, 0.75), 0.0))
 		await settle()
 		var dynamic_pixel := center_pixel()
 		if maxf(maxf(absf(dynamic_pixel.r - sample[0].r), absf(dynamic_pixel.g - sample[0].g)), absf(dynamic_pixel.b - sample[0].b)) > 0.05:
@@ -83,16 +83,25 @@ func prove_materials() -> void:
 	if uv_repeated.r < 0.9 or uv_repeated.g > 0.1 or uv_restored.g < 0.9 or uv_restored.r > 0.1:
 		push_error("Repeated and restored UV samples changed the wrong pixels: %s → %s" % [uv_repeated, uv_restored])
 		failed = true
-	assert_input(strip.set_dynamic_strip(Color.WHITE, 3, Vector2(0.5, 0.75)))
+	assert_input(strip.set_dynamic_strip(Color.WHITE, 3, Vector2(0.5, 0.75), 0.0))
 	await settle()
 	var dynamic_uv_green := center_pixel()
-	assert_input(strip.set_dynamic_strip(Color.WHITE, 3, Vector2(0.5, 0.25)))
+	assert_input(strip.set_dynamic_strip(Color.WHITE, 3, Vector2(0.5, 0.25), 0.0))
 	await settle()
 	var dynamic_uv_red := center_pixel()
 	if dynamic_uv_green.g < 0.9 or dynamic_uv_green.r > 0.1 or dynamic_uv_red.r < 0.9 or dynamic_uv_red.g > 0.1:
 		push_error("Dynamic UV update must move green to red: %s → %s" % [dynamic_uv_green, dynamic_uv_red])
 		failed = true
-	print("Dynamic ribbon UV raster green=", dynamic_uv_green, " red=", dynamic_uv_red)
+	assert_input(strip.set_dynamic_strip(Color.WHITE, 3, Vector2(0.5, 0.25), 8.0))
+	await settle()
+	var shifted := center_pixel()
+	assert_input(strip.set_dynamic_strip(Color.WHITE, 3, Vector2(0.5, 0.25), 0.0))
+	await settle()
+	var returned := center_pixel()
+	if shifted.r > 0.05 or shifted.g > 0.05 or shifted.b > 0.05 or returned.r < 0.9:
+		push_error("Dynamic vertex update must leave and return: %s → %s" % [shifted, returned])
+		failed = true
+	print("Dynamic ribbon UV raster green=", dynamic_uv_green, " red=", dynamic_uv_red, " shifted=", shifted, " returned=", returned)
 	print("Real ribbon UV raster source1865728 global0=", uv_start, " global633=", uv_middle)
 	print("Ribbon material raster alpha=", alpha_pixel, " priority=", ordered_pixel)
 	if not failed: print("PASS native ribbon source opaque-alpha and priority raster")
