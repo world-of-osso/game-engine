@@ -565,7 +565,7 @@ fn attach_unit_visual(
     sheath: SheathState,
     models: &WorldModels,
     light: Option<&TerrainLight>,
-    particles: Option<(&mut ParticlePools, &std::path::Path)>,
+    particles: Option<&mut ParticlePools>,
 ) {
     let model_particles = loaded.as_ref().ok().and_then(VisualParts::particles);
     let item_particles = loaded
@@ -595,13 +595,12 @@ fn attach_unit_visual(
             bind_visual_light(&visual, light);
             unit.node.add_child(&visual);
             unit.replace_visual(Some(visual.clone()));
-            if let Some((pools, texture_dir)) = particles {
+            if let Some(pools) = particles {
                 if let (Some(model_particles), Some(model)) = (
                     model_particles,
                     visual.try_get_node_as::<Node3D>("NpcModel"),
                 ) {
-                    let (placed, errors) =
-                        pools.place(&model_particles, &model, server_id as u32, texture_dir);
+                    let (placed, errors) = pools.place(&model_particles, &model, server_id as u32);
                     for error in errors {
                         godot_error!("{}: {error}", appearance.describe_unit(server_id));
                     }
@@ -617,7 +616,7 @@ fn attach_unit_visual(
                         continue;
                     };
                     let seed = (server_id as u32).wrapping_add(slot as u32 + 1);
-                    let (placed, errors) = pools.place(&item_particles, &item, seed, texture_dir);
+                    let (placed, errors) = pools.place(&item_particles, &item, seed);
                     for error in errors {
                         godot_error!("{} {slot:?}: {error}", appearance.describe_unit(server_id));
                     }
@@ -1369,12 +1368,11 @@ impl WorldUnits {
             let (_, sheath) = unit.loading.take().expect("matched a loading unit");
             let prepared_result_ok = loaded.is_ok();
             let existing_visual = unit.visual.is_some();
-            let texture_dir = self.data_root.join("textures");
             let pools = self.particles.as_mut().map(|pools| {
                 if let Some(root) = self.root.as_mut() {
                     pools.attach(root);
                 }
-                (pools, texture_dir.as_path())
+                pools
             });
             attach_unit_visual(
                 unit,

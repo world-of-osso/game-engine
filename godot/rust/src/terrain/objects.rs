@@ -154,7 +154,6 @@ fn load_asset(data_root: &Path, asset: ObjectAsset) -> Result<LoadedAsset, Strin
 /// A built doodad node, its M2 header render box in engine axes, and its emitters.
 struct BuiltDoodad {
     node: Gd<Node3D>,
-    texture_dir: PathBuf,
     render_box: (Vec3, Vec3),
     rigid_without_attachments: bool,
     particles: Option<std::rc::Rc<ModelParticles>>,
@@ -731,12 +730,15 @@ impl TerrainObjects {
         }
         match (asset, loaded) {
             (ObjectAsset::Model(product, fdid), Ok(LoadedAsset::Model(cached, _))) => {
-                let parsed = Ok(ParsedModel {
-                    path: GString::from(cached.path.to_string_lossy().as_ref()),
-                    particles: ModelParticles::from_model(fdid, &cached.model),
-                    collision: doodad_collision::collision_shape(cached.model.collision.as_ref()),
-                    model: cached,
-                });
+                let parsed =
+                    ModelParticles::from_cached(fdid, &cached).map(|particles| ParsedModel {
+                        path: GString::from(cached.path.to_string_lossy().as_ref()),
+                        particles,
+                        collision: doodad_collision::collision_shape(
+                            cached.model.collision.as_ref(),
+                        ),
+                        model: cached,
+                    });
                 self.models.insert((product, fdid), parsed);
             }
             (ObjectAsset::Wmo(product, fdid), Ok(LoadedAsset::Wmo(wmo, _))) => {
@@ -993,8 +995,7 @@ impl TerrainObjects {
             built.rigid_without_attachments && built.particles.is_none(),
         );
         if let (Some(pools), Some(particles)) = (&mut self.particles, &built.particles) {
-            let (placed, errors) =
-                pools.place(particles, &doodad.node, unique_id, &built.texture_dir);
+            let (placed, errors) = pools.place(particles, &doodad.node, unique_id);
             for error in errors {
                 self.failures += 1;
                 godot_error!("{}: {error}", self.name);
@@ -1065,7 +1066,6 @@ impl TerrainObjects {
         );
         let rigid_without_attachments = rigid && !model.has_node("ElasticTree");
         Ok(BuiltDoodad {
-            texture_dir: model_asset_root(&parsed.model)?.join("textures"),
             node: model,
             render_box,
             rigid_without_attachments,

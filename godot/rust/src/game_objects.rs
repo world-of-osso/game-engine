@@ -407,8 +407,7 @@ impl GameObjects {
             return Ok(None);
         };
         pools.attach(parent);
-        let (placed, errors) =
-            pools.place(&source, model, id as u32, &self.data_root.join("textures"));
+        let (placed, errors) = pools.place(&source, model, id as u32);
         if errors.is_empty() {
             Ok(Some(placed))
         } else {
@@ -449,6 +448,7 @@ impl GameObjects {
                 info.entry, info.display_id
             )
         })?;
+        let texture_dir = crate::assets::creature::asset_root(&path)?.join("textures");
         let path = GString::from(path.to_string_lossy().as_ref());
         let parsed = read_model(&path)?;
         cache_model_textures(&resolver, &self.data_root, &[0; 3], &parsed)?;
@@ -469,7 +469,10 @@ impl GameObjects {
         model.set_meta("model_file_data_id", &(fdid as i64).to_variant());
         model.set_rotation(Vector3::new(0.0, MODEL_YAW, 0.0));
         bind_visual_light(&model, self.light.as_ref());
-        Ok((model, ModelParticles::from_model(fdid, &parsed)))
+        Ok((
+            model,
+            ModelParticles::from_model(fdid, &parsed, texture_dir),
+        ))
     }
     fn load_transport(
         &self,

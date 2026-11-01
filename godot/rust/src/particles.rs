@@ -3,7 +3,12 @@
 //! `m2_particles` for every placement that is drawn and in view, and composited in
 //! authored (gamma) space by `particle_composite`.
 
-use std::{collections::HashMap, path::Path, rc::Rc, time::Duration};
+use std::{
+    collections::HashMap,
+    path::{Path, PathBuf},
+    rc::Rc,
+    time::Duration,
+};
 
 use game_engine_core::{
     m2::{self, ParticleEmitter},
@@ -241,6 +246,9 @@ impl ParticlePool {
 /// A model's drawable emitters, parsed once per FDID.
 pub(crate) struct ModelParticles {
     fdid: u32,
+    /// The model's asset-root `textures` directory: particle textures are owned by the
+    /// model's product and build, never by a flat shared directory.
+    texture_dir: PathBuf,
     /// (authored emitter index, emitter).
     emitters: Vec<(usize, ParticleEmitter)>,
     /// Bone pivots in Godot model axes.
@@ -251,7 +259,7 @@ pub(crate) struct ModelParticles {
 
 impl ModelParticles {
     /// `None` when the model has no emitter the simulation can draw.
-    pub fn from_model(fdid: u32, model: &m2::Model) -> Option<Rc<Self>> {
+    pub fn from_model(fdid: u32, model: &m2::Model, texture_dir: PathBuf) -> Option<Rc<Self>> {
         // Refraction parameters are not colours: WebWowViewerCpp discards
         // Refraction in its forward shader until a refraction pass exists.
         let forward_emitters = model
@@ -273,11 +281,21 @@ impl ModelParticles {
             .collect();
         Some(Rc::new(Self {
             fdid,
+            texture_dir,
             emitters,
             pivots,
             global_sequences: model.global_sequences.clone(),
             resolved_models: HashMap::new(),
         }))
+    }
+
+    /// The emitters of a loaded model, reading particle textures from its asset root.
+    pub fn from_cached(
+        fdid: u32,
+        cached: &crate::assets::creature::CachedModel,
+    ) -> Result<Option<Rc<Self>>, String> {
+        let texture_dir = crate::assets::creature::model_asset_root(cached)?.join("textures");
+        Ok(Self::from_model(fdid, &cached.model, texture_dir))
     }
 
     /// Authored indices of the emitters the simulation draws.
@@ -297,6 +315,7 @@ impl ModelParticles {
         (!emitters.is_empty()).then(|| {
             Rc::new(Self {
                 fdid: self.fdid,
+                texture_dir: self.texture_dir.clone(),
                 emitters,
                 pivots: self.pivots.clone(),
                 global_sequences: self.global_sequences.clone(),
@@ -595,7 +614,6 @@ impl ParticlePools {
         model: &Rc<ModelParticles>,
         node: &Gd<Node3D>,
         seed: u32,
-        texture_dir: &Path,
     ) -> (PlacedParticles, Vec<String>) {
         let mut errors = Vec::new();
         let mut emitters = Vec::new();
@@ -605,7 +623,6 @@ impl ParticlePools {
                 *index,
                 emitter,
                 seed.wrapping_mul(31).wrapping_add(slot as u32),
-                texture_dir,
             ) {
                 Ok((sim, output)) => {
                     emitters.push(PlacedEmitter {
@@ -639,7 +656,6 @@ impl ParticlePools {
         index: usize,
         emitter: &ParticleEmitter,
         seed: u32,
-        texture_dir: &Path,
     ) -> Result<(EmitterSim, ParticleOutput), String> {
         let resolved = model
             .resolved_models
@@ -664,7 +680,7 @@ impl ParticlePools {
                 .ok_or("particle pools are not attached")?;
             (None, Some(GeometryParticles::new(asset, root)))
         } else {
-            let pool = self.pool_for(model.fdid, index, emitter, texture_dir)?;
+            let pool = self.pool_for(model, index, emitter)?;
             self.pools[pool].reserve(sim.quad_capacity(emitter));
             (Some(pool), None)
         };
@@ -677,7 +693,6 @@ impl ParticlePools {
                     *child_index,
                     child_emitter,
                     seed.wrapping_add(*child_index as u32 + 1),
-                    texture_dir,
                 )?;
                 sim.children.push(m2_particles::RecursiveEmitter {
                     emitter: child_emitter.clone(),
@@ -699,12 +714,12 @@ impl ParticlePools {
 
     fn pool_for(
         &mut self,
-        fdid: u32,
+        model: &ModelParticles,
         index: usize,
         emitter: &ParticleEmitter,
-        texture_dir: &Path,
     ) -> Result<usize, String> {
-        let key = (texture_dir.to_owned(), fdid, index);
+        let fdid = model.fdid;
+        let key = (model.texture_dir.clone(), fdid, index);
         if let Some(&pool) = self.by_emitter.get(&key) {
             return Ok(pool);
         }
@@ -712,7 +727,7 @@ impl ParticlePools {
             .root
             .as_mut()
             .ok_or("particle pools are not attached")?;
-        let mut material = particle_material(emitter, texture_dir)?;
+        let mut material = particle_material(emitter, &model.texture_dir)?;
         if let Some(light) = &self.light {
             light.bind_scene_fog(&mut material);
         }
@@ -831,6 +846,16 @@ impl WowParticleProbe {
         controls: PackedVector3Array,
     ) -> Variant {
         match place_spline_probe(&mut world_root, &texture_dir, &controls) {
+            Ok(node) => node.to_variant(),
+            Err(error) => error.to_variant(),
+        }
+    }
+
+    /// Production placement path (NPC, item, doodad): emitter textures resolve from
+    /// the asset root of `model_path` (`<root>/models/<fdid>.m2` → `<root>/textures`).
+    #[func]
+    fn asset_root_node(&self, mut world_root: Gd<Node3D>, model_path: GString) -> Variant {
+        match place_asset_root_probe(&mut world_root, &model_path) {
             Ok(node) => node.to_variant(),
             Err(error) => error.to_variant(),
         }
@@ -978,6 +1003,36 @@ fn upload_probe_quads(
     pool.node().clone().upcast::<Node3D>().to_variant()
 }
 
+fn place_asset_root_probe(
+    world_root: &mut Gd<Node3D>,
+    model_path: &GString,
+) -> Result<Gd<Node3D>, String> {
+    let data = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/models");
+    let bytes = std::fs::read(data.join("6316199.m2")).map_err(|e| e.to_string())?;
+    let skin = std::fs::read(data.join("631619900.skin")).map_err(|e| e.to_string())?;
+    let mut model = m2::parse_model(&bytes, &skin)?;
+    model.particle_emitters = vec![fixture_emitter(0)];
+    let path = godot::classes::ProjectSettings::singleton()
+        .globalize_path(model_path)
+        .to_string();
+    let cached = crate::assets::creature::CachedModel {
+        path: PathBuf::from(path),
+        model,
+    };
+    let source =
+        ModelParticles::from_cached(910010, &cached)?.ok_or("fixture emitter not admitted")?;
+    let mut node = Node3D::new_alloc();
+    world_root.add_child(&node);
+    let mut pools = ParticlePools::new(1.0);
+    pools.attach(&mut node);
+    let (_placed, errors) = pools.place(&source, &node, 11);
+    if !errors.is_empty() {
+        node.free();
+        return Err(errors.join("; "));
+    }
+    Ok(node)
+}
+
 fn read_spline_probe(controls: &PackedVector3Array) -> Result<m2::Model, String> {
     let data = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/models");
     let bytes = std::fs::read(data.join("6316199.m2")).map_err(|e| e.to_string())?;
@@ -1010,16 +1065,16 @@ fn place_spline_probe(
     controls: &PackedVector3Array,
 ) -> Result<Gd<Node3D>, String> {
     let model = read_spline_probe(controls)?;
-    let source = ModelParticles::from_model(6316199, &model)
+    let dir = godot::classes::ProjectSettings::singleton()
+        .globalize_path(texture_dir)
+        .to_string();
+    let source = ModelParticles::from_model(6316199, &model, PathBuf::from(dir))
         .ok_or("native type3 admission rejected controls")?;
     let mut node = Node3D::new_alloc();
     world_root.add_child(&node);
     let mut pools = ParticlePools::new(1.0);
     pools.attach(&mut node);
-    let dir = godot::classes::ProjectSettings::singleton()
-        .globalize_path(texture_dir)
-        .to_string();
-    let (mut placed, errors) = pools.place(&source, &node, 11, Path::new(&dir));
+    let (mut placed, errors) = pools.place(&source, &node, 11);
     if !errors.is_empty() {
         node.free();
         return Err(errors.join("; "));
@@ -1098,12 +1153,12 @@ mod tests {
         let bytes = std::fs::read(data.join("1127086.m2")).unwrap();
         let skin = std::fs::read(data.join("112708600.skin")).unwrap();
         let mut model = m2::parse_model(&bytes, &skin).unwrap();
-        let particles = ModelParticles::from_model(1127086, &model).unwrap();
+        let particles = ModelParticles::from_model(1127086, &model, data.clone()).unwrap();
         assert_eq!(
             particles.authored_indices().collect::<Vec<_>>(),
             [0, 1, 2, 3, 4, 7, 8, 9]
         );
         model.particle_emitters = model.particle_emitters[5..=6].to_vec();
-        assert!(ModelParticles::from_model(1127086, &model).is_none());
+        assert!(ModelParticles::from_model(1127086, &model, data).is_none());
     }
 }

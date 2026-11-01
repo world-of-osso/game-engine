@@ -565,7 +565,7 @@ impl WowParticleDebug {
         }
         self.disabled.clear();
         let DebugModel { fdid, name, .. } = MODELS[index];
-        let (mut node, model, missing_textures) = self
+        let (mut node, model, texture_dir, missing_textures) = self
             .load_model(fdid)
             .map_err(|error| format!("model {name} ({fdid}): {error}"))?;
         node.set_name(&format!("ParticleDebugModel{fdid}"));
@@ -578,7 +578,7 @@ impl WowParticleDebug {
         self.shown = Some(Shown {
             index,
             node,
-            particles: ModelParticles::from_model(fdid, &model),
+            particles: ModelParticles::from_model(fdid, &model, texture_dir),
             lights: model_lights(&model),
             emitters: model.particle_emitters,
             placed: None,
@@ -590,7 +590,7 @@ impl WowParticleDebug {
     fn load_model(
         &mut self,
         fdid: u32,
-    ) -> Result<(Gd<Node3D>, m2::Model, PackedInt32Array), String> {
+    ) -> Result<(Gd<Node3D>, m2::Model, PathBuf, PackedInt32Array), String> {
         let data_root = self.data_root.clone();
         let resolver = self
             .resolver
@@ -601,11 +601,12 @@ impl WowParticleDebug {
             .get_or_insert_with(|| OutfitData::load(&data_root))
             .resolve_item_model_skin_fdids_for_model_path(&path)
             .unwrap_or([0; 3]);
+        let texture_dir = crate::assets::creature::asset_root(&path)?.join("textures");
         let path = GString::from(path.to_string_lossy().as_ref());
         let model = read_model(&path)?;
         cache_model_textures(resolver, &data_root, &skins, &model)?;
         let (node, missing) = build_model(&model, &path, &skins, None)?;
-        Ok((node, model, missing))
+        Ok((node, model, texture_dir, missing))
     }
 
     /// Places the enabled emitters afresh: toggling restarts every emitter.
@@ -625,10 +626,7 @@ impl WowParticleDebug {
         else {
             return Ok(());
         };
-        let texture_dir = self.data_root.join("textures");
-        let (placed, errors) =
-            self.pools
-                .place(&particles, &shown.node, PARTICLE_SEED, &texture_dir);
+        let (placed, errors) = self.pools.place(&particles, &shown.node, PARTICLE_SEED);
         shown.placed = Some(placed);
         if errors.is_empty() {
             Ok(())

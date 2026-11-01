@@ -82,6 +82,10 @@ fn arrow_model(path: &GString) -> Result<(m2::Model, Rc<GeometryModel>), String>
 
 fn resolved_models(path: &GString) -> Result<(Rc<ModelParticles>, ParticleEmitter), String> {
     let (mut model, geometry) = arrow_model(path)?;
+    let model_path = godot::classes::ProjectSettings::singleton()
+        .globalize_path(path)
+        .to_string();
+    let texture_dir = crate::assets::creature::asset_root(Path::new(&model_path))?.join("textures");
     let child = ParticleEmitter {
         lifespan: 2.0,
         emission_speed: 0.0,
@@ -91,15 +95,15 @@ fn resolved_models(path: &GString) -> Result<(Rc<ModelParticles>, ParticleEmitte
         ..emitter()
     };
     model.particle_emitters = vec![child.clone()];
-    let recursive =
-        ModelParticles::from_model(910004, &model).ok_or("synthetic child not admitted")?;
+    let recursive = ModelParticles::from_model(910004, &model, texture_dir.clone())
+        .ok_or("synthetic child not admitted")?;
     model.particle_emitters = vec![ParticleEmitter {
         particle_model_filename: Some("synthetic/arrow.m2".into()),
         child_emitters_model_filename: Some("synthetic/child.m2".into()),
         ..emitter()
     }];
-    let mut root =
-        ModelParticles::from_model(910003, &model).ok_or("synthetic parent not admitted")?;
+    let mut root = ModelParticles::from_model(910003, &model, texture_dir)
+        .ok_or("synthetic parent not admitted")?;
     Rc::get_mut(&mut root)
         .expect("unique synthetic model")
         .resolved_models
@@ -173,15 +177,7 @@ pub(super) fn place(
     world.add_child(&owner);
     let mut pools = ParticlePools::new(1.0);
     pools.attach(&mut owner);
-    let texture_dir = godot::classes::ProjectSettings::singleton()
-        .globalize_path(&path)
-        .to_string();
-    let texture_dir = Path::new(&texture_dir)
-        .parent()
-        .and_then(Path::parent)
-        .ok_or("synthetic asset root")?
-        .join("textures");
-    let (mut placed, errors) = pools.place(&model, &owner, 17, &texture_dir);
+    let (mut placed, errors) = pools.place(&model, &owner, 17);
     if !errors.is_empty() {
         owner.free();
         return Err(errors.join("; "));

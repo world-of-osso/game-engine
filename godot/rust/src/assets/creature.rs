@@ -297,11 +297,15 @@ pub(crate) struct CachedModel {
 }
 
 pub(crate) fn model_asset_root(model: &CachedModel) -> Result<&Path, String> {
-    model
-        .path
+    asset_root(&model.path)
+}
+
+/// The asset root a model file lives under: `<root>/models/<fdid>.m2`.
+pub(crate) fn asset_root(model_path: &Path) -> Result<&Path, String> {
+    model_path
         .parent()
         .and_then(Path::parent)
-        .ok_or_else(|| format!("Model {} has no asset root", model.path.display()))
+        .ok_or_else(|| format!("Model {} has no asset root", model_path.display()))
 }
 
 /// Parsed models by `.m2` path: every unit, item and doodad of a model shares one parse.

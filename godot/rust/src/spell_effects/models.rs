@@ -17,8 +17,7 @@ impl SpellEffects {
         parent.clone().add_child(&node);
         let particles = effect.particles.as_ref().map(|particles| {
             self.seed = self.seed.wrapping_add(1);
-            let texture_dir = self.data_root.join("textures");
-            let (placed, errors) = self.pools.place(particles, &node, self.seed, &texture_dir);
+            let (placed, errors) = self.pools.place(particles, &node, self.seed);
             for error in errors {
                 godot_error!("Spell effect model {fdid}: {error}");
             }

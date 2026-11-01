@@ -148,7 +148,11 @@ impl VisualParts {
     pub fn particles(&self) -> Option<std::rc::Rc<crate::particles::ModelParticles>> {
         match self {
             Self::Creature { display, model, .. } => {
-                crate::particles::ModelParticles::from_model(display.model_fdid, &model.model.model)
+                crate::particles::ModelParticles::from_cached(display.model_fdid, &model.model)
+                    .unwrap_or_else(|error| {
+                        godot_error!("Creature particle model: {error}");
+                        None
+                    })
             }
             Self::Player(_) => None,
         }
@@ -184,7 +188,13 @@ impl VisualParts {
                     }
                 };
                 let particles =
-                    crate::particles::ModelParticles::from_model(model.fdid, &cached.model)?;
+                    match crate::particles::ModelParticles::from_cached(model.fdid, &cached) {
+                        Ok(particles) => particles?,
+                        Err(error) => {
+                            godot_error!("Equipment particle model: {error}");
+                            return None;
+                        }
+                    };
                 Some((model.slot, particles))
             })
             .collect()
