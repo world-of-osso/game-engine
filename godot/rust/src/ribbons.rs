@@ -111,6 +111,7 @@ impl PlacedRibbons {
         fade: f32,
         emitting: bool,
     ) -> Result<(), String> {
+        let _timing = crate::profile::node_span("M2Ribbon.update_and_draw");
         self.clock_ms += f64::from(delta) * 1000.0;
         if self.hidden {
             for ribbon in &mut self.ribbons {
@@ -314,6 +315,7 @@ fn create_ribbon_material(
 }
 
 fn upload_geometry(mesh: &mut Gd<ArrayMesh>, vertices: &[RibbonVertex]) {
+    let _timing = crate::profile::node_span("M2Ribbon.upload_geometry");
     mesh.clear_surfaces();
     if vertices.is_empty() {
         return;
