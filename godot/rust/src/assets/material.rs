@@ -116,6 +116,7 @@ pub(crate) fn ribbon_material_shader(material: &m2::Material) -> Result<(Gd<Shad
 pub(crate) fn clear_shared_shaders() {
     SHADERS.with_borrow_mut(HashMap::clear);
     TEXTURES.with_borrow_mut(HashMap::clear);
+    WHITE_TEXTURE.take();
     BATCH_SHADERS.with_borrow_mut(HashMap::clear);
     SCENERY_MATERIALS.with_borrow_mut(HashMap::clear);
     SCENERY_SHADER_DEFAULTS.with_borrow_mut(HashMap::clear);
