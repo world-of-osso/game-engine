@@ -556,6 +556,7 @@ terrain/2703_31_37_obj0.adt
 terrain/2703_31_36_obj0.adt
 terrain/6252664.adt
 terrain/791060.wdt
+terrain/6120027.wdt
 community-listfile.csv
 db2/HelmetGeosetData.db2
 CharStartOutfit.csv
