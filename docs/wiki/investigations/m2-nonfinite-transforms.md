@@ -10,6 +10,8 @@ Karazhan Spectral Chef displays use human model `1011653`. Its skeleton sequence
 
 In Stormwind Trade, effect model `5386951` exposed a separate zero-scale bone. Godot's `Skeleton3D` interpolated a full-weight global override, decomposing the zero basis into a quaternion and emitting errors. The pinned `scripts/godot/skeleton-full-override.patch` assigns the exact affine transform at weight 1; partial weights still interpolate. `godot/tests/skeleton_full_override.gd` checks zero scale, shear, and partial interpolation.
 
+The Floodgate probe logged 17,412 zero-basis quaternion errors on `pr123391` and zero on the pinned `matlist-bonepose` build.
+
 On the `matlist-bonepose` Godot pin with the alias fix, 90-second rendered samples at both locations showed zero non-finite and zero quaternion errors respectively. Chef displays 16524, 16525 and 16527 were requested. The samples did not independently confirm the active chef sequence or instantiate the specific Trade effect, so they do not prove those exact live states.
 
 ## Sources
