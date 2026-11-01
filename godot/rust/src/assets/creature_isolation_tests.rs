@@ -9,7 +9,9 @@ const MODEL_FDID: u32 = 126278;
 const RETAIL_KEY: &str = "dcfc90fffd79ba00406ae46f5f657592";
 const FOREVER_KEY: &str = "e8dd824cf6c3d96cd01f804ca2ea5a63";
 
-struct Fixture(PathBuf);
+/// A data root whose seeded files carry verified receipts in `cache/model-asset-index.json`.
+/// The engine caches a root's index on first load, so tests record every receipt first.
+struct Fixture(PathBuf, std::cell::RefCell<Vec<serde_json::Value>>);
 impl Fixture {
     fn new() -> Self {
         static NEXT: AtomicU64 = AtomicU64::new(0);
@@ -19,7 +21,7 @@ impl Fixture {
             NEXT.fetch_add(1, Ordering::Relaxed)
         ));
         fs::create_dir_all(&root).unwrap();
-        Self(root)
+        Self(root, Default::default())
     }
     fn resolver(&self, identity: &AssetIdentity) -> CascListfileResolver {
         CascListfileResolver::new(
@@ -31,10 +33,37 @@ impl Fixture {
         )
     }
     fn seed(&self, identity: &AssetIdentity, relative: &str, bytes: &[u8]) -> PathBuf {
+        self.record(identity, relative, bytes.len());
         let path = identity.asset_path(&self.0, relative);
         fs::create_dir_all(path.parent().unwrap()).unwrap();
         fs::write(&path, bytes).unwrap();
         path
+    }
+    /// A verified receipt for `relative` in `identity`'s namespace, whether or not the
+    /// file exists.
+    fn record(&self, identity: &AssetIdentity, relative: &str, bytes: usize) {
+        let (stem, kind) = Path::new(relative)
+            .file_name()
+            .and_then(|name| name.to_str())
+            .and_then(|name| name.split_once('.'))
+            .unwrap();
+        let build = match identity.product() {
+            "wow" => "12.1.0.69933",
+            _ => "1.60.1.70291",
+        };
+        let mut receipts = self.1.borrow_mut();
+        receipts.push(
+            json!({"product": identity.product(), "build_key": identity.build_key(),
+            "build": build, "fdid": stem.parse::<u32>().unwrap(), "kind": kind,
+            "path": format!("products/{}/{}/{relative}", identity.product(), identity.build_key()),
+            "bytes": bytes, "sha256": "a".repeat(64), "content_key": "b".repeat(32)}),
+        );
+        fs::create_dir_all(self.0.join("cache")).unwrap();
+        fs::write(
+            self.0.join("cache/model-asset-index.json"),
+            json!({"version": 1, "assets": *receipts}).to_string(),
+        )
+        .unwrap();
     }
 }
 impl Drop for Fixture {
@@ -108,14 +137,17 @@ fn model_asset_sfid_skid_and_external_animation_acquisition_inherit_the_model_id
     afid.extend(0u16.to_le_bytes());
     afid.extend(1003u32.to_le_bytes());
     let skeleton = chunk(b"AFID", &afid);
-    for (identity, receipt) in [
+    let products = [
         (&retail, b"retail".as_slice()),
         (&forever, b"forever".as_slice()),
-    ] {
+    ];
+    for (identity, receipt) in products {
         fixture.seed(identity, "models/126278.m2", &references);
         fixture.seed(identity, "models/1001.skin", receipt);
         fixture.seed(identity, "models/1002.skel", &skeleton);
         fixture.seed(identity, "models/1003.anim", receipt);
+    }
+    for (identity, receipt) in products {
         let path = cache_model_files(&fixture.resolver(identity), &fixture.0, MODEL_FDID).unwrap();
         assert_eq!(path, identity.asset_path(&fixture.0, "models/126278.m2"));
         let dir = path.parent().unwrap();
@@ -179,26 +211,19 @@ fn model_asset_runtime_receipts_select_pinned_namespaces_without_casc() {
     let skin =
         fs::read(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/models/12627800.skin"))
             .unwrap();
-    let mut receipts = Vec::new();
-    for (product, key, build, x) in [
-        (AssetProduct::Retail, RETAIL_KEY, "12.1.0.69933", 1.25),
-        (AssetProduct::Forever, FOREVER_KEY, "1.60.1.70291", 7.5),
+    for (product, key, x) in [
+        (AssetProduct::Retail, RETAIL_KEY, 1.25),
+        (AssetProduct::Forever, FOREVER_KEY, 7.5),
     ] {
         let identity = AssetIdentity::new(product.as_str(), key).unwrap();
         let bytes = model_with_vertex(x);
         let skin_fdid = m2::parse_asset_references(&bytes).unwrap().skin_fdids[0];
         fixture.seed(&identity, "models/126278.m2", &bytes);
         fixture.seed(&identity, &format!("models/{skin_fdid}.skin"), &skin);
-        receipts.push(json!({"product": product, "build_key": key, "build": build,
-            "fdid": MODEL_FDID, "kind": "m2", "path": format!("products/{}/{key}/models/126278.m2", product.as_str()),
-            "bytes": bytes.len(), "sha256": "a".repeat(64), "content_key": "b".repeat(32)}));
     }
-    let mut missing = receipts[1].clone();
-    missing["fdid"] = json!(MODEL_FDID + 1);
-    missing["path"] = json!(format!(
-        "products/wow_classic_beta/{FOREVER_KEY}/models/126279.m2"
-    ));
-    receipts.push(missing);
+    // A receipted Forever model whose file is absent must not borrow the legacy bytes.
+    let forever = AssetIdentity::new("wow_classic_beta", FOREVER_KEY).unwrap();
+    fixture.record(&forever, "models/126279.m2", 1);
     // Valid legacy models deliberately tempt an unqualified resolver in a fresh process.
     fs::create_dir_all(fixture.0.join("models")).unwrap();
     let legacy_model = model_with_vertex(1.25);
@@ -211,12 +236,6 @@ fn model_asset_runtime_receipts_select_pinned_namespaces_without_casc() {
     fs::write(
         fixture.0.join(format!("models/{legacy_skin_fdid}.skin")),
         &skin,
-    )
-    .unwrap();
-    fs::create_dir_all(fixture.0.join("cache")).unwrap();
-    fs::write(
-        fixture.0.join("cache/model-asset-index.json"),
-        json!({"version": 1, "assets": receipts}).to_string(),
     )
     .unwrap();
     fs::create_dir_all(fixture.0.join("home")).unwrap();
@@ -260,12 +279,15 @@ fn model_asset_decoding_same_texture_fdid_preserves_both_products_pixels() {
     let retail = AssetIdentity::new("wow", RETAIL_KEY).unwrap();
     let forever = AssetIdentity::new("wow_classic_beta", FOREVER_KEY).unwrap();
     let fdid = 2_000_000_101;
-    for (identity, red, green) in [(&retail, 11, 22), (&forever, 33, 44)] {
+    let products = [(&retail, 11, 22), (&forever, 33, 44)];
+    for (identity, red, green) in products {
         fixture.seed(
             identity,
             &format!("textures/{fdid}.blp"),
             &solid_palettized_blp(red, green),
         );
+    }
+    for (identity, red, green) in products {
         let decoded =
             decode_new_textures(&identity.asset_root(&fixture.0), &BTreeSet::from([fdid])).unwrap();
         assert_eq!(
@@ -290,12 +312,12 @@ fn model_asset_missing_matching_texture_errors_and_does_not_poison_a_later_decod
     let fdid = 2_000_000_102;
     let root = retail.asset_root(&fixture.0);
     let requested = BTreeSet::from([fdid]);
+    let blp = solid_palettized_blp(55, 66);
+    fixture.record(&retail, &format!("textures/{fdid}.blp"), blp.len());
     assert!(decode_new_textures(&root, &requested).is_err());
-    fixture.seed(
-        &retail,
-        &format!("textures/{fdid}.blp"),
-        &solid_palettized_blp(55, 66),
-    );
+    let path = retail.asset_path(&fixture.0, &format!("textures/{fdid}.blp"));
+    fs::create_dir_all(path.parent().unwrap()).unwrap();
+    fs::write(&path, &blp).unwrap();
     let decoded = decode_new_textures(&root, &requested).unwrap();
     assert_eq!(decoded.len(), 1);
     assert_eq!(decoded[0].1.data, [55, 66, 0, 255]);
