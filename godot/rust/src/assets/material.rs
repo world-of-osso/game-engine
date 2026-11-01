@@ -739,12 +739,18 @@ fn with_render_mode(source: &str, pipeline: Pipeline, fading: bool) -> Result<St
     Ok(source.replace(RENDER_MODE, &pipeline.render_mode(fading)))
 }
 
+/// Texture `fdid` in `dir`, or in its owning product build when `dir` is published.
+fn texture_path(fdid: u32, dir: &Path) -> Result<PathBuf, String> {
+    super::dependent_asset_path(&dir.join(format!("{fdid}.blp")), fdid, "blp")
+}
+
 pub(crate) fn load_texture(
     fdid: u32,
     dir: &Path,
     missing: &mut PackedInt32Array,
 ) -> Result<Option<DecodedTexture>, String> {
-    let Some(bytes) = read_texture_file(fdid, dir, |fdid| missing.push(fdid as i32))? else {
+    let path = texture_path(fdid, dir)?;
+    let Some(bytes) = read_texture_file(fdid, &path, |fdid| missing.push(fdid as i32))? else {
         return Ok(None);
     };
     let rgba = blp::decode_rgba(&bytes).map_err(|error| format!("Texture {fdid}: {error}"))?;
@@ -794,7 +800,8 @@ pub(crate) fn shared_texture(
     }
     let _span = crate::profile::span(|| format!("material.shared_texture {fdid}"));
     let io = crate::profile::span(|| "phase.asset_io.blp_main".to_owned());
-    let Some(bytes) = read_texture_file(fdid, dir, |fdid| missing.push(fdid as i32))? else {
+    let path = texture_path(fdid, dir)?;
+    let Some(bytes) = read_texture_file(fdid, &path, |fdid| missing.push(fdid as i32))? else {
         return Ok(None);
     };
     drop(io);
