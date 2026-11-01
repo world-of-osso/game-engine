@@ -92,7 +92,9 @@ fn source_fixture(name: &str) -> PathBuf {
     write(
         &forever,
         "ItemDisplayInfo",
-        &format!("{display_header}99,7,0,8,0,4,0,0,0,0,0,0,0\n1542,7,0,8,0,4,0,0,0,0,0,0,0\n"),
+        &format!(
+            "{display_header}99,7,0,8,0,4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0\n1542,7,0,8,0,4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0\n"
+        ),
     );
     write(
         &forever,
