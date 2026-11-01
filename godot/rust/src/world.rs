@@ -996,9 +996,15 @@ fn sync_unit_animation(unit: &mut UnitNode, snapshot: Unit, fallbacks: &HashMap<
         return;
     };
     unit.animation = Some(id);
+    // A walk or run the model lacks plays its `AnimationData.Fallback` chain (Run 5 →
+    // Stand) too.
+    let clip = animation
+        .bind()
+        .resolve_clip(id, fallbacks)
+        .unwrap_or(ANIM_STAND);
     if let Err(error) = animation
         .bind_mut()
-        .update_locomotion(id, false, id == ANIM_RUN)
+        .update_locomotion(clip, false, id == ANIM_RUN)
     {
         godot_error!("NPC {} animation {id}: {error}", snapshot.server_id);
     }

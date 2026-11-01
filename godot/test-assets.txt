@@ -321,6 +321,9 @@ models/1011653.m2
 models/1011653.skel
 models/1013009.anim
 models/101165300.skin
+# InvisibleStalker without a Run clip (npc_pose_tests motion fallback).
+models/124642.m2
+models/12464200.skin
 models/1012989.anim
 models/1012994.anim
 models/1000764.m2
