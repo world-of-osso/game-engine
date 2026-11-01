@@ -52,6 +52,8 @@ mod emotes;
 mod mount;
 #[path = "world_stand.rs"]
 pub(crate) mod stand;
+#[path = "world_unit_transform_fixture.rs"]
+mod unit_transform_fixture;
 #[path = "world_vehicle_fixture.rs"]
 mod vehicle_fixture;
 use combat::MeleeWeapon;
@@ -243,6 +245,17 @@ impl UnitMotion {
     }
 }
 
+/// Quaternion distance below which two rotations are the same facing (about 2e-5 rad).
+/// The node's quaternion is read back from its basis and differs from the one set by
+/// float rounding, and the remote slerp tail renormalizes by an ulp each frame; without
+/// a tolerance every standing unit re-sets its transform, and every mesh under it, per
+/// frame.
+const FACING_EPSILON: f32 = 1e-5;
+
+fn same_facing(a: glam::Quat, b: glam::Quat) -> bool {
+    (a - b).length().min((a + b).length()) < FACING_EPSILON
+}
+
 fn advance_unit_transform(unit: &mut UnitNode, is_local: bool, delta: f32) {
     let position = unit.node.get_position();
     let rotation = unit.node.get_quaternion();
@@ -258,7 +271,7 @@ fn advance_unit_transform(unit: &mut UnitNode, is_local: bool, delta: f32) {
             pose.position.z,
         ));
     }
-    if pose.rotation != current.rotation {
+    if !same_facing(pose.rotation, current.rotation) {
         let rotation = pose.rotation.to_array();
         unit.node.set_quaternion(Quaternion::new(
             rotation[0],
@@ -1908,6 +1921,18 @@ mod tests {
         assert_eq!(lod_at(Vec3::new(10.3, 0.0, -10.0)), AnimationLod::Full);
         assert!(lod_at(Vec3::new(0.0, 0.0, -10.0)).samples_frame(7, 3));
         assert!(!lod_at(Vec3::new(0.0, 0.0, 10.0)).samples_frame(7, 3));
+    }
+
+    /// q and -q are one rotation; a visible turn is not absorbed by the tolerance.
+    #[test]
+    fn same_facing_ignores_quaternion_sign_and_rounding_but_not_turns() {
+        let facing = glam::Quat::from_rotation_y(1.3);
+        assert!(same_facing(facing, -facing));
+        assert!(same_facing(facing, glam::Quat::from_rotation_y(1.3 + 1e-6)));
+        assert!(!same_facing(
+            facing,
+            glam::Quat::from_rotation_y(1.3 + 1e-3)
+        ));
     }
 
     const PLAYER_ID: u64 = 42;
