@@ -288,11 +288,11 @@ impl EquipmentContext<'_> {
         model: &m2::Model,
         bound: bool,
     ) -> Result<HashMap<u32, Gd<ImageTexture>>, String> {
-        check_item_batch_textures(definition, model, |part| {
+        let unbound = unbound_replaceable_types(definition, model, |part| {
             equipment_mesh_part_allowed(definition.slot, bound, part)
         })?;
         let mut missing = PackedInt32Array::new();
-        equipment_texture_replacements(definition)?
+        let mut textures = equipment_texture_replacements(definition)?
             .into_iter()
             .map(|(kind, source)| {
                 let address = cache_authored_texture(self.data_root, source)?;
@@ -306,7 +306,13 @@ impl EquipmentContext<'_> {
                     })?;
                 Ok((kind, texture))
             })
-            .collect()
+            .collect::<Result<HashMap<_, _>, String>>()?;
+        for kind in unbound {
+            if !textures.contains_key(&kind) {
+                textures.insert(kind, super::material::white_texture()?);
+            }
+        }
+        Ok(textures)
     }
 
     fn parent_for(
@@ -353,34 +359,39 @@ impl EquipmentContext<'_> {
     }
 }
 
-/// Concrete textures sampled by an item batch, including per-model-column declarations.
+/// Texture type and concrete texture sampled by each slot of an item batch, including
+/// per-model-column declarations.
 fn item_batch_texture_fdids(
     definition: &RuntimeModelAppearance,
     model: &m2::Model,
     unit: &m2::TextureUnit,
-) -> Result<Vec<Option<u32>>, String> {
+) -> Result<Vec<(u32, Option<u32>)>, String> {
     let binding =
         game_engine_core::m2_material::batch_binding(model, unit, &definition.skin_fdids)?;
     Ok(binding
         .texture_types
         .iter()
         .zip(binding.textures)
-        .map(|(kind, fdid)| {
-            definition
+        .map(|(&kind, fdid)| {
+            let replacement = definition
                 .texture_replacements
                 .iter()
-                .find(|(ty, _)| ty == kind)
-                .map(|&(_, texture)| texture.fdid)
-                .or(fdid)
+                .find(|(ty, _)| *ty == kind)
+                .map(|&(_, texture)| texture.fdid);
+            (kind, replacement.or(fdid))
         })
         .collect())
 }
 
-fn check_item_batch_textures(
+/// Replaceable texture types the allowed batches sample that neither the model nor the
+/// display binds: retail draws them with a white texture (no ModelMatRes row for the
+/// type). An unresolved hardcoded (type 0) texture remains an error.
+fn unbound_replaceable_types(
     definition: &RuntimeModelAppearance,
     model: &m2::Model,
     allowed: impl Fn(u16) -> bool,
-) -> Result<(), String> {
+) -> Result<std::collections::BTreeSet<u32>, String> {
+    let mut unbound = std::collections::BTreeSet::new();
     let trace = std::env::var_os("GAME_ENGINE_EQUIPMENT_TEXTURE_DIAGNOSTICS").is_some();
     for (index, unit) in model.batches.iter().enumerate() {
         let part = model
@@ -404,14 +415,22 @@ fn check_item_batch_textures(
                 definition.fdid
             );
         }
-        if fdids.iter().any(Option::is_none) {
-            return Err(format!(
-                "Equipment {:?} FDID {} batch {index}: unresolved textures {fdids:?}",
-                definition.slot, definition.fdid
-            ));
+        for (kind, fdid) in fdids {
+            match (kind, fdid) {
+                (_, Some(_)) => {}
+                (0, None) => {
+                    return Err(format!(
+                        "Equipment {:?} FDID {} batch {index}: unresolved hardcoded texture",
+                        definition.slot, definition.fdid
+                    ));
+                }
+                (kind, None) => {
+                    unbound.insert(kind);
+                }
+            }
         }
     }
-    Ok(())
+    Ok(unbound)
 }
 
 fn equipment_mesh_part_allowed(slot: EquipmentSlot, bound: bool, mesh_part: u16) -> bool {
@@ -608,9 +627,13 @@ mod tests {
                 let cached = load_model_files(&resolver, &data, definition.fdid).unwrap();
                 let parsed = &cached.model;
                 assert!(!parsed.batches.is_empty());
-                check_item_batch_textures(&definition, parsed, |_| true).unwrap();
+                assert!(
+                    unbound_replaceable_types(&definition, parsed, |_| true)
+                        .unwrap()
+                        .is_empty()
+                );
                 for unit in &parsed.batches {
-                    for fdid in item_batch_texture_fdids(&definition, parsed, unit).unwrap() {
+                    for (_, fdid) in item_batch_texture_fdids(&definition, parsed, unit).unwrap() {
                         let fdid = fdid.expect("every sampled texture must be bound");
                         let bytes =
                             std::fs::read(data.join(format!("textures/{fdid}.blp"))).unwrap();
@@ -644,6 +667,49 @@ mod tests {
                 }
             }
         }
+    }
+
+    /// Rookery Earthen legs: display 678904 has no ModelMatRes row, so its type-2 slot
+    /// draws retail's white; sibling 672583 binds texture 5340280 on the same model.
+    #[test]
+    fn item_display_without_a_material_row_leaves_its_replaceable_type_unbound() {
+        use crate::equipment_appearance_data::resolve_equipment_appearance;
+        use shared::components::{
+            EquipmentAppearance, EquipmentVisualSlot, EquippedAppearanceEntry,
+        };
+        use shared::item_data::ItemDefinitionSource;
+        let data = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data");
+        let catalog = game_engine_core::outfit_data::OutfitData::load(&data);
+        let unbound = |display_info_id| {
+            let appearance = EquipmentAppearance {
+                entries: vec![EquippedAppearanceEntry {
+                    slot: EquipmentVisualSlot::Legs,
+                    item_id: None,
+                    definition_source: Some(ItemDefinitionSource::Retail),
+                    display_info_id: Some(display_info_id),
+                    inventory_type: 7,
+                    hidden: false,
+                }],
+            };
+            let resolved = resolve_equipment_appearance(&appearance, &catalog, 84, 0).unwrap();
+            let [definition] = resolved.runtime_models.as_slice() else {
+                panic!(
+                    "display {display_info_id}: {} models",
+                    resolved.runtime_models.len()
+                );
+            };
+            assert_eq!(definition.fdid, 5686565);
+            let resolver =
+                authored_model_resolver(&data, definition.product, definition.fdid).unwrap();
+            let cached = load_model_files(&resolver, &data, definition.fdid).unwrap();
+            let bound = definition.bind_to_character;
+            unbound_replaceable_types(definition, &cached.model, |part| {
+                equipment_mesh_part_allowed(definition.slot, bound, part)
+            })
+            .unwrap()
+        };
+        assert_eq!(unbound(678904), std::collections::BTreeSet::from([2]));
+        assert!(unbound(672583).is_empty());
     }
 
     #[test]

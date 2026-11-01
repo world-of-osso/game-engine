@@ -422,6 +422,15 @@ impl StreamedTerrain {
     }
 
     fn queue_tile(&mut self, tile: (u32, u32)) -> Result<(), String> {
+        // Only tiles WDT MAIN marks as having an ADT exist; the rest of the load square has
+        // no terrain to read.
+        if self
+            .map_wdt
+            .as_ref()
+            .is_some_and(|wdt| !wdt.tiles.active.contains(&tile))
+        {
+            return Ok(());
+        }
         if self.pending_tiles.contains(&tile)
             || self.parsed_tiles.contains_key(&tile)
             || self.failures.contains_key(&tile)
@@ -1123,5 +1132,38 @@ mod tests {
         );
         assert!(state.pending_tiles.is_empty());
         assert!(state.parsed_tiles.is_empty());
+    }
+
+    /// Murder Row (2813) has ADTs only on tiles (40..=41, 14..=16). The load square around
+    /// its entrance tile (41, 15) reaches row 42, which WDT MAIN marks absent: those tiles
+    /// are never read and never reported as failures.
+    #[test]
+    fn load_square_skips_tiles_absent_from_wdt_main() {
+        let data_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
+        let mut stream = StreamedTerrain::new(data_root);
+        stream.request_map("2813".into(), (41, 15)).unwrap();
+        wait_for(&mut stream, |state| {
+            !state.pending_map && state.pending_tiles.is_empty()
+        });
+        let state = stream.state();
+        assert_eq!(state.map_error, None);
+        let read: BTreeSet<_> = state
+            .parsed_tiles
+            .iter()
+            .map(|parsed| parsed.tile)
+            .chain(state.failures.iter().map(|failure| failure.tile))
+            .collect();
+        let active = BTreeSet::from([(40, 14), (40, 15), (40, 16), (41, 14), (41, 15), (41, 16)]);
+        assert_eq!(read, active);
+        // Walking further onto absent tiles requests nothing either.
+        stream.request_map("2813".into(), (43, 15)).unwrap();
+        let state = stream.state();
+        assert!(state.pending_tiles.is_empty());
+        assert!(
+            state
+                .failures
+                .iter()
+                .all(|failure| active.contains(&failure.tile))
+        );
     }
 }
