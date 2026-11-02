@@ -37,6 +37,7 @@ Indoor cameras admit outdoor scene content through visible exterior portal windo
 - [ ] Admit other WMOs, liquids and sky-adjacent content through exterior windows.
 - [ ] Verify terrain shadow preservation and views through an exterior doorway in the rendered world.
 - [ ] Resolve the two-group camera seed rules and the background behind the unportaled Halls of Infusion opening; see [investigation](../wiki/investigations/halls-interior-opening.md).
+- [ ] Apply the verified MOGI `0x10000` portal-walker stop rule.
 
 ## Out of scope
 
