@@ -1,3 +1,7 @@
+## 2026-11-02 — Halls interior opening
+
+[Halls interior opening](investigations/halls-interior-opening.md) records the group and portal evidence, the independent MOGI admission rule, and the unknown Retail background.
+
 ## 2026-11-01 — World ribbon cost
 
 [Stormwind FPS](investigations/godot-stormwind-fps.md#world-ribbon-cost-2026-11-01) records matched thread-CPU samples and the qualified NPC equipment check.

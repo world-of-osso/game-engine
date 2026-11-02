@@ -17,6 +17,8 @@ use super::assets::{NativeWmoAsset, NativeWmoGroup};
 /// Distance from a portal's plane within which the portal counts as visible whatever
 /// the frustum says (WebWowViewerCpp `dotepsilon`, 1.5², as the original client).
 const PORTAL_NEAR_DISTANCE: f32 = 2.25;
+const ROOT_ALWAYS_DRAW_MASK: u32 = 0x2001_0008;
+const ROOT_ANTIPORTAL: u32 = 0x0400_0000;
 const SPLIT_GROUP_PARENT: u32 = 0x40;
 const SPLIT_GROUP_CHILD: u32 = 0x80;
 
@@ -42,6 +44,7 @@ struct PortalGroup {
     bbox_min: Vec3,
     bbox_max: Vec3,
     exterior: bool,
+    root_flags: u32,
     split_parent: Option<u16>,
     first_child: Option<u16>,
     next_child: Option<u16>,
@@ -71,7 +74,13 @@ impl WmoPortals {
         let groups = asset
             .groups
             .iter()
-            .filter(|group| !group.group.header.group_flags.antiportal)
+            .filter(|group| {
+                let info = root
+                    .group_infos
+                    .get(group.index as usize)
+                    .expect("loaded WMO group has no root MOGI record");
+                !group.group.header.group_flags.antiportal && info.flags & ROOT_ANTIPORTAL == 0
+            })
             .map(|group| build_portal_group(root, group))
             .collect();
         let adjacency = build_portal_adjacency(root);
@@ -134,6 +143,14 @@ impl WmoPortals {
         for group in &self.groups {
             if visible.get(group.index as usize).copied().unwrap_or(false) {
                 self.show_split_children(group.index, &mut visible);
+            }
+        }
+        for group in &self.groups {
+            if group.root_flags & ROOT_ALWAYS_DRAW_MASK != 0
+                && group_intersects_frustum(group, world_from_local, frustum)
+                && let Some(drawn) = visible.get_mut(group.index as usize)
+            {
+                *drawn = true;
             }
         }
         WmoVisibility {
@@ -349,6 +366,7 @@ fn build_portal_group(root: &wmo::WmoRootData, group: &NativeWmoGroup) -> Portal
         bbox_min,
         bbox_max,
         exterior,
+        root_flags: root.group_infos[group.index as usize].flags,
         split_parent: (group.group.header.flags2 & SPLIT_GROUP_CHILD != 0)
             .then(|| u16::try_from(group.group.header.parent_split_group_index).ok())
             .flatten(),
@@ -358,6 +376,38 @@ fn build_portal_group(root: &wmo::WmoRootData, group: &NativeWmoGroup) -> Portal
         next_child: u16::try_from(group.group.header.next_split_child_group_index).ok(),
         floor,
     }
+}
+
+fn group_intersects_frustum(
+    group: &PortalGroup,
+    world_from_local: Affine3A,
+    frustum: &[HalfSpace],
+) -> bool {
+    let corners: [Vec3; 8] = std::array::from_fn(|bits| {
+        let corner = Vec3::new(
+            if bits & 1 == 0 {
+                group.bbox_min.x
+            } else {
+                group.bbox_max.x
+            },
+            if bits & 2 == 0 {
+                group.bbox_min.y
+            } else {
+                group.bbox_max.y
+            },
+            if bits & 4 == 0 {
+                group.bbox_min.z
+            } else {
+                group.bbox_max.z
+            },
+        );
+        world_from_local.transform_point3(corner)
+    });
+    frustum.iter().all(|plane| {
+        corners
+            .iter()
+            .any(|corner| plane.normal.dot(*corner) + plane.d >= 0.0)
+    })
 }
 
 fn collect_group_floor(group: &NativeWmoGroup) -> Vec<[Vec3; 3]> {
@@ -543,6 +593,7 @@ mod tests {
                     bbox_min: Vec3::new(-50.0, -1.0, -50.0),
                     bbox_max: Vec3::new(50.0, 20.0, 0.0),
                     exterior: true,
+                    root_flags: 0,
                     split_parent: None,
                     first_child: None,
                     next_child: None,
@@ -553,6 +604,7 @@ mod tests {
                     bbox_min: Vec3::new(0.0, -1.0, 0.0),
                     bbox_max: Vec3::new(10.0, 4.0, 10.0),
                     exterior: false,
+                    root_flags: 0,
                     split_parent: None,
                     first_child: None,
                     next_child: None,
@@ -647,6 +699,7 @@ mod tests {
             bbox_min: parent.bbox_min,
             bbox_max: parent.bbox_max,
             exterior: false,
+            root_flags: 0,
             split_parent: Some(1),
             first_child: None,
             next_child: None,
@@ -675,6 +728,7 @@ mod tests {
             bbox_min: portals.groups[1].bbox_min,
             bbox_max: portals.groups[1].bbox_max,
             exterior: false,
+            root_flags: 0,
             split_parent: Some(1),
             first_child: None,
             next_child: None,
@@ -702,6 +756,7 @@ mod tests {
             bbox_min,
             bbox_max,
             exterior: false,
+            root_flags: 0,
             split_parent: None,
             first_child: None,
             next_child: None,
@@ -762,6 +817,41 @@ mod tests {
     #[test]
     fn standing_in_the_doorway_sees_both_sides_whatever_the_view() {
         assert_eq!(visible(Vec3::new(5.0, 1.0, 1.0), Vec3::Z), [0, 1]);
+    }
+
+    #[test]
+    fn root_admission_draws_only_eligible_in_frustum_groups() {
+        let data_root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
+        let resolver = osso_asset_resolver::CascListfileResolver::new(
+            osso_asset_resolver::AssetResolverConfig::new()
+                .with_data_root(&data_root)
+                .with_shared_data_root(&data_root),
+        );
+        let bytes = std::fs::read(data_root.join("terrain/4334889.adt")).unwrap();
+        let objects = game_engine_core::adt::parse_obj(&bytes).unwrap();
+        let placement = &objects.wmos[0];
+        let mut asset =
+            crate::wmo::assets::read_placement(&resolver, &data_root, placement).unwrap();
+        asset.root.portal_refs.clear();
+        asset.root.group_infos[0].flags = 0x8;
+        asset.root.group_infos[1].flags = 0x10000;
+        asset.root.group_infos[2].flags = 0x20000000;
+        asset.root.group_infos[3].flags = 0x04000008;
+        asset.root.group_infos[4].flags = 0;
+        let portals = WmoPortals::new(&asset);
+        let transform = crate::wmo::placement::adt_world_from_local(placement, (33, 32));
+        let camera = Vec3::new(-61.1, 75.3, 873.4);
+
+        let visible = portals.visible_groups(transform, &[], camera);
+        assert!(visible[0] && visible[1] && visible[2]);
+        assert!(!visible[3] && !visible[4]);
+
+        let away = [HalfSpace {
+            normal: Vec3::X,
+            d: -1_000_000.0,
+        }];
+        let visible = portals.visible_groups(transform, &away, camera);
+        assert!(!visible[0] && !visible[1] && !visible[2]);
     }
 
     /// Neltharus' central chamber has parent group 12 and split children 15, 14 and 13.

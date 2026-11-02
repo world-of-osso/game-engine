@@ -58,7 +58,7 @@ See [[stormwind-hilly-plaza]].
 
 ## Portal Culling
 
-MOGP `EXTERIOR` (0x8) splits groups into exterior and interior. From outside, every exterior group is drawn, and interiors are drawn through in-view portals. The camera is inside an interior group only when that group's bbox contains it and a triangle of the group lies below it. From an interior, the BFS runs through in-view portals, and reaching an exterior group draws the whole exterior. Antiportal groups (named `antiportal`) are never drawn and do not occlude. See [[stormwind-hilly-plaza]].
+The engine uses MOGP `EXTERIOR` (0x8) for exterior portal traversal. Its camera-group query uses bounds and a triangle below the camera; it does not yet implement Retail's multiple-seed query. Portal BFS admits reached groups. Separately, groups whose root MOGI has any bit in `0x20010008` are admitted when their bounds intersect the frustum; root antiportal bit `0x04000000` excludes them. See [[stormwind-hilly-plaza]] and [[halls-interior-opening]].
 
 ## Parser Location
 
