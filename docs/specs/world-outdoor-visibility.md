@@ -5,7 +5,7 @@ Indoor cameras admit outdoor scene content through visible exterior portal windo
 ## What it must do
 
 - [ ] A fully enclosed interior admits no outdoor color geometry. Objects overlapping interior groups remain eligible.
-- [ ] Independently admit in-frustum WMO groups whose root MOGI flags contain any bit of `0x20010008`, except antiportals (`0x04000000`).
+- [x] Independently admit in-frustum WMO groups whose root MOGI flags contain any bit of `0x20010008`, except antiportals (`0x04000000`).
 - [ ] One or more visible exterior portal paths admit outdoor geometry intersecting their clipped windows. Preserve doorway transitions, overlapping WMOs, and split groups.
 - [ ] Camera rejection does not remove shadows that can reach visible geometry. Preserve double-sided casting, distance fades, animations and particles.
 - [ ] Apply outdoor admission to ADT doodads, terrain, other WMOs, liquids and sky-adjacent scene content without removing visible geometry.
