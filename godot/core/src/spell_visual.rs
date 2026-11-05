@@ -512,6 +512,34 @@ fn anim_id(value: i64) -> Option<u16> {
     u16::try_from(value).ok().filter(|&id| id != u16::MAX)
 }
 
+/// DB2 start events an area trigger must not replay (native-evidence-12.1.5/
+/// AT-visual-held-kit.md): the gate events 9, 10, 14, 15, 16 and 17, and the channel events
+/// 11 and 12, which the dispatcher's channel gate already skips. An area trigger re-issues
+/// every kit that starts at any other event and ends at [`VisualEvent::OneShot`].
+const NOT_REPLAYED_START: [u32; 8] = [9, 10, 11, 12, 14, 15, 16, 17];
+
+/// Whether an area trigger's periodic update re-issues this kit: retail's dispatcher replays
+/// records whose start event is not a channel/gate event and whose end event is the
+/// one-shot sentinel (13).
+pub fn replays_kit(start: VisualEvent, end: VisualEvent) -> bool {
+    let start = match start {
+        VisualEvent::PrecastStart => 1,
+        VisualEvent::PrecastEnd => 2,
+        VisualEvent::Cast => 3,
+        VisualEvent::TravelStart => 4,
+        VisualEvent::TravelEnd => 5,
+        VisualEvent::Impact => 6,
+        VisualEvent::AuraStart => 7,
+        VisualEvent::AuraEnd => 8,
+        VisualEvent::ChannelStart => 11,
+        VisualEvent::ChannelEnd => 12,
+        VisualEvent::OneShot => 13,
+        VisualEvent::Other(value) => value,
+        VisualEvent::DisplayStart | VisualEvent::DisplayEnd => return false,
+    };
+    end == VisualEvent::OneShot && !NOT_REPLAYED_START.contains(&start)
+}
+
 impl SpellVisualCatalog {
     /// The cache file name, per layout: checkouts sharing one data directory can run
     /// different layouts without rebuilding over each other's cache.
@@ -708,6 +736,22 @@ impl SpellVisualCatalog {
     }
 
     /// Kits `visual_id` starts at `event`, in authored order.
+    /// Kits an area trigger re-issues on every periodic update, in authored order.
+    pub fn replayed_kits(&self, visual_id: u32) -> Vec<VisualKit> {
+        let Some(visual) = self.visuals.get(&visual_id) else {
+            return Vec::new();
+        };
+        let mut kits: Vec<VisualKit> = visual
+            .events
+            .iter()
+            .filter(|row| replays_kit(row.start, row.end))
+            .filter(|row| row.kit_id != 0)
+            .map(|row| self.resolve_kit(row.kit_id, row.target, row.end))
+            .collect();
+        kits.sort_by_key(|kit| kit.kit_id);
+        kits
+    }
+
     pub fn kits(&self, visual_id: u32, event: VisualEvent) -> Vec<VisualKit> {
         let Some(visual) = self.visuals.get(&visual_id) else {
             return Vec::new();
@@ -803,3 +847,7 @@ fn spell_visual_links(table: &Table) -> Result<Vec<[i64; 8]>, String> {
         "ViewerPlayerConditionID",
     ])
 }
+
+#[cfg(test)]
+#[path = "spell_visual_replay_tests.rs"]
+mod replay_tests;

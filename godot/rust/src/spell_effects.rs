@@ -335,6 +335,8 @@ pub struct SpellEffects {
     next_flight: u64,
     held: HashMap<u64, HeldCast>,
     pools: ParticlePools,
+    /// One anchor per live area trigger; its position is where the replayed kits play.
+    area_trigger_anchors: HashMap<u64, Gd<Node3D>>,
     root: Option<Gd<Node3D>>,
     /// Newest kit starts, oldest first, bounded.
     started: Vec<KitStart>,
@@ -402,6 +404,7 @@ impl SpellEffects {
             next_flight: 0,
             held: HashMap::new(),
             pools: ParticlePools::new(1.0),
+            area_trigger_anchors: HashMap::new(),
             root: None,
             started: Vec::new(),
             seed: 0,

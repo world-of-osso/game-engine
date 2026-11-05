@@ -151,6 +151,57 @@ impl SpellEffects {
         })
     }
 
+    /// Re-issue the kits an area trigger replays at `position`, one pass per server pulse.
+    /// Retail re-runs the spell's one-shot kits instead of holding them
+    /// (native-evidence-12.1.5/AT-visual-held-kit.md).
+    pub(crate) fn replay_area_trigger(
+        &mut self,
+        trigger: u64,
+        spell_id: u32,
+        position: [f32; 3],
+        world: &mut WorldUnits,
+    ) -> Result<(), String> {
+        let Some(catalog) = self.catalog()? else {
+            return Ok(());
+        };
+        let caster = game_engine_core::spell_visual::CasterContext::default();
+        let Some(visual) = catalog.visual_for_spell(spell_id, &caster) else {
+            return Ok(());
+        };
+        let kits = catalog.replayed_kits(visual);
+        if kits.is_empty() {
+            return Ok(());
+        }
+        let mut root = self.effects_root(world)?;
+        let anchor = match self.area_trigger_anchors.get(&trigger) {
+            Some(anchor) if anchor.is_instance_valid() => anchor.clone(),
+            _ => {
+                let mut anchor = Node3D::new_alloc();
+                anchor.set_name(&format!("AreaTrigger{trigger}"));
+                anchor.set_position(Vector3::new(position[0], position[1], position[2]));
+                root.add_child(&anchor);
+                self.area_trigger_anchors.insert(trigger, anchor.clone());
+                anchor
+            }
+        };
+        let visual_id = anchor.instance_id();
+        for kit in &kits {
+            self.census_start(kit, visual_id, spell_id);
+        }
+        Ok(())
+    }
+
+    /// Free the anchors of triggers the server no longer reports.
+    pub(crate) fn retain_area_triggers(&mut self, live: &[u64]) {
+        self.area_trigger_anchors.retain(|trigger, anchor| {
+            let keep = live.contains(trigger);
+            if !keep && anchor.is_instance_valid() {
+                anchor.clone().free();
+            }
+            keep
+        });
+    }
+
     pub(super) fn advance_models(&mut self, delta: f32) {
         self.active.retain_mut(|effect| {
             let alive = effect.node.is_instance_valid() && effect.tick(delta);

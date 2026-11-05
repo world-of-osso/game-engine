@@ -2,6 +2,7 @@ mod account;
 mod animation;
 #[path = "rendering/character/appearance_options.rs"]
 pub mod appearance_options;
+mod area_trigger_visuals;
 pub use game_engine_core::{customization_data, outfit_data};
 mod achievements;
 mod adventure_guide;
@@ -308,6 +309,8 @@ pub struct GameClient {
     /// Witness rays for casts over the LOS bake.
     line_of_sight: line_of_sight::LineOfSight,
     world_camera: camera::WorldCamera,
+    /// Pulse bookkeeping for replicated spell area triggers.
+    area_trigger_visuals: area_trigger_visuals::AreaTriggerVisuals,
     physical_input: input::PhysicalInput,
     client_options: ClientOptionsFile,
     /// Ctrl+R (`TOGGLEFPS`) flips the saved FPS overlay preference for this session.
@@ -482,6 +485,7 @@ impl INode3D for GameClient {
             world_map_id: None,
             line_of_sight: line_of_sight::LineOfSight::new(&data_root),
             world_camera: camera::WorldCamera::default(),
+            area_trigger_visuals: area_trigger_visuals::AreaTriggerVisuals::default(),
             physical_input: input::PhysicalInput::default(),
             client_options,
             framerate_toggled: false,

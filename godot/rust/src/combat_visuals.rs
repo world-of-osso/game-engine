@@ -97,9 +97,32 @@ impl GameClient {
         let advanced = self
             .spell_effects
             .advance(delta, camera, gain, &mut self.world);
+        self.replay_area_trigger_visuals();
         self.drape_ground_effects();
         self.spell_effects.end_frame(started.elapsed());
         prefetched.and(held).and(advanced)
+    }
+
+    /// Re-issue each live area trigger's one-shot kits when the server pulses its visual
+    /// (native-evidence-12.1.5/AT-visual-held-kit.md).
+    fn replay_area_trigger_visuals(&mut self) {
+        if !crate::area_trigger_visuals::SHOW_AREA_TRIGGER_VISUALS {
+            return;
+        }
+        let live = crate::area_trigger_visuals::live_area_triggers(&self.replica);
+        let replays = self.area_trigger_visuals.replays(&live);
+        for replay in replays {
+            if let Err(error) = self.spell_effects.replay_area_trigger(
+                replay.id,
+                replay.spell_id,
+                replay.center,
+                &mut self.world,
+            ) {
+                godot_error!("Area trigger {} visual: {error}", replay.id);
+            }
+        }
+        let ids: Vec<u64> = live.iter().map(|trigger| trigger.id).collect();
+        self.spell_effects.retain_area_triggers(&ids);
     }
 
     /// Drape the flat ground batches of newly spawned spell models onto the visible render
