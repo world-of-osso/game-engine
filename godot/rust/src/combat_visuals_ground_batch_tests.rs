@@ -1,6 +1,8 @@
 //! Authored spell ground batches conform to a stepped surface.
 
-use game_engine_core::ground_drape::{BatchMesh, GroundDrape};
+use game_engine_core::ground_drape::{
+    BatchMesh, GroundDrape, MAX_DRAPED_EDGE_SPAN, MAX_SURFACE_RISE,
+};
 use glam::{Affine3A, Quat, Vec3};
 
 /// Death and Decay's ground kit (visual 173378, kit 230208) draws two flat quads.
@@ -78,7 +80,7 @@ fn death_and_decay_ground_batches_follow_a_step() {
                 &mesh,
                 *placement,
                 0.0,
-                1.6,
+                MAX_SURFACE_RISE,
                 |x, _| Some(step(x)),
                 |x, _, _, _| Some(step(x)),
             )
@@ -108,7 +110,10 @@ fn death_and_decay_ground_batches_follow_a_step() {
             }
             let span = heights.iter().copied().fold(f32::NEG_INFINITY, f32::max)
                 - heights.iter().copied().fold(f32::INFINITY, f32::min);
-            assert!(span <= 1.6, "kept triangle spans {span}: {heights:?}");
+            assert!(
+                span <= MAX_DRAPED_EDGE_SPAN,
+                "kept triangle spans {span}: {heights:?}"
+            );
         }
         // UVs stay inside the authored mapping, so the rune keeps its texture.
         let (uv_min, uv_max) = arrays.uv.iter().fold(

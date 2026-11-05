@@ -10,10 +10,7 @@ use game_engine_core::foot_ik::{
     root_offset, solve_two_bone,
 };
 use glam::{Quat, Vec3};
-use godot::{
-    classes::{Node3D, Skeleton3D},
-    prelude::*,
-};
+use godot::{classes::Skeleton3D, prelude::*};
 use shared::ground::STEP_UP_HEIGHT;
 
 /// A foot above the lower foot by more than this is swinging, not planted.
@@ -81,16 +78,17 @@ impl FootIkState {
     ) {
         // All joint math stays in skeleton (model) space. The skeleton's own placement can
         // be rotated and scaled, so a world-space solve would have to undo that orientation
-        // twice; this keeps the bone rotations directly writable. Last frame's visual offset
-        // comes off first, so every world query and delta uses the server position.
-        set_visual_root_offset(skeleton, 0.0);
+        // twice; this keeps the bone rotations directly writable. The caller restored the
+        // sampled pose first when the animation was not rewriting it, so the joints below
+        // are the authored pose, with the server position as the world anchor.
         let model = skeleton.get_global_transform();
         let world_from_model = model;
         let model_from_world = model.affine_inverse();
-        let joints = [
+        let authored = [
             leg_joints(skeleton, rig.legs[0]),
             leg_joints(skeleton, rig.legs[1]),
         ];
+        let mut joints = authored;
         let world_end = |joints: &LegJoints| {
             let end = joints.end;
             let origin = world_from_model * Vector3::new(end.x, end.y, end.z);
@@ -134,34 +132,37 @@ impl FootIkState {
         let wanted_offset = root_offset(deltas, STEP_UP_HEIGHT);
         self.root_offset += (wanted_offset - self.root_offset) * smoothing(delta, BLEND_SMOOTHING);
         let offset = self.root_offset.clamp(-STEP_UP_HEIGHT, STEP_UP_HEIGHT);
-        set_visual_root_offset(skeleton, offset);
-        let scene_offset = Vector3::new(0.0, offset, 0.0);
+        // The pelvis carries the whole body: raising or lowering it is the visual root
+        // offset, and the leg joints move with it. The target keeps its place on the
+        // surface, so hip and foot rise together and the leg pose is unchanged; only the
+        // difference between the two feet remains to solve.
+        offset_pelvis(skeleton, rig.pelvis, offset, model_from_world_scale);
+        joints = [
+            leg_joints(skeleton, rig.legs[0]),
+            leg_joints(skeleton, rig.legs[1]),
+        ];
         let mut snapshot = FootSnapshot {
             weights,
-            targets: [world_end(&joints[0]).y, world_end(&joints[1]).y],
-            animated: [world_end(&joints[0]).y, world_end(&joints[1]).y],
+            targets: [0.0; 2],
+            animated: [world_end(&authored[0]).y, world_end(&authored[1]).y],
             floors: [f32::NAN; 2],
             root_offset: offset,
             solved: [world_end(&joints[0]).y, world_end(&joints[1]).y],
             knee_bend: [
-                knee_flexion(joints[0], LegSolution::identity(joints[0])),
-                knee_flexion(joints[1], LegSolution::identity(joints[1])),
+                knee_flexion(authored[0], LegSolution::identity(authored[0])),
+                knee_flexion(authored[1], LegSolution::identity(authored[1])),
             ],
             knee_rest: [
-                knee_flexion(joints[0], LegSolution::identity(joints[0])),
-                knee_flexion(joints[1], LegSolution::identity(joints[1])),
+                knee_flexion(authored[0], LegSolution::identity(authored[0])),
+                knee_flexion(authored[1], LegSolution::identity(authored[1])),
             ],
         };
         for index in 0..2 {
-            let foot = world_end(&joints[index]);
+            let foot = world_end(&authored[index]);
             snapshot.floors[index] = floor_at(foot.x, foot.z).unwrap_or(f32::NAN);
-            // Targets are reported in world space at the server position, without the offset.
             let target = world_from_model
                 * Vector3::new(targets[index].x, targets[index].y, targets[index].z);
             snapshot.targets[index] = target.y;
-            // The visible skeleton has already moved; the solve needs the residual target.
-            let residual = model_from_world * (target - scene_offset);
-            targets[index] = Vec3::new(residual.x, residual.y, residual.z);
         }
         self.last = snapshot;
         if weights[0] <= 0.001 && weights[1] <= 0.001 {
@@ -187,7 +188,7 @@ impl FootIkState {
             );
             let foot =
                 world_from_model * Vector3::new(solution.end.x, solution.end.y, solution.end.z);
-            self.last.solved[index] = foot.y + offset;
+            self.last.solved[index] = foot.y;
             self.last.knee_bend[index] = knee_flexion(joints[index], solution);
         }
     }
@@ -229,17 +230,20 @@ fn leg_joints(skeleton: &Gd<Skeleton3D>, leg: LegChain) -> LegJoints {
     }
 }
 
-/// Moves the whole visible skeleton by `offset` yards along world up. This is the visual
-/// root offset: the unit node, its collision and the server position stay where they are.
-fn set_visual_root_offset(skeleton: &mut Gd<Skeleton3D>, offset: f32) {
-    let Some(parent) = skeleton.get_parent() else {
+/// Raises or lowers the pelvis, and with it every bone the body hangs from, by `offset`
+/// yards along world up. This is the visual root offset: the unit node, its collision and
+/// the server position stay where they are.
+fn offset_pelvis(skeleton: &mut Gd<Skeleton3D>, pelvis: usize, offset: f32, scale: f32) {
+    let parent = skeleton.get_bone_parent(pelvis as i32);
+    if parent < 0 {
         return;
-    };
-    let Ok(parent) = parent.try_cast::<Node3D>() else {
-        return;
-    };
-    let local = parent.get_global_transform().basis.inverse() * Vector3::new(0.0, offset, 0.0);
-    skeleton.set_position(local);
+    }
+    let parent_global = skeleton.get_bone_global_pose(parent);
+    let local =
+        parent_global.affine_inverse().basis * Vector3::new(0.0, offset / scale.max(1e-4), 0.0);
+    let mut position = skeleton.get_bone_pose_position(pelvis as i32);
+    position += local;
+    skeleton.set_bone_pose_position(pelvis as i32, position);
 }
 
 /// Writes the solved world rotations as local bone poses, blended by `weight`.

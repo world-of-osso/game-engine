@@ -106,7 +106,8 @@ impl GameClient {
             return;
         }
         let drape = game_engine_core::ground_drape::GroundDrape::default();
-        let window = shared::ground::STEP_UP_HEIGHT;
+        // A vertex may follow a carpet or one tread, never a wall top or a shelf higher up.
+        let window = game_engine_core::ground_drape::MAX_SURFACE_RISE;
         let frame = self.frame_id;
         let space = self
             .world
@@ -389,8 +390,14 @@ fn log_draped_batch(
         min = min.min(world);
         max = max.max(world);
     }
+    // The material override is the instance's own, untouched by draping: the log records
+    // which material the drawn batch kept.
+    let material = instance
+        .get_material_override()
+        .map(|material| material.get_class().to_string())
+        .unwrap_or_else(|| "none".to_string());
     godot_print!(
-        "drape batch {}: vertices={} triangles={} hits={} discarded={} max_edge_span={:.3} x={:.2}..{:.2} z={:.2}..{:.2} y={:.2}..{:.2}",
+        "drape batch {}: vertices={} triangles={} hits={} discarded={} max_edge_span={:.3} x={:.2}..{:.2} z={:.2}..{:.2} y={:.2}..{:.2} uv2={} colors={} material={}",
         instance.get_name(),
         draped.positions.len(),
         draped.triangle_count(),
@@ -403,6 +410,9 @@ fn log_draped_batch(
         max.z,
         min.y,
         max.y,
+        draped.uvs2.is_some(),
+        draped.colors.is_some(),
+        material,
     );
 }
 

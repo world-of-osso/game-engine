@@ -8,7 +8,7 @@ extends SceneTree
 #
 # Headless frames run far faster than real time, so every wait is a wall-clock wait.
 
-const OUT_DIR := "/syncthing/AgentShared/2026-11-05/foot-ik-ground-drape/v3/"
+const OUT_DIR := "/syncthing/AgentShared/2026-11-05/foot-ik-ground-drape/v4/"
 # Stormwind staircase: render treads from 107.95 down to 106.20 between x -8566 and -8562.
 const STAIR_BOTTOM := Vector3(-8564.0, 107.4, -778.0)
 const STAIR_TOP := Vector3(-8566.0, 0.0, -778.0)
@@ -155,7 +155,7 @@ func place_camera(eye: Vector3, focus: Vector3) -> void:
 	if error != "":
 		fail("lighting: " + error)
 
-func capture(name: String, with_ui: bool) -> void:
+func capture(name: String, with_ui: bool) -> Image:
 	# Offline, the client shows its out-of-world screen, which covers the whole viewport;
 	# keep captures scene-only and rely on the asserted ui_skin for the Forever proof.
 	if not with_ui:
@@ -166,14 +166,30 @@ func capture(name: String, with_ui: bool) -> void:
 	var image := root.get_texture().get_image()
 	if image == null or image.is_empty():
 		fail("capture " + name + " produced no image")
-		return
+		return null
 	var path := OUT_DIR.path_join(name + ".png")
 	var error := image.save_png(path)
 	if error != OK:
 		fail("cannot save " + path)
-		return
+		return null
 	print("CAPTURE skin=%s case=%s ui=%s file=%s" % [client.account_state().ui_skin,
 		OS.get_environment("CAPTURE_CASE"), with_ui, path])
+	return image
+
+# Pixels that differ between two captures, with their bounding box.
+func image_diff(before: Image, after: Image, threshold: float) -> Dictionary:
+	var count := 0
+	var low := Vector2i(before.get_width(), before.get_height())
+	var high := Vector2i(-1, -1)
+	for y in before.get_height():
+		for x in before.get_width():
+			var a := before.get_pixel(x, y)
+			var b := after.get_pixel(x, y)
+			if abs(a.r - b.r) + abs(a.g - b.g) + abs(a.b - b.b) > threshold:
+				count += 1
+				low = Vector2i(mini(low.x, x), mini(low.y, y))
+				high = Vector2i(maxi(high.x, x), maxi(high.y, y))
+	return {"count": count, "min": low, "max": high}
 
 func spawn_decay(point: Vector3) -> bool:
 	var started := Time.get_ticks_msec()
@@ -233,8 +249,10 @@ func capture_foot_ik() -> void:
 	var node_y: float = floor_y + (tread - 0.35) - feet
 	client.preview_move_character(0, Vector3(STAIR_BOTTOM.x, node_y, STAIR_BOTTOM.z), PI)
 	await wait_ms(1200)
-	place_camera(Vector3(STAIR_BOTTOM.x, node_y + 0.75, STAIR_BOTTOM.z + 2.8),
-		Vector3(STAIR_BOTTOM.x, node_y + 0.35, STAIR_BOTTOM.z))
+	# Low and side-on to the run, just above tread height and far enough back to keep the
+	# whole body in frame, so the tread edge and the riser stay visible.
+	place_camera(Vector3(STAIR_BOTTOM.x, node_y + 0.40, STAIR_BOTTOM.z + 3.4),
+		Vector3(STAIR_BOTTOM.x, node_y + 0.30, STAIR_BOTTOM.z))
 	await wait_ms(400)
 	print("PLACED node=%.2f tread=%.2f" % [node_y, tread])
 	# The same framing without the character, to prove where the legs and treads are.
@@ -257,14 +275,17 @@ func capture_foot_ik() -> void:
 		camera.unproject_position(feet_point + Vector3(0.0, 1.9, 0.0))])
 	print_stance("STAND-BEFORE")
 	print("STAND-BEFORE " + JSON.stringify(client.preview_foot_ik_state()))
-	await capture("foot-ik-stairs-stand-before", false)
+	var before_image: Image = await capture("foot-ik-stairs-stand-before", false)
 	if closed:
 		return
 	client.preview_foot_ik_enabled(true)
 	await wait_ms(1500)
 	print_stance("STAND-AFTER")
 	print("STAND-AFTER " + JSON.stringify(client.preview_foot_ik_state()))
-	await capture("foot-ik-stairs-stand-after", false)
+	var after_image: Image = await capture("foot-ik-stairs-stand-after", false)
+	if before_image != null and after_image != null:
+		print("DIFF stand-before-vs-after %s" % JSON.stringify(
+			image_diff(before_image, after_image, 0.09)))
 	if closed:
 		return
 	# Walk up: three stride frames, each one tread higher, at successive positions.
@@ -399,6 +420,13 @@ func capture_drape(label: String, point: Vector3) -> void:
 	# Anchor the effect on the ground it is meant to lie on.
 	point.y = probe.floor
 	print("PROBE-%s %s" % [label, JSON.stringify(probe)])
+	if label == "steps":
+		# The ramp-to-tread gap along the flight, and across it, decides the rise window.
+		for offset in range(-8, 9):
+			var at := point + Vector3(0.5 * float(offset), 0.0, 0.0)
+			var column: Dictionary = client.preview_probe_surface(at.x, at.z, point.y + 0.5)
+			print("STEPCOLUMN x=%.1f floor=%.2f surface=%.2f" % [at.x,
+				column.floor, column.surface])
 	# 45 degrees above, close enough that the 17.7 yd disc fills the frame.
 	if label == "wall":
 		place_camera(Vector3(point.x - 7.5, point.y + 9.4, point.z + 1.0), point)

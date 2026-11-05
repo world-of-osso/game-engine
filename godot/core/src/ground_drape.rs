@@ -17,9 +17,17 @@ pub const MAX_GROUND_BATCH_EXTENT: f32 = 40.0;
 /// A flat batch's world height span; anything taller is a vertical effect, not a plane.
 pub const MAX_GROUND_BATCH_THICKNESS: f32 = 0.75;
 /// Highest a ground batch may hover above its placement's floor. Kits lift their ground
-/// model to avoid z-fighting (Death and Decay reaches 1.72 yd), so this is not the step
-/// window the surface search uses.
+/// model to avoid z-fighting (Death and Decay reaches 1.72 yd), so this is not the rise a
+/// draped vertex may follow.
 pub const MAX_GROUND_HOVER: f32 = 2.0;
+/// Highest a draped vertex may rise above the collision floor directly under it: a carpet
+/// or a stair tread is inside this, a balustrade top, shelf or doorway lintel is not, and
+/// such a vertex stays on its own floor. The Stormwind flight's treads sit up to 0.93 yd
+/// above their collision ramp, so one tread is allowed.
+pub const MAX_SURFACE_RISE: f32 = 1.0;
+/// Longest vertical edge a kept triangle may span. A triangle bridging two surfaces further
+/// apart than this is a shard, not a draped plane, and is dropped.
+pub const MAX_DRAPED_EDGE_SPAN: f32 = 0.6;
 /// Fraction of the batch's area that must be near-horizontal.
 pub const MIN_GROUND_AREA_FRACTION: f32 = 0.9;
 /// |normal.y| for a face to count as near-horizontal (up to 25 degrees off level).
@@ -121,27 +129,34 @@ impl GroundDrape {
         let mut positions = Vec::with_capacity(triangles.positions.len());
         let mut heights = Vec::with_capacity(triangles.positions.len());
         let mut dropped = 0;
+        let bias = self.bias.clamp(0.0, 0.1);
         for world in &triangles.positions {
+            // Each vertex has its own floor: next to a step or a ledge the column under it
+            // is what counts, not the caster's floor.
             let floor = floor_at(world.x, world.z).unwrap_or(ground_y);
             let ceiling = floor + window;
+            // The rise window is this module's contract: a surface outside it is not a
+            // carpet or a tread, whatever the caller's query returned.
             let draped = surface_at(world.x, world.z, ceiling, floor)
-                .map(|surface| surface + self.bias.clamp(0.0, 0.1));
+                .filter(|surface| (floor..=ceiling).contains(surface));
             if draped.is_some() {
                 dropped += 1;
             }
-            let height = draped.unwrap_or(world.y);
+            // A column with no visible surface inside the rise window stays on its own
+            // collision floor instead of following a wall top, a shelf or the authored hover.
+            let height = draped.unwrap_or(floor) + bias;
             heights.push(height);
             let local = model_from_world.transform_point3(Vec3::new(world.x, height, world.z));
             positions.push(local.to_array());
         }
-        // A triangle whose vertices landed on surfaces more than a step apart (or that
-        // bridges a missing hit, which keeps its authored height) would draw as a shard.
+        // A triangle whose vertices landed on surfaces more than a tread apart would draw as
+        // a shard, whatever the rise limit allowed each single vertex.
         let mut indices = Vec::with_capacity(triangles.indices.len());
         let mut discarded = 0;
         let mut max_edge_span = 0.0f32;
         for triangle in triangles.indices.chunks_exact(3) {
             let span = height_span(triangle, &heights);
-            if span > window {
+            if span > MAX_DRAPED_EDGE_SPAN {
                 discarded += 1;
                 continue;
             }
@@ -412,19 +427,24 @@ mod tests {
         let mesh = batch(&positions, &uvs, &indices);
         let drape = GroundDrape::default();
         assert!(drape.is_ground_batch(&mesh, Affine3A::IDENTITY, 0.0));
+        // The collision floor under each column is the tread the column stands on, so a
+        // vertex only ever rises one tread above its own floor.
+        let floor_at = |x: f32, _z: f32| stair_surface(x, 0.0, f32::INFINITY, f32::NEG_INFINITY);
         let draped = drape
             .drape_batch(
                 &mesh,
                 Affine3A::IDENTITY,
                 0.0,
-                1.6,
-                |_, _| Some(0.0),
+                MAX_SURFACE_RISE,
+                floor_at,
                 stair_surface,
             )
             .expect("draped");
         assert_eq!(draped.dropped, draped.positions.len());
         for (vertex, uv) in draped.positions.iter().zip(&draped.uvs) {
-            let expected = stair_surface(vertex[0], vertex[2], 1.6, 0.0).expect("step");
+            let floor = floor_at(vertex[0], vertex[2]).expect("floor");
+            let expected = stair_surface(vertex[0], vertex[2], floor + MAX_SURFACE_RISE, floor)
+                .expect("tread");
             assert!(
                 (vertex[1] - (expected + DRAPE_BIAS)).abs() < 1e-3,
                 "vertex {vertex:?} should sit on tread {expected}"
@@ -560,27 +580,34 @@ mod tests {
         assert!(drape.is_ground_batch(&mesh, Affine3A::IDENTITY, 0.0));
     }
 
+    /// A column with no visible surface in its rise window stays on its own collision
+    /// floor; it must not keep the authored hover or climb onto a wall top.
     #[test]
-    fn vertices_without_a_surface_keep_their_authored_height() {
+    fn vertices_without_a_surface_stay_on_their_own_collision_floor() {
         let (positions, uvs, indices) = ground_quad();
-        let mesh = batch(&positions, &uvs, &indices);
+        let lifted: Vec<_> = positions
+            .iter()
+            .map(|[x, y, z]| [*x, y + 1.0, *z])
+            .collect();
+        let mesh = batch(&lifted, &uvs, &indices);
         let drape = GroundDrape::default();
         let draped = drape
             .drape_batch(
                 &mesh,
                 Affine3A::IDENTITY,
                 0.0,
-                1.6,
-                |x, _| (x < 0.0).then_some(0.0),
-                |x, _z, _ceiling, _floor| (x < 0.0).then_some(0.0),
+                MAX_SURFACE_RISE,
+                |_, _| Some(0.0),
+                // A wall top 1.5 yd up is outside the rise window.
+                |_x, _z, _ceiling, _floor| Some(1.5),
             )
             .expect("draped");
-        assert!(draped.dropped > 0);
-        assert!(draped.dropped < draped.positions.len());
+        assert_eq!(draped.dropped, 0, "no column may follow the wall top");
         for vertex in &draped.positions {
-            if vertex[0] >= 0.0 {
-                assert!((vertex[1]).abs() < 1e-4, "authored height kept: {vertex:?}");
-            }
+            assert!(
+                (vertex[1] - DRAPE_BIAS).abs() < 1e-4,
+                "vertex stays on its floor: {vertex:?}"
+            );
         }
     }
 
@@ -627,29 +654,28 @@ mod tests {
         }
     }
 
+    /// Adjacent columns with floors a step apart drape one step apart; a triangle bridging
+    /// them would stretch across the riser, so it is dropped.
     #[test]
-    fn triangles_whose_draped_edge_spans_more_than_a_step_are_dropped() {
+    fn triangles_whose_draped_edge_spans_more_than_the_rise_limit_are_dropped() {
         let (positions, uvs, indices) = ground_quad();
-        let lifted: Vec<_> = positions
-            .iter()
-            .map(|[x, y, z]| [*x, y + 1.9, *z])
-            .collect();
-        let mesh = batch(&lifted, &uvs, &indices);
+        let mesh = batch(&positions, &uvs, &indices);
         let drape = GroundDrape::default();
+        let floor_at = |x: f32, _z: f32| Some(if x < 0.0 { 0.0 } else { 1.0 });
         let draped = drape
             .drape_batch(
                 &mesh,
                 Affine3A::IDENTITY,
                 0.0,
-                1.6,
-                |x, _| (x < 0.0).then_some(0.0),
-                |x, _z, _ceiling, _floor| (x < 0.0).then_some(0.0),
+                MAX_SURFACE_RISE,
+                floor_at,
+                |x, _z, _ceiling, floor| Some(floor),
             )
             .expect("draped");
         assert!(draped.discarded > 0, "no bridging triangle was dropped");
         assert!(
             draped.triangle_count() > 0,
-            "a flat patch keeps its triangles"
+            "the flat halves keep their triangles"
         );
         for triangle in draped.indices.chunks_exact(3) {
             let mut heights = [0.0f32; 3];
@@ -658,7 +684,10 @@ mod tests {
             }
             let span = heights.iter().copied().fold(f32::NEG_INFINITY, f32::max)
                 - heights.iter().copied().fold(f32::INFINITY, f32::min);
-            assert!(span <= 1.6, "kept triangle spans {span}: {heights:?}");
+            assert!(
+                span <= MAX_DRAPED_EDGE_SPAN,
+                "kept triangle spans {span}: {heights:?}"
+            );
         }
     }
 
