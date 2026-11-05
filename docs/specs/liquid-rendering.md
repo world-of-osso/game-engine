@@ -9,8 +9,11 @@ WMO MLIQ and terrain MH2O liquids use LiquidType-backed material data. The [liqu
 - [x] Retry unknown liquid type IDs, including zero without a geometry-derived type, through same-product LiquidType8 and its material/textures; never select Material8 directly.
 - [ ] Render Material 2/4 with Retail ProcMagma behavior at the applicable detail level using sourced inputs and equations.
 - [x] Keep Forge on Material13/Fel: two base layers, detail>=1 emissive/procedural, detail>=2 shore and detail>=3 specular. G4 UV triples are (scale,phaseDegrees,velocity); phase adds LiquidObject.FlowDirection and velocity multiplies FlowSpeed. Missing/zero-flow records remain static, with no guessed WMO flow.
+- [x] G8/Fel shore: D = saturate((linear scene depth - liquid surface depth) / Float_11), sampled as t5(TC1.z, 1-D) with `shore.rgb + (base - shore.rgb)*(D*shore.a)`. `cb1[12]` = {Float_13, 1/Float_11, Float_14, Float_15} and `cb1[13]` = {pair blend, Float_16, Float_17, 0} are bound from the row. The material stays opaque; the t16 screen composite is out of scope.
 - [x] Use integer-millisecond wrap with G4's finite velocity domain (1e-5<abs(v)<1000), negative cycles ending at1. Scale does not rotate the source UV.
-- [ ] Complete sourced Retail shore UV assignment, mask and blend polarity. Existing shore blend remains unchanged pendingG6; MLLD is not a WMO shoreline source.
+- [ ] ProcFel permutation/technique selection and its 18 techniques; the engine renders both `Fel` and `ProcFel` detail tiers from one detail-gated shader. The BLS samples t6 through the draw item's UV rectangle, so the exact CPU texture bound there is still open.
+- [x] G7 terrain contract: an `MH2O` layer's id resolves verbatim with no 1..20 rewrite and no type-8 retry, and the draw skips a row whose material column is Fog (10). The rewrite and the retry remain WMO-only.
+- [ ] MH2O's per-vertex depth byte consumer and unit in the water shader. G7 measures 9 units per yard in the assets but leaves the shader consumer unknown, so the shader keeps its existing depth/255 cubic input.
 
 ## How it works
 

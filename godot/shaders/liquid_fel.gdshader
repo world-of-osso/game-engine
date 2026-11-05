@@ -25,6 +25,12 @@ uniform vec4 floats_4 = vec4(0.0);
 uniform vec4 floats_8 = vec4(0.0);
 uniform vec4 floats_12 = vec4(0.0);
 uniform vec2 floats_16 = vec2(0.0);
+// Retail70688 G8 per-draw constant block, bound from the LiquidType row:
+//   fel_params_0 = cb1[12] = {Float_13, 1/Float_11, Float_14, Float_15}
+//   fel_params_1 = cb1[13] = {frame-pair blend, Float_16, Float_17, 0}
+// 1/Float_11 is 1 when Float_11 is not positive; the reciprocal is computed here.
+uniform vec4 fel_params_0 = vec4(1.0, 0.0, 1.0, 1.0);
+uniform vec4 fel_params_1 = vec4(0.0, 0.0, 0.0, 0.0);
 // LiquidType.Coefficient[0..3] (FelData depthTable).
 uniform vec4 depth_coefficients = vec4(0.0);
 // LiquidType.Int[0..3]; LiquidFel.cpp derives FelData intParams from Int[1..3].
@@ -83,7 +89,8 @@ vec3 unpack_normal(vec2 texel) {
 	return vec3(texel, sqrt(clamp(1.0 - dot(texel, texel), 0.0, 1.0)));
 }
 
-// commonLiquidFunctions.slang sceneViewDepth: view distance of the depth buffer at `uv`.
+// commonLiquidFunctions.slang sceneViewDepth: linear view-space distance of the depth
+// buffer at `uv`, in the same unit as the fragment's own -VERTEX.z.
 float scene_view_depth(sampler2D depth, vec2 uv, mat4 inverse_projection) {
 	float raw = texture(depth, uv).r;
 	vec4 view = inverse_projection * vec4(uv * 2.0 - 1.0, raw, 1.0);
@@ -114,12 +121,15 @@ void fragment() {
 	float f8 = floats_8.x;
 	float f9 = floats_8.y;
 	float f10 = floats_8.z;
-	float f11 = floats_8.w;
-	float f13 = floats_12.y;
-	float f14 = floats_12.z;
-	float f15 = floats_12.w;
-	float f16 = floats_16.x;
-	float f17 = floats_16.y;
+	// cb1[12]/cb1[13] (G8): shore scale, tint blend, layer mix, distortion, pair blend,
+	// normal flattening and glow strength all come from the row, not from literals.
+	float lit_blend = fel_params_0.x;
+	float shore_scale = fel_params_0.y;
+	float layer_mix_scale = fel_params_0.z;
+	float distortion_scale = fel_params_0.w;
+	float pair_blend = fel_params_1.x;
+	float normal_flatten = fel_params_1.y;
+	float glow_strength = fel_params_1.z;
 	// LiquidFel.cpp intParams: hasDepth, offset, blend, normal-map frame count.
 	float has_depth = liquid_ints.y != 0 ? 1.0 : 0.0;  // v94
 	float int_offset = float(liquid_ints.z) * 0.01;  // v36
@@ -139,8 +149,9 @@ void fragment() {
 	vec2 uv_4 = f9 * (1.0 - int_blend) * uv + scroll_along(time, reverse_angle, glow_speed)
 		+ vec2(sin(reverse_angle), cos(reverse_angle)) * int_offset;  // v104
 
-	// E5 corrects E1: Fel's group lookup period is zero, so frame zero is fixed.
-	float frame_blend = 0.0;
+	// E5 corrects E1: Fel's group lookup period is zero, so frame zero is fixed and the
+	// cb1[13].x pair blend the row supplies is zero as well.
+	float frame_blend = pair_blend;
 
 	float d = vertex_depth;
 	float depth_mix = clamp(depth_coefficients.x + depth_coefficients.y * d + depth_coefficients.z * d * d
@@ -151,13 +162,13 @@ void fragment() {
 	if (liquid_detail >= 1) {
 		normal = mix(unpack_normal(texture(texture_5, uv_2).xy), unpack_normal(texture(texture_next, uv_2).xy), frame_blend);
 		normal = 2.0 * normal - 1.0;
-		normal = mix(normal, vec3(0.0, 0.0, 1.0), 1.0 - depth_mix * f16);
-		distortion = f15 * normal.xy;
+		normal = mix(normal, vec3(0.0, 0.0, 1.0), 1.0 - depth_mix * normal_flatten);
+		distortion = distortion_scale * normal.xy;
 	}
 
 	vec3 layer_0 = texture(texture_0, uv_0 + distortion).rgb;  // v123
 	vec3 layer_1 = texture(texture_1, uv_1 + distortion).rgb;  // v124
-	float layer_mix = 1.0 - depth_mix * f14;  // v126
+	float layer_mix = 1.0 - depth_mix * layer_mix_scale;  // v126
 	if (has_depth != 0.0) {
 		layer_mix = clamp(layer_mix, 0.0, 1.0);
 	}
@@ -168,7 +179,7 @@ void fragment() {
 	float sun_attenuation = 1.0;
 	float n_dot_l = clamp(dot(to_sun, normal), 0.0, 1.0);  // v139
 	vec3 light = light_direct() * (n_dot_l * sun_attenuation) + light_ambient();  // v143
-	vec3 color = mix(light * base, base, f13);  // v146
+	vec3 color = mix(light * base, base, lit_blend);  // v146
 
 	vec3 camera = to_wow(CAMERA_POSITION_WORLD);  // v128
 	vec3 to_camera = -normalize(wow_position - camera);  // v151
@@ -181,19 +192,25 @@ void fragment() {
 	if (liquid_detail >= 1) {
 		vec4 glow_0 = texture(texture_4, uv_3 + distortion);
 		vec4 glow_1 = texture(texture_4, uv_4 + distortion);
-		color += (glow_0.rgb + glow_1.rgb) * glow_0.a * glow_1.a * (depth_mix * f17);
+		color += (glow_0.rgb + glow_1.rgb) * glow_0.a * glow_1.a * (depth_mix * glow_strength);
 	}
 
-	// Shore gradient from the opaque depth behind the surface (v163-v167).
-	float edge_scale = f11 > 0.0 ? 1.0 / f11 : 1.0;  // v95
-	float fragment_depth = -VERTEX.z;  // abs(vPositionDepth.z)
-	float scene_depth = abs(scene_view_depth(depth_texture, SCREEN_UV, INV_PROJECTION_MATRIX));  // v163
-	float edge = clamp(edge_scale * (scene_depth - fragment_depth), 0.0, 1.0);  // v165
+	// G8 shore: D is saturate((scene depth - liquid surface depth) / Float_11); both
+	// depths are linear view-space yards, so Float_11 is the fade width in yards (2.6 for
+	// type 1192). D = 0 is the shoreline and D = 1 is the open surface. The BLS samples
+	// t6 through the draw item's UV rectangle; its CPU binding is open, so the linearised
+	// screen depth buffer supplies the same quantity.
+	float surface_depth = -VERTEX.z;
+	float scene_depth = scene_view_depth(depth_texture, SCREEN_UV, INV_PROJECTION_MATRIX);
+	float shore_fade = clamp(shore_scale * (scene_depth - surface_depth), 0.0, 1.0);
 	if (liquid_detail >= 2) {
-		vec4 shore = texture(texture_3, vec2(uv_1.x, 1.0 - edge));
-		color = mix(shore.rgb, color, edge * shore.a);
+		// t5 at (TC1.z, 1 - D): TC1.z is the second base layer's U, as G8/BLS specify.
+		vec4 shore = texture(texture_3, vec2(uv_1.x, 1.0 - shore_fade));
+		color = shore.rgb + (color - shore.rgb) * (shore_fade * shore.a);
 	}
-	// v106/v168 (authored depth * shore alpha) only feed makeFog2's alpha; the output alpha is 1.
+	// Opaque material: the shore mix happens in-shader (G8 §4). The t16 screen-space
+	// composite is out of scope. GLOW_0/1 also ignore the authored depth term that only
+	// feeds makeFog2's alpha in the reference, which is inert for an opaque output.
 
 	color = apply_retail_fog(color, VERTEX, INV_VIEW_MATRIX);
 	ALBEDO = gamma_to_linear(max(color, vec3(0.0)));

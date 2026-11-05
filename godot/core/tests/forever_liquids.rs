@@ -17,10 +17,15 @@ fn forever_liquids_resolve_observed_objects_and_preserve_every_retail_material()
         assert_eq!(actual.liquid_type, u32::from(kind));
         assert!(!actual.texture_slots[2].is_empty());
         assert!(!actual.texture_slots[3].is_empty());
-        // Unknown Retail ids retry Retail type8, never the colliding Forever row.
+        // Unknown Retail ids retry Retail type8 on the WMO path only, never the
+        // colliding Forever row; the terrain path has no retry.
         assert_eq!(
-            catalogs.liquid_material(0, kind, object).unwrap(),
+            catalogs.wmo_material(0, kind, object).unwrap(),
             retail.liquid_material(8, 0).unwrap()
+        );
+        assert_eq!(
+            catalogs.liquid_material(0, kind, object).unwrap_err(),
+            format!("LiquidType {kind} has no DB2 row")
         );
     }
     let csv = fs::read_to_string(data.join("db2/active/LiquidType.csv")).unwrap();
@@ -43,8 +48,12 @@ fn forever_liquids_resolve_observed_objects_and_preserve_every_retail_material()
             .contains("Forever LiquidObject 65535")
     );
     assert_eq!(
-        catalogs.liquid_material(2991, 65535, 0).unwrap(),
+        catalogs.wmo_material(2991, 65535, 0).unwrap(),
         forever.liquid_material(8, 0).unwrap()
+    );
+    assert_eq!(
+        catalogs.liquid_material(2991, 65535, 0).unwrap_err(),
+        "Forever map 2991: LiquidType 65535 has no DB2 row"
     );
 }
 
@@ -58,7 +67,14 @@ fn pbr_source_floats_survive_and_legacy_render_borrows_only_forever_slow_water_i
         let source = maps.liquid_material(2991, kind, object).unwrap();
         assert_eq!(source.floats.len(), 38);
         assert!((source.floats[23] + 0.146).abs() < 0.000_001);
-        let rendered = maps.render_material(2991, kind, object).unwrap();
+        let rendered = maps
+            .render_material(
+                game_engine_core::liquid_data::LiquidFamily::Terrain,
+                2991,
+                kind,
+                object,
+            )
+            .unwrap();
         assert_eq!(rendered.liquid_type, u32::from(kind));
         assert_eq!(rendered.material_id, 130);
         assert_eq!(rendered.lvf, source.lvf);
@@ -72,7 +88,16 @@ fn pbr_source_floats_survive_and_legacy_render_borrows_only_forever_slow_water_i
         assert_eq!(rendered.texture_slots, legacy.texture_slots);
     }
     let retail = maps.liquid_material(0, 947, 42).unwrap();
-    assert_eq!(maps.render_material(0, 947, 42).unwrap(), retail);
+    assert_eq!(
+        maps.render_material(
+            game_engine_core::liquid_data::LiquidFamily::Terrain,
+            0,
+            947,
+            42
+        )
+        .unwrap(),
+        retail
+    );
 }
 
 #[test]

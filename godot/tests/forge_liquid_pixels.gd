@@ -1,7 +1,8 @@
 extends "res://tests/liquid_material_pixels.gd"
 
-## Real1192 DB2 textures and production shader. G4 says objectless WMO flow is zero,
-## not an animation bug. Shore UV/blend math is intentionally unchanged pending G6.
+## Real1192 DB2 textures and production shader. G4/Fel motion and G8 shore:
+## objectless WMO flow is zero (static, not a bug) and the shore fade is
+## D = saturate((linear scene depth - liquid surface depth) / Float_11).
 var client: Node3D
 
 func run() -> void:
@@ -38,7 +39,10 @@ func run() -> void:
 	RenderingServer.global_shader_parameter_set("specular_color", Vector3.ONE)
 	if not await check_layer_gate(material, "texture_2", 3, Color(0,0,0,1), Color(1,1,1,1)):
 		return
-	print("PASS: FORGE_LIQUID_PIXELS object-zero/static, row10949/animated, integer clock, shore2/specular3")
+	if not await check_shore_fade(material):
+		return
+	print("PASS: FORGE_LIQUID_PIXELS object-zero/static, row10949/animated, integer clock, " +
+		"shore2/specular3, depth-fade width from Float_11")
 	client.free()
 	quit(0)
 
@@ -72,6 +76,44 @@ func check_layer_gate(material: ShaderMaterial, slot: String, threshold: int, fi
 			return false
 	material.set_shader_parameter(slot, original_texture)
 	return true
+
+## D = saturate((scene - surface) / Float_11): a larger 1/Float_11 reaches the open
+## surface sooner, so the shore-coloured area must shrink as the scale grows.
+func check_shore_fade(material: ShaderMaterial) -> bool:
+	var params: Vector4 = material.get_shader_parameter("fel_params_0")
+	# The row supplies 1/Float_11 = 1/2.6; the scene behind this quad sits 2-5 yd lower.
+	if absf(params.y - 1.0 / 2.6) > 0.0001:
+		fail("fel_params_0.y must be 1/Float_11 from the row, got " + str(params.y))
+		return false
+	var original_texture = material.get_shader_parameter("texture_3")
+	material.set_shader_parameter("liquid_detail", 2)
+	material.set_shader_parameter("texture_3", solid_texture(Color(0,0,1,1)))
+	var counts := {}
+	for scale in [0.0, 0.05, 0.3846, 4.0]:
+		material.set_shader_parameter("fel_params_0", Vector4(params.x, scale, params.z, params.w))
+		var image := await capture()
+		counts[scale] = shore_pixels(image)
+		print("FORGE_SHORE scale=", scale, " shore_pixels=", counts[scale])
+	var ordered: bool = counts[0.0] >= counts[0.05] and counts[0.05] >= counts[0.3846] and counts[0.3846] >= counts[4.0]
+	if not ordered:
+		fail("Shore area must shrink as 1/Float_11 grows: " + str(counts))
+		return false
+	if counts[0.0] < 1000 or counts[4.0] > counts[0.0] / 4:
+		fail("Depth fade did not move the shore edge: " + str(counts))
+		return false
+	material.set_shader_parameter("fel_params_0", params)
+	material.set_shader_parameter("texture_3", original_texture)
+	return true
+
+## Pixels dominated by the blue shore probe rather than the orange lava layers.
+func shore_pixels(image: Image) -> int:
+	var count := 0
+	for y in SIZE.y:
+		for x in SIZE.x:
+			var pixel := image.get_pixel(x, y)
+			if pixel.b > pixel.r + 0.15:
+				count += 1
+	return count
 
 func capture() -> Image:
 	if client.account_state().ui_skin != "Forever":

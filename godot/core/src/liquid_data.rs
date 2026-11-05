@@ -136,6 +136,40 @@ pub struct LiquidMaterial {
     pub wave_periods: [f32; 2],
 }
 
+/// Which client path resolves a liquid surface. G7: the terrain `MH2O` draw uses the layer's
+/// id verbatim and has no miss retry; E6: the WMO path's instance factory retries an unknown
+/// id with the shared type 8. The 1..20 -> {13,14,19,20} rewrite lives only in the WMO chunk
+/// header bind (`crate::wmo_liquid::group_liquid_type`), never on the terrain path.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum LiquidFamily {
+    Terrain,
+    Wmo,
+}
+
+/// G7: the terrain draw skips a record whose LiquidMaterial column is Fog (10).
+pub const FOG_MATERIAL: u8 = 10;
+
+/// Whether the terrain `MH2O` draw paints a surface of this material.
+pub fn terrain_draws_surface(material_id: u8) -> bool {
+    material_id != FOG_MATERIAL
+}
+
+impl LiquidMaterial {
+    /// Retail70688 G8: the ProcFel per-draw constant block, derived from the row.
+    /// `cb1[12]` = {Float_13, 1/Float_11, Float_14, Float_15} and
+    /// `cb1[13]` = {frame-pair blend, Float_16, Float_17, 0}. The reciprocal is 1 when
+    /// `Float_11` is not positive, so a row without a width makes the shore fade immediate.
+    pub fn fel_params(&self, pair_blend: f32) -> ([f32; 4], [f32; 4]) {
+        let float = |index: usize| self.floats.get(index).copied().unwrap_or(0.0);
+        let width = float(11);
+        let shore_scale = if width > 0.0 { 1.0 / width } else { 1.0 };
+        (
+            [float(13), shore_scale, float(14), float(15)],
+            [pair_blend, float(16), float(17), 0.0],
+        )
+    }
+}
+
 struct LiquidTypeRow {
     material_id: u8,
     frame_counts: [u8; TEXTURE_SLOTS],
@@ -196,11 +230,12 @@ impl MapLiquidCatalog {
     /// Source metadata remains intact in `liquid_material`.
     pub fn render_material(
         &self,
+        family: LiquidFamily,
         map_id: u32,
         liquid_type: u16,
         liquid_object: u16,
     ) -> Result<LiquidMaterial, String> {
-        let source = self.liquid_material(map_id, liquid_type, liquid_object)?;
+        let source = self.surface(family, map_id, liquid_type, liquid_object)?;
         if source.material_id != PBR_WATER_MATERIAL {
             return Ok(source);
         }
@@ -209,8 +244,7 @@ impl MapLiquidCatalog {
         } else {
             &self.retail
         };
-        let mut borrowed = catalog.liquid_material(LEGACY_WATER_TYPE, 0)
-            .map_err(|error| format!("LiquidType {liquid_type} Material130 requires borrowed LiquidType5 inputs: {error}"))?;
+        let mut borrowed = catalog.liquid_material(LEGACY_WATER_TYPE, 0)            .map_err(|error| format!("LiquidType {liquid_type} Material130 requires borrowed LiquidType5 inputs: {error}"))?;
         if borrowed.material_id != 1 {
             return Err("Borrowed LiquidType5 must identify legacy Water material1".into());
         }
@@ -240,8 +274,28 @@ impl MapLiquidCatalog {
         liquid_type: u16,
         liquid_object: u16,
     ) -> Result<LiquidMaterial, String> {
+        self.surface(LiquidFamily::Terrain, map_id, liquid_type, liquid_object)
+    }
+
+    /// A WMO group liquid. Same tables, but an unknown id retries the shared type 8 (E6).
+    pub fn wmo_material(
+        &self,
+        map_id: u32,
+        liquid_type: u16,
+        liquid_object: u16,
+    ) -> Result<LiquidMaterial, String> {
+        self.surface(LiquidFamily::Wmo, map_id, liquid_type, liquid_object)
+    }
+
+    fn surface(
+        &self,
+        family: LiquidFamily,
+        map_id: u32,
+        liquid_type: u16,
+        liquid_object: u16,
+    ) -> Result<LiquidMaterial, String> {
         if !self.uses_forever(map_id) {
-            return self.retail.liquid_material(liquid_type, liquid_object);
+            return self.retail.surface(family, liquid_type, liquid_object);
         }
         let catalog = self
             .forever
@@ -255,7 +309,7 @@ impl MapLiquidCatalog {
             ));
         }
         let material = catalog
-            .liquid_material(liquid_type, liquid_object)
+            .surface(family, liquid_type, liquid_object)
             .map_err(|error| format!("Forever map {map_id}: {error}"))?;
         for &slot in material.shader.texture_slots() {
             if material.texture_slots[slot].is_empty() {
@@ -305,12 +359,22 @@ impl LiquidCatalog {
         })
     }
 
-    /// The liquid material of an MH2O instance (`liquid_type`, `liquid_object_or_lvf`).
-    /// A LiquidObject without a DB2 row (ocean object 42 and a few authored IDs the shipped
-    /// table omits) takes the instance's own `liquid_type` with no flow, as WebWowViewerCpp
+    /// The surface of one `MH2O` layer, resolved on the terrain path: the layer's type id is
+    /// used verbatim with no 1..20 rewrite and no miss retry (G7). A LiquidObject without a
+    /// DB2 row (ocean object 42 and a few authored IDs the shipped table omits) takes the
+    /// instance's own `liquid_type` with no flow, as WebWowViewerCpp
     /// `CSqliteDB::getLiquidObjectData` does.
     pub fn liquid_material(
         &self,
+        liquid_type: u16,
+        liquid_object: u16,
+    ) -> Result<LiquidMaterial, String> {
+        self.surface(LiquidFamily::Terrain, liquid_type, liquid_object)
+    }
+
+    pub fn surface(
+        &self,
+        family: LiquidFamily,
         liquid_type: u16,
         liquid_object: u16,
     ) -> Result<LiquidMaterial, String> {
@@ -321,7 +385,7 @@ impl LiquidCatalog {
             Some(object) => (object.liquid_type, object.flow_direction, object.flow_speed),
             None => (u32::from(liquid_type), 0.0, 0.0),
         };
-        let (type_id, row) = self.resolve_type_row(type_id)?;
+        let (type_id, row) = self.resolve_type_row(family, type_id)?;
         let material_lvf = *self
             .material_lvf
             .get(&u32::from(row.material_id))
@@ -356,9 +420,26 @@ impl LiquidCatalog {
         })
     }
 
-    fn resolve_type_row(&self, type_id: u32) -> Result<(u32, &LiquidTypeRow), String> {
+    /// A WMO group liquid. Same tables, but an unknown id retries the shared type 8 (E6).
+    pub fn wmo_material(
+        &self,
+        liquid_type: u16,
+        liquid_object: u16,
+    ) -> Result<LiquidMaterial, String> {
+        self.surface(LiquidFamily::Wmo, liquid_type, liquid_object)
+    }
+
+    /// Terrain resolves the row verbatim; only the WMO instance factory retries type 8.
+    fn resolve_type_row(
+        &self,
+        family: LiquidFamily,
+        type_id: u32,
+    ) -> Result<(u32, &LiquidTypeRow), String> {
         if let Some(row) = self.types.get(&type_id) {
             return Ok((type_id, row));
+        }
+        if family == LiquidFamily::Terrain {
+            return Err(format!("LiquidType {type_id} has no DB2 row"));
         }
         let row = self.types.get(&MISSING_LIQUID_TYPE).ok_or_else(|| {
             format!(

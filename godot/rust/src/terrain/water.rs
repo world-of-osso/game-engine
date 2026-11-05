@@ -98,6 +98,10 @@ impl WaterMaterials {
             }
             None => return Err(format!("MH2O layer {key:?} has no resolved material")),
         };
+        // G7: the terrain MH2O draw skips a row whose LiquidMaterial column is Fog (10).
+        if !game_engine_core::liquid_data::terrain_draws_surface(native.params.material_id) {
+            return Ok(None);
+        }
         let geometry = adt::build_water_geometry(position, layer);
         if geometry.indices.is_empty() {
             return Ok(None);
@@ -376,6 +380,11 @@ fn bind_liquid_material(material: &mut Gd<ShaderMaterial>, native: &NativeLiquid
         "frame_counts_3",
         &Vector3::new(frame_counts[3], frame_counts[4], frame_counts[5]).to_variant(),
     );
+    // G8 ProcFel constant block. E5 fixes Fel frame selection at frame zero, so the
+    // frame-pair blend is zero; the remaining values come from the row via `fel_params`.
+    let (fel_0, fel_1) = params.fel_params(0.0);
+    material.set_shader_parameter("fel_params_0", &Vector4::from_array(fel_0).to_variant());
+    material.set_shader_parameter("fel_params_1", &Vector4::from_array(fel_1).to_variant());
 }
 
 fn mipmapped_texture(width: u32, height: u32, pixels: &[u8]) -> Result<Gd<ImageTexture>, String> {

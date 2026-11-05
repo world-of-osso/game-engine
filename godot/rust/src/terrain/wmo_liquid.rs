@@ -78,6 +78,7 @@ impl WmoLiquids {
     ) -> Result<Arc<NativeLiquidMaterial>, String> {
         let source = LiquidSource {
             map_id,
+            family: game_engine_core::liquid_data::LiquidFamily::Wmo,
             resolver,
             data_root,
             textures: &self.textures,

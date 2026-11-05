@@ -289,13 +289,63 @@ fn kul_tiras_ocean_object_42_layers_read_material_lvf0() {
 }
 
 #[test]
+fn forge_fel_constant_block_comes_from_the_row() {
+    let material = catalog().liquid_material(1192, 0).unwrap();
+    let (block_0, block_1) = material.fel_params(0.0);
+    // Float_11 is the shore width in yards; the shader receives its reciprocal.
+    let width = material.floats[11];
+    assert_eq!(width, 2.5999999);
+    assert_eq!(block_0[1], 1.0 / width);
+    assert!((block_0[1] - 0.384_615_4).abs() < 1e-6, "{:?}", block_0);
+    assert_eq!(block_0, [1.0, 1.0 / width, 4.5, 1.0]);
+    assert_eq!(block_1, [0.0, 0.7, 10.0, 0.0]);
+    // A row without a positive width still yields a usable block, not an infinity.
+    let mut widthless = material.clone();
+    widthless.floats[11] = 0.0;
+    assert_eq!(widthless.fel_params(0.0).0[1], 1.0);
+}
+
+#[test]
+fn terrain_water_resolves_its_type_verbatim_without_a_wmo_rewrite_or_type_eight_retry() {
+    let catalog = catalog();
+    // G7: classic ids 3 (magma) and 5 (water) keep their own rows on the terrain path;
+    // the WMO id set (19 magma, 13 water) is a chunk-header rewrite and must not appear.
+    for (kind, material) in [(3, 2), (5, 1)] {
+        assert_eq!(
+            catalog.liquid_material(kind, 0).unwrap().material_id,
+            material
+        );
+    }
+    // G7: a miss draws nothing and never borrows type 8's Slime/Magma material.
+    let error = catalog.liquid_material(65_000, 0).unwrap_err();
+    assert_eq!(error, "LiquidType 65000 has no DB2 row");
+    // E6: the same miss on the WMO path retries the shared type 8.
+    assert_eq!(
+        catalog.wmo_material(65_000, 0).unwrap(),
+        catalog.liquid_material(8, 0).unwrap()
+    );
+}
+
+#[test]
+fn terrain_draw_skips_the_fog_material_column_only() {
+    let catalog = catalog();
+    assert!(game_engine_core::liquid_data::terrain_draws_surface(1));
+    assert!(game_engine_core::liquid_data::terrain_draws_surface(13));
+    assert!(!game_engine_core::liquid_data::terrain_draws_surface(10));
+    // The rule is live: shipped rows use the Fog material column.
+    let fog = catalog.liquid_material(733, 0).unwrap();
+    assert_eq!(fog.material_id, 10);
+    assert_eq!(fog.shader, LiquidShader::Fog);
+}
+
+#[test]
 fn unknown_and_zero_liquid_types_retry_type_eight_not_material_eight() {
     let catalog = catalog();
     let slow_slime = catalog.liquid_material(8, 0).unwrap();
     assert_eq!(slow_slime.material_id, 2);
     assert_eq!(slow_slime.shader, LiquidShader::Magma);
     for id in [0, 65_000] {
-        assert_eq!(catalog.liquid_material(id, 0).unwrap(), slow_slime);
+        assert_eq!(catalog.wmo_material(id, 0).unwrap(), slow_slime);
     }
 }
 

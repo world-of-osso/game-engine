@@ -13,8 +13,8 @@ use game_engine_core::{
     footstep_data::FootstepSurface,
     ground_effect_data,
     liquid_data::{
-        FIRST_LIQUID_OBJECT, LiquidMaterial, MAGMA_NOISE_FDID, MAGMA_NOISE_SIZE, MapLiquidCatalog,
-        TEXTURE_SLOTS,
+        FIRST_LIQUID_OBJECT, LiquidFamily, LiquidMaterial, MAGMA_NOISE_FDID, MAGMA_NOISE_SIZE,
+        MapLiquidCatalog, TEXTURE_SLOTS,
     },
     terrain_surface_data, wdt,
     wmo_surface_data::{WmoSurfaceBounds, select_wmo_material_surface},
@@ -379,6 +379,7 @@ impl NativeTerrainAssets {
     fn liquid_source(&self, map_id: u32) -> LiquidSource<'_> {
         LiquidSource {
             map_id,
+            family: LiquidFamily::Terrain,
             resolver: &self.resolver,
             data_root: &self.data_root,
             textures: &self.textures,
@@ -653,6 +654,7 @@ fn read_bytes(path: &Path) -> Result<Vec<u8>, String> {
 /// the object spawner's for WMO group liquids.
 pub(crate) struct LiquidSource<'a> {
     pub map_id: u32,
+    pub family: LiquidFamily,
     pub resolver: &'a CascListfileResolver,
     pub data_root: &'a Path,
     pub textures: &'a RefCell<TerrainTextureCache>,
@@ -726,9 +728,8 @@ impl LiquidSource<'_> {
             .get_or_init(|| MapLiquidCatalog::read(self.data_root))
             .as_ref()
             .map_err(Clone::clone)?;
-        catalog.render_material(self.map_id, liquid_type, liquid_object)
+        catalog.render_material(self.family, self.map_id, liquid_type, liquid_object)
     }
-
     fn read_frames(&self, fdids: &[u32]) -> Result<Vec<LiquidFrame>, String> {
         fdids
             .iter()
