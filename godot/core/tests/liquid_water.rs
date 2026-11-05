@@ -62,6 +62,34 @@ fn narrow_layer_exists_bits_run_across_rows() {
     assert!(layer.exists[2..].iter().all(|row| *row == 0));
 }
 
+/// A layer whose mask offset is zero uses the engine's default bitmap: every tile of the
+/// layer rectangle is present, and the tiles outside it are not. The coverage is binary, so
+/// the unmeshed layer is exactly `width * height` quads.
+#[test]
+fn a_layer_without_a_mask_marks_every_rectangle_tile_present() {
+    for (width, height) in [(1, 1), (3, 2), (8, 8)] {
+        let mut payload = mh2o_masked_payload(width, height, &[]);
+        // The mask offset is the fifth dword of the 24-byte layer record.
+        let header_size = 256 * 12;
+        payload[header_size + 16..header_size + 20].copy_from_slice(&0u32.to_le_bytes());
+        let water = parse_mh2o(&payload).expect("maskless MH2O");
+        let layer = &water.chunks[0].layers[0];
+        let present = ((1u16 << width) - 1) as u8;
+        assert!(
+            layer.exists[..height as usize]
+                .iter()
+                .all(|row| *row == present)
+        );
+        assert!(layer.exists[height as usize..].iter().all(|row| *row == 0));
+        let geometry = game_engine_core::adt::build_water_geometry([0.0; 3], layer);
+        assert_eq!(
+            geometry.indices.len(),
+            usize::from(width) * usize::from(height) * 6
+        );
+        assert!(geometry.colors.iter().all(|color| color[3] == 1.0));
+    }
+}
+
 const HEIGHTS: [f32; 4] = [10.0, 10.25, 10.5, 11.0];
 
 fn heights() -> Vec<u8> {

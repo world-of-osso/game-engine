@@ -1,4 +1,5 @@
 use game_engine_core::adt::{WaterLayer, build_water_geometry, parse_root};
+use game_engine_core::terrain_height_data::{bevy_to_chunk_coords, sample_chunk_height};
 
 fn layer() -> WaterLayer {
     WaterLayer {
@@ -78,6 +79,148 @@ fn absent_and_short_vertex_payloads_use_original_height_and_opaque_depth() {
         build_water_geometry([10.0, 20.0, 30.0], &layer)
             .indices
             .is_empty()
+    );
+}
+
+/// G7/I2 B.5: the coverage bits gate triangles only. Masking tiles away may remove vertices
+/// and indices, but it must never change a surviving vertex's authored position, UV or
+/// depth channel, and no coverage value may be blended into an attribute.
+#[test]
+fn coverage_selects_tiles_and_leaves_authored_vertex_values_untouched() {
+    let masked_layer = |exists: [u8; 8]| WaterLayer {
+        liquid_type: 5,
+        liquid_object: 0,
+        min_height: 10.0,
+        max_height: 13.0,
+        x_offset: 1,
+        y_offset: 2,
+        width: 3,
+        height: 3,
+        exists,
+        vertex_heights: (0..16).map(|index| 10.0 + index as f32).collect(),
+        vertex_uvs: vec![[0.0, 0.0]; 16],
+        vertex_depths: (0..16)
+            .map(|index| u8::try_from(index * 17).unwrap())
+            .collect(),
+        object_vertex_bytes: Vec::new(),
+    };
+    let full = build_water_geometry([10.0, 20.0, 30.0], &masked_layer([0b111; 8]));
+    assert_eq!(full.indices.len(), 9 * 6);
+    assert_eq!(full.positions.len(), 9 * 4);
+
+    // Only the centre tile (layer row 1, column 1) stays present.
+    let mut exists = [0u8; 8];
+    exists[1] = 0b010;
+    let masked = build_water_geometry([10.0, 20.0, 30.0], &masked_layer(exists));
+    assert_eq!(masked.indices, [0, 2, 1, 2, 3, 1]);
+    assert_eq!(masked.positions.len(), 4);
+
+    // The surviving quad carries exactly the centre tile's authored grid corners.
+    let step = (100.0 / 3.0_f32) / 8.0;
+    for (corner, (row, column)) in [(1, 1), (1, 2), (2, 1), (2, 2)].into_iter().enumerate() {
+        let grid_index = row * 4 + column;
+        let expected_depth = u8::try_from(grid_index * 17).unwrap();
+        assert_eq!(
+            masked.positions[corner],
+            [
+                20.0 - (2 + row) as f32 * step,
+                10.0 + grid_index as f32,
+                -(10.0 - (1 + column) as f32 * step)
+            ],
+            "corner {corner} row {row} column {column}"
+        );
+        assert_eq!(
+            masked.colors[corner],
+            [1.0, 1.0, 1.0, f32::from(expected_depth) / 255.0]
+        );
+        assert_eq!(
+            masked.uvs[corner],
+            [(1 + column) as f32 / 8.0, (2 + row) as f32 / 8.0]
+        );
+    }
+
+    // Masking other tiles away leaves the centre quad's attributes bit-identical.
+    let attributes = |geometry: &game_engine_core::adt::WaterGeometry| {
+        geometry
+            .positions
+            .iter()
+            .zip(&geometry.uvs)
+            .zip(&geometry.colors)
+            .map(|((position, uv), color)| (*position, *uv, *color))
+            .collect::<Vec<_>>()
+    };
+    for vertex in attributes(&masked) {
+        assert!(
+            attributes(&full).contains(&vertex),
+            "masking altered a vertex value: {vertex:?}"
+        );
+    }
+}
+
+/// G7: the authored depth byte is water depth in 1/9-yard units and pairs with the authored
+/// height on the mirrored terrain grid. Rebuilding the emitted mesh and comparing each vertex
+/// against the ADT terrain height must land inside one byte quantum (0.111 yd); a wrong unit
+/// or a swapped row/column axis would not.
+#[test]
+fn emitted_depth_bytes_match_terrain_at_nine_units_per_yard() {
+    let bytes = std::fs::read(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../data/terrain/azeroth_32_48.adt"
+    ))
+    .expect("cached ADT");
+    let root = parse_root(&bytes).expect("parse cached ADT");
+    let water = root.water.expect("cached MH2O");
+    let quantum = 1.0 / 9.0;
+    let mut deep = 0;
+    let mut shore_above = 0;
+    let mut max_deep_residual = 0.0_f32;
+    let mut max_shore_gap = 0.0_f32;
+    for (index, chunk) in water.chunks.iter().enumerate() {
+        let position = root.chunk_positions[index];
+        for layer in &chunk.layers {
+            let geometry = build_water_geometry(position, layer);
+            for (vertex, color) in geometry.positions.iter().zip(&geometry.colors) {
+                let depth_byte = (color[3] * 255.0).round() as u8;
+                let bevy_z = vertex[2];
+                let (_, (index_x, index_y)) = bevy_to_chunk_coords(vertex[0], bevy_z);
+                let Some(grid) = root
+                    .height_grids
+                    .iter()
+                    .find(|grid| grid.index_x == index_x && grid.index_y == index_y)
+                else {
+                    continue;
+                };
+                let Some(terrain) = sample_chunk_height(grid, vertex[0], bevy_z) else {
+                    continue;
+                };
+                let gap = vertex[1] - terrain;
+                if depth_byte == 0 {
+                    // Byte 0 is a clamp: the terrain may sit above the surface under a bank,
+                    // but never more than one quantum of real water above it.
+                    if gap > 0.0 {
+                        shore_above += 1;
+                        max_shore_gap = max_shore_gap.max(gap);
+                    }
+                } else {
+                    deep += 1;
+                    let residual = (gap - f32::from(depth_byte) * quantum).abs();
+                    max_deep_residual = max_deep_residual.max(residual);
+                }
+            }
+        }
+    }
+    assert!(deep > 500, "only {deep} nonzero depth vertices");
+    assert!(
+        max_deep_residual <= quantum + 1e-3,
+        "depth byte is not 1/9 yd: max residual {max_deep_residual} yd"
+    );
+    assert!(
+        shore_above > 10,
+        "only {shore_above} shore vertices above ground"
+    );
+    assert!(
+        max_shore_gap <= quantum + 1e-3,
+        "byte 0 still claims {max_shore_gap} yd of water"
     );
 }
 

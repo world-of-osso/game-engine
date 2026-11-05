@@ -1,3 +1,7 @@
+## MH2O depth unit and coverage proven in the emitted mesh
+
+[[northshire-pale-water#Retail70688 clean-room corrections]] records the G7 close-out: rebuilding the emitted water mesh and sampling the ADT terrain at every vertex keeps every nonzero depth byte within one 1/9-yard quantum of `surface − terrain` (847 samples, max 0.111 yd) and every byte-0 shore vertex within one quantum above ground (37 samples). That pins the depth unit, the mirrored row/column placement and the height/depth pairing. New tests also pin the default all-present mask and that coverage selects triangles only, never a vertex value. The per-material cubic stage stays open with the decompilation lane (single vs double application).
+
 ## Dead bottom-height shore module deleted
 
 The refuted `game_engine_core::liquid_shore::ShoreDepthMap` bake and its five tests are deleted; no render path and no lane referenced its contract after the view-depth prepass landed. `docs/specs/liquid-rendering.md` and [[northshire-pale-water]] now state one shore source. No pixel changed: the module had no consumer.
