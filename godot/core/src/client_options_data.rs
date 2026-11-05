@@ -33,6 +33,10 @@ const fn default_mouse_sensitivity() -> f32 {
 const fn default_camera_fov_degrees() -> f32 {
     DEFAULT_CAMERA_FOV_DEGREES
 }
+const fn default_ground_effect_draping_enabled() -> bool {
+    true
+}
+
 const fn default_particle_effects_enabled() -> bool {
     true
 }
@@ -202,6 +206,13 @@ pub struct GraphicsOptionsFile {
     pub bloom_enabled: bool,
     #[serde(default = "default_bloom_intensity", rename = "bloomIntensity")]
     pub bloom_intensity: f32,
+    /// Flat ground spell effects follow the visible render surface (carpets, stairs).
+    /// On by default; no Retail options row exists for it, like the liquid paths.
+    #[serde(
+        default = "default_ground_effect_draping_enabled",
+        rename = "groundEffectDrapingEnabled"
+    )]
+    pub ground_effect_draping_enabled: bool,
 }
 
 impl Default for GraphicsOptionsFile {
@@ -219,6 +230,7 @@ impl Default for GraphicsOptionsFile {
             colorblind_mode: default_colorblind_mode(),
             bloom_enabled: default_bloom_enabled(),
             bloom_intensity: default_bloom_intensity(),
+            ground_effect_draping_enabled: default_ground_effect_draping_enabled(),
         }
     }
 }

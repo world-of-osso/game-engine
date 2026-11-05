@@ -132,6 +132,10 @@ impl SpellEffects {
                     return Err(error);
                 }
             };
+        self.drape_pending.push(super::DrapeCandidate {
+            node: node.clone(),
+            attempts: 0,
+        });
         Ok(ActiveEffect {
             node,
             particles,

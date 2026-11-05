@@ -29,6 +29,10 @@ pub const MAX_SUBDIVISION: u32 = 32;
 pub struct BatchMesh<'a> {
     pub positions: &'a [[f32; 3]],
     pub uvs: &'a [[f32; 2]],
+    /// Second UV set (masks), interpolated like the first when present.
+    pub uvs2: Option<&'a [[f32; 2]]>,
+    /// Per-vertex colours (RGBA), interpolated like the UVs when present.
+    pub colors: Option<&'a [[f32; 4]]>,
     pub indices: &'a [u32],
 }
 
@@ -36,6 +40,8 @@ pub struct BatchMesh<'a> {
 pub struct DrapedBatch {
     pub positions: Vec<[f32; 3]>,
     pub uvs: Vec<[f32; 2]>,
+    pub uvs2: Option<Vec<[f32; 2]>>,
+    pub colors: Option<Vec<[f32; 4]>>,
     pub indices: Vec<u32>,
     /// Vertices that found a visible surface inside the step window.
     pub dropped: usize,
@@ -96,7 +102,7 @@ impl GroundDrape {
         ground_y: f32,
         window: f32,
         floor_at: impl Fn(f32, f32) -> Option<f32>,
-        surface_at: impl Fn(f32, f32, f32, f32) -> Option<f32>,
+        mut surface_at: impl FnMut(f32, f32, f32, f32) -> Option<f32>,
     ) -> Option<DrapedBatch> {
         if !self.is_ground_batch(mesh, placement, ground_y, window) {
             return None;
@@ -120,6 +126,8 @@ impl GroundDrape {
         Some(DrapedBatch {
             positions,
             uvs: triangles.uvs,
+            uvs2: triangles.uvs2,
+            colors: triangles.colors,
             indices: triangles.indices,
             dropped,
         })
@@ -185,6 +193,8 @@ fn world_point(mesh: &BatchMesh<'_>, placement: Affine3A, index: u32) -> Option<
 struct Tessellated {
     positions: Vec<Vec3>,
     uvs: Vec<[f32; 2]>,
+    uvs2: Option<Vec<[f32; 2]>>,
+    colors: Option<Vec<[f32; 4]>>,
     indices: Vec<u32>,
 }
 
@@ -197,6 +207,8 @@ fn subdivide(mesh: &BatchMesh<'_>, placement: Affine3A, edge: f32) -> Option<Tes
     let mut tessellated = Tessellated {
         positions: Vec::new(),
         uvs: Vec::new(),
+        uvs2: mesh.uvs2.map(|_| Vec::new()),
+        colors: mesh.colors.map(|_| Vec::new()),
         indices: Vec::new(),
     };
     for triangle in mesh.indices.chunks_exact(3) {
@@ -210,12 +222,28 @@ fn subdivide(mesh: &BatchMesh<'_>, placement: Affine3A, edge: f32) -> Option<Tes
             *mesh.uvs.get(triangle[1] as usize)?,
             *mesh.uvs.get(triangle[2] as usize)?,
         ];
+        let uv2 = match mesh.uvs2 {
+            Some(uvs) => Some([
+                *uvs.get(triangle[0] as usize)?,
+                *uvs.get(triangle[1] as usize)?,
+                *uvs.get(triangle[2] as usize)?,
+            ]),
+            None => None,
+        };
+        let color = match mesh.colors {
+            Some(colors) => Some([
+                *colors.get(triangle[0] as usize)?,
+                *colors.get(triangle[1] as usize)?,
+                *colors.get(triangle[2] as usize)?,
+            ]),
+            None => None,
+        };
         let longest = (corners[1] - corners[0])
             .length()
             .max((corners[2] - corners[1]).length())
             .max((corners[0] - corners[2]).length());
         let steps = (longest / edge).ceil().clamp(1.0, MAX_SUBDIVISION as f32) as u32;
-        emit_grid(&mut tessellated, corners, uv, steps);
+        emit_grid(&mut tessellated, corners, uv, uv2, color, steps);
         if tessellated.positions.len() > 64 * 1024 {
             return None;
         }
@@ -224,7 +252,14 @@ fn subdivide(mesh: &BatchMesh<'_>, placement: Affine3A, edge: f32) -> Option<Tes
 }
 
 /// Appends one triangle's barycentric grid, deduplicating with a local index grid.
-fn emit_grid(out: &mut Tessellated, corners: [Vec3; 3], uv: [[f32; 2]; 3], steps: u32) {
+fn emit_grid(
+    out: &mut Tessellated,
+    corners: [Vec3; 3],
+    uv: [[f32; 2]; 3],
+    uv2: Option<[[f32; 2]; 3]>,
+    color: Option<[[f32; 4]; 3]>,
+    steps: u32,
+) {
     let base = out.positions.len() as u32;
     let factor = 1.0 / steps as f32;
     for row in 0..=steps {
@@ -238,6 +273,20 @@ fn emit_grid(out: &mut Tessellated, corners: [Vec3; 3], uv: [[f32; 2]; 3], steps
                 uv[0][0] * a + uv[1][0] * b + uv[2][0] * c,
                 uv[0][1] * a + uv[1][1] * b + uv[2][1] * c,
             ]);
+            if let (Some(uv2), Some(target)) = (uv2, out.uvs2.as_mut()) {
+                target.push([
+                    uv2[0][0] * a + uv2[1][0] * b + uv2[2][0] * c,
+                    uv2[0][1] * a + uv2[1][1] * b + uv2[2][1] * c,
+                ]);
+            }
+            if let (Some(color), Some(target)) = (color, out.colors.as_mut()) {
+                let mut value = [0.0; 4];
+                for channel in 0..4 {
+                    value[channel] =
+                        color[0][channel] * a + color[1][channel] * b + color[2][channel] * c;
+                }
+                target.push(value);
+            }
         }
     }
     // Vertex at (row, column) lives at the start of its row.
@@ -275,6 +324,8 @@ mod tests {
         BatchMesh {
             positions,
             uvs,
+            uvs2: None,
+            colors: None,
             indices,
         }
     }

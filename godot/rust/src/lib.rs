@@ -372,6 +372,8 @@ pub struct GameClient {
     auras: auras::Auras,
     ipc: Option<ipc::NativeIpc>,
     last_process_ms: f64,
+    /// Monotonic frame id for per-frame caches (visible surface, foot IK, draping).
+    frame_id: u64,
     frame_system_ms: Vec<(&'static str, f64)>,
     frame_node_ms: Vec<(&'static str, f64)>,
     attachment_gate_ms: f64,
@@ -529,6 +531,7 @@ impl INode3D for GameClient {
             auras: auras::Auras::default(),
             ipc: None,
             last_process_ms: 0.0,
+            frame_id: 0,
             frame_system_ms: Vec::new(),
             frame_node_ms: Vec::new(),
             attachment_gate_ms: 0.0,
@@ -2183,6 +2186,7 @@ impl GameClient {
     /// only a transport or protocol failure ends the poll.
     /// One frame of client steps (`process`, which times it).
     fn run_frame(&mut self, delta: f64) {
+        self.frame_id = self.frame_id.wrapping_add(1);
         if !self.poll_asset_startup() {
             if let Err(error) = shader_warmup::compile_next() {
                 self.handle_frame_error("Shader compilation", error.into());

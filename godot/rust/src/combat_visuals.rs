@@ -91,8 +91,93 @@ impl GameClient {
         let advanced = self
             .spell_effects
             .advance(delta, camera, gain, &mut self.world);
+        self.drape_ground_effects();
         self.spell_effects.end_frame(started.elapsed());
         prefetched.and(held).and(advanced)
+    }
+
+    /// Drape the flat ground batches of newly spawned spell models onto the visible render
+    /// surface (carpets, stair treads), leaving vertical parts and particles alone.
+    ///
+    /// A model whose column has no render geometry yet is retried for a bounded number of
+    /// frames while the surrounding terrain and world objects spawn.
+    fn drape_ground_effects(&mut self) {
+        if !self.client_options.graphics.ground_effect_draping_enabled {
+            return;
+        }
+        let drape = game_engine_core::ground_drape::GroundDrape::default();
+        let window = shared::ground::STEP_UP_HEIGHT;
+        let frame = self.frame_id;
+        let space = self
+            .world
+            .local_player_node()
+            .and_then(|node| node.get_world_3d())
+            .and_then(|world| world.get_direct_space_state());
+        let mut pending = self.spell_effects.take_drape_pending();
+        for mut candidate in pending.drain(..) {
+            if !candidate.node.is_instance_valid() {
+                continue;
+            }
+            let anchor = candidate.node.get_global_position();
+            let anchor = glam::Vec3::new(anchor.x, anchor.y, anchor.z);
+            let ground = crate::ground::TerrainGround {
+                terrain: &self.terrain,
+                walls: &|_, _, _| None,
+                step_wall_blocked: &|_, _, _| false,
+                game_object_floor: &|feet| {
+                    space
+                        .as_ref()
+                        .and_then(|space| crate::game_objects::floor_hit(space, feet))
+                },
+            };
+            let floor_at = |x: f32, z: f32| {
+                self.terrain
+                    .height_at(x, z)
+                    .into_iter()
+                    .chain(ground.collision_floor(glam::Vec3::new(x, anchor.y, z)))
+                    .max_by(f32::total_cmp)
+            };
+            let ground_y = floor_at(anchor.x, anchor.z).unwrap_or(anchor.y);
+            let mut retry = false;
+            let meshes = candidate
+                .node
+                .find_children_ex("*")
+                .type_("MeshInstance3D")
+                .owned(false)
+                .recursive(true)
+                .done();
+            for node in meshes.iter_shared() {
+                let Ok(mut instance) = node.try_cast::<godot::classes::MeshInstance3D>() else {
+                    continue;
+                };
+                if !instance.get_skeleton_path().is_empty() {
+                    continue;
+                }
+                let Some(mesh) = instance
+                    .get_mesh()
+                    .and_then(|mesh| mesh.try_cast::<godot::classes::ArrayMesh>().ok())
+                else {
+                    continue;
+                };
+                match drape_mesh(
+                    &mut instance,
+                    &mesh,
+                    &drape,
+                    ground_y,
+                    window,
+                    frame,
+                    &mut self.world_objects,
+                    &self.terrain,
+                    &floor_at,
+                ) {
+                    DrapeOutcome::Draped | DrapeOutcome::NotGround => {}
+                    DrapeOutcome::NoSurface => retry = true,
+                }
+            }
+            if retry && candidate.retry() {
+                self.spell_effects.requeue_drape(candidate);
+            }
+        }
     }
 
     /// Recent kit starts and missile flights, and the kit models and missiles shown now.
@@ -181,4 +266,177 @@ impl GameClient {
         state.set("casts", &casts);
         state
     }
+}
+
+/// What draping one of a spell model's meshes did.
+enum DrapeOutcome {
+    /// Not a flat ground batch (a vertical part, a particle plane, a plinth).
+    NotGround,
+    /// A ground batch, but the client has no visible render surface under it yet.
+    NoSurface,
+    /// The batch now follows the visible surface.
+    Draped,
+}
+
+/// Drapes one `MeshInstance3D` of a spell model, keeping its UVs, second UVs, colours and
+/// material. A skinned batch is never touched: its drawn shape is the animated pose.
+#[allow(clippy::too_many_arguments)]
+fn drape_mesh(
+    instance: &mut Gd<godot::classes::MeshInstance3D>,
+    mesh: &Gd<godot::classes::ArrayMesh>,
+    drape: &game_engine_core::ground_drape::GroundDrape,
+    ground_y: f32,
+    window: f32,
+    frame: u64,
+    surfaces: &mut crate::terrain::objects::TerrainObjects,
+    terrain: &crate::terrain::streaming::StreamedTerrain,
+    floor_at: &dyn Fn(f32, f32) -> Option<f32>,
+) -> DrapeOutcome {
+    use game_engine_core::ground_drape::BatchMesh;
+    if mesh.get_surface_count() != 1 {
+        return DrapeOutcome::NotGround;
+    }
+    let arrays = mesh.surface_get_arrays(0);
+    let array = |kind: godot::classes::mesh::ArrayType| arrays.get(kind.ord() as usize);
+    let Some(positions) = array(godot::classes::mesh::ArrayType::VERTEX)
+        .and_then(|value| value.try_to::<PackedVector3Array>().ok())
+    else {
+        return DrapeOutcome::NotGround;
+    };
+    let Some(uvs) = array(godot::classes::mesh::ArrayType::TEX_UV)
+        .and_then(|value| value.try_to::<PackedVector2Array>().ok())
+    else {
+        return DrapeOutcome::NotGround;
+    };
+    let positions: Vec<[f32; 3]> = positions
+        .as_slice()
+        .iter()
+        .map(|point| [point.x, point.y, point.z])
+        .collect();
+    let uvs: Vec<[f32; 2]> = uvs.as_slice().iter().map(|uv| [uv.x, uv.y]).collect();
+    let uvs2: Option<Vec<[f32; 2]>> = array(godot::classes::mesh::ArrayType::TEX_UV2)
+        .and_then(|value| value.try_to::<PackedVector2Array>().ok())
+        .map(|uvs| uvs.as_slice().iter().map(|uv| [uv.x, uv.y]).collect());
+    let colors: Option<Vec<[f32; 4]>> = array(godot::classes::mesh::ArrayType::COLOR)
+        .and_then(|value| value.try_to::<PackedColorArray>().ok())
+        .map(|colors| {
+            colors
+                .as_slice()
+                .iter()
+                .map(|color| [color.r, color.g, color.b, color.a])
+                .collect()
+        });
+    let indices: Vec<u32> = array(godot::classes::mesh::ArrayType::INDEX)
+        .and_then(|value| value.try_to::<PackedInt32Array>().ok())
+        .filter(|indices| !indices.is_empty())
+        .map(|indices| {
+            indices
+                .as_slice()
+                .iter()
+                .filter_map(|index| (*index >= 0).then_some(*index as u32))
+                .collect()
+        })
+        .unwrap_or_else(|| (0..positions.len() as u32).collect());
+    let batch = BatchMesh {
+        positions: &positions,
+        uvs: &uvs,
+        uvs2: uvs2.as_deref(),
+        colors: colors.as_deref(),
+        indices: &indices,
+    };
+    let placement = crate::render_surface::affine(instance.get_global_transform());
+    let mut surface = |x: f32, z: f32, ceiling: f32, floor: f32| {
+        surfaces.visible_surface(terrain.height_at(x, z), x, z, floor, ceiling - floor, frame)
+    };
+    let Some(draped) =
+        drape.drape_batch(&batch, placement, ground_y, window, floor_at, &mut surface)
+    else {
+        return DrapeOutcome::NotGround;
+    };
+    if draped.dropped == 0 {
+        return DrapeOutcome::NoSurface;
+    }
+    instance.set_mesh(&draped_mesh(&draped));
+    DrapeOutcome::Draped
+}
+
+/// Rebuilds the authored surface with the draped geometry and smooth normals; the UV,
+/// second UV and vertex colours interpolate from the source.
+fn draped_mesh(
+    draped: &game_engine_core::ground_drape::DrapedBatch,
+) -> Gd<godot::classes::ArrayMesh> {
+    use godot::classes::mesh::{ArrayType, PrimitiveType};
+    let vertices: Vec<Vector3> = draped
+        .positions
+        .iter()
+        .map(|point| Vector3::from_array(*point))
+        .collect();
+    let uvs: Vec<Vector2> = draped
+        .uvs
+        .iter()
+        .map(|uv| Vector2::from_array(*uv))
+        .collect();
+    let normals = draped_normals(&draped.positions, &draped.indices);
+    let indices: Vec<i32> = draped.indices.iter().map(|index| *index as i32).collect();
+    let mut arrays = VarArray::new();
+    arrays.resize(ArrayType::MAX.ord() as usize, &Variant::nil());
+    arrays.set(
+        ArrayType::VERTEX.ord() as usize,
+        &PackedVector3Array::from(vertices.as_slice()).to_variant(),
+    );
+    arrays.set(
+        ArrayType::NORMAL.ord() as usize,
+        &PackedVector3Array::from(normals.as_slice()).to_variant(),
+    );
+    arrays.set(
+        ArrayType::TEX_UV.ord() as usize,
+        &PackedVector2Array::from(uvs.as_slice()).to_variant(),
+    );
+    if let Some(uvs2) = &draped.uvs2 {
+        let values: Vec<Vector2> = uvs2.iter().map(|uv| Vector2::from_array(*uv)).collect();
+        arrays.set(
+            ArrayType::TEX_UV2.ord() as usize,
+            &PackedVector2Array::from(values.as_slice()).to_variant(),
+        );
+    }
+    if let Some(colors) = &draped.colors {
+        let values: Vec<Color> = colors
+            .iter()
+            .map(|color| Color::from_rgba(color[0], color[1], color[2], color[3]))
+            .collect();
+        arrays.set(
+            ArrayType::COLOR.ord() as usize,
+            &PackedColorArray::from(values.as_slice()).to_variant(),
+        );
+    }
+    arrays.set(
+        ArrayType::INDEX.ord() as usize,
+        &PackedInt32Array::from(indices.as_slice()).to_variant(),
+    );
+    let mut mesh = godot::classes::ArrayMesh::new_gd();
+    mesh.add_surface_from_arrays(PrimitiveType::TRIANGLES, &arrays);
+    mesh
+}
+
+/// Area-weighted vertex normals, so the draped surface keeps a lit, unbroken shading.
+fn draped_normals(positions: &[[f32; 3]], indices: &[u32]) -> Vec<Vector3> {
+    let mut normals = vec![glam::Vec3::ZERO; positions.len()];
+    for triangle in indices.chunks_exact(3) {
+        let corners = [
+            glam::Vec3::from_array(positions[triangle[0] as usize]),
+            glam::Vec3::from_array(positions[triangle[1] as usize]),
+            glam::Vec3::from_array(positions[triangle[2] as usize]),
+        ];
+        let normal = (corners[1] - corners[0]).cross(corners[2] - corners[0]);
+        for index in triangle {
+            normals[*index as usize] += normal;
+        }
+    }
+    normals
+        .into_iter()
+        .map(|normal| {
+            let normal = normal.normalize_or(glam::Vec3::Y);
+            Vector3::new(normal.x, normal.y, normal.z)
+        })
+        .collect()
 }

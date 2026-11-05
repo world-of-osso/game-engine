@@ -151,6 +151,13 @@ impl TerrainGround<'_> {
     }
 
     /// Describe the selected ground and its WMO group for an enabled diagnostic trace.
+    /// Highest collision floor under `point`, independent of the player's walk rules.
+    /// Client-side visual queries (ground draping, foot IK) use it as the lower bound of
+    /// the visible-surface window; movement keeps using `probe`/`validate_move`.
+    pub fn collision_floor(&self, point: Vec3) -> Option<f32> {
+        self.sample_point(point).map(|ground| ground.height)
+    }
+
     pub fn trace_support(&self, feet: Vec3) -> Option<crate::movement_trace::Support> {
         let ground = self.sample(feet)?;
         let mut support = crate::movement_trace::Support {
