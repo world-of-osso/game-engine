@@ -65,6 +65,17 @@ Blend mode -> `EGxBlend` (M2BlendingModeToEGxBlendEnum) and GL factors: 0 Opaque
 4 Add (SRC_ALPHA, ONE), 5 Mod (DST_COLOR, ZERO), 6 Mod2x (DST_COLOR, SRC_COLOR), 7 BlendAdd
 (ONE, 1-SRC_ALPHA). The written colour and alpha clamp to [0, 1] (UNORM attachment).
 
+BlendAdd (7) glides on premultiplied output: with (ONE, 1-SRC_ALPHA) an unpremultiplied texel
+of alpha 0 still adds its full colour, so a soft sprite paints its whole quad and overlapping
+quads saturate into a flat sheet with straight edges. Both shaders write colour times alpha for
+this mode: `m2.gdshader` for meshes (4cd7bc671) and `particle_composite.glsl.in` for M2 particles
+(30937455f). Add (M2 blend 4 -> GX 3, SRC_ALPHA/ONE) and NoAlphaAdd (M2 blend 3 -> GX 10,
+ONE/ONE) keep unpremultiplied colour, as their factors expect.
+
+NoAlphaAdd is unexercised: of 80,782 extracted M2s, material blend modes are 0:86,346,
+1:23,814, 2:67,951, 4:34,791, 5:325, 6:2,170, 7:8,036 and none use blend 3, so the shader's
+GX 10 path (which writes texture alpha rather than 1) has no scene to verify against.
+
 ## Batch Shaders
 
 A skin batch's `shader_id` and `textureCount` select a pixel shader (combiner, `calcM2FragMaterial`,
