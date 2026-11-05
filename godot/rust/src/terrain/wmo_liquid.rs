@@ -27,12 +27,14 @@ pub(super) struct WmoLiquids {
     materials: WaterMaterials,
 }
 
-/// Bake the shore depth map of one WMO liquid surface from the geometry beneath it.
-/// Retail70688 G10 makes the shore fade physical water depth, so the map is baked once
-/// here from the model-local collision and cached with the surface.
+/// Bake the shore depth map of one WMO liquid surface from the merged ground beneath it.
+/// Retail70688 G10 makes the shore fade physical water depth, so the map is baked once here
+/// and cached with the surface. `ground` answers in world space; the liquid geometry is
+/// model-local, and depth is a scalar, so the uniform placement scale drops out.
 pub(crate) fn bake_shore_map(
     geometry: &game_engine_core::adt::WaterGeometry,
-    collision: &[shared::ground::WmoCollision],
+    world_from_local: glam::Affine3A,
+    ground: &dyn Fn(f32, f32, f32) -> Option<f32>,
 ) -> Option<game_engine_core::liquid_shore::ShoreDepthMap> {
     use game_engine_core::liquid_shore::ShoreDepthMap;
     if geometry.positions.len() < 3 {
@@ -48,33 +50,14 @@ pub(crate) fn bake_shore_map(
         max_z = max_z.max(position[2]);
         surface = surface.max(position[1]);
     }
-    let map = ShoreDepthMap::bake([min_x, min_z], [max_x, max_z], surface, |x, z| {
-        highest_below(collision, x, z, surface)
+    let world_surface = world_from_local
+        .transform_point3(glam::Vec3::new(min_x, surface, min_z))
+        .y;
+    let map = ShoreDepthMap::bake([min_x, min_z], [max_x, max_z], world_surface, |x, z| {
+        let world = world_from_local.transform_point3(glam::Vec3::new(x, surface, z));
+        ground(world.x, world.z, world_surface)
     });
     Some(map)
-}
-
-/// The highest collision face under `(x, z)` at or below `surface`, in model-local space.
-fn highest_below(
-    collision: &[shared::ground::WmoCollision],
-    x: f32,
-    z: f32,
-    surface: f32,
-) -> Option<f32> {
-    let mut heights = Vec::new();
-    for placed in collision {
-        heights.clear();
-        placed.collision_heights(x, z, surface, surface - 400.0, &mut heights);
-        if let Some(height) = heights
-            .iter()
-            .copied()
-            .filter(|height| *height <= surface + 0.01)
-            .max_by(f32::total_cmp)
-        {
-            return Some(height);
-        }
-    }
-    None
 }
 
 impl WmoLiquids {
@@ -87,18 +70,10 @@ impl WmoLiquids {
         node: &mut Gd<Node3D>,
         resolver: &CascListfileResolver,
         data_root: &Path,
+        world_from_local: glam::Affine3A,
+        ground: &dyn Fn(f32, f32, f32) -> Option<f32>,
     ) -> Vec<String> {
         let mut errors = Vec::new();
-        let local_collision: Vec<_> = asset
-            .groups
-            .iter()
-            .map(|group| {
-                shared::ground::WmoCollision::new(
-                    glam::Affine3A::IDENTITY,
-                    vec![group.collision.clone()],
-                )
-            })
-            .collect();
         for group in &asset.groups {
             let (header, geometry) = (&group.group.header, &group.group.geometry);
             let Some(liquid) = &geometry.liquid else {
@@ -108,7 +83,7 @@ impl WmoLiquids {
                 continue;
             };
             let geometry = wmo_liquid::liquid_geometry(liquid, liquid_type);
-            let shore = bake_shore_map(&geometry, &local_collision);
+            let shore = bake_shore_map(&geometry, world_from_local, ground);
             match &shore {
                 Some(map) => {
                     let total: f32 = map.depth.iter().sum();
