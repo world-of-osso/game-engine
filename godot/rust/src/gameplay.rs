@@ -25,6 +25,9 @@ use shared::{
 
 use crate::swim::{at_swim_surface, swim_height};
 
+/// Only units this close to the camera pay for foot IK queries.
+const FOOT_IK_RANGE: f32 = 45.0;
+
 /// The longest movement step. A slower frame moves in several, so the walls, slope, step
 /// and ground rules apply along its whole path as at 60 frames a second; one long step
 /// passed over the hillside at the Jasperlode Mine's mouth into no ground and fell through
@@ -755,6 +758,60 @@ impl crate::GameClient {
             movement.running && movement.direction == MoveDirection::Forward,
             movement.flying,
         )
+    }
+
+    /// Plant the visible feet of nearby character models on the visible render surface.
+    ///
+    /// Movement, collision and the server position are untouched: only bone poses change.
+    /// The local player's own state (airborne, swimming, flying, dead) disables the solve;
+    /// remote players use their replicated movement flags.
+    pub(super) fn update_foot_ik(&mut self, delta: f32) -> Result<(), String> {
+        if self.account.session.screen != SessionScreen::InWorld {
+            return Ok(());
+        }
+        let enabled = self.player_movement.grounded
+            && !self.player_movement.swimming
+            && !self.player_movement.flying
+            && !self.death_flow.is_dead();
+        let camera = self
+            .world_camera
+            .position()
+            .map(|position| Vec3::new(position.x, position.y, position.z))
+            .or_else(|| {
+                self.world.local_player_node().map(|node| {
+                    let position = node.get_global_position();
+                    Vec3::new(position.x, position.y, position.z)
+                })
+            })
+            .unwrap_or(Vec3::ZERO);
+        let frame = self.frame_id;
+        let space = self
+            .world
+            .local_player_node()
+            .and_then(|node| node.get_world_3d())
+            .and_then(|world| world.get_direct_space_state());
+        let ground = crate::ground::TerrainGround {
+            terrain: &self.terrain,
+            walls: &|_, _, _| None,
+            step_wall_blocked: &|_, _, _| false,
+            game_object_floor: &|feet| {
+                space
+                    .as_ref()
+                    .and_then(|space| crate::game_objects::floor_hit(space, feet))
+            },
+        };
+        let collision_floor = |feet: Vec3| ground.collision_floor(feet);
+        self.world.update_foot_ik(
+            frame,
+            delta,
+            camera,
+            enabled,
+            FOOT_IK_RANGE,
+            &self.terrain,
+            &mut self.world_objects,
+            &collision_floor,
+        );
+        Ok(())
     }
 
     pub(super) fn update_player_input(&mut self, delta: f32) -> Result<(), String> {

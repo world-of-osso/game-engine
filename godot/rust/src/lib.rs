@@ -37,6 +37,7 @@ mod eula;
 mod faction_reaction;
 mod flight_map;
 mod follower_dungeons;
+mod foot_ik;
 mod frame_error;
 mod game_menu;
 mod game_objects;
@@ -2292,6 +2293,7 @@ impl GameClient {
             ("Remote player animation", |c, _| {
                 Ok(c.world.update_remote_locomotion()?)
             }),
+            ("Foot IK", |c, d| Ok(c.update_foot_ik(d)?)),
             ("Spell visuals", |c, d| Ok(c.update_spell_visuals(d)?)),
             ("Player movement", |c, _| c.send_player_input()),
             ("Terrain", |c, _| Ok(c.poll_terrain()?)),

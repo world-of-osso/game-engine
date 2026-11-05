@@ -183,6 +183,7 @@ pub mod pet_autocast_shine_data;
 pub mod player_model_data;
 #[path = "player_physics_data.rs"]
 pub mod player_physics_data;
+pub mod foot_ik;
 pub mod ground_drape;
 pub mod render_surface;
 pub mod retail_fog;

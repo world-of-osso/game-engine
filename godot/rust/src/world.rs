@@ -118,6 +118,8 @@ struct UnitNode {
     /// The pose clip `stand_state` holds while the player stands still; cleared when it
     /// moves (the server stands it up).
     stand_anim: Option<u16>,
+    /// Client-side foot IK blend and smoothed ground targets.
+    foot_ik: crate::foot_ik::FootIkState,
     /// A player's mount (replicated `Mounted`), which its visual rides.
     mount: Option<mount::UnitMount>,
     passenger: Option<mount::UnitPassenger>,
@@ -154,6 +156,7 @@ impl UnitNode {
         if let Some(previous) = self.visual.take() {
             previous.free();
         }
+        self.foot_ik = Default::default();
         // The emitters were placed on the previous visual's model and item nodes.
         self.particles = None;
         self.item_particles.clear();
@@ -370,6 +373,7 @@ fn spawn_unit(
         emote: None,
         stand_state: None,
         stand_anim: None,
+        foot_ik: Default::default(),
         mount: None,
         passenger: None,
     }
@@ -1582,6 +1586,83 @@ impl WorldUnits {
     /// frame after animation time advances, so the jump start, loop and landing play out
     /// as the local player's do; unchanged flags neither restart a clip nor its crossfade.
     /// A model missing a clip is a client failure; the other players still animate.
+    /// Applies client-side foot IK to every displayed unit in `range` of the camera.
+    ///
+    /// Only bone poses change; the unit node, its collision capsule and the server position
+    /// stay where they are. Airborne, swimming and flying units fade the solve out, and a
+    /// creature whose model has no foot attachment rig is skipped.
+    pub(crate) fn update_foot_ik(
+        &mut self,
+        frame: u64,
+        delta: f32,
+        camera: Vec3,
+        local_enabled: bool,
+        range: f32,
+        terrain: &crate::terrain::streaming::StreamedTerrain,
+        surfaces: &mut crate::terrain::objects::TerrainObjects,
+        collision_floor: &dyn Fn(Vec3) -> Option<f32>,
+    ) {
+        for (id, unit) in &mut self.units {
+            let position = unit.node.get_global_position();
+            if Vec3::new(position.x, position.y, position.z).distance(camera) > range {
+                continue;
+            }
+            let Some(animation) = unit.animation_player() else {
+                continue;
+            };
+            let (rig, skeleton) = {
+                let player = animation.bind();
+                let (Some(rig), Some(skeleton)) = (player.leg_rig(), player.skeleton()) else {
+                    continue;
+                };
+                (rig, skeleton)
+            };
+            let enabled = if self.local_player_id == Some(*id) {
+                local_enabled
+            } else if unit.death_applied {
+                false
+            } else {
+                unit.player_motion.is_none_or(|motion| {
+                    !motion.contains(
+                        shared::components::PlayerMotion::FALLING
+                            | shared::components::PlayerMotion::SWIMMING
+                            | shared::components::PlayerMotion::FLYING
+                            | shared::components::PlayerMotion::ADV_FLYING,
+                    )
+                })
+            };
+            let anchor = position.y;
+            let floor_at = |x: f32, z: f32| {
+                terrain
+                    .height_at(x, z)
+                    .into_iter()
+                    .chain(collision_floor(Vec3::new(x, anchor, z)))
+                    .max_by(f32::total_cmp)
+            };
+            let mut surface_at = |x: f32, z: f32, ceiling: f32, floor: f32| {
+                surfaces.visible_surface(
+                    terrain.height_at(x, z),
+                    x,
+                    z,
+                    floor,
+                    ceiling - floor,
+                    frame,
+                )
+            };
+            let mut skeleton = skeleton;
+            let scale = skeleton.get_global_transform().basis.get_scale().y;
+            unit.foot_ik.apply(
+                &mut skeleton,
+                rig,
+                scale,
+                enabled,
+                delta,
+                &floor_at,
+                &mut surface_at,
+            );
+        }
+    }
+
     pub fn update_remote_locomotion(&mut self) -> Result<(), String> {
         let local = self.local_player_id;
         let mut errors = Vec::new();
