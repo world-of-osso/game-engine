@@ -66,10 +66,6 @@ func run() -> void:
 		if camera.position.y <= float(ground) + 0.5:
 			fail("Camera is at or below the terrain surface: eye y=%.2f ground=%.2f. The near ground is culled and the shot shows background instead of the world." % [camera.position.y, float(ground)])
 			return
-		error = client.preview_world_lighting(point, camera.position)
-		if error != "":
-			fail(error)
-			return
 		var liquid_root_count := client.find_children("Water", "Node3D", true, false).size()
 		if OS.get_environment("WATER_COAST_HIDE_LIQUIDS") == "1":
 			for node in client.find_children("Water", "Node3D", true, false):
@@ -92,6 +88,14 @@ func run() -> void:
 			clock.set_process(false)
 		client.set_process(false)
 		RenderingServer.global_shader_parameter_set("liquid_animation_time_ms", 1000.0)
+		# Lighting is a one-shot sync that skips itself when its sample did not change, so calling it
+		# while the preview is still building materials leaves the materials made afterwards unlit:
+		# the same pose then saves either a lit or a dark frame depending on that race. Apply it once
+		# here, after every tile and material exists.
+		error = client.preview_world_lighting(point, camera.position)
+		if error != "":
+			fail(error)
+			return
 		for frame in 3:
 			camera.current = true
 			await process_frame
@@ -101,6 +105,8 @@ func run() -> void:
 			fail("Cannot capture coast")
 			return
 		state = client.account_state()
+		var view_camera := root.get_viewport().get_camera_3d()
+		print("WATER_COAST_CAMERA current=%s transform=%s" % [view_camera.name if view_camera != null else "none", view_camera.global_transform if view_camera != null else Transform3D()])
 		print("WATER_COAST_PROOF map=%s point=%s water_roots=%d water_hidden=%d eye=%s ground=%.2f above_ground=%.2f terrain=%s objects=%s screenshot=%s lighting=production" % [map, point, surfaces, liquid_root_count if OS.get_environment("WATER_COAST_HIDE_LIQUIDS") == "1" else 0, camera.position, float(ground), camera.position.y - float(ground), state.terrain, state.world_objects, output])
 		client.free()
 		print("PASS: normal-lit coast capture")
