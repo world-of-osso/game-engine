@@ -37,6 +37,7 @@ mod eula;
 mod faction_reaction;
 mod flight_map;
 mod follower_dungeons;
+mod foot_ik;
 mod frame_error;
 mod game_menu;
 mod game_objects;
@@ -91,6 +92,7 @@ mod pet_bar;
 mod pet_journal;
 mod pet_stable;
 mod player_spells;
+mod preview_world;
 #[path = "process_memory_status.rs"]
 mod process_memory_status;
 mod professions;
@@ -99,6 +101,7 @@ mod quests;
 mod raid_info;
 mod raid_targets;
 mod rainfire;
+mod render_surface;
 mod replicated;
 mod reputation_status_bar;
 mod ribbons;
@@ -371,6 +374,14 @@ pub struct GameClient {
     auras: auras::Auras,
     ipc: Option<ipc::NativeIpc>,
     last_process_ms: f64,
+    /// Monotonic frame id for per-frame caches (visible surface, foot IK, draping).
+    frame_id: u64,
+    /// Offline capture fixtures: player models and spell kits on a previewed map.
+    preview_characters: Vec<preview_world::PreviewCharacter>,
+    preview_kits: Vec<preview_world::PreviewKit>,
+    preview_foot_ik: bool,
+    /// Loading focus for offline previews (no local player exists to supply one).
+    preview_focus: Option<glam::Vec3>,
     frame_system_ms: Vec<(&'static str, f64)>,
     frame_node_ms: Vec<(&'static str, f64)>,
     attachment_gate_ms: f64,
@@ -528,6 +539,11 @@ impl INode3D for GameClient {
             auras: auras::Auras::default(),
             ipc: None,
             last_process_ms: 0.0,
+            frame_id: 0,
+            preview_characters: Vec::new(),
+            preview_kits: Vec::new(),
+            preview_foot_ik: true,
+            preview_focus: None,
             frame_system_ms: Vec::new(),
             frame_node_ms: Vec::new(),
             attachment_gate_ms: 0.0,
@@ -878,6 +894,7 @@ impl GameClient {
         let result = (|| {
             let map_id = account::read_map_id(&self.data_root, &directory)?;
             self.reset_world()?;
+            self.preview_ensure_units_root();
             self.world_map_id = Some(map_id);
             let tile =
                 game_engine_core::terrain_height_data::bevy_to_tile_coords(position.x, position.z);
@@ -885,6 +902,123 @@ impl GameClient {
         })();
         match result {
             Ok(()) => GString::new(),
+            Err(error) => GString::from(error.as_str()),
+        }
+    }
+
+    /// Offline fixture: a bare player model on the previewed map.
+    #[func]
+    fn preview_character(
+        &mut self,
+        race: i64,
+        class: i64,
+        sex: i64,
+        position: Vector3,
+        yaw: f64,
+    ) -> GString {
+        let race = u8::try_from(race).unwrap_or(1);
+        let class = u8::try_from(class).unwrap_or(1);
+        let sex = u8::try_from(sex).unwrap_or(0);
+        match self.preview_add_character(race, class, sex, position, f64::from(yaw)) {
+            Ok(_) => GString::new(),
+            Err(error) => GString::from(error.as_str()),
+        }
+    }
+
+    /// Offline fixture: the clip a preview character holds, at a given time.
+    #[func]
+    fn preview_character_clip(&mut self, index: i64, clip: i64, time_ms: f64) -> GString {
+        let index = usize::try_from(index).unwrap_or(0);
+        let clip = u16::try_from(clip).unwrap_or(0);
+        match self.preview_play_clip(index, clip, time_ms) {
+            Ok(()) => GString::new(),
+            Err(error) => GString::from(error.as_str()),
+        }
+    }
+
+    /// Offline fixture: foot IK on or off for before/after captures.
+    #[func]
+    fn preview_foot_ik_enabled(&mut self, enabled: bool) {
+        self.preview_set_foot_ik(enabled);
+    }
+
+    /// Offline fixture: preview foot IK state.
+    #[func]
+    fn preview_foot_ik_state(&self) -> VarDictionary {
+        self.preview_foot_state()
+    }
+
+    /// Offline fixture: place a preview character where movement would put it.
+    #[func]
+    fn preview_move_character(&mut self, index: i64, position: Vector3, yaw: f64) -> GString {
+        let index = usize::try_from(index).unwrap_or(0);
+        match self.move_preview_character(index, position, yaw) {
+            Ok(()) => GString::new(),
+            Err(error) => GString::from(error.as_str()),
+        }
+    }
+
+    /// Offline fixture: ground-effect draping on or off for kits spawned afterwards.
+    #[func]
+    fn preview_set_drape(&mut self, enabled: bool) {
+        self.set_preview_drape(enabled);
+    }
+
+    /// Offline fixture: free the previewed spell kits.
+    #[func]
+    fn preview_clear_kits(&mut self) {
+        self.clear_preview_kits();
+    }
+
+    /// Offline fixture: object queue and loader counters.
+    #[func]
+    fn preview_objects_debug(&self) -> GString {
+        self.preview_debug_objects()
+    }
+
+    /// Offline fixture: priority point for object spawning (no local player exists).
+    #[func]
+    fn preview_set_focus(&mut self, position: Vector3) {
+        self.preview_focus = Some(glam::Vec3::new(position.x, position.y, position.z));
+    }
+
+    /// Offline fixture: probe the collision floor and visible render surface at a column.
+    #[func]
+    fn preview_probe_surface(&mut self, x: f64, z: f64, near: f64) -> VarDictionary {
+        self.preview_surface_probe(x as f32, z as f32, near as f32)
+    }
+
+    /// Offline fixture: remove the preview characters only.
+    #[func]
+    fn preview_remove_characters(&mut self) {
+        self.preview_clear_characters();
+    }
+
+    /// Offline fixture: hold or resume a preview character's animation.
+    #[func]
+    fn preview_pause_character(&mut self, index: i64, paused: bool) -> GString {
+        let index = usize::try_from(index).unwrap_or(0);
+        match self.preview_hold_character(index, paused) {
+            Ok(()) => GString::new(),
+            Err(error) => GString::from(error.as_str()),
+        }
+    }
+
+    /// Offline fixture: show a kit through the production spell-effect path.
+    #[func]
+    fn preview_spell_kit(
+        &mut self,
+        visual: i64,
+        kit: i64,
+        spell: i64,
+        position: Vector3,
+    ) -> GString {
+        let visual = u32::try_from(visual).unwrap_or(0);
+        let kit = u32::try_from(kit).unwrap_or(0);
+        let spell = u32::try_from(spell).unwrap_or(0);
+        match self.preview_show_kit(visual, kit, spell, position) {
+            Ok(true) => GString::new(),
+            Ok(false) => GString::from("preparing"),
             Err(error) => GString::from(error.as_str()),
         }
     }
@@ -2182,6 +2316,7 @@ impl GameClient {
     /// only a transport or protocol failure ends the poll.
     /// One frame of client steps (`process`, which times it).
     fn run_frame(&mut self, delta: f64) {
+        self.frame_id = self.frame_id.wrapping_add(1);
         if !self.poll_asset_startup() {
             if let Err(error) = shader_warmup::compile_next() {
                 self.handle_frame_error("Shader compilation", error.into());
@@ -2286,6 +2421,11 @@ impl GameClient {
             ("Footsteps", |c, _| Ok(c.update_footsteps()?)),
             ("Remote player animation", |c, _| {
                 Ok(c.world.update_remote_locomotion()?)
+            }),
+            ("Foot IK", |c, d| Ok(c.update_foot_ik(d)?)),
+            ("Preview characters", |c, d| {
+                c.update_preview_characters(d);
+                Ok(())
             }),
             ("Spell visuals", |c, d| Ok(c.update_spell_visuals(d)?)),
             ("Player movement", |c, _| c.send_player_input()),
@@ -2866,17 +3006,28 @@ impl GameClient {
 
     fn attach_world_objects(&mut self) {
         let mut parent = self.to_gd().upcast::<Node3D>();
-        let focus = if self.account.session.screen == SessionScreen::Loading {
-            self.world.local_player_transform().map(|transform| {
+        let focus = self
+            .world
+            .local_player_transform()
+            .map(|transform| {
                 let origin = transform.origin;
                 glam::Vec3::new(origin.x, origin.y, origin.z)
             })
-        } else {
-            None
-        };
+            .or(self.preview_focus);
         self.world_objects.set_loading_focus(focus);
-        self.world_objects
-            .sync(&mut parent, &self.terrain, &terrain::objects::AllObjects);
+        if let Some(center) = self.preview_focus.filter(|_| focus.is_some()) {
+            self.world_objects.sync(
+                &mut parent,
+                &self.terrain,
+                &terrain::objects::PreviewObjects {
+                    center,
+                    radius: 90.0,
+                },
+            );
+        } else {
+            self.world_objects
+                .sync(&mut parent, &self.terrain, &terrain::objects::AllObjects);
+        }
         if let Some(player) = self.world.local_player_transform() {
             let origin = player.origin;
             self.wmo_collision.sync(
@@ -3047,6 +3198,7 @@ impl GameClient {
         self.rest = None;
         self.reputation = None;
         self.character_preview.reset();
+        self.clear_previews();
         self.creation_scene.reset();
         self.physical_input.clear();
         self.player_movement = gameplay::PlayerMovement::default();

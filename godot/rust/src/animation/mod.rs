@@ -886,6 +886,8 @@ pub struct WowAnimationPlayer {
     bounds_sequence: Option<usize>,
     /// The skeleton's motion, fed to the momentum sway each processed frame.
     velocity: momentum::VelocityTracker,
+    /// The two foot chains found from attachment points 47/48, for client-side foot IK.
+    leg_rig: Option<game_engine_core::foot_ik::LegRig>,
 }
 
 #[godot_api]
@@ -903,6 +905,7 @@ impl INode for WowAnimationPlayer {
             attachments: None,
             bounds_sequence: None,
             velocity: Default::default(),
+            leg_rig: None,
         }
     }
 
@@ -920,6 +923,37 @@ impl INode for WowAnimationPlayer {
         self.feed_velocity_change(delta);
         self.advance_time_ms(delta * 1000.0);
     }
+}
+
+/// Attachment lookup ids of the two feet in every local playable character M2.
+pub(crate) fn detect_leg_rig(model: &m2::Model) -> Option<game_engine_core::foot_ik::LegRig> {
+    let foot = |attachment: u32| -> Option<u16> {
+        let index = *model.attachment_lookup.get(attachment as usize)?;
+        if index < 0 {
+            return None;
+        }
+        model
+            .attachments
+            .get(index as usize)
+            .map(|attachment| attachment.bone)
+    };
+    let parents: Vec<i16> = model.bones.iter().map(|bone| bone.parent_bone_id).collect();
+    let pivots: Vec<[f32; 3]> = model
+        .bones
+        .iter()
+        .map(|bone| {
+            let pivot = wow_vec3(bone.pivot);
+            [pivot.x, pivot.y, pivot.z]
+        })
+        .collect();
+    game_engine_core::foot_ik::detect_legs(
+        &parents,
+        &pivots,
+        [
+            foot(game_engine_core::foot_ik::FOOT_ATTACHMENTS[0]),
+            foot(game_engine_core::foot_ik::FOOT_ATTACHMENTS[1]),
+        ],
+    )
 }
 
 impl WowAnimationPlayer {
@@ -946,10 +980,32 @@ impl WowAnimationPlayer {
             attachments,
             bounds_sequence: None,
             velocity: Default::default(),
+            leg_rig: detect_leg_rig(model),
         });
         player.set_name("WowAnimationPlayer");
         player.bind_mut().write_poses();
         Ok(player)
+    }
+
+    /// Whether this frame does not rewrite the animation's own pose (paused, or frozen by
+    /// the animation LOD), so a client-side pose pass must restore it before solving.
+    pub(crate) fn pose_stale(&self) -> bool {
+        self.paused || !self.sampling
+    }
+
+    /// Rewrites the sampled animation pose, discarding last frame's foot IK rotations.
+    pub(crate) fn restore_sampled_pose(&mut self) {
+        self.write_poses();
+    }
+
+    /// The displayed skeleton, for client-side pose passes such as foot IK.
+    pub(crate) fn skeleton(&self) -> Option<Gd<Skeleton3D>> {
+        self.skeleton.clone()
+    }
+
+    /// The leg chains foot IK can solve, when the model defines both feet.
+    pub(crate) fn leg_rig(&self) -> Option<game_engine_core::foot_ik::LegRig> {
+        self.leg_rig
     }
 
     /// Kick the momentum sway with the skeleton's horizontal velocity change since the

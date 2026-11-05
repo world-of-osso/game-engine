@@ -344,11 +344,39 @@ pub struct SpellEffects {
     /// Main-thread time spent on spell visuals this frame so far, and in the last frame.
     busy: Duration,
     frame_ms: f32,
+    /// Spawned kit models whose flat ground batches still have to follow the visible
+    /// surface; a model waits for the geometry it drapes on to spawn.
+    drape_pending: Vec<DrapeCandidate>,
+}
+
+/// A spawned spell model awaiting ground draping, with the attempts made so far.
+pub(crate) struct DrapeCandidate {
+    pub node: Gd<Node3D>,
+    pub attempts: u8,
+}
+
+impl DrapeCandidate {
+    /// Retry a model whose render geometry was not spawned yet; bounded so a model with
+    /// no surface anywhere is not scanned every frame for its whole life.
+    pub(crate) fn retry(&mut self) -> bool {
+        self.attempts = self.attempts.saturating_add(1);
+        self.attempts < 120 && self.node.is_instance_valid()
+    }
 }
 
 const STARTED_KEEP: usize = 64;
 
 impl SpellEffects {
+    /// Models spawned since the last call whose flat ground batches may need draping.
+    pub(crate) fn take_drape_pending(&mut self) -> Vec<DrapeCandidate> {
+        std::mem::take(&mut self.drape_pending)
+    }
+
+    /// Puts a model back for another attempt, while its attempts allow it.
+    pub(crate) fn requeue_drape(&mut self, candidate: DrapeCandidate) {
+        self.drape_pending.push(candidate);
+    }
+
     pub fn new(data_root: PathBuf) -> Self {
         let catalog = load_catalog(&data_root);
         Self {
@@ -380,6 +408,7 @@ impl SpellEffects {
             vocal_seed: 0,
             busy: Duration::ZERO,
             frame_ms: 0.0,
+            drape_pending: Vec::new(),
         }
     }
 

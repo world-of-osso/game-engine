@@ -323,6 +323,8 @@ pub(crate) struct CulledWmo {
     fog: WmoFogVolume,
     world_from_local: Affine3A,
     groups: HashMap<u16, Vec<Gd<Node3D>>>,
+    /// Each drawn group's world bounds, from the batch meshes placed by the caller.
+    group_boxes: HashMap<u16, (Vec3, Vec3)>,
     shadow_groups: ShadowGroups,
     /// Per group index, whether the last cull drew it; `None` before the first.
     drawn: Option<Vec<bool>>,
@@ -335,11 +337,25 @@ impl CulledWmo {
         world_from_local: Affine3A,
         node: &Gd<Node3D>,
     ) -> Self {
+        let groups = group_batches(node);
+        let group_boxes = groups
+            .iter()
+            .filter_map(|(group, batches)| {
+                let bounds = batches.iter().fold(None, |bounds, batch| {
+                    let (min, max) = mesh_world_box(batch, world_from_local)?;
+                    Some(bounds.map_or((min, max), |(low, high): (Vec3, Vec3)| {
+                        (low.min(min), high.max(max))
+                    }))
+                })?;
+                Some((*group, bounds))
+            })
+            .collect();
         Self {
             portals: WmoPortals::new(asset),
             fog: wmo_fog_volume(asset),
             world_from_local,
-            groups: group_batches(node),
+            groups,
+            group_boxes,
             shadow_groups: asset.shadow_groups(),
             drawn: None,
         }
@@ -390,6 +406,52 @@ fn wmo_model_label(resolver: &CascListfileResolver, root_fdid: u32, name_set: u1
     }
 }
 
+/// The object selection of an offline preview: only placements within `radius` of its
+/// focus, not every doodad of the nine streamed tiles.
+pub(crate) struct PreviewObjects {
+    pub center: Vec3,
+    pub radius: f32,
+}
+
+impl ObjectSelection for PreviewObjects {
+    fn tiles(&self, terrain: &StreamedTerrain) -> Vec<Tile> {
+        terrain
+            .parsed_tiles
+            .keys()
+            .copied()
+            .filter(|tile| {
+                let (min, max) = tile_world_bounds(*tile);
+                let nearest = self.center.clamp(min, max);
+                self.center.distance_squared(nearest) <= self.radius * self.radius
+            })
+            .collect()
+    }
+
+    fn doodad(&self, doodad: &DoodadPlacement, _: Option<&str>, tile: Tile) -> bool {
+        let position = doodad_position(doodad, tile.0, tile.1);
+        position.distance_squared(self.center) <= self.radius * self.radius
+    }
+
+    fn wmo(&self, wmo: &WmoPlacement, tile: Tile) -> bool {
+        let (min, max) = wmo_bounds(wmo, tile.0, tile.1);
+        let nearest = self.center.clamp(min, max);
+        self.center.distance_squared(nearest) <= self.radius * self.radius
+    }
+}
+
+/// Terrain-space bounds of one ADT tile, in engine axes.
+fn tile_world_bounds(tile: Tile) -> (Vec3, Vec3) {
+    // ADT tile edge: 16 chunks of 33.333 yd (same value bevy_to_tile_coords uses).
+    let size = 533.333_3;
+    let center = 32.0 * size;
+    let min = Vec3::new(
+        center - (tile.1 as f32 + 1.0) * size,
+        -10_000.0,
+        tile.0 as f32 * size - center,
+    );
+    (min, min + Vec3::new(size, 20_000.0, size))
+}
+
 pub(crate) struct TerrainObjects {
     name: &'static str,
     budget: Duration,
@@ -435,6 +497,10 @@ pub(crate) struct TerrainObjects {
     failures: usize,
     /// `None` while the particle-effects graphics setting is off.
     particles: Option<ParticlePools>,
+    /// Drawn triangles of spawned doodads and WMO batches, for visible-surface queries.
+    render_surface: crate::render_surface::RenderSurfaceCache,
+    surface_frame: u64,
+    surface_columns: HashMap<(u32, u32, u32), Option<f32>>,
 }
 
 impl TerrainObjects {
@@ -480,6 +546,9 @@ impl TerrainObjects {
             liquids: WmoLiquids::default(),
             failures: 0,
             particles: None,
+            render_surface: crate::render_surface::RenderSurfaceCache::default(),
+            surface_frame: 0,
+            surface_columns: HashMap::new(),
         }
     }
 
@@ -515,6 +584,91 @@ impl TerrainObjects {
             .filter(|node| node.has_meta(WMO_MODEL_META))
             .filter_map(|node| node.try_cast::<Node3D>().ok())
             .collect()
+    }
+
+    /// Highest visible render surface on the column through `(x, z)` inside
+    /// `[floor, floor + window]`: terrain, WMO render batches and M2 doodad geometry as
+    /// they are drawn. `frame` scopes the per-frame column cache; the result does not
+    /// feed movement, the server or the navmesh.
+    pub fn visible_surface(
+        &mut self,
+        terrain_height: Option<f32>,
+        x: f32,
+        z: f32,
+        floor: f32,
+        window: f32,
+        frame: u64,
+    ) -> Option<f32> {
+        if frame != self.surface_frame {
+            self.surface_frame = frame;
+            self.surface_columns.clear();
+        }
+        let key = (x.to_bits(), z.to_bits(), floor.to_bits());
+        if let Some(cached) = self.surface_columns.get(&key) {
+            return *cached;
+        }
+        let ceiling = floor + window;
+        let mut found: Option<f32> = None;
+        let mut consider = |height: f32| {
+            if (floor..=ceiling).contains(&height) {
+                found = Some(found.map_or(height, |high: f32| high.max(height)));
+            }
+        };
+        if let Some(height) = terrain_height {
+            consider(height);
+        }
+        for index in 0..self.doodads.len() {
+            let (min, max) = self.doodads[index].scenery.world_bounds();
+            if !column_meets(x, z, floor, ceiling, min, max) {
+                continue;
+            }
+            let node = self.doodads[index].node.clone();
+            let Some(surface) = self.render_surface.root_surface(&node) else {
+                continue;
+            };
+            if let Some(height) = surface.highest_upward_below(x, z, ceiling, floor) {
+                consider(height);
+            }
+        }
+        for wmo in &self.wmos {
+            for (group, (min, max)) in &wmo.group_boxes {
+                if !column_meets(x, z, floor, ceiling, *min, *max) {
+                    continue;
+                }
+                let Some(batches) = wmo.groups.get(group) else {
+                    continue;
+                };
+                for batch in batches {
+                    let Some(surface) = self.render_surface.root_surface(batch) else {
+                        continue;
+                    };
+                    if let Some(height) = surface.highest_upward_below(x, z, ceiling, floor) {
+                        consider(height);
+                    }
+                }
+            }
+        }
+        self.surface_columns.insert(key, found);
+        found
+    }
+
+    /// Internal queue and loader counters, for offline fixture diagnostics.
+    pub fn debug_state(&self) -> serde_json::Value {
+        serde_json::json!({
+            "pending": self.pending.len(),
+            "first": self.first.len(),
+            "ready": self.ready.len(),
+            "waiting": self.waiting_count,
+            "waiting_assets": self.waiting.len(),
+            "arrived": self.arrived.len(),
+            "loading": self.loader.loading(),
+            "models": self.models.len(),
+            "wmos": self.wmo_assets.len(),
+            "spawned_doodads": self.spawned_doodads.len(),
+            "spawned_wmos": self.spawned_wmos.len(),
+            "failures": self.failures,
+            "queued_tiles": self.queued_tiles.len(),
+        })
     }
 
     pub fn spawned_count(&self) -> usize {
@@ -1418,6 +1572,8 @@ impl TerrainObjects {
         self.interior_bounds.clear();
         self.light = None;
         self.liquids = WmoLiquids::default();
+        self.render_surface.clear();
+        self.surface_columns.clear();
         self.failures = 0;
         if let Some(pools) = &mut self.particles {
             pools.reset();
@@ -1450,6 +1606,35 @@ fn group_batches(wmo: &Gd<Node3D>) -> HashMap<u16, Vec<Gd<Node3D>>> {
         }
     }
     groups
+}
+
+/// Whether a vertical column at `(x, z)` between `floor` and `ceiling` meets `min..max`.
+fn column_meets(x: f32, z: f32, floor: f32, ceiling: f32, min: Vec3, max: Vec3) -> bool {
+    x >= min.x && x <= max.x && z >= min.z && z <= max.z && max.y >= floor && min.y <= ceiling
+}
+
+/// A node's mesh bounds placed by `world_from_local`; `None` when it has no mesh.
+fn mesh_world_box(node: &Gd<Node3D>, world_from_local: Affine3A) -> Option<(Vec3, Vec3)> {
+    let mesh = node.clone().try_cast::<MeshInstance3D>().ok()?.get_mesh()?;
+    let aabb = mesh.get_aabb();
+    let corners = [
+        aabb.position,
+        aabb.position + Vector3::new(aabb.size.x, 0.0, 0.0),
+        aabb.position + Vector3::new(0.0, aabb.size.y, 0.0),
+        aabb.position + Vector3::new(0.0, 0.0, aabb.size.z),
+        aabb.position + Vector3::new(aabb.size.x, aabb.size.y, 0.0),
+        aabb.position + Vector3::new(aabb.size.x, 0.0, aabb.size.z),
+        aabb.position + Vector3::new(0.0, aabb.size.y, aabb.size.z),
+        aabb.position + aabb.size,
+    ];
+    let mut min = Vec3::splat(f32::INFINITY);
+    let mut max = Vec3::splat(f32::NEG_INFINITY);
+    for corner in corners {
+        let world = world_from_local.transform_point3(Vec3::new(corner.x, corner.y, corner.z));
+        min = min.min(world);
+        max = max.max(world);
+    }
+    Some((min, max))
 }
 
 pub(crate) fn affine(transform: Transform3D) -> Affine3A {
