@@ -52,7 +52,7 @@ impl TerrainTextureCache {
             // WebWowViewerCpp adtObject.cpp:528: the MDID texture itself, usually the
             // `_s.blp` whose alpha is the layer's specular mask (adtShader.frag.slang).
             let diffuse_fdid = authored;
-            let diffuse = self.load_image(resolver, data_root, diffuse_fdid)?;
+            let diffuse = self.load_diffuse(resolver, data_root, diffuse_fdid)?;
             let height = tex
                 .height_texture_fdids
                 .get(index as usize)
@@ -73,6 +73,27 @@ impl TerrainTextureCache {
             );
         }
         Ok(layers)
+    }
+
+    fn load_diffuse(
+        &mut self,
+        resolver: &CascListfileResolver,
+        data_root: &Path,
+        fdid: u32,
+    ) -> Result<Arc<blp::RgbaImage>, String> {
+        if fdid != 0 {
+            return self.load_image(resolver, data_root, fdid);
+        }
+        // Retail 70688 E2: an assigned but unresolved diffuse remains a layer and
+        // binds the internal 1x1 0x3f3f3f texture, not an area-LOD 0x808080 fill.
+        let image = self.decoded.entry(0).or_insert_with(|| {
+            Arc::new(blp::RgbaImage {
+                width: 1,
+                height: 1,
+                pixels: vec![0x3f, 0x3f, 0x3f, 0xff],
+            })
+        });
+        Ok(Arc::clone(image))
     }
 
     pub fn load_image(
@@ -150,6 +171,57 @@ mod tests {
             .load_for_tile(&resolver, &data_root, &tex)
             .expect("one chunk");
         assert_eq!(subset.keys().copied().collect::<Vec<_>>(), vec![1, 2]);
+    }
+
+    #[test]
+    fn zero_diffuse_keeps_authored_layers_and_shares_internal_dark_gray() {
+        let (data_root, resolver, mut tex) = fixture();
+        tex.chunk_layers.truncate(1);
+        let layers_before = tex.chunk_layers[0].layers.clone();
+        for layer in &layers_before {
+            tex.texture_fdids[layer.texture_index as usize] = 0;
+        }
+        let mut cache = TerrainTextureCache::default();
+        let images = cache.load_for_tile(&resolver, &data_root, &tex).unwrap();
+        let first = &images[&layers_before[0].texture_index];
+        assert_eq!(first.diffuse_fdid, 0);
+        assert_eq!((first.diffuse.width, first.diffuse.height), (1, 1));
+        assert_eq!(first.diffuse.pixels, [0x3f, 0x3f, 0x3f, 0xff]);
+        assert_eq!(tex.chunk_layers[0].layers.len(), layers_before.len());
+        for layer in &layers_before {
+            assert!(Arc::ptr_eq(
+                &first.diffuse,
+                &images[&layer.texture_index].diffuse
+            ));
+        }
+        let again = cache.load_for_tile(&resolver, &data_root, &tex).unwrap();
+        assert!(Arc::ptr_eq(
+            &first.diffuse,
+            &again[&layers_before[0].texture_index].diffuse
+        ));
+    }
+
+    #[test]
+    fn dawn_infinite_13_48_keeps_all_twenty_eight_zero_base_layers() {
+        let data_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
+        let assets = NativeTerrainAssets::new(data_root);
+        let tile = assets.read_tile("2579", 13, 48).expect("FDID-0 tile loads");
+        let tex = tile.tex.as_ref().unwrap();
+        assert_eq!(tex.texture_fdids[6], 0);
+        let base_layers = tex
+            .chunk_layers
+            .iter()
+            .filter(|chunk| {
+                chunk
+                    .layers
+                    .first()
+                    .is_some_and(|layer| layer.texture_index == 6)
+            })
+            .count();
+        assert_eq!(base_layers, 28);
+        let image = &tile.textures[&6].diffuse;
+        assert_eq!((image.width, image.height), (1, 1));
+        assert_eq!(image.pixels, [0x3f, 0x3f, 0x3f, 0xff]);
     }
 
     #[test]
