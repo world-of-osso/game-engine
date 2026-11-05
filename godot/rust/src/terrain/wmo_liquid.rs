@@ -27,39 +27,6 @@ pub(super) struct WmoLiquids {
     materials: WaterMaterials,
 }
 
-/// Bake the shore depth map of one WMO liquid surface from the merged ground beneath it.
-/// Retail70688 G10 makes the shore fade physical water depth, so the map is baked once here
-/// and cached with the surface. `ground` answers in world space; the liquid geometry is
-/// model-local, and depth is a scalar, so the uniform placement scale drops out.
-pub(crate) fn bake_shore_map(
-    geometry: &game_engine_core::adt::WaterGeometry,
-    world_from_local: glam::Affine3A,
-    ground: &dyn Fn(f32, f32, f32) -> Option<f32>,
-) -> Option<game_engine_core::liquid_shore::ShoreDepthMap> {
-    use game_engine_core::liquid_shore::ShoreDepthMap;
-    if geometry.positions.len() < 3 {
-        return None;
-    }
-    let (mut min_x, mut max_x) = (f32::MAX, f32::MIN);
-    let (mut min_z, mut max_z) = (f32::MAX, f32::MIN);
-    let mut surface = f32::MIN;
-    for position in &geometry.positions {
-        min_x = min_x.min(position[0]);
-        max_x = max_x.max(position[0]);
-        min_z = min_z.min(position[2]);
-        max_z = max_z.max(position[2]);
-        surface = surface.max(position[1]);
-    }
-    let world_surface = world_from_local
-        .transform_point3(glam::Vec3::new(min_x, surface, min_z))
-        .y;
-    let map = ShoreDepthMap::bake([min_x, min_z], [max_x, max_z], world_surface, |x, z| {
-        let world = world_from_local.transform_point3(glam::Vec3::new(x, surface, z));
-        ground(world.x, world.z, world_surface)
-    });
-    Some(map)
-}
-
 impl WmoLiquids {
     /// Adds each group's liquid under WMO `node` as `Group{g}_Liquid`, in the group's
     /// WMO-local frame; returns one error per group whose liquid cannot be drawn.
@@ -70,8 +37,6 @@ impl WmoLiquids {
         node: &mut Gd<Node3D>,
         resolver: &CascListfileResolver,
         data_root: &Path,
-        world_from_local: glam::Affine3A,
-        ground: &dyn Fn(f32, f32, f32) -> Option<f32>,
     ) -> Vec<String> {
         let mut errors = Vec::new();
         for group in &asset.groups {
@@ -83,34 +48,12 @@ impl WmoLiquids {
                 continue;
             };
             let geometry = wmo_liquid::liquid_geometry(liquid, liquid_type);
-            let shore = bake_shore_map(&geometry, world_from_local, ground);
-            match &shore {
-                Some(map) => {
-                    let total: f32 = map.depth.iter().sum();
-                    let mean = total / map.depth.len().max(1) as f32;
-                    godot_print!(
-                        "WMO {} group {} shore map {}x{} open {}/{} mean {:.2} yd",
-                        asset.root_fdid,
-                        group.index,
-                        map.resolution[0],
-                        map.resolution[1],
-                        map.open,
-                        map.depth.len(),
-                        mean
-                    );
-                }
-                None => godot_warn!(
-                    "WMO {} group {} liquid {liquid_type} has no shore depth map",
-                    asset.root_fdid,
-                    group.index
-                ),
-            }
             let surface = self
                 .native(map_id, liquid_type, resolver, data_root)
                 .and_then(|native| {
                     let interior = wmo_liquid::group_interior_lit(header.flags);
                     self.materials
-                        .wmo_surface(liquid_type, interior, &native, geometry, shore)
+                        .wmo_surface(liquid_type, interior, &native, geometry)
                 });
             match surface {
                 Ok(mut surface) => {

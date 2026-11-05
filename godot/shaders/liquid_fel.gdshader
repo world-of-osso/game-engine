@@ -15,12 +15,10 @@ uniform sampler2D texture_3 : repeat_enable, filter_linear_mipmap;
 uniform sampler2D texture_4 : repeat_enable, filter_linear_mipmap;
 uniform sampler2D texture_5 : repeat_enable, filter_linear_mipmap;
 uniform sampler2D texture_next : repeat_enable, filter_linear_mipmap;
-// Retail70688 G10: the shore's depth input is a per-surface map in the surface's own
-// parameter space carrying physical water depth, not the scene depth buffer. The engine
-// bakes it from the geometry beneath the liquid (`game_engine_core::liquid_shore`).
-uniform sampler2D shore_depth_map : repeat_disable, filter_linear;
-uniform vec4 shore_map_transform = vec4(0.0);
-uniform bool shore_map_enabled = false;
+// Retail70688 depth-prepass study: the shore's depth input is colour target 0 of the world
+// depth prepass, holding the view-space Z of the opaque surface behind each pixel, sampled
+// at the pixel's own screen position. Godot's linearised depth texture is the same quantity.
+uniform sampler2D depth_texture : hint_depth_texture, filter_nearest, repeat_disable;
 
 // Shared material clock in milliseconds (the reference scene time).
 global uniform float liquid_animation_time_ms;
@@ -58,9 +56,6 @@ const float DEGREES = 0.017453292;
 
 varying vec3 wow_position;
 varying float vertex_depth;
-// Local XZ mapped into the baked shore depth map, so the map never depends on the texture
-// UV convention or on the WMO placement.
-varying vec2 shore_uv;
 
 vec3 linear_to_gamma(vec3 color) {
 	return mix(12.92 * color, 1.055 * pow(color, vec3(1.0 / 2.4)) - 0.055, step(vec3(0.0031308), color));
@@ -114,7 +109,6 @@ void vertex() {
 	wow_position = to_wow((MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz);
 	// adt_water_geometry: MH2O vertex depth / 255 (vPositionDepth.w).
 	vertex_depth = COLOR.a;
-	shore_uv = VERTEX.xz * shore_map_transform.xy + shore_map_transform.zw;
 }
 
 void fragment() {
@@ -203,15 +197,13 @@ void fragment() {
 		color += (glow_0.rgb + glow_1.rgb) * glow_0.a * glow_1.a * (depth_mix * glow_strength);
 	}
 
-	// G10 shore: D = saturate(water depth / Float_11). The baked map holds depth in yards,
-	// so the fade is independent of the camera. D = 0 is the shoreline, D = 1 open water.
-	// A surface without a baked map keeps its base colour rather than inventing a fade.
-	float shore_fade = 1.0;
-	if (shore_map_enabled) {
-		float water_depth = texture(shore_depth_map, shore_uv).r;
-		shore_fade = clamp(water_depth * shore_scale, 0.0, 1.0);
-	}
-	if (liquid_detail >= 2 && shore_map_enabled) {
+	// Shore: D is the view-depth gap to the first opaque surface behind this pixel, over
+	// Float_11. Both terms are view-space Z in yards, so this measures water thickness along
+	// the view ray: 0 where the opaque world meets the surface, 1 after Float_11 yards.
+	float liquid_view_z = -VERTEX.z;
+	float opaque_view_z = scene_view_depth(depth_texture, SCREEN_UV, INV_PROJECTION_MATRIX);
+	float shore_fade = clamp((opaque_view_z - liquid_view_z) * shore_scale, 0.0, 1.0);
+	if (liquid_detail >= 2) {
 		// t5 at (TC1.z, 1 - D): TC1.z is the second base layer's U, as G8/BLS specify.
 		vec4 shore = texture(texture_3, vec2(uv_1.x, 1.0 - shore_fade));
 		color = shore.rgb + (color - shore.rgb) * (shore_fade * shore.a);

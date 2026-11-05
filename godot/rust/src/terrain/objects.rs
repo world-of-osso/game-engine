@@ -887,31 +887,6 @@ impl TerrainObjects {
 
     /// Build more of the WMO being spawned within the frame's budget; `true` once it
     /// is placed, or failed and was reported.
-    /// The highest solid surface below `top` at world `(x, z)`: terrain height, every
-    /// placed WMO's collision floors and the baked M2 hulls. This is the merged ground the
-    /// player stands on, so it also covers pool floors owned by a different WMO group.
-    fn merged_ground_below(terrain: &StreamedTerrain, x: f32, z: f32, top: f32) -> Option<f32> {
-        let mut heights: Vec<f32> = Vec::new();
-        if let Some(height) = terrain.height_at(x, z).filter(|height| *height < top) {
-            heights.push(height);
-        }
-        for tile in terrain.parsed_tiles.values() {
-            for (_, collision) in &tile.wmo_floors {
-                collision.collision_heights(x, z, top, top - 400.0, &mut heights);
-            }
-            for hull in tile.m2_floors.iter().chain(&tile.m2_solids) {
-                let feet = Vec3::new(x, top, z);
-                if let Some(height) = hull.floor_height(feet).or_else(|| hull.solid_height(feet)) {
-                    heights.push(height);
-                }
-            }
-        }
-        heights
-            .into_iter()
-            .filter(|height| *height <= top)
-            .max_by(f32::total_cmp)
-    }
-
     fn continue_wmo(
         &mut self,
         parent: &mut Gd<Node3D>,
@@ -956,9 +931,6 @@ impl TerrainObjects {
             rotation,
             position,
         );
-        // The shore depth map is baked from the merged ground under the liquid: terrain,
-        // every placed WMO's floors and the M2 hulls, not this asset's own groups.
-        let ground = |x: f32, z: f32, top: f32| Self::merged_ground_below(terrain, x, z, top);
         let liquid_errors = self.liquids.add(
             &spawn.asset,
             terrain
@@ -969,8 +941,6 @@ impl TerrainObjects {
             &mut wmo_node.node,
             &self.resolver,
             &self.data_root,
-            world_from_local,
-            &ground,
         );
         wmo_node.batch_errors.extend(liquid_errors);
         let model = &mut wmo_node.node;

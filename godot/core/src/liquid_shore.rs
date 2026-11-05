@@ -1,14 +1,16 @@
-//! Baked bottom-depth map for the per-surface liquid shore fade.
+//! Baked bottom-depth map, kept as a documented **refuted** reading of the liquid shore.
 //!
-//! Retail70688 G10: the shore's stage-6 input is a per-surface map in the surface's own
-//! parameter space, combined directly with the interpolated surface height and scaled by
-//! `1/Float_11`. It is not the scene depth buffer: the fade is physical water depth
-//! (`surface - bottom`), so it must not depend on the camera. The client's own map is not
-//! recoverable statically, so this module bakes an equivalent one from the geometry under
-//! each liquid and caches it with the instance.
+//! The G10 lane first read the stage-6 depth input as a per-surface bottom-height map in the
+//! surface's own parameter space. The depth-prepass study refuted that: the resource is colour
+//! target 0 of the world depth prepass holding the opaque surface's **view-space Z**, sampled
+//! at the pixel's screen position, so `D = saturate((z_opaque - z_liquid) / Float_11)` is water
+//! thickness along the view ray, not vertical water depth. A vertical bottom bake gives 37-110
+//! yd on Neltharus and saturates everywhere, which is why nothing in the render path uses this
+//! module for the shore any more.
 //!
-//! Consumers: the ProcFel shore (and later the water family) sample `depth` in yards and
-//! scale it by `1/Float_11`.
+//! It is retained, unused, because the Forever Material130 PBR water lane references its
+//! contract. Do not wire it to the liquid shore: bakes are the wrong quantity. A future
+//! consumer would need its own justification.
 
 /// Texels per yard of the baked map. The Forge row's fade is 2.6 yd, so half a yard per
 /// texel resolves the band without a visible staircase.

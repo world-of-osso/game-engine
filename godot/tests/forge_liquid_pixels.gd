@@ -1,10 +1,8 @@
 extends "res://tests/liquid_material_pixels.gd"
 
-## Real1192 DB2 textures and production shader. Retail70688 G10: the shore fade is
-## physical water depth from a per-surface baked map, so it must not follow the camera.
+## Real1192 DB2 textures and the production shader. The shore fade reads the opaque view
+## depth behind each pixel, so D is water thickness along the view ray.
 var client: Node3D
-
-const MAP_DEPTH_YD := 5.0
 
 func run() -> void:
 	client = load("res://scenes/client.tscn").instantiate()
@@ -41,15 +39,12 @@ func run() -> void:
 	RenderingServer.global_shader_parameter_set("specular_color", Vector3.ONE)
 	if not await check_layer_gate(material, "texture_2", 3, Color(0,0,0,1), Color(1,1,1,1)):
 		return
-	bind_depth_map(material)
 	if not await check_layer_gate(material, "texture_3", 2, Color(1,0,0,0), Color(0,0,1,0)):
 		return
-	if not await check_view_independence(material):
-		return
-	if not await check_base_without_map(material):
+	if not await check_depth_gap(material):
 		return
 	print("PASS: FORGE_LIQUID_PIXELS object-zero/static, row10949/animated, integer clock, " +
-		"shore2/specular3, camera-independent depth-fade")
+		"shore2/specular3, view-depth shore fade")
 	client.free()
 	quit(0)
 
@@ -67,27 +62,6 @@ func solid_texture(color: Color) -> ImageTexture:
 	var image := Image.create(1,1,false,Image.FORMAT_RGBA8)
 	image.fill(color)
 	return ImageTexture.create_from_image(image)
-
-## A synthetic bottom-depth map: 0 yd at u=0 rising to MAP_DEPTH_YD at u=1.
-func bind_depth_map(material: ShaderMaterial, flat_depth := -1.0) -> void:
-	var width := 128
-	var height := 4
-	var bytes := PackedByteArray()
-	for _row in height:
-		for column in width:
-			var depth := flat_depth if flat_depth >= 0.0 else MAP_DEPTH_YD * float(column) / float(width - 1)
-			bytes.append_array(PackedFloat32Array([depth]).to_byte_array())
-	var image := Image.create_from_data(width, height, false, Image.FORMAT_RF, bytes)
-	var texture := ImageTexture.create_from_image(image)
-	print("FORGE_MAP_TEXELS ", image.get_pixel(0,0).r, " ", image.get_pixel(64,0).r, " ", image.get_pixel(127,0).r)
-	material.set_shader_parameter("shore_depth_map", texture)
-	# The quad's local VERTEX spans CENTRE +/- 100 on X and Z; map that onto 0..1.
-	var span := 200.0
-	material.set_shader_parameter("shore_map_transform", Vector4(
-		1.0 / span, 1.0 / span,
-		-(CENTRE.x - 100.0) / span, -(CENTRE.z - 100.0) / span))
-	material.set_shader_parameter("shore_map_enabled", true)
-	material.set_shader_parameter("liquid_detail", 2)
 
 func check_layer_gate(material: ShaderMaterial, slot: String, threshold: int, first: Color, second: Color) -> bool:
 	var original_texture = material.get_shader_parameter(slot)
@@ -107,55 +81,53 @@ func check_layer_gate(material: ShaderMaterial, slot: String, threshold: int, fi
 	material.set_shader_parameter("liquid_detail", detail_before)
 	return true
 
-## The depth fade reads the baked map, so the shore fraction must stay put when only the
-## camera moves. A scene-depth fade would push the band toward the horizon.
-func check_view_independence(material: ShaderMaterial) -> bool:
+## D is the view-depth gap to the opaque surface behind each pixel, over Float_11. Moving the
+## opaque backing further below the liquid must widen the gap and shrink the shore band, and a
+## grazing view must see a bigger gap than a steep one at the same separation.
+func check_depth_gap(material: ShaderMaterial) -> bool:
 	var original_texture = material.get_shader_parameter("texture_3")
 	material.set_shader_parameter("texture_3", solid_texture(Color(0,0,1,1)))
-	# Diagnostic: a flat 0.1 yd map must read as almost entirely shore.
-	bind_depth_map(material, 0.1)
-	var flat := await shop_mean()
-	print("FORGE_FLAT_MAP mean=", flat)
-	bind_depth_map(material)
-	var measured: Array[float] = []
-	for view in [[120.0, 300.0], [200.0, 340.0], [80.0, 320.0]]:
-		place_camera(view[0], view[1])
-		var counts := await shore_counts()
-		measured.append(counts[0] / maxf(counts[1], 1.0))
-		print("FORGE_VIEW height=", view[0], " distance=", view[1], " shore=", counts[0], " covered=", counts[1], " mean=", counts[2])
-	var first := measured[0]
-	for value in measured:
-		if absf(value - first) > 0.12:
-			fail("Shore fraction must not follow the camera: " + str(measured))
-			return false
-	if first <= 0.02 or first >= 0.98:
-		fail("Shore band missing from the synthetic depth ramp: " + str(first))
-		return false
-	material.set_shader_parameter("texture_3", original_texture)
-	place_camera(5.0, 10.0)
-	return true
-
-## Without a baked map the surface keeps its base colour: the shader must not fall back to
-## an invented scene-depth fade.
-func check_base_without_map(material: ShaderMaterial) -> bool:
+	material.set_shader_parameter("liquid_detail", 2)
 	place_camera(120.0, 300.0)
-	material.set_shader_parameter("texture_3", solid_texture(Color(0,0,1,1)))
-	var mapped := await shore_fraction()
-	material.set_shader_parameter("shore_map_enabled", false)
-	var unmapped := await shore_fraction()
-	print("FORGE_NO_MAP mapped=", mapped, " unmapped=", unmapped)
-	if mapped <= 0.02:
-		fail("The baked map must produce a shore band")
+	var measured: Array[float] = []
+	for gap in [0.2, 0.5, 12.0]:
+		set_backing_gap(gap)
+		var value := await shore_fraction()
+		measured.append(value)
+		print("FORGE_GAP backing=", gap, " shore_fraction=", value)
+	set_backing_gap(2.0)
+	# A 0.2 yd gap is far inside the 2.6 yd fade; 12 yd is far outside it.
+	if measured[0] < 0.5:
+		fail("A 0.2 yd view gap must read as shore: " + str(measured))
 		return false
-	if unmapped > 0.005:
-		fail("Without a shore map the shader must not invent a fade")
+	if measured[2] > 0.02:
+		fail("A 12 yd view gap must read as open water: " + str(measured))
 		return false
-	material.set_shader_parameter("shore_map_enabled", true)
+	if not (measured[0] > measured[1] and measured[1] >= measured[2]):
+		fail("The shore band must shrink as the view gap grows: " + str(measured))
+		return false
+	# Same separation, different view angle: a grazing view has the larger gap.
+	set_backing_gap(0.5)
+	place_camera(120.0, 300.0)
+	var steep := await shore_fraction()
+	place_camera(12.0, 220.0)
+	var grazing := await shore_fraction()
+	print("FORGE_ANGLE steep=", steep, " grazing=", grazing)
+	if grazing >= steep:
+		fail("A grazing view must see a larger gap and less shore: " + str([steep, grazing]))
+		return false
+	set_backing_gap(2.0)
+	place_camera(120.0, 300.0)
+	material.set_shader_parameter("texture_3", original_texture)
 	return true
 
-func shop_mean() -> Color:
-	return mean(await capture())
+## Move the opaque plane behind the liquid to `gap` yards below its surface.
+func set_backing_gap(gap: float) -> void:
+	for child in viewport.get_children():
+		if child is MeshInstance3D and child != quad:
+			child.position = CENTRE - Vector3(0.0, gap, 0.0)
 
+## Share of the covered quad that took the blue shore probe.
 ## Share of the covered quad that took the blue shore probe.
 func shore_fraction() -> float:
 	var counts := await shore_counts()
