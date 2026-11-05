@@ -81,6 +81,13 @@ impl RenderSurface {
         self.triangles.len()
     }
 
+    /// Centroid of triangle `index`, in the mesh's own space.
+    pub fn triangle_centroid(&self, index: usize) -> Option<Vec3> {
+        let triangle = self.triangles.get(index)?;
+        let corners = triangle.map(|index| self.vertices[index as usize]);
+        Some((corners[0] + corners[1] + corners[2]) / 3.0)
+    }
+
     /// World bounds of the mesh; `None` at no triangles (never built).
     pub fn bounds(&self) -> Option<(Vec3, Vec3)> {
         self.nodes.first().map(|root| (root.min, root.max))
