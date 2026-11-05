@@ -1,3 +1,7 @@
+## PBR water no longer saturates; the colour chain is still adapted
+
+[[northshire-pale-water#Zephras Material130 — PBR contract, opt-in (fallback default)]] records the read of the local Forever DXBC (2977157, permutation 255): the PBRWater pass multiplies its colour by a light factor made only of saturating terms, so the factor is an attenuation in 0..1, and it writes unclamped HDR with no tonemap or sRGB step. Clamping our factor and dropping the invented `water_color*NdotL*0.25` term takes the Zephras coast from 19.97% saturated pixels to 0.12%, equal to the fallback. The 100000/50000 pair is a per-draw distance budget that bins the light list, not a fade width. The PBR water is still a flat bright cyan (sd 13.5/25.1/39.0 against the fallback's 24.7/32.8/37.5), so the default stays the LiquidType5 fallback.
+
 ## PBR depth art landed behind the opt-in; default not flipped
 
 [[northshire-pale-water#Zephras Material130 — PBR contract, opt-in (fallback default)]] now records RF3 on top of the fixed capture harness. The PBR water reads the row's `_depth` art and binds all six masks (`pbr_water_pixels`: shallow 0.0927 against deep 0.0074). Same-state captures at 1280x720: the Zephras coast keeps the fallback at mean 82.0 with 0.11% of pixels at or above 250, the PBR path reaches 158.0 with 20.04% clipped, and the two differ by 66.17%; Crystal Lake is unchanged (the rows use the Water shader) and the stream stays inside its 4.79% repeat floor. The previous 87.8% figure was the preview's object queue, not shading. `GAME_ENGINE_PBR_WATER=1` remains opt-in.

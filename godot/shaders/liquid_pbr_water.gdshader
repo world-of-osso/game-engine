@@ -170,7 +170,12 @@ void fragment() {
 	float fresnel = facing * facing;
 
 	vec3 to_sun = normalize(-to_wow(light_sun_direction()));
-	vec3 surface_light = light_direct() * clamp(to_sun.z, 0.0, 1.0) + light_ambient();
+	// Retail's PBRWater pass multiplies the water colour by a light factor built only from
+	// saturating terms (`add_sat`/`mul_sat`/`min`, then `mad factor, -factor, cb0[23].z, 1.0`),
+	// so that factor is an attenuation in 0..1, not an HDR intensity: at the Zephras coast the
+	// unbounded direct+ambient sum reached 1.5 mean and 3.2 at the 99th percentile and pushed
+	// the near-white authored colour (0.46, 0.88, 0.98) past 250 on 20% of the frame.
+	vec3 surface_light = clamp(light_direct() * clamp(to_sun.z, 0.0, 1.0) + light_ambient(), 0.0, 1.0);
 	vec3 lit_water = water_color.rgb * surface_light;
 
 	// ADAPTED: with no scene depth to reject an offset that lands in front of the water, the
@@ -191,9 +196,7 @@ void fragment() {
 
 	vec3 halfway = normalize(to_sun - view_direction);
 	float highlight = pow(clamp(dot(halfway, normal), 0.0, 1.0), SPECULAR_POWER);
-	vec3 specular = specular_color * highlight * fresnel * depth_mask.a
-
-		+ water_color.rgb * max(dot(to_sun, normal), 0.0) * 0.25 * depth_mask.a;
+	vec3 specular = specular_color * highlight * fresnel * depth_mask.a;
 	color += specular;
 
 	// ADAPTED: shore foam and the authored floor coverage replace the MH2O depth byte.
