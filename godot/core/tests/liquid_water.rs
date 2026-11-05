@@ -317,6 +317,24 @@ fn forge_molten_lava_selects_fel_from_db2_and_keeps_all_six_layer_groups() {
     assert_eq!(material.texture_slots[5].len(), 30);
     assert_eq!(material.texture_slots[5][0], 5186474);
     assert_eq!((material.flow_speed, material.flow_direction), (0.0, 0.0));
+    let catalog = catalog();
+    let moving = catalog.liquid_material(1192, 10949).unwrap();
+    let static_row = catalog.liquid_material(1192, 11187).unwrap();
+    let missing_row = catalog.liquid_material(1192, 65000).unwrap();
+    assert_eq!((moving.flow_speed, moving.flow_direction), (2.0, 10.0));
+    assert_eq!(
+        (static_row.flow_speed, static_row.flow_direction),
+        (0.0, 0.0)
+    );
+    assert_eq!(
+        (missing_row.flow_speed, missing_row.flow_direction),
+        (0.0, 0.0)
+    );
+    // The definition changes only flow. Each row preserves all18 LiquidType floats.
+    assert_eq!(moving.floats.len(), 18);
+    assert_eq!(moving.floats, material.floats);
+    assert_eq!(static_row.floats, material.floats);
+    assert_eq!(missing_row.floats, material.floats);
 }
 
 #[test]

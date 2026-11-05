@@ -1,7 +1,7 @@
 extends "res://tests/liquid_material_pixels.gd"
 
-## Production DB2/material loader and real Forge1192 textures. This is a shader-contract
-## test, not a claim that the MLLD authored shoreline or Retail pixel equations are ported.
+## Real1192 DB2 textures and production shader. G4 says objectless WMO flow is zero,
+## not an animation bug. Shore UV/blend math is intentionally unchanged pending G6.
 var client: Node3D
 
 func run() -> void:
@@ -12,27 +12,64 @@ func run() -> void:
 		return
 	root.get_node("M2MaterialClock").set_process(false)
 	make_viewport()
-	var error := await check_case("forge", [1192, 0, 2519])
-	if error != "":
-		fail(error)
+	for object_id in [0, 11187, 10949]:
+		var material := load_forge(object_id)
+		if material == null:
+			return
+		RenderingServer.global_shader_parameter_set("liquid_animation_time_ms", 1000.1)
+		var first := await capture()
+		RenderingServer.global_shader_parameter_set("liquid_animation_time_ms", 1000.9)
+		var same_tick := await capture()
+		if changed_pixels(first, same_tick, 0.0001) != 0:
+			fail("Fel UV clock must use integer milliseconds")
+			return
+		RenderingServer.global_shader_parameter_set("liquid_animation_time_ms", LATER_MS)
+		var later := await capture()
+		var moved := changed_pixels(first, later, 0.004)
+		print("FORGE_FLOW object=", object_id, " moved=", moved)
+		if (object_id == 10949 and moved < 200) or (object_id != 10949 and moved != 0):
+			fail("Fel motion must follow the row's FlowSpeed; object=" + str(object_id))
+			return
+	var material := load_forge(0)
+	if material == null:
 		return
-	var material := quad.get_surface_override_material(0) as ShaderMaterial
-	material.set_shader_parameter("liquid_detail", 0)
-	RenderingServer.global_shader_parameter_set("liquid_animation_time_ms", 1000.0)
-	var low := await capture()
-	material.set_shader_parameter("liquid_detail", 1)
-	var medium := await capture()
-	if changed_pixels(low, medium, 0.004) < 200:
-		fail("Forge detail1 must add emissive/procedural/shore layers")
+	if not await check_layer_gate(material, "texture_3", 2, Color(1,0,0,0), Color(0,0,1,0)):
 		return
-	material.set_shader_parameter("liquid_detail", 0)
-	var low_again := await capture()
-	if changed_pixels(low, low_again, 0.004) != 0:
-		fail("Fixed Forge clock/detail must reproduce pixels")
+	RenderingServer.global_shader_parameter_set("specular_color", Vector3.ONE)
+	if not await check_layer_gate(material, "texture_2", 3, Color(0,0,0,1), Color(1,1,1,1)):
 		return
-	print("PASS: FORGE_LIQUID_PIXELS zero-object-flow scroll, detail layers, fixed-clock repeat")
+	print("PASS: FORGE_LIQUID_PIXELS object-zero/static, row10949/animated, integer clock, shore2/specular3")
 	client.free()
 	quit(0)
+
+func load_forge(object_id: int) -> ShaderMaterial:
+	var loader = ClassDB.instantiate("WowTerrainLoader")
+	var wow := Vector3(CENTRE.x, -CENTRE.z, CENTRE.y)
+	var result: Dictionary = loader.load_liquid_material(1192, object_id, 2519, wow, NOON)
+	if result.has("error"):
+		fail(str(result.error))
+		return null
+	quad.set_surface_override_material(0, result.material)
+	return result.material
+
+func solid_texture(color: Color) -> ImageTexture:
+	var image := Image.create(1,1,false,Image.FORMAT_RGBA8)
+	image.fill(color)
+	return ImageTexture.create_from_image(image)
+
+func check_layer_gate(material: ShaderMaterial, slot: String, threshold: int, first: Color, second: Color) -> bool:
+	for detail in [threshold - 1, threshold]:
+		material.set_shader_parameter("liquid_detail", detail)
+		material.set_shader_parameter(slot, solid_texture(first))
+		var before := await capture()
+		material.set_shader_parameter(slot, solid_texture(second))
+		var after := await capture()
+		var changed := changed_pixels(before,after,0.004)
+		print("FORGE_GATE slot=",slot," detail=",detail," changed=",changed)
+		if (detail < threshold and changed != 0) or (detail == threshold and changed < 200):
+			fail("Wrong detail gate for " + slot)
+			return false
+	return true
 
 func capture() -> Image:
 	if client.account_state().ui_skin != "Forever":

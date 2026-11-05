@@ -31,9 +31,11 @@ uniform vec4 depth_coefficients = vec4(0.0);
 uniform ivec4 liquid_ints = ivec4(0);
 // Frame counts of slots 3-5; .z is the normal map's (FelData intParams.w).
 uniform vec3 frame_counts_3 = vec3(1.0);
-// Retail 70688 E1: two base layers at level 0; the third UV block, emissive,
-// procedural normals and shore at >=1; specular at >1. Sampled at material creation.
+// Retail70688 G4: two base layers; third UV block/emissive/procedural at>=1,
+// shore at>=2, specular at>=3. Shore blend/UV assignment awaits the shader evidence.
 uniform int liquid_detail = 2;
+// LiquidObject FlowSpeed and FlowDirection (degrees). Missing row means both zero.
+uniform vec2 flow = vec2(0.0);
 
 #include "res://shaders/scene_light.gdshaderinc"
 global uniform vec3 specular_color;
@@ -60,11 +62,11 @@ vec3 to_wow(vec3 godot) {
 
 // commonLiquidStructs.slang GetTexScrollComponent: fraction of the scroll cycle at `time` ms.
 float scroll_component(float time, float speed) {
-	if (speed > 0.00000001 && speed < 1000.0) {
+	if (speed > 0.00001 && speed < 1000.0) {
 		int period = int(1000.0 / speed);
 		return float(int(time) % period) / float(period);
 	}
-	if (speed < -0.00000001 && speed > -1000.0) {
+	if (speed < -0.00001 && speed > -1000.0) {
 		int period = int(-1000.0 / speed);
 		return 1.0 - float(int(time) % period) / float(period);
 	}
@@ -125,14 +127,13 @@ void fragment() {
 
 	// Exterior ADT liquid maps world position * 0.06 (LiquidInstance.cpp generateTexCoordsFromPos).
 	vec2 uv = wow_position.xy * 0.06;  // v7
-	// Material UV triples are independent of LiquidObject flow. In particular WMO
-	// MLIQ has no LiquidObject: multiplying by its zero flow froze every scroll block.
-	// The DB2 triple interpretation remains the WVV adaptation, not decoded Retail math.
-	float flow_angle = 0.0;
-	vec2 uv_0 = f0 * uv + scroll_along(time, f1 * DEGREES, f2);
-	vec2 uv_1 = f3 * uv + scroll_along(time, f4 * DEGREES, f5);
-	vec2 uv_2 = f6 * uv + scroll_along(time, f7 * DEGREES, f8);
-	float glow_speed = f10;
+	// G4: (scale, phase degrees, velocity) triples. Phase orients translation,
+	// never the source UV; a missing/zero-speed LiquidObject produces no scroll.
+	float flow_angle = flow.y * DEGREES;
+	vec2 uv_0 = f0 * uv + scroll_along(time, (f1 + flow.y) * DEGREES, f2 * flow.x);
+	vec2 uv_1 = f3 * uv + scroll_along(time, (f4 + flow.y) * DEGREES, f5 * flow.x);
+	vec2 uv_2 = f6 * uv + scroll_along(time, (f7 + flow.y) * DEGREES, f8 * flow.x);
+	float glow_speed = f10 * flow.x;
 	vec2 uv_3 = f9 * (int_blend + 1.0) * uv + scroll_along(time, flow_angle, glow_speed);  // v103
 	float reverse_angle = flow_angle + PI;  // v76 (Godot built-in PI)
 	vec2 uv_4 = f9 * (1.0 - int_blend) * uv + scroll_along(time, reverse_angle, glow_speed)
@@ -173,7 +174,7 @@ void fragment() {
 	vec3 to_camera = -normalize(wow_position - camera);  // v151
 	vec3 halfway = normalize(to_sun + to_camera);  // v153
 	float highlight = pow(clamp(dot(halfway, normal), 0.0, 1.0), SPECULAR_POWER) * sun_attenuation;  // v155
-	if (liquid_detail > 1) {
+	if (liquid_detail >= 3) {
 		vec4 specular_mask = texture(texture_2, uv + distortion);
 		color += specular_color * specular_mask.rgb * highlight * specular_mask.a;
 	}
@@ -188,7 +189,7 @@ void fragment() {
 	float fragment_depth = -VERTEX.z;  // abs(vPositionDepth.z)
 	float scene_depth = abs(scene_view_depth(depth_texture, SCREEN_UV, INV_PROJECTION_MATRIX));  // v163
 	float edge = clamp(edge_scale * (scene_depth - fragment_depth), 0.0, 1.0);  // v165
-	if (liquid_detail >= 1) {
+	if (liquid_detail >= 2) {
 		vec4 shore = texture(texture_3, vec2(uv_1.x, 1.0 - edge));
 		color = mix(shore.rgb, color, edge * shore.a);
 	}

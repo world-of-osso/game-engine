@@ -1,3 +1,7 @@
+## 2026-11-05 — G4 Fel UV and detail corrections
+
+[Liquid evidence](investigations/northshire-pale-water.md#retail70688-clean-room-corrections--2026-11-05) restores LiquidObject-driven Fel velocity and phase; objectless zero flow is static. Integer-tick wrap, shore>=2/specular>=3 are grounded; shore UV/mask/blend stay unchanged pendingG6.
+
 ## 2026-11-05 — MLLD is far-LOD only
 
 [Liquid evidence update](investigations/northshire-pale-water.md#retail70688-clean-room-corrections--2026-11-05): owned MLLD BE-RLE maps, binary coverage and measured byte/9yd;90-file Neltharus census excludes ForgeWMO applicability. Rejected raw-MLIQ-depth experiment reverted; authored shore texture UV/blend remains a separate gap.

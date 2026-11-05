@@ -8,8 +8,9 @@ WMO MLIQ and terrain MH2O liquids use LiquidType-backed material data. The [liqu
 - [x] Resolve magma and slime LiquidType data through their LiquidMaterial class and retain authored MH2O vertex data.
 - [x] Retry unknown liquid type IDs, including zero without a geometry-derived type, through same-product LiquidType8 and its material/textures; never select Material8 directly.
 - [ ] Render Material 2/4 with Retail ProcMagma behavior at the applicable detail level using sourced inputs and equations.
-- [x] Keep the Forge on Material13/Fel with two base layers, detail>=1 emissive/procedural/shore and detail>1 specular; WMO UV scrolling must not be multiplied by absent LiquidObject flow.
-- [ ] Complete sourced Retail Material13 UV equations and authored MLLD shoreline integration. Current Float triples and fragment equations remain a qualified WebWowViewerCpp adaptation.
+- [x] Keep Forge on Material13/Fel: two base layers, detail>=1 emissive/procedural, detail>=2 shore and detail>=3 specular. G4 UV triples are (scale,phaseDegrees,velocity); phase adds LiquidObject.FlowDirection and velocity multiplies FlowSpeed. Missing/zero-flow records remain static, with no guessed WMO flow.
+- [x] Use integer-millisecond wrap with G4's finite velocity domain (1e-5<abs(v)<1000), negative cycles ending at1. Scale does not rotate the source UV.
+- [ ] Complete sourced Retail shore UV assignment, mask and blend polarity. Existing shore blend remains unchanged pendingG6; MLLD is not a WMO shoreline source.
 
 ## How it works
 
@@ -33,7 +34,7 @@ WMO MLIQ and terrain MH2O liquids use LiquidType-backed material data. The [liqu
 - [x] Decode far-terrain `_lod.adt` MLLD maps: depth128x128 bytes; alpha2048-byte bitmap expanded to0/255. Big-endian RLE zero tokens are no-ops. Retain owned payload/maps independently of mesh lifetime; concrete Neltharus outer-LOD payloads cover the header/bitmap layout.
 - [ ] Render those authored maps in the far-terrain LOD liquid renderer. Do not bind them to WMO liquids: the Forge tile's LOD has no MLLD.
 - [x] Preserve G2's confirmed12-byte header/flags and truncate final RLE runs/literals at output capacity. Interpret depth linearly as byte/9yd (G2 shipped-asset measurement); preserve zero-depth texels that still have coverage. Coverage bit order is corroborated by real border maps.
-- [ ] Exact Retail environment-to-DB2 UV-triple and definition scale/bias mapping remains unestablished. The fix removes zero LiquidObject-flow multiplication without choosing an arbitrary LiquidObject row.
+- [x] G4 establishes Float[0..8] triples and LiquidObject direction/speed definition; restore flow multiplication, superseding the earlier zero-flow animation adaptation. Do not choose an arbitrary LiquidObject row for WMO surfaces.
 - [ ] Matched before/after Forge captures and visual proof are pending a sourced rendering change.
 
 ## Out of scope
