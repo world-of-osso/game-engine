@@ -32,7 +32,7 @@ func run() -> void:
 	material = result.material
 	material.set_shader_parameter("mesh_uv", true)
 	scene_light = result.scene_light
-	var checks := [check_pbr_bindings, check_foam_weight, check_row_colours, check_depth_art]
+	var checks := [check_pbr_bindings, check_mask_coverage, check_row_colours, check_layer_uv]
 	for check in checks:
 		var error: String = await check.call()
 		if error != "":
@@ -57,34 +57,51 @@ func check_pbr_bindings() -> String:
 		return "Material130 row floats were not bound: %s %s" % [batch_0, batch_2]
 	return ""
 
-func check_foam_weight() -> String:
+## The pixel program turns the masks into coverage: 2*(t0*t1) + t2.wxyz, whose alpha drives
+## the water mask. Replacing the mid mask's alpha must change the frame.
+func check_mask_coverage() -> String:
 	make_viewport()
 	build()
-	var default_batch_6: Vector4 = material.get_shader_parameter("pbr_batch_6")
-	material.set_shader_parameter("pbr_batch_6", Vector4(default_batch_6.x, default_batch_6.y, 0.0, 0.0))
-	var calm := await capture()
-	material.set_shader_parameter("pbr_batch_6", default_batch_6)
-	var foamy := await capture()
-	var distance := color_distance(mean(calm), mean(foamy))
-	print("PBR foam calm=", mean(calm), " foamy=", mean(foamy), " delta=", distance)
+	# A bright tint makes the mask's blend visible against the sub-viewport's black scene.
+	var original_tint: Vector4 = material.get_shader_parameter("pbr_batch_2")
+	material.set_shader_parameter("pbr_batch_2", Vector4(1.0, 1.0, 1.0, original_tint.w))
+	var original = material.get_shader_parameter("foam_mid")
+	material.set_shader_parameter("foam_mid", solid_texture(Color(1, 1, 1, 0)))
+	var clear := await capture()
+	material.set_shader_parameter("foam_mid", solid_texture(Color(1, 1, 1, 1)))
+	var covered := await capture()
+	material.set_shader_parameter("foam_mid", original)
+	material.set_shader_parameter("pbr_batch_2", original_tint)
+	var distance := color_distance(mean(clear), mean(covered))
+	print("PBR mask coverage clear=", mean(clear), " covered=", mean(covered), " delta=", distance)
 	if distance < 0.02:
-		return "Row foam strength did not change the PBR water"
+		return "The authored mask coverage did not drive the PBR water"
 	return ""
 
-## RF3: the PBR shading pass binds no scene depth; thickness comes from the row's `_depth`
-## art. Replacing that mask must change the water.
-func check_depth_art() -> String:
-	var original = material.get_shader_parameter("foam_depth")
-	material.set_shader_parameter("foam_depth", solid_texture(Color(0, 0, 0, 0)))
-	var shallow := await capture()
-	material.set_shader_parameter("foam_depth", solid_texture(Color(1, 1, 1, 1)))
-	var deep := await capture()
-	material.set_shader_parameter("foam_depth", original)
-	var distance := color_distance(mean(shallow), mean(deep))
-	print("PBR depth art shallow=", mean(shallow), " deep=", mean(deep), " delta=", distance)
-	if distance < 0.02:
-		return "The authored _depth art did not drive the PBR water"
+## The program samples its own scrolled UV transforms from the batch; changing a layer's
+## scale must move the sampled mask, otherwise the masks are not varying across the surface.
+func check_layer_uv() -> String:
+	build()
+	var original: Vector4 = material.get_shader_parameter("pbr_batch_1")
+	var scaled := await capture()
+	material.set_shader_parameter("pbr_batch_1", Vector4(original.x * 3.0, original.y, original.z, original.w))
+	var moved := await capture()
+	material.set_shader_parameter("pbr_batch_1", original)
+	var distance := frame_distance(scaled, moved)
+	print("PBR layer uv delta=", distance)
+	if distance < 0.0005:
+		return "The layer UV transform did not move the sampled masks"
 	return ""
+
+## Mean absolute per-pixel difference over the centre window: catches mask movement that a
+## mean-colour comparison cancels out.
+func frame_distance(a: Image, b: Image) -> float:
+	var total := 0.0
+	var centre := Vector2i(SIZE.x / 2, SIZE.y / 2)
+	for y in range(centre.y - 12, centre.y + 12):
+		for x in range(centre.x - 12, centre.x + 12):
+			total += color_distance(a.get_pixel(x, y), b.get_pixel(x, y))
+	return total / 576.0
 
 func solid_texture(color: Color) -> ImageTexture:
 	var image := Image.create(1, 1, false, Image.FORMAT_RGBA8)
@@ -111,7 +128,7 @@ func make_viewport() -> void:
 	root.add_child(viewport)
 	var environment := Environment.new()
 	environment.background_mode = Environment.BG_COLOR
-	environment.background_color = Color.BLACK
+	environment.background_color = Color(1, 1, 1)
 	var world_environment := WorldEnvironment.new()
 	world_environment.environment = environment
 	viewport.add_child(world_environment)
