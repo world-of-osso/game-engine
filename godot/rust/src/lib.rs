@@ -970,6 +970,71 @@ impl GameClient {
         self.clear_preview_kits();
     }
 
+    /// Offline fixture: the material values applied to each previewed kit batch.
+    #[func]
+    fn preview_kit_materials(&mut self) -> VarArray {
+        let mut out = VarArray::new();
+        for anchor in self.preview_kit_anchors() {
+            let meshes = anchor
+                .find_children_ex("*")
+                .type_("MeshInstance3D")
+                .owned(false)
+                .done();
+            for node in meshes.iter_shared() {
+                let Some(instance) = node.try_cast::<godot::classes::MeshInstance3D>().ok() else {
+                    continue;
+                };
+                let Some(material) = instance.get_material_override().and_then(|material| {
+                    material.try_cast::<godot::classes::ShaderMaterial>().ok()
+                }) else {
+                    continue;
+                };
+                let number = |name: &str| {
+                    material
+                        .get_shader_parameter(name)
+                        .try_to::<f32>()
+                        .unwrap_or(-1.0)
+                };
+                let basis = |name: &str| {
+                    material
+                        .get_shader_parameter(name)
+                        .try_to::<godot::builtin::Basis>()
+                        .map(|basis| {
+                            PackedFloat32Array::from(
+                                basis
+                                    .rows
+                                    .iter()
+                                    .flat_map(|row| [row.x, row.y, row.z])
+                                    .collect::<Vec<f32>>()
+                                    .as_slice(),
+                            )
+                        })
+                        .unwrap_or_default()
+                };
+                let mut entry = VarDictionary::new();
+                entry.set("node", instance.get_name().to_string());
+                entry.set(
+                    "pixel_shader",
+                    material
+                        .get_shader_parameter("pixel_shader")
+                        .try_to::<i64>()
+                        .unwrap_or(-1),
+                );
+                entry.set("transparency", number("transparency"));
+                entry.set("texture_weight_0", number("texture_weights"));
+                let color = material
+                    .get_shader_parameter("mesh_color")
+                    .try_to::<godot::builtin::Vector3>()
+                    .unwrap_or_default();
+                entry.set("mesh_color", [color.x, color.y, color.z].as_slice());
+                entry.set("matrix_1", &basis("texture_matrix_1"));
+                entry.set("matrix_2", &basis("texture_matrix_2"));
+                out.push(&entry.to_variant());
+            }
+        }
+        out
+    }
+
     /// Offline fixture: object queue and loader counters.
     #[func]
     fn preview_objects_debug(&self) -> GString {
@@ -1002,6 +1067,19 @@ impl GameClient {
             Ok(()) => GString::new(),
             Err(error) => GString::from(error.as_str()),
         }
+    }
+
+    /// Anchors of the previewed kits, for fixture probes.
+    fn preview_kit_anchors(&self) -> Vec<godot::obj::Gd<godot::classes::Node3D>> {
+        let mut anchors = Vec::new();
+        for child in self.base().get_children().iter_shared() {
+            if str::starts_with(&child.get_name().to_string(), "PreviewKit") {
+                if let Ok(node) = child.try_cast::<godot::classes::Node3D>() {
+                    anchors.push(node);
+                }
+            }
+        }
+        anchors
     }
 
     /// Offline fixture: show a kit through the production spell-effect path.

@@ -55,6 +55,8 @@ func run() -> void:
 		await capture_drape("steps", STAIR_BOTTOM)
 	elif case == "drape_wall":
 		await capture_drape("wall", WALL_FOOT)
+	elif case == "drape_life":
+		await capture_life()
 	elif case == "footik_fps":
 		await capture_fps()
 	else:
@@ -466,6 +468,36 @@ func capture_drape(label: String, point: Vector3) -> void:
 	finish()
 
 # Freezes every kit animation at the same time in both captures.
+# The effect over its lifetime: which tracks we evaluate, sampled at 0, 0.5, 2 and 5 s.
+func capture_life() -> void:
+	var point := FLAT_GROUND
+	if not await load_world(point):
+		return
+	client.preview_set_focus(point)
+	if not await wait_objects():
+		return
+	await wait_ms(1500)
+	var probe: Dictionary = await wait_surface(point.x, point.z, point.y, 0.0)
+	if probe.is_empty():
+		fail("no ground at the capture point")
+		return
+	point.y = probe.floor
+	place_camera(point + Vector3(3.6, 3.6, 4.8), point)
+	client.preview_set_drape(true)
+	await capture("ground-drape-life-none", false)
+	if not await spawn_decay(point):
+		return
+	var started := Time.get_ticks_msec()
+	for at in [0, 500, 1500, 2000, 2500, 3000, 4000, 5000]:
+		var wait: int = int(at) - int(Time.get_ticks_msec() - started)
+		if wait > 0:
+			await wait_ms(wait)
+		print("LIFE t=%d materials=%s" % [at, JSON.stringify(client.preview_kit_materials())])
+		await capture("ground-drape-life-%d" % at, false)
+		if closed:
+			return
+	finish()
+
 func pause_kits(paused: bool) -> void:
 	for child in client.get_children():
 		if not str(child.name).begins_with("PreviewKit"):
