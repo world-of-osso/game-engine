@@ -97,6 +97,11 @@ fn abbey_gate_fountain_draws_ten_water_tiles() {
     let geometry = liquid_geometry(liquid, 13);
     assert_eq!(geometry.positions.len(), 20);
     assert_eq!(geometry.indices.len(), 10 * 6);
+    let depths: Vec<_> = liquid.vertices.iter().map(|vertex| vertex.raw[0]).collect();
+    assert!(depths.contains(&0) && depths.contains(&22));
+    for (color, depth) in geometry.colors.iter().zip(depths) {
+        assert_eq!(*color, [1.0, 1.0, 1.0, f32::from(depth) / 255.0]);
+    }
     let [x, y, z] = geometry.positions[0];
     assert!(
         (x + 29.166_666).abs() < 1e-4
@@ -131,6 +136,19 @@ fn abbey_gate_fountain_draws_ten_water_tiles() {
             .iter()
             .all(|triangle| triangle.level_at(hidden.x, hidden.z).is_none())
     );
+}
+
+#[test]
+fn forge_fel_preserves_raw_depth_but_has_no_authored_edge_gradient() {
+    let group = parse_group(&read(4_334_603)).unwrap();
+    let liquid = group.geometry.liquid.as_ref().unwrap();
+    assert_eq!((liquid.header.x_verts, liquid.header.y_verts), (48, 46));
+    assert!(liquid.vertices.iter().all(|vertex| vertex.raw[0] == 80));
+    assert!(liquid.tiles.iter().all(|tile| tile.liquid_type == 0));
+    let geometry = liquid_geometry(liquid, 1192);
+    assert_eq!(geometry.colors.len(), 2208);
+    assert!(geometry.colors.iter().all(|color| color[3] == 80.0 / 255.0));
+    assert_eq!(geometry.indices.len(), 2115 * 6);
 }
 
 /// Cultists' Quay delve (5356285, group 5533972): an interior-lit group of WMO Water.
@@ -179,6 +197,7 @@ fn wmo_magma_uses_the_vertex_texture_coordinates() {
     };
     let magma = liquid_geometry(&liquid, 19);
     assert_eq!(magma.uvs[0], [3.0, -6.0]);
+    assert!(magma.colors.iter().all(|color| color[3] == 1.0));
     let slime = liquid_geometry(&liquid, 20);
     assert_eq!(slime.uvs[0], [3.0, 1.5]);
     // Vertex 3 at (i 1, j 1): x 100 + 4.1667, height 3 → Godot (104.17, 3, -54.17).
