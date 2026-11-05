@@ -8,11 +8,7 @@ use game_engine_core::foot_ik::{
     LegChain, LegJoints, LegRig, MAX_PELVIS_DROP, is_stance, pelvis_drop, solve_two_bone,
 };
 use glam::{Quat, Vec3};
-use godot::{
-    builtin::Transform3D,
-    classes::{Node3D, Skeleton3D},
-    prelude::*,
-};
+use godot::{classes::Skeleton3D, prelude::*};
 use shared::ground::STEP_UP_HEIGHT;
 
 /// A foot above the lower foot by more than this is swinging, not planted.
@@ -30,6 +26,23 @@ const MAX_TARGET_STEP: f32 = 0.35;
 pub(crate) struct FootIkState {
     legs: [LegState; 2],
     pelvis_drop: f32,
+    /// The values of the last solve, for fixture and diagnostic state.
+    pub(crate) last: FootSnapshot,
+}
+
+/// The last frame's solve values, per foot, in world yards.
+#[derive(Default, Clone, Copy)]
+pub(crate) struct FootSnapshot {
+    /// Blend weight applied to each foot.
+    pub weights: [f32; 2],
+    /// Smoothed target foot height (visible surface plus the bind-pose foot offset).
+    pub targets: [f32; 2],
+    /// Animated foot height before the solve.
+    pub animated: [f32; 2],
+    /// Collision floor under each foot.
+    pub floors: [f32; 2],
+    /// Smoothed pelvis drop.
+    pub pelvis_drop: f32,
 }
 
 #[derive(Default)]
@@ -55,17 +68,27 @@ impl FootIkState {
         floor_at: &dyn Fn(f32, f32) -> Option<f32>,
         surface_at: &mut dyn FnMut(f32, f32, f32, f32) -> Option<f32>,
     ) {
+        // All joint math stays in skeleton (model) space. The skeleton's own placement can
+        // be rotated and scaled, so a world-space solve would have to undo that orientation
+        // twice; this keeps the bone rotations directly writable.
         let model = skeleton.get_global_transform();
+        let world_from_model = model;
+        let model_from_world = model.affine_inverse();
         let mut joints = [
-            leg_joints(skeleton, &model, rig.legs[0]),
-            leg_joints(skeleton, &model, rig.legs[1]),
+            leg_joints(skeleton, rig.legs[0]),
+            leg_joints(skeleton, rig.legs[1]),
         ];
-        let lowest = joints[0].end.y.min(joints[1].end.y);
+        let world_end = |joints: &LegJoints| {
+            let end = joints.end;
+            let origin = world_from_model * Vector3::new(end.x, end.y, end.z);
+            Vec3::new(origin.x, origin.y, origin.z)
+        };
+        let lowest = world_end(&joints[0]).y.min(world_end(&joints[1]).y);
         // Targets follow the visible surface; a foot the animation lifted stays lifted.
         let mut targets = [Vec3::ZERO; 2];
         let mut weights = [0.0f32; 2];
         for (index, leg) in rig.legs.iter().enumerate() {
-            let foot = joints[index].end;
+            let foot = world_end(&joints[index]);
             let ankle = leg.end_height * model_from_world_scale;
             let desired = surface_target(foot.x, foot.z, ankle, floor_at, surface_at);
             let state = &mut self.legs[index];
@@ -83,20 +106,37 @@ impl FootIkState {
             let want = if enabled && planted { 1.0 } else { 0.0 };
             state.weight += (want - state.weight) * smoothing(delta, BLEND_SMOOTHING);
             weights[index] = state.weight;
-            targets[index] = Vec3::new(foot.x, smoothed, foot.z);
+            let model_point = model_from_world * Vector3::new(foot.x, smoothed, foot.z);
+            targets[index] = Vec3::new(model_point.x, model_point.y, model_point.z);
+        }
+        let mut snapshot = FootSnapshot {
+            weights,
+            targets: [world_end(&joints[0]).y, world_end(&joints[1]).y],
+            animated: [world_end(&joints[0]).y, world_end(&joints[1]).y],
+            floors: [f32::NAN; 2],
+            pelvis_drop: 0.0,
+        };
+        for index in 0..2 {
+            let foot = world_end(&joints[index]);
+            snapshot.floors[index] = floor_at(foot.x, foot.z).unwrap_or(f32::NAN);
+            let target = targets[index];
+            let world = world_from_model * Vector3::new(target.x, target.y, target.z);
+            snapshot.targets[index] = world.y;
         }
         let first = solve_two_bone(joints[0], targets[0], joints[0].lower, weights[0]);
         let second = solve_two_bone(joints[1], targets[1], joints[1].lower, weights[1]);
         let wanted_drop = pelvis_drop([&first, &second]);
         self.pelvis_drop += (wanted_drop - self.pelvis_drop) * smoothing(delta, BLEND_SMOOTHING);
         let drop = self.pelvis_drop.clamp(0.0, MAX_PELVIS_DROP);
+        snapshot.pelvis_drop = drop;
         if drop > 1e-4 {
             lower_pelvis(skeleton, rig.pelvis, drop, model_from_world_scale);
             joints = [
-                leg_joints(skeleton, &model, rig.legs[0]),
-                leg_joints(skeleton, &model, rig.legs[1]),
+                leg_joints(skeleton, rig.legs[0]),
+                leg_joints(skeleton, rig.legs[1]),
             ];
         }
+        self.last = snapshot;
         if weights[0] <= 0.001 && weights[1] <= 0.001 {
             return;
         }
@@ -113,7 +153,6 @@ impl FootIkState {
             apply_leg(
                 skeleton,
                 *leg,
-                joints[index],
                 solution.upper_rotation,
                 solution.lower_rotation,
                 weights[index],
@@ -146,11 +185,10 @@ fn surface_target(
     (target >= floor - 0.05 && target <= ceiling + ankle).then_some(target)
 }
 
-fn leg_joints(skeleton: &Gd<Skeleton3D>, model: &Transform3D, leg: LegChain) -> LegJoints {
+fn leg_joints(skeleton: &Gd<Skeleton3D>, leg: LegChain) -> LegJoints {
     let pose = |index: usize| {
         let origin = skeleton.get_bone_global_pose(index as i32).origin;
-        let world = *model * origin;
-        Vec3::new(world.x, world.y, world.z)
+        Vec3::new(origin.x, origin.y, origin.z)
     };
     LegJoints {
         upper: pose(leg.upper),
@@ -177,7 +215,6 @@ fn lower_pelvis(skeleton: &mut Gd<Skeleton3D>, pelvis: usize, drop: f32, scale: 
 fn apply_leg(
     skeleton: &mut Gd<Skeleton3D>,
     leg: LegChain,
-    joints: LegJoints,
     upper_rotation: Quat,
     lower_rotation: Quat,
     weight: f32,
