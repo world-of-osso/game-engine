@@ -1,3 +1,4 @@
+- [Offline BLS shader research](reference/bls-shaders.md) — exact GXSH extraction, SM5 assembly, declared slots and liquid t5 candidates; no runtime loading.
 - [World ribbon cost](investigations/godot-stormwind-fps.md#world-ribbon-cost-2026-11-01) — matched indoor CPU timings, hidden world ribbons, and an active NPC equipment check.
 - [Ruby Life Pools flame wall](investigations/ruby-flame-wall.md) — GO377194 open-state animation, observed particle drain and matched views.
 - [M2 animation transform errors](investigations/m2-nonfinite-transforms.md) — sequence alias parsing and zero-scale full bone override causes, fixes, and qualified live samples.

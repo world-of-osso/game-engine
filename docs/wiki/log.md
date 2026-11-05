@@ -1,3 +1,7 @@
+## 2026-11-05 — Offline BLS shader reader
+
+[Retail BLS research](reference/bls-shaders.md) records GXSH tables/zlib blocks, aliased permutations, SM5 assembly through pinned dxbc, DXIL listing and liquid texture-slot ranking. Procfel t5 uses a projective-sample difference for its V coordinate and RGB mix; runtime binding identities remain unknown.
+
 ## 2026-11-05 — G4 Fel UV and detail corrections
 
 [Liquid evidence](investigations/northshire-pale-water.md#retail70688-clean-room-corrections--2026-11-05) restores LiquidObject-driven Fel velocity and phase; objectless zero flow is static. Integer-tick wrap, shore>=2/specular>=3 are grounded; shore UV/mask/blend stay unchanged pendingG6.

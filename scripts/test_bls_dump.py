@@ -7,6 +7,7 @@ from pathlib import Path
 import struct
 import tempfile
 import unittest
+import zlib
 
 import bls_dump as bls
 
@@ -30,9 +31,37 @@ class RetailBundles(unittest.TestCase):
                     self.assertTrue(shader)
                     self.assertEqual(description['kind'], 'SM5')
                     self.assertTrue(description['inputs'])
-                    self.assertEqual(description['outputs'][0]['semantic'], 'SV_Target')
+                    self.assertEqual(description['outputs'][0]['semantic'], 'SV_TARGET')
                     self.assertNotIn('RDEF', description['chunks'])
                     self.assertEqual(wrapper['dxbc_offset'], 96)
+
+    def test_water_slots(self):
+        _, entries, raw = self.read_bundle(2977281)
+        expected = [[1, 16], [1, 14, 15, 16], [1, 13, 14, 15, 16]] * 2
+        actual = []
+        for entry in entries:
+            program, _ = bls.split_program(raw[entry['offset']:entry['offset'] + entry['size']])
+            description, _ = bls.describe_program(program)
+            actual.append(description['slots']['textures'])
+        self.assertEqual(actual, expected)
+
+    def test_exact_aliases_are_valid(self):
+        # Concrete ffxunderwaterlow: two permutations reference the same 616-byte record.
+        _, entries, raw = self.read_bundle(2977131)
+        self.assertEqual([(p['offset'], p['size']) for p in entries], [(0, 616), (0, 616)])
+        self.assertEqual(len(raw), 616)
+
+    def test_dxil_is_listed_without_invented_slots(self):
+        header, entries, raw = self.read_bundle(2990816)
+        self.assertEqual(header['profile'], 'DX60')
+        self.assertEqual(len(entries), 4)
+        for entry in entries:
+            program, _ = bls.split_program(raw[entry['offset']:entry['offset'] + entry['size']])
+            description, shader = bls.describe_program(program)
+            self.assertEqual(description['kind'], 'DXIL')
+            self.assertIsNone(shader)
+            self.assertIsNone(description['slots'])
+            self.assertTrue(description['inputs'])
 
     def test_fel_resource_slots_match_decompilation(self):
         _, entries, raw = self.read_bundle(2977134)
@@ -62,7 +91,7 @@ class RetailBundles(unittest.TestCase):
         data = (FIXTURES / '2977281.bls').read_bytes()
         for broken in [data[:39], data[:-1], data[:204] + bytes(len(data) - 204)]:
             with self.subTest(length=len(broken)):
-                with self.assertRaises((ValueError, struct.error)):
+                with self.assertRaises((ValueError, struct.error, zlib.error)):
                     bls.parse_bundle(broken)
 
 

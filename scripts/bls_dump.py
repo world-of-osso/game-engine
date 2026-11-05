@@ -53,10 +53,12 @@ def parse_bundle(data):
     offsets = [u32(data, block_table + i * 4) for i in range(blocks + 1)]
     require(offsets[0] == 0 and body + offsets[-1] == len(data), "invalid body extent")
     inflated = inflate_blocks(data, body, offsets, raw_size)
+    # Permutations can alias one record (ffxunderwaterlow has two identical entries).
+    ranges = sorted(set((entry['offset'], entry['size']) for entry in entries))
     end = 0
-    for entry in entries:
-        require(entry['offset'] == end, "non-contiguous permutation records")
-        end += entry['size']
+    for offset, size in ranges:
+        require(offset == end, "non-contiguous unique permutation records")
+        end += size
     require(end == raw_size, "permutation sizes do not cover inflated body")
     header = dict(version=0x1000e, profile=data[8:12][::-1].decode('ascii'),
                   permutation_table_offset=table, permutation_count=count,
