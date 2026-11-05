@@ -1,3 +1,7 @@
+## Forever census published: 19,055 receipts, 0 failures on the verified maps
+
+The 3,203 unreceipted Forever models and their closure are published (19,055 receipts, 904.4 MiB, build 1.60.1.70790) through a deterministic three-round closure walk. Verified through the object-gated preview: map 2832 140/969 -> 1109/0, map 2959 1336/5590 -> 5311/0, map 2980 1627/7459 -> 4159/0. Nine FDIDs remain, all absent from the build. Four Forever maps stream no tiles in the preview and map 2832 renders a uniform frame, so only two maps give a reviewable image pair. [[northshire-pale-water#Forever census published: 19,055 receipts, 0 spawn failures on the verified maps — 2026-11-05]].
+
 ## Forever-map census: 87% of placed models lack receipts
 
 The 35 Forever-only maps needed no rendering to census: each WDT's `MAID` chunk carries the per-tile `obj0` FDID, and in those `_obj0` files `MDDF`/`MODF` name ids are model FileDataIDs (no `MMDX`/`MMID`). Extracting 922 `_obj0` ADTs gives 182,990 placements over 3,482 distinct models, of which 3,203 (159,646 placements) have no `wow_classic_beta` receipt. `test` and `3109` have no WDT in build 1.60.1.70790. [[northshire-pale-water#Forever-map census: 3203 of 3482 placed models have no receipt — 2026-11-05]].

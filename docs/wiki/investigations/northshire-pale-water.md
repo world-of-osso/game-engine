@@ -195,3 +195,21 @@ The `Map.csv` comparison finds 35 Forever-only maps. Only 33 of their WDTs exist
 In these files `MDDF.nameId` and `MODF.nameId` **are the model FileDataID**; there is no `MMDX`/`MMID` indirection (an `_obj0` carries only `MVER`, `MDDF`, `MODF` and empty `MCNK`s). The 27 non-empty maps place 182,990 models and reference 3,482 distinct FDIDs; 3,203 of those FDIDs (159,646 placements, 87%) have no `wow_classic_beta` receipt, against 383 already published for this product. Per map, the largest reference counts are 2832 (19,033), 2959 (15,995), 2807 (14,724), 3021 (14,222) and 2856 (11,338); map 2991, the one with published receipts, places 4,012. Eight WDTs are empty (`ScottTest`, `TEST_01`, `StormwindPrison`, `Collin`, `Monastery`, `test`, `3109`, and 3065 with 6 placements).
 
 These counts cover M2 and WMO references only: skins and textures come from the M2 closure and are not counted. The extraction of the 3,203 missing models is running against the same staged install root and build key as the Zephras receipts; publishing them needs the receipt schema (`products/<product>/<build_key>/{models,textures}/<fdid>.<kind>` plus the index fragment), which is the next step.
+
+## Forever census published: 19,055 receipts, 0 spawn failures on the verified maps — 2026-11-05
+
+The three thousand two hundred and three placed Forever models without receipts are published, with their closure. `scripts/publish_forever_census.py` walks the M2/WMO dependency graph with `asset_closure.RawByteGraph` (the audit's own read-only parser), extracts every missing FDID from the local CASC through the installed `casc-local`, repeats until the frontier stops moving, and then writes one index fragment. It is deterministic: the same inputs produce the same receipt list, ordered by kind and FDID.
+
+Rounds and result: 16,375 assets (13,173 missing) → 20,011 assets (3,645 missing) → 20,011 assets (9 missing, a fixed point). Published 19,055 receipts for build 1.60.1.70790 (`9006ba6948388dd0d4a0578e64b8a92e`): 4,215 m2, 5,090 skin, 6,449 blp, 3,300 wmo, 1 anim, 904.4 MiB. 947 further assets were already covered by earlier fragments and were skipped, so the loader sees no duplicate `(product, fdid, kind)` across all 121 index files. Every published file was re-hashed against its receipt: 0 missing, 0 mismatches.
+
+The nine remaining FDIDs are one class, absent from the build itself: 192262, 194853, 243074, 243154, 243158, 243166, 243169, 243172, 603672. They belong to WMO doodad sets whose bytes this build does not ship; no bytes were taken from another product.
+
+`godot/tests/world_object_census.gd` is the verification harness. It previews one map pose, runs the lighting pass, waits for the object queue to drain, hides the UI (reading the root viewport without that returns the interface frame, identical for every pose), draws 30 frames, and reports `spawned`, `failures`, `pending` and the parsed tile count; `WATER_CENSUS_EYE` overrides the camera offset. Toggling the fragment out of `data/cache` gives the "before" state, because the product-isolated contract refuses the bytes without a receipt.
+
+| map | placements | before | after |
+|---|---|---|---|
+| 2832 | 19,033 | 140 spawned, 969 failed | 1109 spawned, 0 failed |
+| 2959 | 15,995 | 1336 spawned, 5590 failed | 5311 spawned, 0 failed |
+| 2980 | 10,681 | 1627 spawned, 7459 failed | 4159 spawned, 0 failed |
+
+Two limitations. First, four of the Forever maps (`2807`, `3021`, `2853`, `2998`) stream zero or one tile in the preview at every pose derived from their MAID data, so no object counts or useful frame could be taken there; the pose derivation is the same one that works for 2991, 2832, 2959 and 2980, so the cause is in the map's streaming state, not in the arithmetic. Second, map 2832 renders a uniform frame at every pose tried even though its counts move from 140/969 to 1109/0, so its before/after images are not reviewable; only 2959 and 2980 produced visible pairs.
