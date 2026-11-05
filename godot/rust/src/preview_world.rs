@@ -29,6 +29,38 @@ pub(crate) struct PreviewKit {
 }
 
 impl GameClient {
+    /// Moves a preview character to `position`, facing `yaw`, as movement would place it.
+    pub(crate) fn move_preview_character(
+        &mut self,
+        index: usize,
+        position: Vector3,
+        yaw: f64,
+    ) -> Result<(), String> {
+        let character = self
+            .preview_characters
+            .get(index)
+            .ok_or("preview character index out of range")?;
+        let mut node = character.node.clone();
+        node.set_position(position);
+        node.set_rotation(Vector3::new(0.0, yaw as f32, 0.0));
+        Ok(())
+    }
+
+    /// Turns ground-effect draping on or off for kits spawned afterwards.
+    pub(crate) fn set_preview_drape(&mut self, enabled: bool) {
+        self.client_options.graphics.ground_effect_draping_enabled = enabled;
+    }
+
+    /// Frees the previewed kits so the same spell can be spawned again.
+    pub(crate) fn clear_preview_kits(&mut self) {
+        for kit in self.preview_kits.drain(..) {
+            self.spell_effects.census_clear(kit.anchor.instance_id());
+            if kit.anchor.is_instance_valid() {
+                kit.anchor.clone().free();
+            }
+        }
+    }
+
     /// Gives previewed spell kits a world units root to hang their effects under.
     pub(crate) fn preview_ensure_units_root(&mut self) {
         if self.world.root().is_some() {

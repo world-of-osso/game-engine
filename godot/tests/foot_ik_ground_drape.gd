@@ -1,18 +1,25 @@
 extends SceneTree
 
-# Client-only visual proof: foot IK on real Stormwind cathedral steps and ground spell
-# draping of a real Death and Decay kit. Loads authored maps offline (no server), adds a
-# real player model / a real spell kit, and captures Forever frames.
+# v2 proofs: foot IK on a real Stormwind staircase (collision ramp under render treads)
+# and Death and Decay draping on flat ground, a raised surface edge, steps, and behind a
+# wall. Offline: no server, real authored map, real player model, real spell kit.
 #
-# CAPTURE_CASE: footik | drape_steps | drape_flat
+# CAPTURE_CASE: footik | drape_flat | drape_rug | drape_steps | drape_wall
 #
-# Headless frames run far faster than real time, so every wait here is a wall-clock wait:
-# the object loader, the spell assets and the IK smoothing all advance with time.
+# Headless frames run far faster than real time, so every wait is a wall-clock wait.
 
-const OUT_DIR := "/syncthing/AgentShared/2026-11-05/foot-ik-ground-drape/"
-const STORMWIND_STEP := Vector3(-8539.452, 135.47, -738.3701)
-# Open Elwynn ground east of Stormwind, for the flat-ground drape.
-const ELWYNN_FLAT := Vector3(-7939.0, 0.0, -138.0)
+const OUT_DIR := "/syncthing/AgentShared/2026-11-05/foot-ik-ground-drape/v2/"
+# Stormwind staircase: render treads from 107.95 down to 106.20 between x -8566 and -8562.
+const STAIR_BOTTOM := Vector3(-8564.0, 107.4, -778.0)
+const STAIR_TOP := Vector3(-8566.0, 0.0, -778.0)
+# Open flat ground beside the city wall (collision floor equals the drawn ground).
+const FLAT_GROUND := Vector3(-8590.0, 96.9, -770.0)
+# Stormwind rug lying on a floor, at the stairs' foot.
+const RUG := Vector3(-8550.4, 108.76, -720.9)
+# The foot of the cliff under the ledge: seen from above the ledge, the wall hides the
+# far half of the effect.
+const WALL_FOOT := Vector3(-8559.0, 99.6, -770.0)
+
 const DECAY_VISUAL := 173378
 const DECAY_KIT := 230208
 const DECAY_SPELL := 43265
@@ -39,10 +46,14 @@ func run() -> void:
 		return
 	if case == "footik":
 		await capture_foot_ik()
-	elif case == "drape_steps":
-		await capture_drape("Azeroth", STORMWIND_STEP, "steps")
 	elif case == "drape_flat":
-		await capture_drape("Azeroth", ELWYNN_FLAT, "flat")
+		await capture_drape("flat", FLAT_GROUND)
+	elif case == "drape_rug":
+		await capture_drape("rug", RUG)
+	elif case == "drape_steps":
+		await capture_drape("steps", STAIR_BOTTOM)
+	elif case == "drape_wall":
+		await capture_drape("wall", WALL_FOOT)
 	else:
 		fail("unknown CAPTURE_CASE " + case)
 
@@ -60,54 +71,19 @@ func wait_until(condition: Callable, label: String, timeout_ms: int) -> bool:
 	fail("timeout: " + label)
 	return false
 
-# Average milliseconds per rendered frame over `frames` frames.
-func average_frame_ms(frames: int) -> float:
-	var start := Time.get_ticks_usec()
-	for frame in frames:
-		await process_frame
-	return float(Time.get_ticks_usec() - start) / 1000.0 / frames
-
-func load_world(directory: String, point: Vector3) -> bool:
+func load_world(point: Vector3) -> bool:
 	client.preview_set_focus(point)
-	var error: String = client.preview_world_map(directory, point)
+	var error: String = client.preview_world_map("Azeroth", point)
 	if error != "":
-		fail("map " + directory + ": " + error)
+		fail("map Azeroth: " + error)
 		return false
 	return await wait_until(
 		func():
 			var state: Dictionary = client.account_state()
 			return client.terrain_height_at(point.x, point.z) != null \
 				and state.terrain.pending_count == 0,
-		"terrain " + directory, 240000)
+		"terrain", 240000)
 
-func place_camera(point: Vector3, eye: Vector3, focus: Vector3) -> void:
-	camera = Camera3D.new()
-	camera.far = 3000.0
-	root.add_child(camera)
-	camera.current = true
-	camera.position = eye
-	camera.look_at(focus)
-	var error: String = client.preview_world_lighting(point, eye)
-	if error != "":
-		fail("lighting: " + error)
-
-func capture(name: String) -> void:
-	hide_ui(client)
-	for frame in 3:
-		await process_frame
-	await RenderingServer.frame_post_draw
-	var image := root.get_texture().get_image()
-	if image == null or image.is_empty():
-		fail("capture " + name + " produced no image")
-		return
-	var path := OUT_DIR.path_join(name + ".png")
-	var error := image.save_png(path)
-	if error != OK:
-		fail("cannot save " + path)
-		return
-	print("CAPTURE skin=%s case=%s file=%s" % [client.account_state().ui_skin, OS.get_environment("CAPTURE_CASE"), path])
-
-# Whether the spawned world's object loader has nothing left to place.
 func objects_idle() -> bool:
 	var debug: Dictionary = JSON.parse_string(client.preview_objects_debug())
 	return debug.waiting_assets == 0 and debug.pending == 0 and debug.loading == 0
@@ -121,110 +97,191 @@ func wait_objects() -> bool:
 	fail("preview objects never finished loading")
 	return false
 
+func ground_at(point: Vector3) -> Dictionary:
+	return client.preview_probe_surface(point.x, point.z, point.y if point.y != 0.0 else 120.0)
+
+func place_camera(eye: Vector3, focus: Vector3) -> void:
+	if camera == null:
+		camera = Camera3D.new()
+		camera.far = 3000.0
+		root.add_child(camera)
+		camera.current = true
+	camera.position = eye
+	camera.look_at(focus)
+	var error: String = client.preview_world_lighting(focus, eye)
+	if error != "":
+		fail("lighting: " + error)
+
+func capture(name: String, with_ui: bool) -> void:
+	# Offline, the client shows its out-of-world screen, which covers the whole viewport;
+	# keep captures scene-only and rely on the asserted ui_skin for the Forever proof.
+	if not with_ui:
+		hide_ui(client)
+	for frame in 3:
+		await process_frame
+	await RenderingServer.frame_post_draw
+	var image := root.get_texture().get_image()
+	if image == null or image.is_empty():
+		fail("capture " + name + " produced no image")
+		return
+	var path := OUT_DIR.path_join(name + ".png")
+	var error := image.save_png(path)
+	if error != OK:
+		fail("cannot save " + path)
+		return
+	print("CAPTURE skin=%s case=%s ui=%s file=%s" % [client.account_state().ui_skin,
+		OS.get_environment("CAPTURE_CASE"), with_ui, path])
+
+func spawn_decay(point: Vector3) -> bool:
+	var started := Time.get_ticks_msec()
+	var error := ""
+	while Time.get_ticks_msec() < started + 120000:
+		await process_frame
+		error = client.preview_spell_kit(DECAY_VISUAL, DECAY_KIT, DECAY_SPELL, point)
+		if error == "":
+			return true
+	fail("spell kit: " + error)
+	return false
+
+# Side-on, waist-height, 4.5 yd from the legs, framing the feet and two treads.
+func stair_camera(feet: Vector3) -> void:
+	place_camera(feet + Vector3(0.0, 1.0, 4.5), feet + Vector3(0.0, 0.45, 0.0))
+
 func capture_foot_ik() -> void:
-	if not await load_world("Azeroth", STORMWIND_STEP):
+	if not await load_world(STAIR_BOTTOM):
 		return
 	client.set_world_minutes(1440.0)
-	client.preview_set_focus(STORMWIND_STEP)
-	print("MILESTONE world loaded")
-	var ready := await wait_until(
-		func():
-			var probe: Dictionary = client.preview_probe_surface(
-				STORMWIND_STEP.x, STORMWIND_STEP.z, STORMWIND_STEP.y)
-			return probe.surface > probe.floor + 0.15,
-		"render step spawned", 240000)
-	if not ready:
+	client.preview_set_focus(STAIR_BOTTOM)
+	if not await wait_objects():
 		return
-	print("PROBE " + JSON.stringify(client.preview_probe_surface(
-		STORMWIND_STEP.x, STORMWIND_STEP.z, STORMWIND_STEP.y)))
-	place_camera(STORMWIND_STEP, STORMWIND_STEP + Vector3(2.2, 1.2, 2.2), STORMWIND_STEP + Vector3(0.0, 0.55, 0.0))
-	await wait_ms(500)
-	await capture("foot-ik-stormwind-steps-empty")
-	print("MILESTONE empty captured")
-	var error: String = client.preview_character(1, 2, 0, STORMWIND_STEP, 2.4)
-	print("MILESTONE character added: " + error)
+	await wait_ms(1200)
+	var spot: Dictionary = client.preview_probe_surface(STAIR_BOTTOM.x, STAIR_BOTTOM.z, 120.0)
+	if spot.floor == null or spot.surface == null or is_nan(spot.surface):
+		fail("no stair surface at the capture point")
+		return
+	var tread: float = spot.surface
+	var floor_y: float = spot.floor
+	print("STAIR floor=%.2f surface=%.2f" % [floor_y, tread])
+	# Face up the stairs (-x); the camera looks along +z, side-on to the stride.
+	var error: String = client.preview_character(1, 2, 0, Vector3(STAIR_BOTTOM.x, floor_y, STAIR_BOTTOM.z), PI)
 	if error != "":
 		fail("character: " + error)
 		return
 	client.preview_character_clip(0, 0, 0.0)
 	client.preview_pause_character(0, true)
 	client.preview_foot_ik_enabled(false)
+	await wait_ms(1500)
+	# Calibrate: sink the authored feet a third of a yard under the tread so the
+	# before frame shows the feet inside the step and the after frame on top of it.
+	var stance: Dictionary = client.preview_foot_ik_state().characters[0]
+	var feet: float = (stance.animated[0] + stance.animated[1]) * 0.5
+	var node_y: float = floor_y + (tread - 0.35) - feet
+	client.preview_move_character(0, Vector3(STAIR_BOTTOM.x, node_y, STAIR_BOTTOM.z), PI)
 	await wait_ms(1200)
-	print("BEFORE " + JSON.stringify(client.preview_foot_ik_state()))
-	await capture("foot-ik-stormwind-stand-before")
+	place_camera(Vector3(STAIR_BOTTOM.x, node_y + 0.75, STAIR_BOTTOM.z + 2.8),
+		Vector3(STAIR_BOTTOM.x, node_y + 0.35, STAIR_BOTTOM.z))
+	await wait_ms(400)
+	print("PLACED node=%.2f tread=%.2f" % [node_y, tread])
+	# The same framing without the character, to prove where the legs and treads are.
+	client.preview_remove_characters()
+	await wait_ms(400)
+	await capture("foot-ik-stairs-empty", false)
+	error = client.preview_character(1, 2, 0, Vector3(STAIR_BOTTOM.x, floor_y, STAIR_BOTTOM.z), PI)
+	if error != "":
+		fail("character: " + error)
+		return
+	client.preview_character_clip(0, 0, 0.0)
+	client.preview_pause_character(0, true)
+	client.preview_foot_ik_enabled(false)
+	client.preview_move_character(0, Vector3(STAIR_BOTTOM.x, node_y, STAIR_BOTTOM.z), PI)
+	await wait_ms(1200)
+	var feet_point := Vector3(STAIR_BOTTOM.x, node_y, STAIR_BOTTOM.z)
+	print("FRAME feet=%s head=%s" % [camera.unproject_position(feet_point),
+		camera.unproject_position(feet_point + Vector3(0.0, 1.9, 0.0))])
+	print("STAND-BEFORE " + JSON.stringify(client.preview_foot_ik_state()))
+	await capture("foot-ik-stairs-stand-before", false)
 	client.preview_foot_ik_enabled(true)
 	await wait_ms(1500)
-	print("AFTER " + JSON.stringify(client.preview_foot_ik_state()))
-	await capture("foot-ik-stormwind-stand-after")
-	# Mid-stride walk pose: run the Walk clip and pause on the first frame where one foot is
-	# clearly lifted, so the stance foot is planted on the tread and the other swings.
-	client.preview_foot_ik_enabled(false)
+	print("STAND-AFTER " + JSON.stringify(client.preview_foot_ik_state()))
+	await capture("foot-ik-stairs-stand-after", false)
+	# Walk up: three stride frames, each one tread higher, at successive positions.
+	client.preview_foot_ik_enabled(true)
 	client.preview_character_clip(0, 4, 0.0)
 	client.preview_pause_character(0, false)
-	var lift_seen := 0.0
-	var stride_deadline := Time.get_ticks_msec() + 5000
-	while Time.get_ticks_msec() < stride_deadline:
-		await process_frame
-		var entry: Dictionary = client.preview_foot_ik_state().characters[0]
-		lift_seen = abs(entry.animated[0] - entry.animated[1])
-		if lift_seen > 0.15:
-			break
-	client.preview_pause_character(0, true)
-	print("WALK-STRIDE lift=%.3f" % lift_seen)
-	await wait_ms(300)
-	print("WALK-BEFORE " + JSON.stringify(client.preview_foot_ik_state()))
-	await capture("foot-ik-stormwind-walk-before")
-	client.preview_foot_ik_enabled(true)
-	await wait_ms(1500)
-	print("WALK-AFTER " + JSON.stringify(client.preview_foot_ik_state()))
-	await capture("foot-ik-stormwind-walk-after")
-	# Cost of the solve on this machine: the same standing pose, IK off then on.
-	var off_ms := await average_frame_ms(200)
-	client.preview_foot_ik_enabled(false)
-	var plain_ms := await average_frame_ms(200)
-	client.preview_foot_ik_enabled(true)
-	var on_ms := await average_frame_ms(200)
-	print("TIMING foot_ik_off=%.2fms foot_ik_on=%.2fms (first=%s)" % [plain_ms, on_ms, off_ms])
+	for step in 3:
+		var up := float(step)
+		var at := Vector3(STAIR_BOTTOM.x - up, node_y + 0.43 * up, STAIR_BOTTOM.z)
+		client.preview_move_character(0, at, PI)
+		place_camera(Vector3(at.x, at.y + 0.75, at.z + 2.8), Vector3(at.x, at.y + 0.35, at.z))
+		var lift := 0.0
+		var deadline := Time.get_ticks_msec() + 5000
+		while Time.get_ticks_msec() < deadline:
+			await process_frame
+			var entry: Dictionary = client.preview_foot_ik_state().characters[0]
+			lift = abs(entry.animated[0] - entry.animated[1])
+			if lift > 0.12:
+				break
+		client.preview_pause_character(0, true)
+		print("WALK-%d lift=%.3f at=%s" % [step, lift, JSON.stringify(at)])
+		await wait_ms(500)
+		await capture("foot-ik-stairs-walk-%d" % step, false)
+		client.preview_pause_character(0, false)
 	finish()
 
-func capture_drape(directory: String, point: Vector3, label: String) -> void:
-	if not await load_world(directory, point):
+# The collision floor and visible surface under a column, searched from a few heights
+# above the terrain: an authored floor can sit anywhere above it.
+func ground_probe(x: float, z: float, near: float) -> Dictionary:
+	var terrain: float = client.terrain_height_at(x, z)
+	var origins := [near, terrain + 10.0, terrain + 3.0, terrain + 1.5, terrain + 20.0, terrain + 30.0]
+	for origin in origins:
+		if origin == 0.0:
+			continue
+		var probe: Dictionary = client.preview_probe_surface(x, z, origin)
+		if probe.floor == null or is_nan(probe.floor):
+			continue
+		if probe.surface == null or is_nan(probe.surface):
+			continue
+		return probe
+	return {}
+
+func capture_drape(label: String, point: Vector3) -> void:
+	if not await load_world(point):
 		return
-	if point.y == 0.0:
-		point.y = client.terrain_height_at(point.x, point.z)
 	client.preview_set_focus(point)
-	place_camera(point, point + Vector3(0.0, 3.4, 7.0), point)
 	if not await wait_objects():
 		return
-	# Terrain meshes finish a frame or two after the streaming counters reach zero.
 	await wait_ms(1500)
-	var probe: Dictionary = client.preview_probe_surface(point.x, point.z, point.y)
-	print("PROBE-" + label + " " + JSON.stringify(probe))
-	await capture("ground-drape-%s-bare" % label)
-	var started_kit := ""
-	var deadline := Time.get_ticks_msec() + 120000
-	while Time.get_ticks_msec() < deadline:
-		await process_frame
-		started_kit = client.preview_spell_kit(DECAY_VISUAL, DECAY_KIT, DECAY_SPELL, point)
-		if started_kit == "":
-			break
-	if started_kit != "":
-		fail("spell kit: " + started_kit)
+	var probe: Dictionary = ground_probe(point.x, point.z, point.y)
+	if probe.is_empty():
+		fail("no collision floor and render surface at the capture point")
 		return
-	print("DRAPE-KITS started")
+	# Anchor the effect on the ground it is meant to lie on.
+	point.y = probe.floor
+	print("PROBE-%s %s" % [label, JSON.stringify(probe)])
+	# 45 degrees above, close enough that the 5.9 yd disc fills about a third of the frame.
+	if label == "wall":
+		place_camera(Vector3(point.x - 7.5, point.y + 9.4, point.z + 1.0), point)
+	else:
+		place_camera(point + Vector3(3.6, 3.6, 4.8), point)
+	if label != "wall":
+		print("FRAME-%s center=%s left=%s right=%s" % [label,
+			camera.unproject_position(point),
+			camera.unproject_position(point + Vector3(-3.0, 0.0, 0.0)),
+			camera.unproject_position(point + Vector3(3.0, 0.0, 0.0))])
+	# Before: draping off, the authored kit placement (a yard above its anchor).
+	client.preview_set_drape(false)
+	if not await spawn_decay(point):
+		return
 	await wait_ms(1200)
-	await capture("ground-drape-%s-forever" % label)
-	if label == "steps":
-		# Straddle the stair edge: half the effect stays on the tread, half on the floor.
-		point += Vector3(1.8, 0.0, 0.0)
-		camera.position = point + Vector3(0.0, 3.0, 6.0)
-		camera.look_at(point)
-		var edge: String = client.preview_spell_kit(DECAY_VISUAL, DECAY_KIT, DECAY_SPELL, point)
-		if edge != "":
-			fail("step edge kit: " + edge)
-			return
-		await wait_ms(1200)
-		await capture("ground-drape-steps-edge-forever")
+	await capture("ground-drape-%s-before" % label, false)
+	client.preview_clear_kits()
+	await wait_ms(400)
+	# After: draping on, same kit at the same point.
+	client.preview_set_drape(true)
+	if not await spawn_decay(point):
+		return
+	await wait_ms(1500)
+	await capture("ground-drape-%s-after" % label, false)
 	finish()
 
 func hide_ui(node: Node) -> void:

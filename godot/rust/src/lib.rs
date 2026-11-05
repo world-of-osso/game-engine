@@ -948,6 +948,28 @@ impl GameClient {
         self.preview_foot_state()
     }
 
+    /// Offline fixture: place a preview character where movement would put it.
+    #[func]
+    fn preview_move_character(&mut self, index: i64, position: Vector3, yaw: f64) -> GString {
+        let index = usize::try_from(index).unwrap_or(0);
+        match self.move_preview_character(index, position, yaw) {
+            Ok(()) => GString::new(),
+            Err(error) => GString::from(error.as_str()),
+        }
+    }
+
+    /// Offline fixture: ground-effect draping on or off for kits spawned afterwards.
+    #[func]
+    fn preview_set_drape(&mut self, enabled: bool) {
+        self.set_preview_drape(enabled);
+    }
+
+    /// Offline fixture: free the previewed spell kits.
+    #[func]
+    fn preview_clear_kits(&mut self) {
+        self.clear_preview_kits();
+    }
+
     /// Offline fixture: object queue and loader counters.
     #[func]
     fn preview_objects_debug(&self) -> GString {
