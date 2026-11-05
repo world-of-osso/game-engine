@@ -108,7 +108,7 @@ pub fn liquid_triangles(liquid: &WmoLiquid, liquid_type: u16) -> Vec<LiquidTrian
 }
 
 /// The drawn tiles of `liquid` in WMO-local Godot axes, before the WMO placement: each
-/// vertex at its MLIQ height, raw water-depth byte /255 (alpha), and UVs in chunks of
+/// vertex at its MLIQ height, depth 1 (alpha), and texture coordinates in chunks of
 /// WMO-local position, or the magma vertex `s, t * 3 / 256` for `liquid_type` 19.
 pub fn liquid_geometry(liquid: &WmoLiquid, liquid_type: u16) -> WaterGeometry {
     let (positions, uvs) = liquid_vertices(liquid, liquid_type);
@@ -117,19 +117,7 @@ pub fn liquid_geometry(liquid: &WmoLiquid, liquid_type: u16) -> WaterGeometry {
         positions,
         normals: vec![[0.0, 1.0, 0.0]; count],
         uvs,
-        colors: liquid
-            .vertices
-            .iter()
-            .map(|vertex| {
-                // Magma19 uses this union as two signed UV coordinates, not depth.
-                let depth = if liquid_type == WMO_MAGMA {
-                    1.0
-                } else {
-                    f32::from(vertex.raw[0]) / 255.0
-                };
-                [1.0, 1.0, 1.0, depth]
-            })
-            .collect(),
+        colors: vec![[1.0; 4]; count],
         indices: drawn_tile_indices(liquid),
     }
 }
