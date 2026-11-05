@@ -35,6 +35,8 @@ const MISSING_LIQUID_TYPE: u32 = 8;
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum LiquidShader {
     Water,
+    /// Forever Material130 `Liquid::LiquidTypePBRWater`; six authored foam masks.
+    PbrWater,
     Magma,
     Mercury,
     Fog,
@@ -47,6 +49,7 @@ pub enum LiquidShader {
 impl LiquidShader {
     pub fn for_material(material_id: u8) -> Self {
         match material_id {
+            PBR_WATER_MATERIAL => Self::PbrWater,
             2 | 4 => Self::Magma,
             5 => Self::Mercury,
             10 => Self::Fog,
@@ -62,6 +65,7 @@ impl LiquidShader {
     pub fn texture_slots(self) -> &'static [usize] {
         match self {
             Self::Water => &[2, 3],
+            Self::PbrWater => &[0, 1, 2, 3, 4, 5],
             // E5: level 0 draws environment group 0 (the type's first texture); levels 1+
             // replace it with the class-owned noise blob, so both are read.
             Self::Magma => &[0, 1, 2, 3],
@@ -138,6 +142,59 @@ pub struct LiquidMaterial {
     pub wave_periods: [f32; 2],
 }
 
+impl LiquidMaterial {
+    /// Forever Material130 G4-compatible layer transforms: three layers, each
+    /// `(scale, phase degrees, velocity)` from `Float[3k..3k+2]`. The six authored
+    /// textures share these three transforms; G4 proves the roles for the first three
+    /// triples and the count matches the row's `Float[0..8]`.
+    pub fn pbr_layer_transforms(&self) -> [[f32; 3]; 3] {
+        let mut layers = [[0.0; 3]; 3];
+        for (layer, values) in layers.iter_mut().enumerate() {
+            for (role, value) in values.iter_mut().enumerate() {
+                *value = self.floats.get(layer * 3 + role).copied().unwrap_or(0.0);
+            }
+        }
+        layers
+    }
+
+    /// Forever EF2: the PBRWater prepare copies all 38 floats verbatim into a
+    /// CPU-assembled material block. Vector 0 is `(1-Color0.rgb, Float_0)`, then
+    /// `Float[3..6]`, then `(Color1.rgb, Float_2)`, then `(Color2.rgb, Float_1)`,
+    /// then `Float[7..25]` with `+0x60 = Float_15` and `+0x64 = Float_19`.
+    /// Colors are returned in the stored BGR order, as LiquidData stores them.
+    pub fn pbr_material_batch(&self) -> [f32; 38] {
+        let float = |index: usize| self.floats.get(index).copied().unwrap_or(0.0);
+        let color = |index: usize| self.colors.get(index).copied().unwrap_or([0.0; 3]);
+        let mut batch = [0.0; 38];
+        let color_0 = color(0);
+        batch[0..3].copy_from_slice(&[1.0 - color_0[0], 1.0 - color_0[1], 1.0 - color_0[2]]);
+        batch[3] = float(0);
+        batch[4..8].copy_from_slice(&[float(3), float(4), float(5), float(6)]);
+        batch[8..11].copy_from_slice(&color(1));
+        batch[11] = float(2);
+        batch[12..15].copy_from_slice(&color(2));
+        batch[15] = float(1);
+        for index in 0..19 {
+            batch[16 + index] = float(7 + index);
+        }
+        // EF2's two explicit batch-word overrides.
+        batch[24] = float(15);
+        batch[25] = float(19);
+        batch
+    }
+
+    /// G4: `Float[13..17]` are the raw shader constants. Forever Water permutation 2
+    /// evaluates one cubic on its t14 mask and scales the result by a single weight;
+    /// the only five row floats left after `[0..12]` are these.
+    pub fn pbr_foam(&self) -> ([f32; 4], f32) {
+        let mut cubic = [0.0; 4];
+        for (index, value) in cubic.iter_mut().enumerate() {
+            *value = self.floats.get(13 + index).copied().unwrap_or(0.0);
+        }
+        (cubic, self.floats.get(17).copied().unwrap_or(0.0))
+    }
+}
+
 /// Which client path resolves a liquid surface. G7: the terrain `MH2O` draw uses the layer's
 /// id verbatim and has no miss retry; E6: the WMO path's instance factory retries an unknown
 /// id with the shared type 8. The 1..20 -> {13,14,19,20} rewrite lives only in the WMO chunk
@@ -206,6 +263,10 @@ pub struct MapLiquidCatalog {
     retail: LiquidCatalog,
     forever_maps: HashSet<u32>,
     forever: Result<LiquidCatalog, String>,
+    /// Explicit opt-in for the Forever Material130 PBR path. Off by default: the
+    /// authored PBR inputs are incomplete (procedural depth texture and prepass are
+    /// still unpublished), so the same-product LiquidType5 fallback stays default.
+    pbr_water: bool,
 }
 
 impl MapLiquidCatalog {
@@ -224,12 +285,22 @@ impl MapLiquidCatalog {
             retail: LiquidCatalog::read(&retail_dir)?,
             forever_maps,
             forever: LiquidCatalog::read(&forever_dir),
+            pbr_water: false,
         })
     }
 
-    /// Material130 has no implemented PBR renderer. This explicitly borrows LiquidType5
-    /// legacy inputs, not a client-authored fallback. Retire when the PBR contract is ported.
-    /// Source metadata remains intact in `liquid_material`.
+    /// Opt in to the Forever Material130 PBR path. Off by default until the
+    /// procedural depth texture and prepass exist; the fallback below is otherwise used.
+    pub fn set_pbr_water(&mut self, enabled: bool) {
+        self.pbr_water = enabled;
+    }
+
+    pub fn pbr_water(&self) -> bool {
+        self.pbr_water
+    }
+
+    /// Material130 default: the same-product LiquidType5 fallback (master behaviour).
+    /// With `set_pbr_water(true)` it renders its own six authored masks and 38 floats.
     pub fn render_material(
         &self,
         family: LiquidFamily,
@@ -238,7 +309,7 @@ impl MapLiquidCatalog {
         liquid_object: u16,
     ) -> Result<LiquidMaterial, String> {
         let source = self.surface(family, map_id, liquid_type, liquid_object)?;
-        if source.material_id != PBR_WATER_MATERIAL {
+        if source.material_id != PBR_WATER_MATERIAL || self.pbr_water {
             return Ok(source);
         }
         let catalog = if self.uses_forever(map_id) {
@@ -246,15 +317,17 @@ impl MapLiquidCatalog {
         } else {
             &self.retail
         };
-        let mut borrowed = catalog.liquid_material(LEGACY_WATER_TYPE, 0)            .map_err(|error| format!("LiquidType {liquid_type} Material130 requires borrowed LiquidType5 inputs: {error}"))?;
+        let mut borrowed = catalog.liquid_material(LEGACY_WATER_TYPE, 0).map_err(|error| {
+            format!("LiquidType {liquid_type} Material130 requires LiquidType5 fallback inputs: {error}")
+        })?;
         if borrowed.material_id != 1 {
-            return Err("Borrowed LiquidType5 must identify legacy Water material1".into());
+            return Err("LiquidType5 fallback must identify legacy Water material1".into());
         }
         for &slot in LiquidShader::Water.texture_slots() {
             let frames = &borrowed.texture_slots[slot];
             if frames.is_empty() || frames.contains(&0) {
                 return Err(format!(
-                    "LiquidType {liquid_type} Material130 borrowed LiquidType5 has no valid texture for required legacy slot {slot}"
+                    "LiquidType {liquid_type} Material130 LiquidType5 fallback has no valid texture for required slot {slot}"
                 ));
             }
         }

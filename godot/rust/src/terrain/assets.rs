@@ -1,5 +1,15 @@
 //! Local-CASC map and split-ADT reads for the native world host.
 
+/// Explicit opt-in for the Forever Material130 PBR path. Off by default: the authored
+/// path still lacks the procedural depth texture and the PBR prepass, so the LiquidType5
+/// fallback remains the default image.
+fn pbr_water_enabled() -> bool {
+    matches!(
+        std::env::var("GAME_ENGINE_PBR_WATER").as_deref(),
+        Ok("1") | Ok("true")
+    )
+}
+
 use std::path::{Path, PathBuf};
 use std::{
     cell::RefCell,
@@ -725,7 +735,12 @@ impl LiquidSource<'_> {
     fn resolve(&self, (liquid_type, liquid_object): (u16, u16)) -> Result<LiquidMaterial, String> {
         let catalog = self
             .catalog
-            .get_or_init(|| MapLiquidCatalog::read(self.data_root))
+            .get_or_init(|| {
+                MapLiquidCatalog::read(self.data_root).map(|mut catalog| {
+                    catalog.set_pbr_water(pbr_water_enabled());
+                    catalog
+                })
+            })
             .as_ref()
             .map_err(Clone::clone)?;
         catalog.render_material(self.family, self.map_id, liquid_type, liquid_object)

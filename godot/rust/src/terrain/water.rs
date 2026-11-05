@@ -42,6 +42,8 @@ struct LiquidSurface {
     bound: [Option<usize>; TEXTURE_SLOTS],
     /// E5 Retail70688: Fel calls the group lookup with frame period zero.
     fixed_frames: bool,
+    /// Material130 owns the material clock instead of the shared liquid global.
+    pbr: bool,
 }
 
 impl WaterMaterials {
@@ -246,6 +248,7 @@ impl WaterMaterials {
             crossfade,
             bound: [None; TEXTURE_SLOTS],
             fixed_frames: native.params.shader == LiquidShader::Fel,
+            pbr: native.params.material_id == PBR_WATER_MATERIAL,
         };
         surface.set_time(0.0);
         self.warn_borrowed_water(&native.params);
@@ -254,10 +257,11 @@ impl WaterMaterials {
 
     fn warn_borrowed_water(&mut self, params: &game_engine_core::liquid_data::LiquidMaterial) {
         if params.material_id == PBR_WATER_MATERIAL
+            && params.shader == LiquidShader::Water
             && self.borrowed_water_types.insert(params.liquid_type)
         {
             godot_warn!(
-                "Material130 PBR water rendered with legacy fallback, parity unsupported; LiquidType {} uses borrowed LiquidType 5 legacy inputs, not authored PBR data",
+                "Material130 PBR water uses the LiquidType5 fallback until the procedural depth texture and prepass land; set GAME_ENGINE_PBR_WATER=1 to opt in. LiquidType {}",
                 params.liquid_type
             );
         }
@@ -310,6 +314,7 @@ impl WaterMaterials {
 fn shader_path(kind: LiquidShader) -> &'static str {
     match kind {
         LiquidShader::Water => "res://shaders/water.gdshader",
+        LiquidShader::PbrWater => "res://shaders/liquid_pbr_water.gdshader",
         LiquidShader::Magma => "res://shaders/liquid_magma.gdshader",
         LiquidShader::Mercury => "res://shaders/liquid_mercury.gdshader",
         LiquidShader::Fog => "res://shaders/liquid_fog.gdshader",
@@ -335,6 +340,10 @@ impl LiquidSurface {
     /// (`resolveAnimatedTextures`), the shader blending by the fractional frame position.
     fn set_time(&mut self, milliseconds: f64) {
         let milliseconds = if self.fixed_frames { 0.0 } else { milliseconds };
+        if self.pbr {
+            self.material
+                .set_shader_parameter("pbr_time_ms", &(milliseconds as f32).to_variant());
+        }
         let second = (milliseconds * 0.001) as usize;
         for (slot, frames) in self.slots.iter().enumerate() {
             if frames.is_empty() {
@@ -369,6 +378,28 @@ impl LiquidSurface {
 fn bind_liquid_material(material: &mut Gd<ShaderMaterial>, native: &NativeLiquidMaterial) {
     let params = &native.params;
     let f = &params.floats;
+    let pbr_water = params.material_id == PBR_WATER_MATERIAL;
+    material.set_shader_parameter("pbr_water", &pbr_water.to_variant());
+    if pbr_water {
+        // Forever EF2: all 38 floats are copied verbatim into one CPU-assembled block.
+        // The batch -> cb-register hop is unpublished, so the shader consumes the block
+        // by index and labels that hop ADAPTED.
+        for (vector, values) in params
+            .pbr_material_batch()
+            .chunks(4)
+            .map(|values| {
+                let mut vector = [0.0f32; 4];
+                vector[..values.len()].copy_from_slice(values);
+                vector
+            })
+            .enumerate()
+        {
+            material.set_shader_parameter(
+                &format!("pbr_batch_{vector}"),
+                &Vector4::from_array(values).to_variant(),
+            );
+        }
+    }
     for (name, start) in [
         ("floats_0", 0),
         ("floats_4", 4),
@@ -391,6 +422,16 @@ fn bind_liquid_material(material: &mut Gd<ShaderMaterial>, native: &NativeLiquid
     }
     let [a, b, c, d] = params.ints;
     material.set_shader_parameter("liquid_ints", &Vector4i::new(a, b, c, d).to_variant());
+    if !pbr_water {
+        // G10 shore: the baked map stores water depth in yards; Float[11] is the fade
+        // width. EF2: Forever PBRWater does not use Float_11 for this; its depth source
+        // is a procedural engine texture still being identified.
+        let float_11 = f.get(11).copied().unwrap_or(0.0);
+        material.set_shader_parameter(
+            "shore_scale",
+            &(if float_11 > 0.0 { 1.0 / float_11 } else { 1.0 }).to_variant(),
+        );
+    }
     material.set_shader_parameter(
         "wave_periods",
         &Vector2::from_array(params.wave_periods).to_variant(),

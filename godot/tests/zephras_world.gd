@@ -23,6 +23,9 @@ func run_test() -> void:
 	# Let startup settle before the fixture requests a map.
 	for frame in 120:
 		await process_frame
+	if str(client.account_state().ui_skin) != "Forever":
+		fail("Zephras proof requires the Forever skin: " + str(client.account_state().ui_skin))
+		return
 	var error: String = client.preview_world_map("2991", CENTER)
 	if error != "":
 		fail(error)
@@ -76,6 +79,9 @@ func run_test() -> void:
 			fail(lighting_error)
 			return
 		hide_ui(client)
+		# Freeze the shared material clock so two builds capture the same water phase.
+		root.get_node("M2MaterialClock").set_process(false)
+		RenderingServer.global_shader_parameter_set("liquid_animation_time_ms", 2000.0)
 		for frame in 30:
 			await process_frame
 		await RenderingServer.frame_post_draw

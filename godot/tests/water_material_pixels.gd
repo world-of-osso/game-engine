@@ -46,6 +46,8 @@ func run() -> void:
 		if error != "":
 			fail(error)
 			return
+	var image := await capture()
+	image.save_png("res://../data/diagnostics/northshire-water-after.png")
 	print("PASS: WATER_MATERIAL_PIXELS")
 	quit(0)
 

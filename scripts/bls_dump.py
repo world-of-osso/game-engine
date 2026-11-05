@@ -47,14 +47,18 @@ def parse_bundle(data):
     for index in range(count):
         entry = slice_bytes(data, table + index * 24, 24)
         offset, size = struct.unpack_from("<2I", entry)
-        entries.append(dict(index=index, offset=offset, size=size,
+        # Forever publishes a fixed-size table with unused slots left as all-ones.
+        # They reference no record; the remaining entries still cover the body.
+        empty = offset == 0xFFFFFFFF and size == 0
+        entries.append(dict(index=index, offset=offset, size=size, empty=empty,
                             opaque_key=entry[8:].hex()))
     raw_size = u32(data, block_table - 4)
     offsets = [u32(data, block_table + i * 4) for i in range(blocks + 1)]
     require(offsets[0] == 0 and body + offsets[-1] == len(data), "invalid body extent")
     inflated = inflate_blocks(data, body, offsets, raw_size)
     # Permutations can alias one record (ffxunderwaterlow has two identical entries).
-    ranges = sorted(set((entry['offset'], entry['size']) for entry in entries))
+    ranges = sorted(set((entry['offset'], entry['size'])
+                        for entry in entries if not entry['empty']))
     end = 0
     for offset, size in ranges:
         require(offset == end, "non-contiguous unique permutation records")
@@ -207,6 +211,8 @@ def write_dump(path, output, disassembler):
     programs = []
     shex_paths = []
     for entry in entries:
+        if entry['empty']:
+            continue
         record = slice_bytes(raw, entry['offset'], entry['size'])
         program, wrapper = split_program(record)
         description, shader = describe_program(program)

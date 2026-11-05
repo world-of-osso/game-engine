@@ -43,6 +43,10 @@ The block table contains `block_count+1` offsets relative to the compressed body
 
 Permutation records have an opaque wrapper around a conventional DXBC container. The tested SM5 liquid records start DXBC at byte 96. The tool finds DXBC within each bounded record, validates the container/chunk sizes and retains prefix/suffix bytes. It does not claim that the wrapper fields are understood. Extracted DXBC headers include their original checksum. ISGN/OSGN describe signatures; SHEX/SHDR contain SM4/5 tokens. RDEF is absent in the tested liquid SM5 programs. Slot reports decode `dcl_resource`, `dcl_sampler` and `dcl_constantbuffer` operands; constant-buffer sizes are float4 vector counts. Fel DX60 has SFI0, ISG1, OSG1, PSV0, HASH and DXIL chunks.
 
+## Forever container and PBR water family (verified 2026-11-05)
+
+Forever `wowf` 1.60.1.70790 bundles can publish a fixed 2048-entry permutation table whose unused slots are all `0xFFFFFFFF/0`; the remaining entries still cover the inflated body contiguously, and the reader now skips the empty slots. New Forever-only bundles: `2977157` (DX5) / `2990839` (DX6), the 256-program uber material family whose `(0,1,3,11,16,23)` pattern takes `COLOR0+COLOR2+TEXCOORD0-5`; `2977280` / `2990958` (MLLD far-terrain LOD); `2977159` / `2990841` (two-texture blend). The Forever `water.bls` family (`2977281`, 12 permutations vs Retail 6) adds the PBR flag `cb5[172].y`, `cb1[32]/[33]` colours, a cubic-height t16 composite via `cb5[168]`, and six permutations with `SV_TARGET1`. See `data/diagnostics/forever-pbr-water-2026-11-05/`.
+
 ## Liquid findings (verified 2026-11-05)
 
 Local CASC resolution-cache build key: `bc493ecb2898766c0f8947a99b4b3d65`. This identifies the source cache, not a numeric retail build. Names come from the existing local community listfile; no ocean/slime/shore-named BLS entry exists there. This does not prove that those effects do not exist under other shader names.

@@ -1,3 +1,11 @@
+## Forever Material130 PBR water — opt-in only
+
+[[northshire-pale-water#Zephras Material130 — PBR contract, opt-in (fallback default)]] records the review outcome: the authored PBR path looked worse than master because the procedural depth texture G12 and the prepass are missing, so it is gated behind `GAME_ENGINE_PBR_WATER=1` and the LiquidType5 fallback remains default. Default captures match master: Northshire byte-identical, frozen-clock Zephras differs in 8 of 921,600 pixels. Retail water returns to master's depth-byte shader; ShoreDepthMap wiring is master-only for WMO. Core `forever_liquids` 4/4 and Python 5/5 pass; opt-in GPU fixture PASSes. Side-by-sides in `/syncthing/AgentShared/2026-11-05/forever-pbr-water/`.
+
+## Forever Material130 PBR water — fallback retired
+
+[[northshire-pale-water#Zephras Material130 — PBR contract, opt-in (fallback default)]] records EF1/EF2: Material130 is `Liquid::LiquidTypePBRWater`, family uber 2977157 (INFERRED) with a separate prepass, six LiquidTypeXTexture foam masks and the 38-float EF2 batch. The Godot path binds the masks and batch, uses the authored row Color fields (LightData7588 RGB is black) and labels the unpublished cb/unit hops ADAPTED. `Float_11` is not the PBR fade and ShoreDepthMap is not baked for Forever. The Retail water rebase (70688 G9/G10) removes the MH2O depth byte and samples ShoreDepthMap. Core `forever_liquids` 3/3 and Python 5/5 pass; GPU `pbr_water_pixels` and `water_material_pixels` PASS; Zephras coast before/after captures in `/syncthing/AgentShared/2026-11-05/forever-pbr-water/`.
+
 ## 2026-11-05 — Offline BLS shader reader
 
 [Retail BLS research](reference/bls-shaders.md) records GXSH tables/zlib blocks, aliased permutations, SM5 assembly through pinned dxbc, DXIL listing and liquid texture-slot ranking. Procfel t5 uses a projective-sample difference for its V coordinate and RGB mix; runtime binding identities remain unknown.
@@ -2195,7 +2203,7 @@ Proof: `data/diagnostics/guildranks-2026-10-05/proof.md`. No server edits/builds
 
 ## Zephras near-white water — proved input mismatch, labelled borrowed fallback
 
-[[northshire-pale-water#Zephras Material130 — explicit borrowed legacy fallback]] records the unshifted38-field DBD mapping, raw flags/lighting and decoded foam-as-normal mistake. Negative opacity amplified backing6.27×; GPU GREEN limits gain to.98×. Source38 floats remain intact; Material130 draws with explicitly borrowed same-product LiquidType5 inputs, not invented PBR math. Core16/16/native1/1 pass; importer/closure proof retained. Matched Zephras/normal-lit Retail coast captures exit0/zero engine errors, with one warning per PBR type. Blue-gray refracted water replaces the near-white sheet; PBR/FFT parity and settled-world remain open. [Ledger](../../target/zephras-water-white/ledger.md).
+[[northshire-pale-water#Zephras Material130 — PBR contract, opt-in (fallback default)]] records the unshifted38-field DBD mapping, raw flags/lighting and decoded foam-as-normal mistake. Negative opacity amplified backing6.27×; GPU GREEN limits gain to.98×. Source38 floats remain intact; Material130 draws with explicitly borrowed same-product LiquidType5 inputs, not invented PBR math. Core16/16/native1/1 pass; importer/closure proof retained. Matched Zephras/normal-lit Retail coast captures exit0/zero engine errors, with one warning per PBR type. Blue-gray refracted water replaces the near-white sheet; PBR/FFT parity and settled-world remain open. [Ledger](../../target/zephras-water-white/ledger.md).
 
 ## Zephras liquid catalogs — import and bounded CPU proof
 

@@ -58,11 +58,11 @@ fn forever_liquids_resolve_observed_objects_and_preserve_every_retail_material()
 }
 
 #[test]
-fn pbr_source_floats_survive_and_legacy_render_borrows_only_forever_slow_water_inputs() {
+fn pbr_material_renders_its_own_six_textures_and_38_floats() {
     let data = data_root();
-    let maps = MapLiquidCatalog::read(&data).unwrap();
+    let mut maps = MapLiquidCatalog::read(&data).unwrap();
+    maps.set_pbr_water(true);
     let forever = LiquidCatalog::read(&data.join("db2/1.60.1.70205")).unwrap();
-    let legacy = forever.liquid_material(5, 0).unwrap();
     for (kind, object) in [(1251, 18420), (1279, 21229)] {
         let source = maps.liquid_material(2991, kind, object).unwrap();
         assert_eq!(source.floats.len(), 38);
@@ -75,17 +75,44 @@ fn pbr_source_floats_survive_and_legacy_render_borrows_only_forever_slow_water_i
                 object,
             )
             .unwrap();
+        assert_eq!(rendered, source);
         assert_eq!(rendered.liquid_type, u32::from(kind));
         assert_eq!(rendered.material_id, 130);
-        assert_eq!(rendered.lvf, source.lvf);
-        assert_eq!(rendered.flow_speed, source.flow_speed);
-        assert_eq!(rendered.flow_direction, source.flow_direction);
-        assert_eq!(rendered.floats, legacy.floats);
-        assert_eq!(rendered.depth_coefficients, legacy.depth_coefficients);
-        assert_eq!(rendered.color_source, legacy.color_source);
-        assert_eq!(rendered.texture_slots[2], [463849]);
-        assert_eq!(rendered.texture_slots[3], [317230]);
-        assert_eq!(rendered.texture_slots, legacy.texture_slots);
+        assert_eq!(
+            rendered.floats,
+            forever.liquid_material(kind, object).unwrap().floats
+        );
+        let slots: Vec<u32> = rendered.texture_slots.iter().flatten().copied().collect();
+        assert_eq!(slots.len(), 6);
+        assert_eq!(slots[0], 7475833);
+        assert_eq!(slots[1], 7475835);
+        assert_eq!(slots[2], 7475834);
+        assert_eq!(slots[3], 7475836);
+        assert_eq!(slots[4], 7660147);
+        assert_eq!(slots[5], 7480794);
+        if kind == 1251 {
+            assert_eq!(
+                rendered.pbr_layer_transforms(),
+                [[0.4, 0.9, 7.85], [50.0, 1.0, 0.951], [60.0, 0.774, 26.0]]
+            );
+            assert_eq!(rendered.pbr_foam(), ([2.0, 0.015, 1.2, 12.0], 12.0));
+            let batch = rendered.pbr_material_batch();
+            assert!((batch[0] - (1.0 - 179.0 / 255.0)).abs() < 0.000_001);
+            assert!((batch[1] - (1.0 - 219.0 / 255.0)).abs() < 0.000_001);
+            assert!((batch[2] - (1.0 - 204.0 / 255.0)).abs() < 0.000_001);
+            assert_eq!(batch[3], 0.4);
+            assert_eq!(&batch[4..8], &[50.0, 1.0, 0.951, 60.0]);
+            assert!((batch[8] - 251.0 / 255.0).abs() < 0.000_001);
+            assert!((batch[9] - 223.0 / 255.0).abs() < 0.000_001);
+            assert!((batch[10] - 118.0 / 255.0).abs() < 0.000_001);
+            assert_eq!(batch[11], 7.85);
+            assert!((batch[12] - 195.0 / 255.0).abs() < 0.000_001);
+            assert_eq!(batch[15], 0.9);
+            // Float[7..25] ascending with EF2's two overrides.
+            assert_eq!(batch[16], 0.774);
+            assert_eq!(batch[24], 1.2);
+            assert_eq!(batch[25], 0.02);
+        }
     }
     let retail = maps.liquid_material(0, 947, 42).unwrap();
     assert_eq!(
@@ -98,6 +125,39 @@ fn pbr_source_floats_survive_and_legacy_render_borrows_only_forever_slow_water_i
         .unwrap(),
         retail
     );
+}
+
+#[test]
+fn default_material130_keeps_the_liquidtype5_fallback() {
+    let data = data_root();
+    let maps = MapLiquidCatalog::read(&data).unwrap();
+    assert!(!maps.pbr_water());
+    let forever = LiquidCatalog::read(&data.join("db2/1.60.1.70205")).unwrap();
+    let legacy = forever.liquid_material(5, 0).unwrap();
+    for (kind, object) in [(1251, 18420), (1279, 21229)] {
+        let source = maps.liquid_material(2991, kind, object).unwrap();
+        let rendered = maps
+            .render_material(
+                game_engine_core::liquid_data::LiquidFamily::Terrain,
+                2991,
+                kind,
+                object,
+            )
+            .unwrap();
+        assert_ne!(rendered, source);
+        assert_eq!(rendered.liquid_type, u32::from(kind));
+        assert_eq!(rendered.material_id, 130);
+        assert_eq!(
+            rendered.shader,
+            game_engine_core::liquid_data::LiquidShader::Water
+        );
+        assert_eq!(rendered.lvf, source.lvf);
+        assert_eq!(rendered.floats, legacy.floats);
+        assert_eq!(rendered.depth_coefficients, legacy.depth_coefficients);
+        assert_eq!(rendered.texture_slots, legacy.texture_slots);
+        assert_eq!(rendered.texture_slots[2], [463849]);
+        assert_eq!(rendered.texture_slots[3], [317230]);
+    }
 }
 
 #[test]
