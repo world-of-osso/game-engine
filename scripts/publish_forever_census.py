@@ -49,10 +49,16 @@ def directory_for(kind: str) -> str:
 
 
 def seed_kinds(root: Path) -> dict:
-    """The census models already extracted: `<fdid>.m2` or `<fdid>.wmo` under models/."""
+    """Everything already staged: models under models/, flat textures under textures/.
+
+    A terrain-texture run stages only BLPs, so the graph starts from the leaves the ADT `_tex0`
+    layers name and has nothing to expand."""
     seeds = {}
     for path in sorted((root / "models").glob("*")):
-        if path.suffix[1:] in EXPANDABLE_FROM_CENSUS:
+        if path.suffix[1:] in EXPANDABLE_FROM_CENSUS | {"blp"}:
+            seeds[int(path.stem)] = path.suffix[1:]
+    for path in sorted((root / "textures").glob("*")):
+        if path.suffix[1:] in {"blp", "blob"}:
             seeds[int(path.stem)] = path.suffix[1:]
     return seeds
 
