@@ -825,6 +825,26 @@ mod tests {
     use super::*;
 
     #[test]
+    fn magma_noise_upload_preserves_all_sixteen_authored_rgba_planes() {
+        let assets = cached_assets();
+        let native = assets.read_liquid_material(0, (7, 413)).unwrap();
+        let (_, image) = native
+            .globals
+            .iter()
+            .find(|(name, _)| *name == "noise_volume")
+            .unwrap();
+        let source = fs::read(test_data_root().join("textures/768431.blob")).unwrap();
+        assert_eq!(source.len(), 16 * 128 * 128 * 4);
+        assert_eq!((image.width, image.height), (128, 16 * 128));
+        assert_eq!(image.pixels, source);
+        let plane_bytes = 128 * 128 * 4;
+        assert_ne!(
+            &image.pixels[..plane_bytes],
+            &image.pixels[plane_bytes..2 * plane_bytes]
+        );
+    }
+
+    #[test]
     fn missing_m2_solid_companion_is_explicit() {
         let scratch = std::env::temp_dir().join(format!("missing-m2-solid-{}", std::process::id()));
         let floor = scratch.join("los/2519/m2");

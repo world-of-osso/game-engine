@@ -1,3 +1,7 @@
+## 2026-11-05 — Terrain and liquid70688 evidence
+
+[Terrain zero diffuse](systems/terrain.md#assigned-zero-diffuse-retail-70688) keeps28 base layers on map2579 tile13,48. [Liquid corrections](investigations/northshire-pale-water.md#retail70688-clean-room-corrections--2026-11-05) record Fel motion/detail, type8 retry, authored magma noise and MLLD gaps, with release Forever before/after proof boundaries.
+
 ## 2026-11-02 — Halls interior opening
 
 [Halls interior opening](investigations/halls-interior-opening.md) records the group and portal evidence, the independent MOGI admission rule, and the unknown Retail background.

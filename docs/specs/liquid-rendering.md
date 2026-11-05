@@ -29,7 +29,7 @@ WMO MLIQ and terrain MH2O liquids use LiquidType-backed material data. The [liqu
 
 ## Known gaps (current cycle)
 
-- [ ] ProcMagma draw bindings and displacement equations are not established.
+- [ ] Complete E5 ProcMagma detail0 versus1..4 routing and exact UV/sampling equations. G1 confirms the existing FDID768431 loader is authored16-plane RGBA noise, not synthetic generation; array/volume semantics and cadence still await evidence.
 - [ ] Load authored per-area/per-LOD MLLD maps: depth128x128 bytes; alpha2048-byte bitmap expanded to0/255. Big-endian RLE zero tokens are no-ops. Preserve payload across mesh repack. No MLLD parser/loader currently exists, so parser compliance is unverified; file identity, header layout and depth unit await upstream evidence.
 - [ ] Exact Retail environment-to-DB2 UV-triple and definition scale/bias mapping remains unestablished. The fix removes zero LiquidObject-flow multiplication without choosing an arbitrary LiquidObject row.
 - [ ] Matched before/after Forge captures and visual proof are pending a sourced rendering change.
