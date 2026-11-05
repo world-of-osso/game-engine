@@ -52,6 +52,8 @@ varying vec3 world_normal;
 varying vec3 camera_position;
 varying vec3 authored_color;
 varying vec3 authored_specular;
+// GxBlend_BlendAdd writes colour already multiplied by the written alpha (see fragment()).
+varying float premultiplied;
 
 vec3 gamma_to_linear(vec3 gamma_color) {
 	vec3 low = gamma_color / 12.92;
@@ -245,6 +247,10 @@ void fragment() {
 	ALBEDO = vec3(1.0);
 	ROUGHNESS = 1.0;
 	ALPHA = color.a * scenery_opacity;
+	// GxBlend_BlendAdd (13) blends ONE / ONE_MINUS_SRC_ALPHA, like the ribbon shader: without
+	// premultiplying here a texel whose alpha is 0 still adds its full colour, which fills a
+	// billboard's soft corners and draws a hard-edged square.
+	premultiplied = gx_blend == 13 ? ALPHA : 1.0;
 	authored_color = color.rgb;
 	authored_specular = specular * mesh.rgb;
 	camera_position = CAMERA_POSITION_WORLD;
@@ -253,7 +259,7 @@ void fragment() {
 		if ((render_flags & 2) == 0) {
 			rgb = apply_retail_fog(rgb);
 		}
-		EMISSION = blend_output(rgb);
+		EMISSION = blend_output(rgb) * premultiplied;
 	}
 	world_normal = normalize((INV_VIEW_MATRIX * vec4(normal, 0.0)).xyz);
 }
@@ -273,7 +279,7 @@ void light() {
 		if ((render_flags & 2) == 0) {
 			rgb = apply_retail_fog(rgb);
 		}
-		DIFFUSE_LIGHT += blend_output(rgb);
+		DIFFUSE_LIGHT += blend_output(rgb) * premultiplied;
 	} else if (!LIGHT_IS_DIRECTIONAL && (render_flags & 1) == 0 && gx_blend <= 1) {
 		// M2 point lights reach opaque surfaces only: WebWowViewerCpp applies them in
 		// its deferred pass (pointLight.frag.slang:43-58). LIGHT_COLOR carries Godot's PI.
