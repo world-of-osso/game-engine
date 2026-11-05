@@ -51,6 +51,8 @@ impl SpellEffects {
         });
     }
 
+    // Only the debug-built spell census fixture reads these.
+    #[cfg(debug_assertions)]
     pub(crate) fn census_advance_animations(
         &mut self,
         visual: InstanceId,
@@ -76,6 +78,8 @@ impl SpellEffects {
         Ok(())
     }
 
+    // Only the debug-built spell census fixture reads these.
+    #[cfg(debug_assertions)]
     pub(crate) fn census_active_models(&self, visual: InstanceId) -> Vec<u32> {
         self.active
             .iter()
@@ -84,6 +88,8 @@ impl SpellEffects {
             .collect()
     }
 
+    // Only the debug-built spell census fixture reads these.
+    #[cfg(debug_assertions)]
     pub(crate) fn census_particles_drawn(&self) -> usize {
         self.pools.drawn()
     }
