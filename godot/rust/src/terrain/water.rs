@@ -6,7 +6,9 @@ use std::{
 
 use game_engine_core::{
     adt, blp,
-    liquid_data::{LiquidShader, PBR_WATER_MATERIAL, TEXTURE_SLOTS, WaterColorSource},
+    liquid_data::{
+        LiquidShader, PBR_MASK_ROLES, PBR_WATER_MATERIAL, TEXTURE_SLOTS, WaterColorSource,
+    },
 };
 use godot::{
     classes::{
@@ -215,6 +217,19 @@ impl WaterMaterials {
         let mut slots: [Vec<Gd<ImageTexture>>; TEXTURE_SLOTS] = Default::default();
         for &slot in native.params.shader.texture_slots() {
             slots[slot] = self.frames(&native.slots[slot])?;
+        }
+        if native.params.shader == LiquidShader::PbrWater {
+            // RF3: bind the six authored masks under their row roles, with the rim/depth swap
+            // applied for the rows that store them reversed. The shipped rows are single-frame,
+            // so frame 0 is the authored art. The Material130 default falls back to the
+            // LiquidType5 water shader, which has no mask uniforms and must not bind these.
+            for (role, slot) in PBR_MASK_ROLES.iter().zip(native.params.pbr_mask_slots()) {
+                let frames = self.frames(&native.slots[slot])?;
+                let texture = frames
+                    .first()
+                    .ok_or_else(|| format!("Material130 has no {role} mask"))?;
+                material.set_shader_parameter(*role, &texture.to_variant());
+            }
         }
         let crossfade = native
             .params

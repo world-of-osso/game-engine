@@ -32,7 +32,7 @@ func run() -> void:
 	material = result.material
 	material.set_shader_parameter("mesh_uv", true)
 	scene_light = result.scene_light
-	var checks := [check_pbr_bindings, check_foam_weight, check_row_colours]
+	var checks := [check_pbr_bindings, check_foam_weight, check_row_colours, check_depth_art]
 	for check in checks:
 		var error: String = await check.call()
 		if error != "":
@@ -70,6 +70,26 @@ func check_foam_weight() -> String:
 	if distance < 0.02:
 		return "Row foam strength did not change the PBR water"
 	return ""
+
+## RF3: the PBR shading pass binds no scene depth; thickness comes from the row's `_depth`
+## art. Replacing that mask must change the water.
+func check_depth_art() -> String:
+	var original = material.get_shader_parameter("foam_depth")
+	material.set_shader_parameter("foam_depth", solid_texture(Color(0, 0, 0, 0)))
+	var shallow := await capture()
+	material.set_shader_parameter("foam_depth", solid_texture(Color(1, 1, 1, 1)))
+	var deep := await capture()
+	material.set_shader_parameter("foam_depth", original)
+	var distance := color_distance(mean(shallow), mean(deep))
+	print("PBR depth art shallow=", mean(shallow), " deep=", mean(deep), " delta=", distance)
+	if distance < 0.02:
+		return "The authored _depth art did not drive the PBR water"
+	return ""
+
+func solid_texture(color: Color) -> ImageTexture:
+	var image := Image.create(1, 1, false, Image.FORMAT_RGBA8)
+	image.fill(color)
+	return ImageTexture.create_from_image(image)
 
 func check_row_colours() -> String:
 	build()

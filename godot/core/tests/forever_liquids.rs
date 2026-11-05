@@ -220,3 +220,28 @@ fn forever_liquids_are_isolated_from_colliding_retail_ids_and_missing_tables() {
     );
     fs::remove_dir_all(scratch).unwrap();
 }
+
+/// RF3: the `_depth` art is slot 4 canonically. Two Forever rows store the rim and depth
+/// paths reversed (1250 ocean and 1296); the catalog finds the swap by comparing each row's
+/// slot-3/slot-4 pair with the modal pair, because our Forever export carries no path table.
+#[test]
+fn material130_depth_art_slot_follows_the_row_order() {
+    let forever = LiquidCatalog::read(&data_root().join("db2/1.60.1.70205")).unwrap();
+    let canonical = forever.liquid_material(1240, 0).unwrap();
+    assert_eq!(canonical.pbr_depth_slot, 4);
+    assert_eq!(canonical.pbr_mask_slots(), [0, 1, 2, 3, 4, 5]);
+    assert_eq!(canonical.texture_slots[3], [7475836]);
+    assert_eq!(canonical.texture_slots[4], [7660147]);
+
+    // PBRWater - Generic - Ocean stores the depth art in slot 3 and the rim in slot 4.
+    let ocean = forever.liquid_material(1250, 0).unwrap();
+    assert_eq!(ocean.pbr_depth_slot, 3);
+    assert_eq!(ocean.pbr_mask_slots(), [0, 1, 2, 4, 3, 5]);
+    assert_eq!(ocean.texture_slots[3], [7660147]);
+    assert_eq!(ocean.texture_slots[4], [7475836]);
+    // Darkspear Islands - Ocean is the second swapped row.
+    assert_eq!(forever.liquid_material(1296, 0).unwrap().pbr_depth_slot, 3);
+
+    // A non-Material130 row keeps the canonical slot, which it never binds.
+    assert_eq!(forever.liquid_material(5, 0).unwrap().pbr_depth_slot, 4);
+}

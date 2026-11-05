@@ -16,12 +16,9 @@ uniform sampler2D foam_rim : repeat_enable, filter_linear_mipmap;
 uniform sampler2D foam_depth : repeat_enable, filter_linear_mipmap;
 uniform sampler2D foam_river : repeat_enable, filter_linear_mipmap;
 uniform sampler2D screen_texture : hint_screen_texture, filter_linear, repeat_disable;
-uniform sampler2D depth_texture : hint_depth_texture, filter_nearest, repeat_disable;
 
-// G10 shore: the refuted per-surface bottom-height map is gone from this lane too; both
-// liquid families read the view-depth prepass sample instead (see the water and Fel
-// shaders). `shore_scale` carries the row's fade width where a row supplies one.
-uniform float shore_scale = 1.0;
+// RF3: Forever's PBRWater shading pass binds no scene depth, and Float_11 is not a fade
+// width (nothing reciprocates it). Thickness comes from the row's own `_depth` art below.
 
 // Forever EF2: one CPU-assembled 38-float batch, copied verbatim. vec0 is
 // (1-Color0.rgb, Float_0); vec1 Float_3..6; vec2 (Color1.rgb, Float_2);
@@ -97,12 +94,6 @@ vec2 layer_uv(vec4 layer, vec2 uv, float time) {
 		scroll_component(time, velocity.x), scroll_component(time, velocity.y));
 }
 
-float scene_view_depth(sampler2D depth, vec2 uv, mat4 inverse_projection) {
-	float raw = texture(depth, uv).r;
-	vec4 view = inverse_projection * vec4(uv * 2.0 - 1.0, raw, 1.0);
-	return -view.z / view.w;
-}
-
 vec3 apply_retail_fog(vec3 color, vec3 view_position, mat4 inv_view) {
 	return retail_fog(color, (inv_view * vec4(view_position, 1.0)).xyz, inv_view[3].xyz, 2);
 }
@@ -134,8 +125,14 @@ void fragment() {
 	vec4 depth_mask = texture(foam_depth, uv1);
 	vec4 river = texture(foam_river, uv2);
 
-	// G10 shore: D = saturate(water depth / Float[11]) once the depth source is settled.
-	float d = 1.0;
+	// RF3: thickness from the water's own inputs. The `_depth` element of the row's six-mask
+	// set (slot 4 canonically, slot 3 in the two swapped rows, bound by role) is the authored
+	// depth/height art; the masks are near-white with the signal in alpha. Register 36's
+	// hard-coded distance pair (100000.0 or 50000.0 with 1.0, selected by a per-draw float in
+	// the 0.220833..0.875 band) is not recoverable without that float, so ADAPTED: only its
+	// unit scale participates, applied to the mask's own yard scale (255/9 = 28.3333).
+	float d = clamp(depth_mask.a, 0.0, 1.0);
+	float thickness = d * 28.3333;
 
 	// Forever Water PBR branch: cubic(mask) * weight drives the close/far mix.
 	float m = mid.r;
@@ -166,11 +163,6 @@ void fragment() {
 	float distance_to_camera = length(to_fragment);
 	vec3 view_direction = to_fragment / distance_to_camera;
 
-	float water_depth = -VERTEX.z;
-	float raw_depth = texture(depth_texture, SCREEN_UV).r;
-	float thickness = raw_depth <= 0.0001 ? 100000.0
-		: scene_view_depth(depth_texture, SCREEN_UV, INV_PROJECTION_MATRIX) - water_depth;
-	float relative_thickness = thickness / max(water_depth, 0.0001);
 
 	vec3 normal_world = normalize(to_wow(NORMAL));
 	vec3 normal = normalize(vec3(0.35 * (rim.rg * 2.0 - 1.0) + 0.65 * normal_world.xy, 1.0));
@@ -181,13 +173,11 @@ void fragment() {
 	vec3 surface_light = light_direct() * clamp(to_sun.z, 0.0, 1.0) + light_ambient();
 	vec3 lit_water = water_color.rgb * surface_light;
 
-	vec2 refracted_uv = SCREEN_UV + 0.1 * normal.xy
-		* clamp(100.0 * relative_thickness * (1.2 - fresnel), 0.0, 1.0);
-	float refracted_depth = scene_view_depth(depth_texture, refracted_uv, INV_PROJECTION_MATRIX);
-	bool behind = refracted_depth > water_depth;
-	refracted_uv = behind ? refracted_uv : SCREEN_UV;
+	// ADAPTED: with no scene depth to reject an offset that lands in front of the water, the
+	// screen copy is sampled at a small depth-art-scaled offset from the pixel itself.
+	vec2 refracted_uv = SCREEN_UV + 0.01 * normal.xy * d;
 	vec3 below = linear_to_gamma(texture(screen_texture, refracted_uv).rgb);
-	float below_thickness = behind ? refracted_depth - water_depth : thickness;
+	float below_thickness = thickness;
 
 	float fog_distance = max(0.0, below_thickness - underwater_fog.x);
 	float fog_visibility = min(1.0 / exp(fog_distance * underwater_fog.z),

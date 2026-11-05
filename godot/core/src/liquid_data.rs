@@ -26,6 +26,21 @@ const OCEAN_LVF: u8 = 2;
 /// Texture slots per LiquidType (`FrameCountTexture[6]`).
 pub const TEXTURE_SLOTS: usize = 6;
 pub const PBR_WATER_MATERIAL: u8 = 130;
+
+/// RF3: the six `LiquidTypeXTexture` roles a Forever Material130 row binds, in the canonical
+/// order: foam high, mid, low, rim, depth, river. Two rows store rim and depth in the
+/// opposite order; the catalog detects that pair swap and `LiquidMaterial::pbr_mask_slots`
+/// reports the role-to-slot mapping.
+pub const PBR_MASK_ROLES: [&str; 6] = [
+    "foam_high",
+    "foam_mid",
+    "foam_low",
+    "foam_rim",
+    "foam_depth",
+    "foam_river",
+];
+/// RF3: the authored `_depth` art is slot 4 in the canonical row order.
+const PBR_CANONICAL_DEPTH_SLOT: u8 = 4;
 const LEGACY_WATER_TYPE: u16 = 5;
 /// Retail 70688 E6: a missing LiquidType retries row 8, not LiquidMaterial 8.
 const MISSING_LIQUID_TYPE: u32 = 8;
@@ -165,6 +180,9 @@ pub struct LiquidMaterial {
     /// before interpolation. Selected from `Int_0`, the material's `LVF` and the row
     /// coefficients; the pixel program consumes the result directly.
     pub depth_curve: [f32; 4],
+    /// RF3: the slot holding the `_depth` art among the six PBR masks (4 canonically, 3 in
+    /// the two rows whose rim and depth paths are swapped).
+    pub pbr_depth_slot: u8,
     /// `LiquidType.Color[0..3]` as CSqliteDB.cpp `getFloatFromInt<0..2>`: bytes 0, 1, 2 / 255.
     pub colors: [[f32; 3]; 3],
     /// `LiquidType.Int[0..4]`.
@@ -260,6 +278,18 @@ impl LiquidMaterial {
         curved_depth_channel(self.depth_curve, normalized)
     }
 
+    /// RF3: the six PBR mask role -> `LiquidTypeXTexture` slot mapping. Rim and depth swap
+    /// together, so a row whose depth art lives in slot 3 has rim in slot 4.
+    pub fn pbr_mask_slots(&self) -> [usize; 6] {
+        let depth = usize::from(self.pbr_depth_slot);
+        let rim = if depth == usize::from(PBR_CANONICAL_DEPTH_SLOT) {
+            depth - 1
+        } else {
+            depth + 1
+        };
+        [0, 1, 2, rim, depth, 5]
+    }
+
     pub fn fel_params(&self, pair_blend: f32) -> ([f32; 4], [f32; 4]) {
         let float = |index: usize| self.floats.get(index).copied().unwrap_or(0.0);
         let width = float(11);
@@ -268,6 +298,26 @@ impl LiquidMaterial {
             [float(13), shore_scale, float(14), float(15)],
             [pair_blend, float(16), float(17), 0.0],
         )
+    }
+}
+
+/// RF3: slot 4 holds the `_depth` art unless the row stores the catalog's `(rim, depth)`
+/// pair reversed. Non-PBR rows keep the canonical slot, which they never bind.
+fn pbr_depth_slot(
+    material_id: u8,
+    modal_pair: Option<(u32, u32)>,
+    slots: &[Vec<u32>; TEXTURE_SLOTS],
+) -> u8 {
+    if material_id != PBR_WATER_MATERIAL {
+        return PBR_CANONICAL_DEPTH_SLOT;
+    }
+    let Some((rim, depth)) = modal_pair else {
+        return PBR_CANONICAL_DEPTH_SLOT;
+    };
+    if slots[3].as_slice() == [depth] && slots[4].as_slice() == [rim] {
+        3
+    } else {
+        PBR_CANONICAL_DEPTH_SLOT
     }
 }
 
@@ -297,6 +347,9 @@ pub struct LiquidCatalog {
     objects: HashMap<u32, LiquidObjectRow>,
     material_lvf: HashMap<u32, u8>,
     textures: HashMap<u32, Vec<TextureRow>>,
+    /// RF3: the modal PBR `(rim, depth)` slot-3/slot-4 pair in this product, used to detect the
+    /// two rows that swap those two paths.
+    pbr_rim_depth_pair: Option<(u32, u32)>,
 }
 
 /// Separate product catalogs: only maps absent by ID and directory in Retail use Forever.
@@ -468,12 +521,41 @@ impl LiquidCatalog {
         })?;
         let material_lvf = read_table(db2_dir, "LiquidMaterial", |row| row.number("LVF"))?;
         let textures = read_textures(db2_dir)?;
-        Ok(Self {
+        let mut catalog = Self {
             types,
             objects,
             material_lvf,
             textures,
-        })
+            pbr_rim_depth_pair: None,
+        };
+        catalog.pbr_rim_depth_pair = catalog.modal_pbr_rim_depth_pair();
+        Ok(catalog)
+    }
+
+    /// RF3: most Material130 rows store rim in slot 3 and the `_depth` art in slot 4; two
+    /// rows swap them. The modal single-frame pair identifies the roles without a path
+    /// table, which our Forever export does not carry.
+    fn modal_pbr_rim_depth_pair(&self) -> Option<(u32, u32)> {
+        let mut counts: HashMap<(u32, u32), usize> = HashMap::new();
+        for (&type_id, row) in &self.types {
+            if row.material_id != PBR_WATER_MATERIAL
+                || row.frame_counts[3] != 0
+                || row.frame_counts[4] != 0
+            {
+                continue;
+            }
+            let Ok((slots, _)) = self.texture_slots(type_id, row) else {
+                continue;
+            };
+            let (Some(rim), Some(depth)) = (slots[3].first(), slots[4].first()) else {
+                continue;
+            };
+            *counts.entry((*rim, *depth)).or_default() += 1;
+        }
+        counts
+            .into_iter()
+            .max_by_key(|(_, count)| *count)
+            .map(|(pair, _)| pair)
     }
 
     /// The surface of one `MH2O` layer, resolved on the terrain path: the layer's type id is
@@ -524,6 +606,11 @@ impl LiquidCatalog {
                 material_lvf,
                 row.ints.first().copied().unwrap_or(0),
                 row.coefficients,
+            ),
+            pbr_depth_slot: pbr_depth_slot(
+                row.material_id,
+                self.pbr_rim_depth_pair,
+                &texture_slots,
             ),
             flow_direction,
             flow_speed,
