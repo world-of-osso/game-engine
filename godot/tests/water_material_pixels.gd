@@ -201,12 +201,17 @@ func water_quad(x0: float, x1: float, depth: float) -> ArrayMesh:
 		Vector3(x0, WATER.y, z1), Vector3(x1, WATER.y, z1)])
 	var colors := PackedColorArray()
 	colors.resize(4)
-	colors.fill(Color(1.0, 1.0, 1.0, depth))
+	colors.fill(Color.WHITE)
+	# I2 B.4: the authored depth byte rides the second texture pair's second component.
+	var depths := PackedVector2Array()
+	depths.resize(4)
+	depths.fill(Vector2(0.0, depth))
 	var arrays := []
 	arrays.resize(Mesh.ARRAY_MAX)
 	arrays[Mesh.ARRAY_VERTEX] = vertices
 	arrays[Mesh.ARRAY_NORMAL] = PackedVector3Array([Vector3.UP, Vector3.UP, Vector3.UP, Vector3.UP])
 	arrays[Mesh.ARRAY_COLOR] = colors
+	arrays[Mesh.ARRAY_TEX_UV2] = depths
 	arrays[Mesh.ARRAY_INDEX] = PackedInt32Array([0, 1, 2, 1, 3, 2])
 	var mesh := ArrayMesh.new()
 	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)

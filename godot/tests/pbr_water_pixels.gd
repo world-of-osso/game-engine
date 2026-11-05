@@ -124,7 +124,11 @@ func water_quad() -> ArrayMesh:
 		Vector3(WATER.x - 8.0, WATER.y, z1), Vector3(WATER.x + 8.0, WATER.y, z1)])
 	var colors := PackedColorArray()
 	colors.resize(4)
-	colors.fill(Color(1.0, 1.0, 1.0, 1.0))
+	colors.fill(Color.WHITE)
+	# I2 B.4: depth 1 means authored coverage is on.
+	var depths := PackedVector2Array()
+	depths.resize(4)
+	depths.fill(Vector2(0.0, 1.0))
 	var uvs := PackedVector2Array([Vector2(0, 0), Vector2(1, 0), Vector2(0, 1), Vector2(1, 1)])
 	var normals := PackedVector3Array([Vector3.UP, Vector3.UP, Vector3.UP, Vector3.UP])
 	var arrays := []
@@ -133,6 +137,7 @@ func water_quad() -> ArrayMesh:
 	arrays[Mesh.ARRAY_NORMAL] = normals
 	arrays[Mesh.ARRAY_COLOR] = colors
 	arrays[Mesh.ARRAY_TEX_UV] = uvs
+	arrays[Mesh.ARRAY_TEX_UV2] = depths
 	arrays[Mesh.ARRAY_INDEX] = PackedInt32Array([0, 1, 2, 1, 3, 2])
 	var mesh := ArrayMesh.new()
 	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)

@@ -465,11 +465,17 @@ fn build_mesh(geometry: adt::WaterGeometry) -> Gd<ArrayMesh> {
         .map(Vector3::from_array)
         .collect();
     let uvs: Vec<_> = geometry.uvs.into_iter().map(Vector2::from_array).collect();
-    let colors: Vec<_> = geometry
+    // I2 B.4: the liquid draw carries position plus two texture-coordinate pairs and no
+    // colour attribute. The authored depth byte rides the second pair's second component,
+    // which the vertex program forwards as the depth interpolant (TEXCOORD0.z), and the
+    // colour is a constant white. Terrain MH2O supplies the byte as the vertex alpha from
+    // the geometry builder; WMO liquids have no depth byte and stay at 1.
+    let depths: Vec<_> = geometry
         .colors
-        .into_iter()
-        .map(|[r, g, b, a]| Color::from_rgba(r, g, b, a))
+        .iter()
+        .map(|color| Vector2::new(0.0, color[3]))
         .collect();
+    let colors: Vec<_> = geometry.colors.iter().map(|_| Color::WHITE).collect();
     // Godot ArrayMesh front faces are clockwise; the geometry's indices are counterclockwise.
     let indices: Vec<_> = geometry
         .indices
@@ -490,6 +496,10 @@ fn build_mesh(geometry: adt::WaterGeometry) -> Gd<ArrayMesh> {
         (
             mesh::ArrayType::TEX_UV,
             PackedVector2Array::from(uvs.as_slice()).to_variant(),
+        ),
+        (
+            mesh::ArrayType::TEX_UV2,
+            PackedVector2Array::from(depths.as_slice()).to_variant(),
         ),
         (
             mesh::ArrayType::COLOR,

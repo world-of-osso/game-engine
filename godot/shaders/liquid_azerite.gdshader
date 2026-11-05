@@ -88,7 +88,8 @@ vec3 unpack_normal(vec2 texel) {
 void vertex() {
 	wow_position = to_wow((MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz);
 	// adt_water_geometry: MH2O vertex depth / 255 (vPositionDepth.w).
-	vertex_depth = COLOR.a;
+	// I2 B.4: the depth byte rides the second texture pair's second component.
+	vertex_depth = UV2.y;
 }
 
 void fragment() {

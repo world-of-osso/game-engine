@@ -25,6 +25,7 @@ const CASES := {
 	"fog": [733, 0, 0],
 	"ley_line": [868, 0, 0],
 	"fel": [869, 0, 0],
+	"fel_flow": [869, 10949, 2519],
 	"swamp": [897, 0, 0],
 	"azerite": [940, 0, 0],
 }
@@ -89,6 +90,12 @@ func check_case(name: String, liquid: Array) -> String:
 	print("LIQUID ", name, " covered=", covered, " moved=", moved, " response=", response, " colour=", mean(red))
 	if covered < SIZE.x * SIZE.y / 2:
 		return "Liquid changed only %d of %d pixels over the backing" % [covered, SIZE.x * SIZE.y]
+	# G4/E5: a missing LiquidObject leaves Fel static (E5 fixes its frame at zero), so the
+	# objectless case must not move and the flow-bound case must.
+	if name == "fel":
+		if moved != 0:
+			return "Objectless Fel moved %d pixels" % moved
+		return ""
 	if moved < 200:
 		return "Liquid did not animate with the clock: %d pixels moved" % moved
 	if name in ["magma", "slime"]:
@@ -140,7 +147,11 @@ func liquid_quad() -> ArrayMesh:
 		vertices.append(CENTRE + Vector3(corner.x, 0.0, corner.y))
 	var colors := PackedColorArray()
 	colors.resize(4)
-	colors.fill(Color(1.0, 1.0, 1.0, 80.0 / 255.0))
+	colors.fill(Color.WHITE)
+	# I2 B.4: the authored depth byte rides the second texture pair's second component.
+	var depths := PackedVector2Array()
+	depths.resize(4)
+	depths.fill(Vector2(0.0, 80.0 / 255.0))
 	var uvs := PackedVector2Array()
 	for corner in [Vector2(-100, -100), Vector2(100, -100), Vector2(-100, 100), Vector2(100, 100)]:
 		uvs.append((corner + Vector2(100, 100)) / 200.0)
@@ -150,6 +161,7 @@ func liquid_quad() -> ArrayMesh:
 	arrays[Mesh.ARRAY_NORMAL] = PackedVector3Array([Vector3.UP, Vector3.UP, Vector3.UP, Vector3.UP])
 	arrays[Mesh.ARRAY_COLOR] = colors
 	arrays[Mesh.ARRAY_TEX_UV] = uvs
+	arrays[Mesh.ARRAY_TEX_UV2] = depths
 	arrays[Mesh.ARRAY_INDEX] = PackedInt32Array([0, 1, 2, 1, 3, 2])
 	var mesh := ArrayMesh.new()
 	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)

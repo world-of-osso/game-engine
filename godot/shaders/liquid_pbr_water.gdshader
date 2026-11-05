@@ -111,7 +111,8 @@ vec3 apply_retail_fog(vec3 color, vec3 view_position, mat4 inv_view) {
 
 void vertex() {
 	wow_position = to_wow((MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz);
-	authored_coverage = COLOR.a > 0.0 ? 1.0 : 0.0;
+	// I2 B.4: the authored depth byte rides the second texture pair's second component.
+	authored_coverage = UV2.y > 0.0 ? 1.0 : 0.0;
 	shore_uv = VERTEX.xz * shore_map_transform.xy + shore_map_transform.zw;
 }
 
