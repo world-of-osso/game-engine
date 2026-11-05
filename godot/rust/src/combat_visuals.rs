@@ -397,13 +397,16 @@ fn log_draped_batch(
         .map(|material| material.get_class().to_string())
         .unwrap_or_else(|| "none".to_string());
     godot_print!(
-        "drape batch {}: vertices={} triangles={} hits={} discarded={} max_edge_span={:.3} x={:.2}..{:.2} z={:.2}..{:.2} y={:.2}..{:.2} uv2={} colors={} material={}",
+        "drape batch {}: vertices={} triangles={} hits={} discarded={} steep={} steep_floor_vertices={} max_edge_span={:.3} min_normal_y={:.3} x={:.2}..{:.2} z={:.2}..{:.2} y={:.2}..{:.2} uv2={} colors={} material={}",
         instance.get_name(),
         draped.positions.len(),
         draped.triangle_count(),
         draped.dropped,
         draped.discarded,
+        draped.steep_discarded,
+        draped.steep_floor_vertices,
         draped.max_edge_span,
+        draped.min_normal_y,
         min.x,
         max.x,
         min.z,

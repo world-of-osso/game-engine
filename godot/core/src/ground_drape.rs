@@ -28,6 +28,10 @@ pub const MAX_SURFACE_RISE: f32 = 1.0;
 /// Longest vertical edge a kept triangle may span. A triangle bridging two surfaces further
 /// apart than this is a shard, not a draped plane, and is dropped.
 pub const MAX_DRAPED_EDGE_SPAN: f32 = 0.6;
+/// Flattest draped triangle a ground effect may draw, as the world up component of its
+/// normal: 45 degrees off level. A triangle tilted past this lies on a riser, a carved face
+/// or a balustrade and is dropped.
+pub const MIN_DRAPED_NORMAL_Y: f32 = std::f32::consts::FRAC_1_SQRT_2;
 /// Fraction of the batch's area that must be near-horizontal.
 pub const MIN_GROUND_AREA_FRACTION: f32 = 0.9;
 /// |normal.y| for a face to count as near-horizontal (up to 25 degrees off level).
@@ -59,8 +63,14 @@ pub struct DrapedBatch {
     pub dropped: usize,
     /// Triangles removed because a draped edge spans more than the step height.
     pub discarded: usize,
+    /// Triangles removed because the draped triangle is steeper than 45 degrees.
+    pub steep_discarded: usize,
+    /// Vertices of the steep triangles that had fallen back to the collision floor.
+    pub steep_floor_vertices: usize,
     /// Largest vertical edge span of a kept triangle, in yards.
     pub max_edge_span: f32,
+    /// Smallest world up component among the kept triangles' normals.
+    pub min_normal_y: f32,
 }
 
 impl DrapedBatch {
@@ -128,6 +138,9 @@ impl GroundDrape {
         let triangles = subdivide(mesh, placement, self.grid_edge)?;
         let mut positions = Vec::with_capacity(triangles.positions.len());
         let mut heights = Vec::with_capacity(triangles.positions.len());
+        // Whether the vertex followed a visible surface rather than its own floor, so the
+        // steep-triangle log can say which query produced it.
+        let mut sampled = Vec::with_capacity(triangles.positions.len());
         let mut dropped = 0;
         let bias = self.bias.clamp(0.0, 0.1);
         for world in &triangles.positions {
@@ -139,6 +152,7 @@ impl GroundDrape {
             // carpet or a tread, whatever the caller's query returned.
             let draped = surface_at(world.x, world.z, ceiling, floor)
                 .filter(|surface| (floor..=ceiling).contains(surface));
+            sampled.push(draped.is_some());
             if draped.is_some() {
                 dropped += 1;
             }
@@ -150,18 +164,52 @@ impl GroundDrape {
             positions.push(local.to_array());
         }
         // A triangle whose vertices landed on surfaces more than a tread apart would draw as
-        // a shard, whatever the rise limit allowed each single vertex.
+        // a shard, whatever the rise limit allowed each single vertex; so would one that now
+        // lies on a riser or a carved face. Both are dropped.
         let mut indices = Vec::with_capacity(triangles.indices.len());
         let mut discarded = 0;
+        let mut steep_discarded = 0;
+        let mut steep_floor_vertices = 0;
         let mut max_edge_span = 0.0f32;
+        let mut min_normal_y = f32::INFINITY;
         for triangle in triangles.indices.chunks_exact(3) {
-            let span = height_span(triangle, &heights);
+            let triangle: [u32; 3] = [triangle[0], triangle[1], triangle[2]];
+            let span = height_span(&triangle, &heights);
             if span > MAX_DRAPED_EDGE_SPAN {
                 discarded += 1;
                 continue;
             }
+            let point = |index: u32, y: f32| {
+                let world = triangles.positions[index as usize];
+                Vec3::new(world.x, y, world.z)
+            };
+            let authored = triangle.map(|index| triangles.positions[index as usize]);
+            let draped = triangle.map(|index| point(index, heights[index as usize]));
+            // The authored triangle is the flat plane the effect sits on; its normal says
+            // which way the drawn mesh's winding faces, so a draped triangle that flipped
+            // over counts as downward too.
+            let up = (authored[1] - authored[0])
+                .cross(authored[2] - authored[0])
+                .y
+                .signum();
+            let normal = (draped[1] - draped[0]).cross(draped[2] - draped[0]);
+            let length = normal.length();
+            let normal_y = if length <= f32::EPSILON {
+                0.0
+            } else {
+                normal.y / length * up
+            };
+            if normal_y < MIN_DRAPED_NORMAL_Y {
+                steep_discarded += 1;
+                steep_floor_vertices += triangle
+                    .iter()
+                    .filter(|index| !sampled[**index as usize])
+                    .count();
+                continue;
+            }
             max_edge_span = max_edge_span.max(span);
-            indices.extend_from_slice(triangle);
+            min_normal_y = min_normal_y.min(normal_y);
+            indices.extend_from_slice(&triangle);
         }
         Some(DrapedBatch {
             positions,
@@ -171,7 +219,14 @@ impl GroundDrape {
             indices,
             dropped,
             discarded,
+            steep_discarded,
+            steep_floor_vertices,
             max_edge_span,
+            min_normal_y: if min_normal_y.is_finite() {
+                min_normal_y
+            } else {
+                0.0
+            },
         })
     }
 }
@@ -650,6 +705,41 @@ mod tests {
             assert!(
                 normal.dot(reference) > 0.0,
                 "draped triangle {triangle:?} faces the other way"
+            );
+        }
+    }
+
+    /// A ledge inside one grid cell changes height less than the edge-span limit but tilts
+    /// the triangle past 45 degrees, so the normal rule drops it too.
+    #[test]
+    fn triangles_steeper_than_45_degrees_are_dropped() {
+        let (positions, uvs, indices) = ground_quad();
+        let mesh = batch(&positions, &uvs, &indices);
+        let drape = GroundDrape::default();
+        let floor_at = |x: f32, _z: f32| Some(if x > 0.0 { 0.5 } else { 0.0 });
+        let draped = drape
+            .drape_batch(
+                &mesh,
+                Affine3A::IDENTITY,
+                0.0,
+                MAX_SURFACE_RISE,
+                floor_at,
+                |x, _z, _ceiling, floor| Some(floor),
+            )
+            .expect("draped");
+        assert!(draped.steep_discarded > 0, "no steep triangle was dropped");
+        assert!(
+            draped.triangle_count() > 0,
+            "the flat halves keep their triangles"
+        );
+        for triangle in draped.indices.chunks_exact(3) {
+            let triangle = [triangle[0], triangle[1], triangle[2]];
+            let corners = triangle.map(|index| Vec3::from_array(draped.positions[index as usize]));
+            let normal = (corners[1] - corners[0]).cross(corners[2] - corners[0]);
+            let normal = normal.normalize_or_zero();
+            assert!(
+                normal.y.abs() >= MIN_DRAPED_NORMAL_Y,
+                "kept triangle normal {normal:?}"
             );
         }
     }

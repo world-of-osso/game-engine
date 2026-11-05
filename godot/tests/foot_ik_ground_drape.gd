@@ -8,7 +8,7 @@ extends SceneTree
 #
 # Headless frames run far faster than real time, so every wait is a wall-clock wait.
 
-const OUT_DIR := "/syncthing/AgentShared/2026-11-05/foot-ik-ground-drape/v4/"
+const OUT_DIR := "/syncthing/AgentShared/2026-11-05/foot-ik-ground-drape/v5/"
 # Stormwind staircase: render treads from 107.95 down to 106.20 between x -8566 and -8562.
 const STAIR_BOTTOM := Vector3(-8564.0, 107.4, -778.0)
 const STAIR_TOP := Vector3(-8566.0, 0.0, -778.0)
