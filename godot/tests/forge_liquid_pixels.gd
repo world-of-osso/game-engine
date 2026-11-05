@@ -58,6 +58,7 @@ func solid_texture(color: Color) -> ImageTexture:
 	return ImageTexture.create_from_image(image)
 
 func check_layer_gate(material: ShaderMaterial, slot: String, threshold: int, first: Color, second: Color) -> bool:
+	var original_texture = material.get_shader_parameter(slot)
 	for detail in [threshold - 1, threshold]:
 		material.set_shader_parameter("liquid_detail", detail)
 		material.set_shader_parameter(slot, solid_texture(first))
@@ -69,6 +70,7 @@ func check_layer_gate(material: ShaderMaterial, slot: String, threshold: int, fi
 		if (detail < threshold and changed != 0) or (detail == threshold and changed < 200):
 			fail("Wrong detail gate for " + slot)
 			return false
+	material.set_shader_parameter(slot, original_texture)
 	return true
 
 func capture() -> Image:
