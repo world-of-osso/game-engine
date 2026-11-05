@@ -2382,6 +2382,12 @@ models/4331797.wmo
 models/4334591.wmo
 models/4334595.wmo
 models/4334599.wmo
+# Far-terrain MLLD authored maps and absent Forge-tile maps.
+terrain/4334712.adt
+terrain/4335067.adt
+terrain/4335112.adt
+terrain/4334887.adt
+terrain/4334837.adt
 models/4334603.wmo
 models/4334607.wmo
 models/4334611.wmo
