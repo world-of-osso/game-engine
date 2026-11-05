@@ -386,9 +386,9 @@ fn bind_liquid_material(material: &mut Gd<ShaderMaterial>, native: &NativeLiquid
     let [a, b, c, d] = params.ints;
     material.set_shader_parameter("liquid_ints", &Vector4i::new(a, b, c, d).to_variant());
     if !pbr_water {
-        // G10 shore: the baked map stores water depth in yards; Float[11] is the fade
-        // width. EF2: Forever PBRWater does not use Float_11 for this; its depth source
-        // is a procedural engine texture still being identified.
+        // G10 shore: Float[11] is the fade width in yards for the view-depth gap to the
+        // first opaque surface behind the fragment; the ProcFel path uses the same value.
+        // EF2: Forever PBRWater does not set it, so its uniform keeps the 1-yard default.
         let float_11 = f.get(11).copied().unwrap_or(0.0);
         material.set_shader_parameter(
             "shore_scale",

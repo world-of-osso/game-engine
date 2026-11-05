@@ -40,7 +40,7 @@ func run() -> void:
 	material = result.material
 	scene_light = result.scene_light
 	make_viewport()
-	var checks := [check_vertex_depth, check_depth_zero, check_thickness, check_colour, check_animation]
+	var checks := [check_vertex_depth, check_depth_zero, check_shallow_shore, check_thickness, check_colour, check_animation]
 	for check in checks:
 		var error: String = await check.call()
 		if error != "":
@@ -74,6 +74,18 @@ func check_depth_zero() -> String:
 	print("WATER depth0 response=", response.x, " wet=", response.y)
 	if response.x < 0.98 or response.y > 0.9:
 		return "Authored depth 0 is not invisible while depth 40 covers: %s" % response
+	return ""
+
+## View-depth shore (G10): the same sample ProcFel uses, over the row's Float_11 width. Two
+## backings sit at fractional multiples of that width, so the near one is under the fade and
+## the far one past it.
+func check_shallow_shore() -> String:
+	var scale: float = material.get_shader_parameter("shore_scale")
+	var width := 1.0 / scale
+	var response := await backing_response(Vector2(40.0, 40.0) / 255.0, Vector2(0.4 * width, 3.0 * width))
+	print("WATER shore width=", width, " at0.4w=", response.x, " at3w=", response.y)
+	if response.x < 0.35 or response.y > response.x - 0.25:
+		return "View-depth shore did not thin the water inside Float_11: %s" % response
 	return ""
 
 func check_thickness() -> String:

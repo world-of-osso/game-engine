@@ -11,6 +11,8 @@ uniform sampler2D texture_2 : repeat_enable, filter_linear_mipmap;
 uniform sampler2D texture_3 : repeat_enable, filter_linear_mipmap;
 uniform sampler2D screen_texture : hint_screen_texture, filter_linear, repeat_disable;
 uniform sampler2D depth_texture : hint_depth_texture, filter_nearest, repeat_disable;
+// G10: 1/Float_11 from the LiquidType row, the fade width of the view-depth shore.
+uniform float shore_scale = 1.0;
 
 // Shared material clock in milliseconds (the reference scene time).
 global uniform float liquid_animation_time_ms;
@@ -148,11 +150,11 @@ void fragment() {
 	float distance_to_camera = length(to_fragment);
 	vec3 view_direction = to_fragment / distance_to_camera;  // v87
 
-	// Water thickness along the view axis from the opaque depth buffer (v90-v94).
+	// Water thickness along the view axis from the opaque depth buffer (v90-v94). G10: this
+	// is the same screen-position view-depth sample ProcFel uses, the first opaque surface's
+	// view Z behind this fragment minus the water's own, so both families read one quantity.
 	float water_depth = -VERTEX.z;
-	float raw_depth = texture(depth_texture, SCREEN_UV).r;
-	float thickness = raw_depth <= 0.0001 ? 100000.0
-		: scene_view_depth(depth_texture, SCREEN_UV, INV_PROJECTION_MATRIX) - water_depth;
+	float thickness = scene_view_depth(depth_texture, SCREEN_UV, INV_PROJECTION_MATRIX) - water_depth;
 	float relative_thickness = thickness / max(water_depth, 0.0001);
 
 	// Two scrolled bump pairs blended by distance, then flattened by f6 and f14 (v95, v105).
@@ -210,10 +212,11 @@ void fragment() {
 		+ clamp(normal.z - 0.8, 0.0, 1.0);
 	vec3 specular = specular_color * highlight * fresnel;  // v168
 
-	// Shore: alpha rises and foam fades over the first yards of water thickness (v169-v173).
-	float shore = 1.2 * clamp(fresnel * 0.5 + 0.2, 0.0, 1.0);
-	float alpha = smoothstep(0.0, shore, thickness);
-	float foam_fade = 1.0 - smoothstep(0.0, 2.5 * clamp(fresnel * 0.5 + 0.2, 0.0, 1.0), thickness * (1.0 - view_direction.z));
+	// Shore: the same view-depth gap as ProcFel, over the row's Float_11 fade width. The
+	// gap already grows with the view angle, so the shoreline needs no fresnel widening.
+	float shore_fade = clamp(thickness * shore_scale, 0.0, 1.0);
+	float alpha = shore_fade;
+	float foam_fade = 1.0 - shore_fade;
 	vec3 foam = texture(texture_3, v22.xy - normal.xy).rgb + texture(texture_3, v22.zw + 0.2 * normal.yx).rgb;
 	color += foam * (f7 * 0.35 * foam_fade * (1.1 - clamp(distance_to_camera / 150.0, 0.0, 1.0)) * normal.z);
 	alpha = (alpha + (1.0 - alpha) * clamp(-thickness, 0.0, 1.0)) * authored_depth;
