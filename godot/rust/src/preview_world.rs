@@ -222,28 +222,12 @@ impl GameClient {
         }) {
             Some(index) => index,
             None => {
-                let mut anchor = Node3D::new_alloc();
-                anchor.set_name(&format!("PreviewKit{visual}_{kit}"));
-                anchor.set_position(position);
                 // Ground kits are authored against unit attachment ids. A detached preview
                 // owner has no rig, so every attachment sits at the anchor origin instead.
-                let mut model = Node3D::new_alloc();
-                model.set_name("NpcModel");
-                let mut skeleton = Node3D::new_alloc();
-                skeleton.set_name("Skeleton3D");
-                model.add_child(&skeleton);
-                for attachment in 0..=60u8 {
-                    let mut bone = Node3D::new_alloc();
-                    bone.set_name(&format!("AttachmentBone{attachment}"));
-                    let mut point = Node3D::new_alloc();
-                    point.set_name(&format!("Attachment{attachment}"));
-                    bone.add_child(&point);
-                    skeleton.add_child(&bone);
-                }
-                let mut ground = Node3D::new_alloc();
-                ground.set_name("AttachmentGround");
-                skeleton.add_child(&ground);
-                anchor.add_child(&model);
+                let anchor = crate::spell_effects::effect_anchor(
+                    &format!("PreviewKit{visual}_{kit}"),
+                    position,
+                );
                 self.base_mut().add_child(&anchor);
                 self.preview_kits.push(PreviewKit {
                     anchor,

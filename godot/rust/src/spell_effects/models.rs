@@ -164,11 +164,11 @@ impl SpellEffects {
         let Some(catalog) = self.catalog()? else {
             return Ok(());
         };
-        let caster = game_engine_core::spell_visual::CasterContext::default();
-        let Some(visual) = catalog.visual_for_spell(spell_id, &caster) else {
-            return Ok(());
-        };
-        let kits = catalog.replayed_kits(visual);
+        let kits = catalog.replayed_kits_for_spell(spell_id);
+        godot_print!(
+            "area trigger {trigger} spell {spell_id}: kits {:?} at {position:?}",
+            kits.iter().map(|kit| kit.kit_id).collect::<Vec<_>>()
+        );
         if kits.is_empty() {
             return Ok(());
         }
@@ -176,9 +176,10 @@ impl SpellEffects {
         let anchor = match self.area_trigger_anchors.get(&trigger) {
             Some(anchor) if anchor.is_instance_valid() => anchor.clone(),
             _ => {
-                let mut anchor = Node3D::new_alloc();
-                anchor.set_name(&format!("AreaTrigger{trigger}"));
-                anchor.set_position(Vector3::new(position[0], position[1], position[2]));
+                let anchor = effect_anchor(
+                    &format!("AreaTrigger{trigger}"),
+                    Vector3::new(position[0], position[1], position[2]),
+                );
                 root.add_child(&anchor);
                 self.area_trigger_anchors.insert(trigger, anchor.clone());
                 anchor
@@ -188,6 +189,14 @@ impl SpellEffects {
         for kit in &kits {
             self.census_start(kit, visual_id, spell_id);
         }
+        godot_print!(
+            "area trigger {trigger}: anchor={:?} in_tree={} children={} pending={} active={}",
+            anchor.get_global_position(),
+            anchor.is_inside_tree(),
+            anchor.get_child_count(),
+            self.pending.len(),
+            self.active.len()
+        );
         Ok(())
     }
 
@@ -364,6 +373,32 @@ pub(super) fn phase_at(
 /// M2 has no attachment table (Sealamp2358259, Spire1625030). No authored bone
 /// or alternate position is synthesized; other attachment IDs require their rig.
 const GROUND_ATTACHMENT: u8 = 19;
+
+/// Detached anchor with the rig a kit model's attachments resolve against: the preview
+/// kits build the same tree, so a trigger replay can place hand- and ground-attached models.
+pub(crate) fn effect_anchor(name: &str, position: Vector3) -> Gd<Node3D> {
+    let mut anchor = Node3D::new_alloc();
+    anchor.set_name(name);
+    anchor.set_position(position);
+    let mut model = Node3D::new_alloc();
+    model.set_name("NpcModel");
+    let mut skeleton = Node3D::new_alloc();
+    skeleton.set_name("Skeleton3D");
+    model.add_child(&skeleton);
+    for attachment in 0..=60u8 {
+        let mut bone = Node3D::new_alloc();
+        bone.set_name(&format!("AttachmentBone{attachment}"));
+        let mut point = Node3D::new_alloc();
+        point.set_name(&format!("Attachment{attachment}"));
+        bone.add_child(&point);
+        skeleton.add_child(&bone);
+    }
+    let mut ground = Node3D::new_alloc();
+    ground.set_name("AttachmentGround");
+    skeleton.add_child(&ground);
+    anchor.add_child(&model);
+    anchor
+}
 
 fn effect_attachment_node(
     world: &WorldUnits,

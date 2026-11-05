@@ -752,6 +752,36 @@ impl SpellVisualCatalog {
         kits
     }
 
+    /// Every `SpellVisual` a spell can show, in priority order, ignoring caster
+    /// conditions: an area trigger's position is known but not always the caster that
+    /// would satisfy each variant's `PlayerCondition`.
+    pub fn visuals_for_spell(&self, spell_id: u32) -> Vec<u32> {
+        let mut ids: Vec<u32> = self
+            .spells
+            .get(&spell_id)
+            .map(|choices| choices.iter().map(|choice| choice.visual_id).collect())
+            .unwrap_or_default();
+        ids.sort_unstable();
+        ids.dedup();
+        ids
+    }
+
+    /// Kits an area trigger re-issues for a spell, across every visual variant of it and
+    /// de-duplicated by kit id, so a conditional cast visual still contributes its ground
+    /// kit (Death and Decay's 230208 lives in 173378, not in the unconditioned 169120).
+    pub fn replayed_kits_for_spell(&self, spell_id: u32) -> Vec<VisualKit> {
+        let mut kits: Vec<VisualKit> = Vec::new();
+        for visual in self.visuals_for_spell(spell_id) {
+            for kit in self.replayed_kits(visual) {
+                if !kits.iter().any(|known| known.kit_id == kit.kit_id) {
+                    kits.push(kit);
+                }
+            }
+        }
+        kits.sort_by_key(|kit| kit.kit_id);
+        kits
+    }
+
     pub fn kits(&self, visual_id: u32, event: VisualEvent) -> Vec<VisualKit> {
         let Some(visual) = self.visuals.get(&visual_id) else {
             return Vec::new();

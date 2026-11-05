@@ -56,7 +56,7 @@ func run() -> void:
 	elif case == "drape_wall":
 		await capture_drape("wall", WALL_FOOT)
 	elif case == "drape_trigger":
-		await capture_trigger(DECAY_SPELL, "decay", [[500, "0.5"], [3000, "3"], [6000, "6"], [9000, "9"]])
+		await capture_trigger(DECAY_SPELL, "decay", [[0, "0.5"], [2500, "3"], [5500, "6"], [8500, "9"]])
 	elif case == "drape_consecration":
 		await capture_trigger(26573, "consecration", [[1000, "1"]])
 	elif case == "drape_flamestrike":
@@ -515,6 +515,27 @@ func capture_trigger(spell: int, prefix: String, shots: Array) -> void:
 		return
 	await wait_ms(1200)
 	place_camera(point + Vector3(3.6, 3.6, 4.8), point)
+	await capture("area-trigger-%s-none" % prefix, false)
+	# Control: the same kit through the preview path that was visible in v5, to separate a
+	# replay bug from a fixture/camera problem.
+	if prefix == "decay":
+		# `preview_spell_kit` answers "preparing" until the kit's assets are in; retry like
+		# the v5 drape cases did, then wait for the models to spawn.
+		var started_kit := Time.get_ticks_msec()
+		while Time.get_ticks_msec() < started_kit + 60000:
+			await process_frame
+			if client.preview_spell_kit(DECAY_VISUAL, DECAY_KIT, DECAY_SPELL, point) == "":
+				break
+		var spawned := Time.get_ticks_msec()
+		while kit_meshes() == 0 and Time.get_ticks_msec() < spawned + 60000:
+			await process_frame
+		print("area trigger control: meshes=%d" % kit_meshes())
+		await wait_ms(1200)
+		pause_kits(true)
+		await capture("area-trigger-%s-preview-kit" % prefix, false)
+		client.preview_clear_kits()
+		await wait_ms(300)
+		await capture("area-trigger-%s-none2" % prefix, false)
 	var started := Time.get_ticks_msec()
 	var pulse := 0
 	for shot in shots:
@@ -524,6 +545,8 @@ func capture_trigger(spell: int, prefix: String, shots: Array) -> void:
 			await wait_ms(wait)
 		client.preview_area_trigger(spell, point, 8.0, 10.0, pulse)
 		pulse += 1
+		# The one-shot fades in over its first 600 ms; capture at its steady frame.
+		await wait_ms(800)
 		await capture("area-trigger-%s-%s" % [prefix, shot[1]], false)
 		if closed:
 			return

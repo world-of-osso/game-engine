@@ -605,8 +605,9 @@ mod displays;
 mod kits;
 mod missiles;
 mod models;
+pub(crate) use models::effect_anchor;
 #[cfg(test)]
-use models::{missile_step, phase_at};
+pub(crate) use models::{missile_step, phase_at};
 
 #[path = "spell_auras.rs"]
 mod auras;
