@@ -8,7 +8,7 @@ extends SceneTree
 #
 # Headless frames run far faster than real time, so every wait is a wall-clock wait.
 
-const OUT_DIR := "/syncthing/AgentShared/2026-11-05/foot-ik-ground-drape/v5/"
+const OUT_DIR := "/syncthing/AgentShared/2026-11-05/foot-ik-ground-drape/trigger/"
 # Stormwind staircase: render treads from 107.95 down to 106.20 between x -8566 and -8562.
 const STAIR_BOTTOM := Vector3(-8564.0, 107.4, -778.0)
 const STAIR_TOP := Vector3(-8566.0, 0.0, -778.0)
@@ -55,6 +55,12 @@ func run() -> void:
 		await capture_drape("steps", STAIR_BOTTOM)
 	elif case == "drape_wall":
 		await capture_drape("wall", WALL_FOOT)
+	elif case == "drape_trigger":
+		await capture_trigger(DECAY_SPELL, "decay", [[500, "0.5"], [3000, "3"], [6000, "6"], [9000, "9"]])
+	elif case == "drape_consecration":
+		await capture_trigger(26573, "consecration", [[1000, "1"]])
+	elif case == "drape_flamestrike":
+		await capture_trigger(2120, "flamestrike", [[1000, "1"]])
 	elif case == "drape_life":
 		await capture_life()
 	elif case == "footik_fps":
@@ -494,6 +500,31 @@ func capture_life() -> void:
 			await wait_ms(wait)
 		print("LIFE t=%d materials=%s" % [at, JSON.stringify(client.preview_kit_materials())])
 		await capture("ground-drape-life-%d" % at, false)
+		if closed:
+			return
+	finish()
+
+# Area-trigger ground visuals: replay the trigger's kits like a server update does and
+# capture the effect while it is up.
+func capture_trigger(spell: int, prefix: String, shots: Array) -> void:
+	var point := FLAT_GROUND
+	if not await load_world(point):
+		return
+	client.preview_set_focus(point)
+	if not await wait_objects():
+		return
+	await wait_ms(1200)
+	place_camera(point + Vector3(3.6, 3.6, 4.8), point)
+	var started := Time.get_ticks_msec()
+	var pulse := 0
+	for shot in shots:
+		var at: int = shot[0]
+		var wait: int = at - int(Time.get_ticks_msec() - started)
+		if wait > 0:
+			await wait_ms(wait)
+		client.preview_area_trigger(spell, point, 8.0, 10.0, pulse)
+		pulse += 1
+		await capture("area-trigger-%s-%s" % [prefix, shot[1]], false)
 		if closed:
 			return
 	finish()

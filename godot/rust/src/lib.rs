@@ -1086,6 +1086,29 @@ impl GameClient {
         anchors
     }
 
+    /// Offline fixture: replay a spell area trigger's held kits at a point, as a trigger
+    /// update does. The replica path is covered by unit tests; the preview has no wire.
+    #[func]
+    fn preview_area_trigger(
+        &mut self,
+        spell: i64,
+        position: Vector3,
+        radius: f64,
+        duration: f64,
+        pulse: i64,
+    ) {
+        let _ = (radius, duration, pulse);
+        let spell = u32::try_from(spell).unwrap_or(0);
+        let center = [position.x, position.y, position.z];
+        let id = 900_000 + u64::from(spell);
+        if let Err(error) =
+            self.spell_effects
+                .replay_area_trigger(id, spell, center, &mut self.world)
+        {
+            godot_error!("Area trigger {id} visual: {error}");
+        }
+    }
+
     /// Offline fixture: show a kit through the production spell-effect path.
     #[func]
     fn preview_spell_kit(
