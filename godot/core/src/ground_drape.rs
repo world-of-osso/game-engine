@@ -16,6 +16,10 @@ pub const DEFAULT_GRID_EDGE: f32 = 0.25;
 pub const MAX_GROUND_BATCH_EXTENT: f32 = 40.0;
 /// A flat batch's world height span; anything taller is a vertical effect, not a plane.
 pub const MAX_GROUND_BATCH_THICKNESS: f32 = 0.75;
+/// Highest a ground batch may hover above its placement's floor. Kits lift their ground
+/// model to avoid z-fighting (Death and Decay reaches 1.72 yd), so this is not the step
+/// window the surface search uses.
+pub const MAX_GROUND_HOVER: f32 = 2.0;
 /// Fraction of the batch's area that must be near-horizontal.
 pub const MIN_GROUND_AREA_FRACTION: f32 = 0.9;
 /// |normal.y| for a face to count as near-horizontal (up to 25 degrees off level).
@@ -45,6 +49,8 @@ pub struct DrapedBatch {
     pub indices: Vec<u32>,
     /// Vertices that found a visible surface inside the step window.
     pub dropped: usize,
+    /// Triangles removed because a draped edge spans more than the step height.
+    pub discarded: usize,
 }
 
 impl DrapedBatch {
@@ -76,16 +82,15 @@ impl GroundDrape {
         mesh: &BatchMesh<'_>,
         placement: Affine3A,
         ground_y: f32,
-        window: f32,
     ) -> bool {
         let Some(analysis) = analyze(mesh, placement) else {
             return false;
         };
-        // Authored ground effects often hover up to a step above their placement to avoid
-        // z-fighting; only a batch higher than the step window is a different part.
+        // Authored ground effects hover above their placement to avoid z-fighting; only a
+        // batch higher than that allowance is a different part of the model.
         analysis.horizontal_area >= MIN_GROUND_AREA_FRACTION * analysis.total_area
             && analysis.min.y >= ground_y - MAX_GROUND_BATCH_THICKNESS
-            && analysis.max.y <= ground_y + window
+            && analysis.max.y <= ground_y + MAX_GROUND_HOVER
             && analysis.max.y - analysis.min.y <= MAX_GROUND_BATCH_THICKNESS
             && analysis.max.x - analysis.min.x <= MAX_GROUND_BATCH_EXTENT
             && analysis.max.z - analysis.min.z <= MAX_GROUND_BATCH_EXTENT
@@ -106,12 +111,13 @@ impl GroundDrape {
         floor_at: impl Fn(f32, f32) -> Option<f32>,
         mut surface_at: impl FnMut(f32, f32, f32, f32) -> Option<f32>,
     ) -> Option<DrapedBatch> {
-        if !self.is_ground_batch(mesh, placement, ground_y, window) {
+        if !self.is_ground_batch(mesh, placement, ground_y) {
             return None;
         }
         let model_from_world = placement.inverse();
         let triangles = subdivide(mesh, placement, self.grid_edge)?;
         let mut positions = Vec::with_capacity(triangles.positions.len());
+        let mut heights = Vec::with_capacity(triangles.positions.len());
         let mut dropped = 0;
         for world in &triangles.positions {
             let floor = floor_at(world.x, world.z).unwrap_or(ground_y);
@@ -122,18 +128,45 @@ impl GroundDrape {
                 dropped += 1;
             }
             let height = draped.unwrap_or(world.y);
+            heights.push(height);
             let local = model_from_world.transform_point3(Vec3::new(world.x, height, world.z));
             positions.push(local.to_array());
+        }
+        // A triangle whose vertices landed on surfaces more than a step apart (or that
+        // bridges a missing hit, which keeps its authored height) would draw as a shard.
+        let mut indices = Vec::with_capacity(triangles.indices.len());
+        let mut discarded = 0;
+        for triangle in triangles.indices.chunks_exact(3) {
+            if height_span(triangle, &heights) > window {
+                discarded += 1;
+                continue;
+            }
+            indices.extend_from_slice(triangle);
         }
         Some(DrapedBatch {
             positions,
             uvs: triangles.uvs,
             uvs2: triangles.uvs2,
             colors: triangles.colors,
-            indices: triangles.indices,
+            indices,
             dropped,
+            discarded,
         })
     }
+}
+
+/// Vertical span of one triangle's draped vertices; infinite when an index is missing.
+fn height_span(triangle: &[u32], heights: &[f32]) -> f32 {
+    let mut low = f32::INFINITY;
+    let mut high = f32::NEG_INFINITY;
+    for &index in triangle {
+        let Some(&height) = heights.get(index as usize) else {
+            return f32::INFINITY;
+        };
+        low = low.min(height);
+        high = high.max(height);
+    }
+    high - low
 }
 
 struct Analysis {
@@ -368,7 +401,7 @@ mod tests {
         let (positions, uvs, indices) = ground_quad();
         let mesh = batch(&positions, &uvs, &indices);
         let drape = GroundDrape::default();
-        assert!(drape.is_ground_batch(&mesh, Affine3A::IDENTITY, 0.0, 1.6));
+        assert!(drape.is_ground_batch(&mesh, Affine3A::IDENTITY, 0.0));
         let draped = drape
             .drape_batch(
                 &mesh,
@@ -455,7 +488,7 @@ mod tests {
         ];
         let indices = [0, 1, 2, 0, 2, 3];
         let mesh = batch(&wall, &uvs, &indices);
-        assert!(!drape.is_ground_batch(&mesh, Affine3A::IDENTITY, 0.0, 1.6));
+        assert!(!drape.is_ground_batch(&mesh, Affine3A::IDENTITY, 0.0));
         // A ground quad lifted far above its placement is not aligned to the ground.
         let (positions, uvs, indices) = ground_quad();
         let lifted: Vec<_> = positions
@@ -463,7 +496,7 @@ mod tests {
             .map(|[x, y, z]| [*x, y + 4.0, *z])
             .collect();
         let lifted_mesh = batch(&lifted, &uvs, &indices);
-        assert!(!drape.is_ground_batch(&lifted_mesh, Affine3A::IDENTITY, 0.0, 1.6));
+        assert!(!drape.is_ground_batch(&lifted_mesh, Affine3A::IDENTITY, 0.0));
     }
 
     #[test]
@@ -502,7 +535,7 @@ mod tests {
             .collect();
         let mesh = batch(&hovering, &uvs, &indices);
         let drape = GroundDrape::default();
-        assert!(drape.is_ground_batch(&mesh, Affine3A::IDENTITY, 0.0, 1.6));
+        assert!(drape.is_ground_batch(&mesh, Affine3A::IDENTITY, 0.0));
     }
 
     #[test]
@@ -514,7 +547,7 @@ mod tests {
             .collect();
         let mesh = batch(&tilted, &uvs, &indices);
         let drape = GroundDrape::default();
-        assert!(drape.is_ground_batch(&mesh, Affine3A::IDENTITY, 0.0, 1.6));
+        assert!(drape.is_ground_batch(&mesh, Affine3A::IDENTITY, 0.0));
     }
 
     #[test]
@@ -538,6 +571,43 @@ mod tests {
             if vertex[0] >= 0.0 {
                 assert!((vertex[1]).abs() < 1e-4, "authored height kept: {vertex:?}");
             }
+        }
+    }
+
+    /// A vertex without a hit keeps its authored height, so a triangle that bridges the
+    /// two heights would stretch. Its edge span is more than a step, and it is dropped.
+    #[test]
+    fn triangles_whose_draped_edge_spans_more_than_a_step_are_dropped() {
+        let (positions, uvs, indices) = ground_quad();
+        let lifted: Vec<_> = positions
+            .iter()
+            .map(|[x, y, z]| [*x, y + 1.9, *z])
+            .collect();
+        let mesh = batch(&lifted, &uvs, &indices);
+        let drape = GroundDrape::default();
+        let draped = drape
+            .drape_batch(
+                &mesh,
+                Affine3A::IDENTITY,
+                0.0,
+                1.6,
+                |x, _| (x < 0.0).then_some(0.0),
+                |x, _z, _ceiling, _floor| (x < 0.0).then_some(0.0),
+            )
+            .expect("draped");
+        assert!(draped.discarded > 0, "no bridging triangle was dropped");
+        assert!(
+            draped.triangle_count() > 0,
+            "a flat patch keeps its triangles"
+        );
+        for triangle in draped.indices.chunks_exact(3) {
+            let mut heights = [0.0f32; 3];
+            for (height, index) in heights.iter_mut().zip(triangle) {
+                *height = draped.positions[*index as usize][1];
+            }
+            let span = heights.iter().copied().fold(f32::NEG_INFINITY, f32::max)
+                - heights.iter().copied().fold(f32::INFINITY, f32::min);
+            assert!(span <= 1.6, "kept triangle spans {span}: {heights:?}");
         }
     }
 

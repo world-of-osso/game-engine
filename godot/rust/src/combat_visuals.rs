@@ -362,6 +362,7 @@ fn drape_mesh(
     if draped.dropped == 0 {
         return DrapeOutcome::NoSurface;
     }
+    log_draped_batch(&instance, placement, &draped);
     let skinned = !instance.get_skeleton_path().is_empty();
     instance.set_mesh(&draped_mesh(&draped));
     if skinned {
@@ -369,6 +370,35 @@ fn drape_mesh(
         instance.set_skeleton_path(&NodePath::from(""));
     }
     DrapeOutcome::Draped
+}
+
+/// Logs one draped batch's real geometry, for capture-run proof.
+fn log_draped_batch(
+    instance: &Gd<godot::classes::MeshInstance3D>,
+    placement: glam::Affine3A,
+    draped: &game_engine_core::ground_drape::DrapedBatch,
+) {
+    let mut min = glam::Vec3::splat(f32::INFINITY);
+    let mut max = glam::Vec3::splat(f32::NEG_INFINITY);
+    for point in &draped.positions {
+        let world = placement.transform_point3(glam::Vec3::from_array(*point));
+        min = min.min(world);
+        max = max.max(world);
+    }
+    godot_print!(
+        "drape batch {}: vertices={} triangles={} hits={} discarded={} x={:.2}..{:.2} z={:.2}..{:.2} y={:.2}..{:.2}",
+        instance.get_name(),
+        draped.positions.len(),
+        draped.triangle_count(),
+        draped.dropped,
+        draped.discarded,
+        min.x,
+        max.x,
+        min.z,
+        max.z,
+        min.y,
+        max.y,
+    );
 }
 
 /// Rebuilds the authored surface with the draped geometry and smooth normals; the UV,

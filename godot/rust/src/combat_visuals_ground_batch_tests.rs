@@ -10,6 +10,10 @@ fn data_root() -> std::path::PathBuf {
     std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data")
 }
 
+/// The kit's authored batches in engine space, with the kit's own placement: attach 570339
+/// scales by 0.75 and effect name 29394 by 3.0, and offsets the ground model one yard up.
+const KIT_SCALE: f32 = 0.75 * 3.0;
+
 /// The kit's authored batches in engine space, with the kit's own placement.
 fn kit_batches() -> Vec<(Affine3A, game_engine_core::m2::SubmeshArrays)> {
     let data = data_root();
@@ -17,9 +21,8 @@ fn kit_batches() -> Vec<(Affine3A, game_engine_core::m2::SubmeshArrays)> {
     let model = crate::assets::read_model_file(&path).expect("ground kit model");
     let batches = game_engine_core::m2::resolve_render_batches(&model, &[0; 3], true, |_| None)
         .expect("resolved batches");
-    // The kit offsets the ground model one yard up and scales it by 0.75.
     let placement = Affine3A::from_scale_rotation_translation(
-        Vec3::splat(0.75),
+        Vec3::splat(KIT_SCALE),
         Quat::IDENTITY,
         Vec3::new(0.0, 1.0, 0.0),
     );
@@ -48,10 +51,26 @@ fn death_and_decay_ground_batches_follow_a_step() {
             colors: None,
             indices: &indices,
         };
-        if !drape.is_ground_batch(&mesh, *placement, 0.0, 1.6) {
+        if !drape.is_ground_batch(&mesh, *placement, 0.0) {
             continue;
         }
         ground_batches += 1;
+        // The authored quad is 7.85 yd at scale 1: 17.66 yd across at the kit's own scale.
+        let authored_extent = (arrays
+            .positions
+            .iter()
+            .map(|point| point[0])
+            .fold(f32::NEG_INFINITY, f32::max)
+            - arrays
+                .positions
+                .iter()
+                .map(|point| point[0])
+                .fold(f32::INFINITY, f32::min))
+            * KIT_SCALE;
+        assert!(
+            (authored_extent - 17.66).abs() < 0.05,
+            "kit disc extent {authored_extent}"
+        );
         // Ground under the placement, with a one-yard step at x = 0.
         let step = |x: f32| if x > 0.0 { 1.0 } else { 0.0 };
         let draped = drape
@@ -65,20 +84,32 @@ fn death_and_decay_ground_batches_follow_a_step() {
             )
             .expect("ground batch drapes");
         assert!(draped.dropped > 0, "no vertex found the ground");
-        // The authored quad is planar; on a step its vertices must split into two heights.
+        // The authored quad is planar; on a step its world heights must split into two
+        // levels (draped positions are model space, so the placement scales them back).
+        let world_y = |point: &[f32; 3]| placement.transform_point3(Vec3::from_array(*point)).y;
         let lowest = draped
             .positions
             .iter()
-            .fold(f32::INFINITY, |low, point| low.min(point[1]));
+            .fold(f32::INFINITY, |low, point| low.min(world_y(point)));
         let highest = draped
             .positions
             .iter()
-            .fold(f32::NEG_INFINITY, |high, point| high.max(point[1]));
+            .fold(f32::NEG_INFINITY, |high, point| high.max(world_y(point)));
         assert!(
             highest - lowest > 0.5,
             "draped heights span {}",
             highest - lowest
         );
+        // No kept triangle bridges the step: every edge stays inside one step height.
+        for triangle in draped.indices.chunks_exact(3) {
+            let mut heights = [0.0f32; 3];
+            for (height, index) in heights.iter_mut().zip(triangle) {
+                *height = world_y(&draped.positions[*index as usize]);
+            }
+            let span = heights.iter().copied().fold(f32::NEG_INFINITY, f32::max)
+                - heights.iter().copied().fold(f32::INFINITY, f32::min);
+            assert!(span <= 1.6, "kept triangle spans {span}: {heights:?}");
+        }
         // UVs stay inside the authored mapping, so the rune keeps its texture.
         let (uv_min, uv_max) = arrays.uv.iter().fold(
             ([f32::INFINITY; 2], [f32::NEG_INFINITY; 2]),

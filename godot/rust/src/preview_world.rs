@@ -198,7 +198,7 @@ impl GameClient {
             entry.set("targets", &PackedFloat32Array::from(last.targets));
             entry.set("animated", &PackedFloat32Array::from(last.animated));
             entry.set("floors", &PackedFloat32Array::from(last.floors));
-            entry.set("pelvis_drop", last.pelvis_drop);
+            entry.set("root_offset", last.root_offset);
             characters.push(&entry.to_variant());
         }
         state.set("characters", &characters);

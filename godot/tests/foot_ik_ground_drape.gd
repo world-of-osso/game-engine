@@ -1,6 +1,6 @@
 extends SceneTree
 
-# v2 proofs: foot IK on a real Stormwind staircase (collision ramp under render treads)
+# v3 proofs: foot IK on a real Stormwind staircase (collision ramp under render treads)
 # and Death and Decay draping on flat ground, a raised surface edge, steps, and behind a
 # wall. Offline: no server, real authored map, real player model, real spell kit.
 #
@@ -8,7 +8,7 @@ extends SceneTree
 #
 # Headless frames run far faster than real time, so every wait is a wall-clock wait.
 
-const OUT_DIR := "/syncthing/AgentShared/2026-11-05/foot-ik-ground-drape/v2/"
+const OUT_DIR := "/syncthing/AgentShared/2026-11-05/foot-ik-ground-drape/v3/"
 # Stormwind staircase: render treads from 107.95 down to 106.20 between x -8566 and -8562.
 const STAIR_BOTTOM := Vector3(-8564.0, 107.4, -778.0)
 const STAIR_TOP := Vector3(-8566.0, 0.0, -778.0)
@@ -258,21 +258,26 @@ func capture_drape(label: String, point: Vector3) -> void:
 	# Anchor the effect on the ground it is meant to lie on.
 	point.y = probe.floor
 	print("PROBE-%s %s" % [label, JSON.stringify(probe)])
-	# 45 degrees above, close enough that the 5.9 yd disc fills about a third of the frame.
+	# 45 degrees above, close enough that the 17.7 yd disc fills the frame.
 	if label == "wall":
 		place_camera(Vector3(point.x - 7.5, point.y + 9.4, point.z + 1.0), point)
 	else:
 		place_camera(point + Vector3(3.6, 3.6, 4.8), point)
 	if label != "wall":
-		print("FRAME-%s center=%s left=%s right=%s" % [label,
+		print("FRAME-%s center=%s left=%s right=%s radius8=%s" % [label,
 			camera.unproject_position(point),
 			camera.unproject_position(point + Vector3(-3.0, 0.0, 0.0)),
-			camera.unproject_position(point + Vector3(3.0, 0.0, 0.0))])
-	# Before: draping off, the authored kit placement (a yard above its anchor).
+			camera.unproject_position(point + Vector3(3.0, 0.0, 0.0)),
+			camera.unproject_position(point + Vector3(8.0, 0.0, 0.0))])
+	# Before: draping off, the authored kit placement (a yard above its anchor). Both
+	# captures freeze the kit at the same animation time, so only draping differs.
 	client.preview_set_drape(false)
 	if not await spawn_decay(point):
 		return
-	await wait_ms(1200)
+	await wait_ms(1800)
+	pause_kits(true)
+	await wait_ms(300)
+	print("KIT-%s before %s" % [label, JSON.stringify(client.spell_visuals_state())])
 	await capture("ground-drape-%s-before" % label, false)
 	client.preview_clear_kits()
 	await wait_ms(400)
@@ -280,9 +285,19 @@ func capture_drape(label: String, point: Vector3) -> void:
 	client.preview_set_drape(true)
 	if not await spawn_decay(point):
 		return
-	await wait_ms(1500)
+	await wait_ms(1800)
+	pause_kits(true)
+	await wait_ms(300)
 	await capture("ground-drape-%s-after" % label, false)
 	finish()
+
+# Freezes every kit animation at the same time in both captures.
+func pause_kits(paused: bool) -> void:
+	for child in client.get_children():
+		if not str(child.name).begins_with("PreviewKit"):
+			continue
+		for player in child.find_children("*", "WowAnimationPlayer", true, false):
+			player.call("set_paused", paused)
 
 func hide_ui(node: Node) -> void:
 	for child in node.get_children():

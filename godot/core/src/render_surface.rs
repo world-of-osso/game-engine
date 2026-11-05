@@ -14,9 +14,10 @@ use glam::Vec3;
 /// visible floor: collision faces are often a few centimetres above the drawn surface.
 pub const FLOOR_TOLERANCE: f32 = 0.05;
 
-/// Only faces a character could visually stand on: no more than about 53 degrees from
-/// horizontal. Render treads, carpets and ramps pass; risers, ceilings and walls do not.
-const MIN_UP_NORMAL_Y: f32 = 0.6;
+/// Only faces a character could visually stand on: upward faces no more than about 45
+/// degrees from horizontal. Render treads, carpets and ramps pass; risers, ceilings and
+/// walls do not.
+const MIN_UP_NORMAL_Y: f32 = 0.7;
 
 /// Triangles per BVH leaf.
 const LEAF_SIZE: usize = 4;
@@ -94,7 +95,7 @@ impl RenderSurface {
         )
     }
 
-    /// Absolute up component of triangle `index`'s normal.
+    /// Up component of triangle `index`'s normal (negative for a downward face).
     pub fn triangle_normal_y(&self, index: usize) -> Option<f32> {
         let triangle = self.triangles.get(index)?;
         let corners = triangle.map(|index| self.vertices[index as usize]);
@@ -102,8 +103,7 @@ impl RenderSurface {
             (corners[1] - corners[0])
                 .cross(corners[2] - corners[0])
                 .normalize_or_zero()
-                .y
-                .abs(),
+                .y,
         )
     }
 
@@ -231,7 +231,9 @@ impl SurfaceSet {
 fn faces_up(corners: [Vec3; 3]) -> bool {
     let [a, b, c] = corners;
     let normal = (b - a).cross(c - a).normalize_or_zero();
-    normal.y.abs() >= MIN_UP_NORMAL_Y
+    // Upward only: a downward face (a ceiling or an overhang's underside) is never a
+    // surface to stand on, however horizontal it is.
+    normal.y >= MIN_UP_NORMAL_Y
 }
 
 /// Slab test for the vertical segment `origin`..`origin + dir`.
@@ -385,7 +387,8 @@ impl Builder<'_> {
 mod tests {
     use super::*;
 
-    /// A horizontal quad at `y` spanning `[x0, x1] x [z0, z1]`.
+    /// A horizontal quad at `y` spanning `[x0, x1] x [z0, z1]`, wound upward (the engine's
+    /// counter-clockwise front faces, as every render mesh is drawn).
     fn quad(y: f32, x0: f32, x1: f32, z0: f32, z1: f32) -> (Vec<Vec3>, Vec<[u32; 3]>) {
         let vertices = vec![
             Vec3::new(x0, y, z0),
@@ -393,7 +396,7 @@ mod tests {
             Vec3::new(x1, y, z1),
             Vec3::new(x0, y, z1),
         ];
-        (vertices, vec![[0, 1, 2], [0, 2, 3]])
+        (vertices, vec![[0, 2, 1], [0, 3, 2]])
     }
 
     fn plane(y: f32) -> RenderSurface {
@@ -508,7 +511,7 @@ mod tests {
             vertices.push(center);
             vertices.push(center + Vec3::new(0.8, 0.1, 0.0));
             vertices.push(center + Vec3::new(0.0, 0.1, 0.9));
-            triangles.push([base, base + 1, base + 2]);
+            triangles.push([base, base + 2, base + 1]);
         }
         let surface = RenderSurface::build(vertices.clone(), triangles.clone()).expect("mesh");
         for _ in 0..200 {
@@ -554,6 +557,25 @@ mod tests {
         assert!(near(set.highest_upward_below(0.0, 0.0, 1.6, 0.0), 0.5, 0));
         assert!(near(set.highest_upward_below(5.0, 5.0, 1.6, 0.0), 0.8, 1));
         assert_eq!(set.highest_upward_below(3.0, 3.0, 1.6, 0.0), None);
+    }
+
+    /// A horizontal face wound downward is a ceiling or an overhang's underside, never a
+    /// surface a character stands on, even when it is inside the step window, and neither is
+    /// a face steeper than about 45 degrees.
+    #[test]
+    fn a_downward_or_steep_face_is_not_a_visible_floor() {
+        let (vertices, _) = quad(0.0, -2.0, 2.0, -2.0, 2.0);
+        // Reverse the upward winding of both triangles.
+        let down = RenderSurface::build(vertices, vec![[0, 1, 2], [0, 2, 3]]).expect("ceiling");
+        assert_eq!(down.triangle_normal_y(0), Some(-1.0));
+        assert_eq!(down.highest_upward_below(0.0, 0.0, 1.6, 0.0), None);
+        // 60 degrees off horizontal: a roof face, not a floor.
+        let steep = [
+            Vec3::new(0.0, 0.0, 0.0),
+            Vec3::new(0.0, 0.866, 0.5),
+            Vec3::new(1.0, 0.0, 0.0),
+        ];
+        assert!(!faces_up(steep));
     }
 
     #[test]
