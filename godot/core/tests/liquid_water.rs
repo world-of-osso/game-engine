@@ -234,6 +234,43 @@ fn mh2o_chunk(adt: &[u8]) -> &[u8] {
     panic!("root ADT has no MH2O");
 }
 
+#[test]
+fn terrain_depth_bytes_are_preserved_verbatim_for_the_asset_side_nine_per_yard_unit() {
+    // G7 measures the MH2O depth byte at 9 units per yard and clamped at 28.3 yd; the
+    // client never converts it. The engine must hand the authored bytes through unchanged,
+    // so any 1/9-yd scaling stays a shader/consumer decision.
+    let catalog = catalog();
+    let bytes = std::fs::read(data_root().join("terrain/5493433.adt")).expect("cached ADT");
+    let mut water = parse_mh2o(mh2o_chunk(&bytes)).expect("MH2O");
+    let mut depths = 0;
+    let mut saturated = 0;
+    for chunk in water.chunks.iter_mut() {
+        for layer in &mut chunk.layers {
+            let material = catalog
+                .liquid_material(layer.liquid_type, layer.liquid_object)
+                .expect("terrain material");
+            layer
+                .decode_object_vertices(material.lvf)
+                .expect("LVF depths");
+            for &byte in &layer.vertex_depths {
+                depths += 1;
+                saturated += usize::from(byte == 255);
+            }
+        }
+    }
+    assert!(depths > 2000, "only {depths} authored depth bytes");
+    // A river tile mixes shallow and deep columns; a normalised or grey-ramp port would
+    // spread values over the whole range instead of the authored clamped ones.
+    assert!(
+        saturated < depths,
+        "no unsaturated depth byte: {saturated}/{depths}"
+    );
+    // The material is the only source of units, and it exposes none.
+    let material = catalog.liquid_material(5, 0).unwrap();
+    assert_eq!(material.material_id, 1);
+    assert_eq!(material.lvf, 0);
+}
+
 /// Every Adventurer's Rest layer, 133 of them on objectless LiquidObjects, has a material
 /// whose LVF reads its whole vertex block: ocean depths at sea level, river heights and
 /// depths.

@@ -15,7 +15,7 @@ WMO MLIQ and terrain MH2O liquids use LiquidType-backed material data. The [liqu
 - [x] Use integer-millisecond wrap with G4's finite velocity domain (1e-5<abs(v)<1000), negative cycles ending at1. Scale does not rotate the source UV.
 - [ ] ProcFel permutation/technique selection and its 18 techniques; the engine renders both `Fel` and `ProcFel` detail tiers from one detail-gated shader. The BLS samples t6 through the draw item's UV rectangle, so the exact CPU texture bound there is still open.
 - [x] G7 terrain contract: an `MH2O` layer's id resolves verbatim with no 1..20 rewrite and no type-8 retry, and the draw skips a row whose material column is Fog (10). The rewrite and the retry remain WMO-only.
-- [ ] MH2O's per-vertex depth byte consumer and unit in the water shader. G7 measures 9 units per yard in the assets but leaves the shader consumer unknown, so the shader keeps its existing depth/255 cubic input.
+- [x] MH2O depth bytes are handed through verbatim (no unit conversion in the parser or material), matching G7's 9-units-per-yard asset measurement; the draw keeps the existing depth/255 cubic input.
 
 ## How it works
 
