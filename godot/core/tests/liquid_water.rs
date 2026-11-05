@@ -494,3 +494,37 @@ fn searing_gorge_magma_layers_reread_as_lvf1() {
         assert!(layer.vertex_depths.is_empty());
     }
 }
+
+/// G13: retail applies the depth curve once on the CPU at vertex write. `Int_0` selects two
+/// hard-coded curves for the water formats, `Int_0 >= 2` uses the row coefficients, and the
+/// level-1 magma format uses `(0, 1, 0, 1)`. Only the upper side is clamped.
+#[test]
+fn depth_curve_follows_the_g13_branch_table() {
+    let catalog = catalog();
+    let slow = catalog.liquid_material(5, 0).unwrap();
+    // The shipped constant is 255/42 to five significant digits (`min(1, byte/42)`).
+    assert_eq!(slow.depth_curve, [0.0, 6.071_400_3, 0.0, 0.0]);
+    assert!((slow.depth_curve[1] / (255.0 / 42.0) - 1.0).abs() < 5e-6);
+    assert_eq!(slow.curved_depth(0.0), 0.0);
+    assert!((slow.curved_depth(20.0 / 255.0) - 20.0 / 42.0).abs() < 1e-5);
+    assert!(slow.curved_depth(42.0 / 255.0) > 0.9999);
+    assert_eq!(slow.curved_depth(43.0 / 255.0), 1.0);
+    assert_eq!(slow.curved_depth(1.0), 1.0);
+
+    let ocean = catalog.liquid_material(2, 42).unwrap();
+    assert_eq!(ocean.depth_curve, [0.0, 1.0, 0.0, 0.0]);
+    assert!((ocean.curved_depth(0.25) - 0.25).abs() < 1e-6);
+
+    // Forge molten lava selects `Int_0 = 1`, so its draw channel stays linear.
+    assert_eq!(
+        catalog.liquid_material(1192, 0).unwrap().depth_curve,
+        [0.0, 1.0, 0.0, 0.0]
+    );
+    // Solid lava selects `Int_0 >= 2`, the only branch that reads Coefficient_0..3.
+    let solid = catalog.liquid_material(1174, 0).unwrap();
+    assert_eq!(solid.depth_curve, solid.depth_coefficients);
+
+    let magma = catalog.liquid_material(3, 3).unwrap();
+    assert_eq!(magma.depth_curve, [0.0, 1.0, 0.0, 1.0]);
+    assert!((magma.curved_depth(0.5) - 0.625).abs() < 1e-6);
+}

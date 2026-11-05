@@ -23,7 +23,6 @@ uniform vec4 floats_8 = vec4(0.0);
 uniform vec4 floats_12 = vec4(0.0);
 uniform vec2 floats_16 = vec2(0.0);
 // LiquidType.Coefficient[0..3]: vertex depth -> close/far mix, a cubic.
-uniform vec4 depth_coefficients = vec4(0.0);
 // LiquidWater.cpp CalculateWavePeriod of the two wave scales.
 uniform vec2 wave_periods = vec2(0.0);
 // LiquidObject FlowSpeed and FlowDirection (degrees).
@@ -183,10 +182,12 @@ void fragment() {
 		close_color.rgb = vec3(1.0);
 		far_color.rgb = vec3(1.0);
 	}
+	// G13: `vertex_depth` already carries the row's curved byte. Retail applies the curve
+	// once on the CPU at vertex write; no pixel program contains the polynomial, so this is
+	// the affine mix only.
 	float authored_depth = vertex_depth == 0.0 ? 0.0 : 1.0;  // v131
 	float d = vertex_depth;
-	float depth_mix = clamp(depth_coefficients.x + depth_coefficients.y * d + depth_coefficients.z * d * d + depth_coefficients.w * d * d * d, 0.0, 1.0);
-	float color_mix = depth_mix * f2 + abs(0.1 * bump.y);  // v138
+	float color_mix = d * f2 + abs(0.1 * bump.y);  // v138
 	vec4 water_color = close_color + (far_color - close_color) * color_mix;  // v139
 	vec3 lit_water = water_color.rgb * surface_light;  // v140
 

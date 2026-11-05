@@ -204,7 +204,9 @@ void fragment() {
 	float liquid_view_z = -VERTEX.z;
 	float opaque_view_z = scene_view_depth(depth_texture, SCREEN_UV, INV_PROJECTION_MATRIX);
 	float shore_fade = clamp((opaque_view_z - liquid_view_z) * shore_scale, 0.0, 1.0);
-	if (liquid_detail >= 2) {
+	// G14: the ProcFel class (material 13) binds the depth register and its shore layer at
+	// liquid detail >= 3, not 2; Water, Mercury, LeyLine and the base draw use >= 2.
+	if (liquid_detail >= 3) {
 		// t5 at (TC1.z, 1 - D): TC1.z is the second base layer's U, as G8/BLS specify.
 		vec4 shore = texture(texture_3, vec2(uv_1.x, 1.0 - shore_fade));
 		color = shore.rgb + (color - shore.rgb) * (shore_fade * shore.a);

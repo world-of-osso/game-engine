@@ -154,6 +154,7 @@ fn default_material130_keeps_the_liquidtype5_fallback() {
         assert_eq!(rendered.lvf, source.lvf);
         assert_eq!(rendered.floats, legacy.floats);
         assert_eq!(rendered.depth_coefficients, legacy.depth_coefficients);
+        assert_eq!(rendered.depth_curve, legacy.depth_curve);
         assert_eq!(rendered.texture_slots, legacy.texture_slots);
         assert_eq!(rendered.texture_slots[2], [463849]);
         assert_eq!(rendered.texture_slots[3], [317230]);

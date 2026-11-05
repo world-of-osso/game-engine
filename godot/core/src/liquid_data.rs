@@ -30,6 +30,38 @@ const LEGACY_WATER_TYPE: u16 = 5;
 /// Retail 70688 E6: a missing LiquidType retries row 8, not LiquidMaterial 8.
 const MISSING_LIQUID_TYPE: u32 = 8;
 
+/// G13: the `LiquidType.Int_0 = 0` depth curve. It is `255 / 42`, i.e.
+/// `min(1, depthYards / 4.6667)`: the channel saturates at byte 42 (4.67 yd).
+const STEEP_DEPTH_CURVE: [f32; 4] = [0.0, 6.071_400_3, 0.0, 0.0];
+/// G13: `Int_0 = 1`, and the fallback when no row resolves.
+const LINEAR_DEPTH_CURVE: [f32; 4] = [0.0, 1.0, 0.0, 0.0];
+
+/// G13: retail applies the liquid depth curve once, on the CPU at draw-vertex write, and
+/// stores the curved value in the second texture pair's second component; no pixel
+/// program contains the polynomial. `material_lvf` is the `LiquidMaterial.LVF` row value
+/// (not the ocean instance override): `Int_0` 0/1 select the two hard-coded curves for
+/// formats 0 and 3, `Int_0 >= 2` uses the row's `Coefficient_0..3`, and level-1 magma
+/// uses `(0, 1, 0, 1)`. Every other case is the identity curve.
+pub fn liquid_depth_curve(material_lvf: u8, selector: i32, coefficients: [f32; 4]) -> [f32; 4] {
+    match material_lvf {
+        0 | 3 => match selector {
+            0 => STEEP_DEPTH_CURVE,
+            1 => LINEAR_DEPTH_CURVE,
+            _ => coefficients,
+        },
+        1 => [0.0, 1.0, 0.0, 1.0],
+        _ => LINEAR_DEPTH_CURVE,
+    }
+}
+
+/// G13: the CPU depth channel for an authored `byte / 255` input. Only the upper side is
+/// clamped to one, so an all-negative coefficient set can yield a negative channel.
+pub fn curved_depth_channel(curve: [f32; 4], normalized: f32) -> f32 {
+    let [c0, c1, c2, c3] = curve;
+    let d = normalized;
+    (c0 + c1 * d + c2 * d * d + c3 * d * d * d).min(1.0)
+}
+
 /// The pixel shader of a LiquidMaterial (LiquidMaterialManager.cpp `createLiquidMaterial`;
 /// IDs without a case, such as 8, use water).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -129,6 +161,10 @@ pub struct LiquidMaterial {
     pub floats: Vec<f32>,
     /// Cubic depth-to-colour polynomial `LiquidType.Coefficient[0..4]`.
     pub depth_coefficients: [f32; 4],
+    /// G13: the curve retail's draw-vertex writer applies to the authored depth byte, once,
+    /// before interpolation. Selected from `Int_0`, the material's `LVF` and the row
+    /// coefficients; the pixel program consumes the result directly.
+    pub depth_curve: [f32; 4],
     /// `LiquidType.Color[0..3]` as CSqliteDB.cpp `getFloatFromInt<0..2>`: bytes 0, 1, 2 / 255.
     pub colors: [[f32; 3]; 3],
     /// `LiquidType.Int[0..4]`.
@@ -218,6 +254,12 @@ impl LiquidMaterial {
     /// `cb1[12]` = {Float_13, 1/Float_11, Float_14, Float_15} and
     /// `cb1[13]` = {frame-pair blend, Float_16, Float_17, 0}. The reciprocal is 1 when
     /// `Float_11` is not positive, so a row without a width makes the shore fade immediate.
+    /// G13: the authored depth byte's draw channel, curved exactly once at vertex write.
+    /// `normalized` is the authored byte divided by 255.
+    pub fn curved_depth(&self, normalized: f32) -> f32 {
+        curved_depth_channel(self.depth_curve, normalized)
+    }
+
     pub fn fel_params(&self, pair_blend: f32) -> ([f32; 4], [f32; 4]) {
         let float = |index: usize| self.floats.get(index).copied().unwrap_or(0.0);
         let width = float(11);
@@ -478,6 +520,11 @@ impl LiquidCatalog {
             lvf,
             floats: row.floats.clone(),
             depth_coefficients: row.coefficients,
+            depth_curve: liquid_depth_curve(
+                material_lvf,
+                row.ints.first().copied().unwrap_or(0),
+                row.coefficients,
+            ),
             flow_direction,
             flow_speed,
             colors: row

@@ -39,12 +39,12 @@ func run() -> void:
 	RenderingServer.global_shader_parameter_set("specular_color", Vector3.ONE)
 	if not await check_layer_gate(material, "texture_2", 3, Color(0,0,0,1), Color(1,1,1,1)):
 		return
-	if not await check_layer_gate(material, "texture_3", 2, Color(1,0,0,0), Color(0,0,1,0)):
+	if not await check_layer_gate(material, "texture_3", 3, Color(1,0,0,0), Color(0,0,1,0)):
 		return
 	if not await check_depth_gap(material):
 		return
 	print("PASS: FORGE_LIQUID_PIXELS object-zero/static, row10949/animated, integer clock, " +
-		"shore2/specular3, view-depth shore fade")
+		"shore3/specular3, view-depth shore fade")
 	client.free()
 	quit(0)
 
@@ -87,14 +87,20 @@ func check_layer_gate(material: ShaderMaterial, slot: String, threshold: int, fi
 func check_depth_gap(material: ShaderMaterial) -> bool:
 	var original_texture = material.get_shader_parameter("texture_3")
 	material.set_shader_parameter("texture_3", solid_texture(Color(0,0,1,1)))
-	material.set_shader_parameter("liquid_detail", 2)
+	# G14: ProcFel binds the depth register and its shore layer at liquid detail >= 3, where
+	# its specular layer is also active. The specular gate is proven separately, so mute it
+	# here to isolate the shore term this probe measures.
+	var specular_before = RenderingServer.global_shader_parameter_get("specular_color")
+	RenderingServer.global_shader_parameter_set("specular_color", Vector3.ZERO)
+	material.set_shader_parameter("liquid_detail", 3)
 	place_camera(120.0, 300.0)
 	var measured: Array[float] = []
 	for gap in [0.2, 0.5, 12.0]:
 		set_backing_gap(gap)
-		var value := await shore_fraction()
+		var counts := await shore_counts()
+		var value: float = counts[0] / maxf(counts[1], 1.0)
 		measured.append(value)
-		print("FORGE_GAP backing=", gap, " shore_fraction=", value)
+		print("FORGE_GAP backing=", gap, " shore_fraction=", value, " shore/covered=", counts)
 	set_backing_gap(2.0)
 	# A 0.2 yd gap is far inside the 2.6 yd fade; 12 yd is far outside it.
 	if measured[0] < 0.5:
@@ -119,6 +125,7 @@ func check_depth_gap(material: ShaderMaterial) -> bool:
 	set_backing_gap(2.0)
 	place_camera(120.0, 300.0)
 	material.set_shader_parameter("texture_3", original_texture)
+	RenderingServer.global_shader_parameter_set("specular_color", specular_before)
 	return true
 
 ## Move the opaque plane behind the liquid to `gap` yards below its surface.

@@ -104,12 +104,27 @@ impl WaterMaterials {
         if !game_engine_core::liquid_data::terrain_draws_surface(native.params.material_id) {
             return Ok(None);
         }
-        let geometry = adt::build_water_geometry(position, layer);
+        let mut geometry = adt::build_water_geometry(position, layer);
         if geometry.indices.is_empty() {
             return Ok(None);
         }
+        // G13: a layer whose format has no heights (the depth-only format 2 ocean) draws at
+        // world y = 0: the client's grid value is `0 - chunkBase` and its draw matrix adds
+        // the base height back, so the authored surface/minimum heights are not consulted.
+        // The parsed builder keeps `min_height` for such layers, which is the same 0.0 in
+        // every sampled ocean layer; place it explicitly so the rule does not depend on data.
+        if layer.vertex_heights.is_empty() {
+            for vertex in &mut geometry.positions {
+                vertex[1] = 0.0;
+            }
+        }
         let material = self.material(key, native)?;
-        Ok(Some((build_mesh(geometry), material)))
+        // G13: the depth curve is a CPU vertex-write step; no liquid pixel program re-curves
+        // the interpolated value.
+        Ok(Some((
+            build_mesh(geometry, Some(native.params.depth_curve)),
+            material,
+        )))
     }
 
     pub fn sample_clock(&mut self, parent: &Gd<Node3D>) -> Result<(), String> {
@@ -163,7 +178,8 @@ impl WaterMaterials {
         let mut material = self.material((liquid_type, u16::from(interior)), native)?;
         material.set_shader_parameter("mesh_uv", &true.to_variant());
         material.set_shader_parameter("interior", &interior.to_variant());
-        Ok(water_instance(&build_mesh(geometry), &material))
+        // WMO liquids carry no parsed depth byte in this engine, so there is no curve input.
+        Ok(water_instance(&build_mesh(geometry, None), &material))
     }
 
     fn material(
@@ -373,10 +389,6 @@ fn bind_liquid_material(material: &mut Gd<ShaderMaterial>, native: &NativeLiquid
         material.set_shader_parameter(name, &value.to_variant());
     }
     material.set_shader_parameter("floats_16", &Vector2::new(f[16], f[17]).to_variant());
-    material.set_shader_parameter(
-        "depth_coefficients",
-        &Vector4::from_array(params.depth_coefficients).to_variant(),
-    );
     for (index, color) in params.colors.iter().enumerate() {
         material.set_shader_parameter(
             &format!("liquid_color_{index}"),
@@ -395,6 +407,13 @@ fn bind_liquid_material(material: &mut Gd<ShaderMaterial>, native: &NativeLiquid
             &(if float_11 > 0.0 { 1.0 / float_11 } else { 1.0 }).to_variant(),
         );
     }
+    // G13 proves the water family's pixel program has no depth polynomial; the Fel, LeyLine
+    // and Swamp equations were derived from their own BLS payloads elsewhere and still read
+    // the row's coefficient cubic.
+    material.set_shader_parameter(
+        "depth_coefficients",
+        &Vector4::from_array(params.depth_coefficients).to_variant(),
+    );
     material.set_shader_parameter(
         "wave_periods",
         &Vector2::from_array(params.wave_periods).to_variant(),
@@ -453,7 +472,7 @@ fn water_instance(mesh: &Gd<ArrayMesh>, material: &Gd<ShaderMaterial>) -> Gd<Mes
     surface
 }
 
-fn build_mesh(geometry: adt::WaterGeometry) -> Gd<ArrayMesh> {
+fn build_mesh(geometry: adt::WaterGeometry, depth_curve: Option<[f32; 4]>) -> Gd<ArrayMesh> {
     let positions: Vec<_> = geometry
         .positions
         .into_iter()
@@ -465,15 +484,22 @@ fn build_mesh(geometry: adt::WaterGeometry) -> Gd<ArrayMesh> {
         .map(Vector3::from_array)
         .collect();
     let uvs: Vec<_> = geometry.uvs.into_iter().map(Vector2::from_array).collect();
-    // I2 B.4: the liquid draw carries position plus two texture-coordinate pairs and no
-    // colour attribute. The authored depth byte rides the second pair's second component,
+    // I2 B.4 / G13: the liquid draw carries position plus two texture-coordinate pairs and
+    // no colour attribute. The authored depth byte rides the second pair's second component,
     // which the vertex program forwards as the depth interpolant (TEXCOORD0.z), and the
-    // colour is a constant white. Terrain MH2O supplies the byte as the vertex alpha from
-    // the geometry builder; WMO liquids have no depth byte and stay at 1.
+    // colour is a constant white. Retail applies the row's depth curve here, once, and the
+    // pixel program uses the interpolated curved value directly; WMO liquids have no parsed
+    // depth byte and stay at the authored 1.
     let depths: Vec<_> = geometry
         .colors
         .iter()
-        .map(|color| Vector2::new(0.0, color[3]))
+        .map(|color| {
+            let depth = match depth_curve {
+                Some(curve) => game_engine_core::liquid_data::curved_depth_channel(curve, color[3]),
+                None => color[3],
+            };
+            Vector2::new(0.0, depth)
+        })
         .collect();
     let colors: Vec<_> = geometry.colors.iter().map(|_| Color::WHITE).collect();
     // Godot ArrayMesh front faces are clockwise; the geometry's indices are counterclockwise.

@@ -140,7 +140,7 @@ func make_viewport() -> void:
 	plane.material_override = backing
 	viewport.add_child(plane)
 
-## A 200 yd liquid quad with authored vertex depth 80/255.
+## A 200 yd liquid quad with depth channel 80/255 (curved at vertex write per G13).
 func liquid_quad() -> ArrayMesh:
 	var vertices := PackedVector3Array()
 	for corner in [Vector2(-100, -100), Vector2(100, -100), Vector2(-100, 100), Vector2(100, 100)]:
