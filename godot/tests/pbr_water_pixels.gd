@@ -3,7 +3,7 @@ extends SceneTree
 ## Forever Material130 PBR water GPU fixture. The material is the authored Forever row
 ## (LiquidType 1251, LiquidObject 18420, map 2991) with its six LiquidTypeXTexture masks
 ## and 38 floats. Checks that the PBR path is selected, all six authored textures are
-## bound, and the row foam weights and the baked shore map change the pixels.
+## bound, and the row foam weights and colours change the pixels.
 
 const WOW_POSITION := Vector3(3065.0, 756.58972, -1380.0)
 const WATER := Vector3(3065.0, 756.58972, -1380.0)
@@ -60,7 +60,6 @@ func check_pbr_bindings() -> String:
 func check_foam_weight() -> String:
 	make_viewport()
 	build()
-	material.set_shader_parameter("shore_map_enabled", false)
 	var default_batch_6: Vector4 = material.get_shader_parameter("pbr_batch_6")
 	material.set_shader_parameter("pbr_batch_6", Vector4(default_batch_6.x, default_batch_6.y, 0.0, 0.0))
 	var calm := await capture()
@@ -73,7 +72,6 @@ func check_foam_weight() -> String:
 	return ""
 
 func check_row_colours() -> String:
-	material.set_shader_parameter("shore_map_enabled", false)
 	build()
 	var lit := await capture()
 	material.set_shader_parameter("pbr_batch_2", Vector4.ZERO)
@@ -142,11 +140,6 @@ func water_quad() -> ArrayMesh:
 	var mesh := ArrayMesh.new()
 	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
 	return mesh
-
-func shore_texture(depth: float) -> ImageTexture:
-	var image := Image.create_empty(2, 2, false, Image.FORMAT_RF)
-	image.fill(Color(depth, 0.0, 0.0, 1.0))
-	return ImageTexture.create_from_image(image)
 
 func capture() -> Image:
 	for frame in 3:

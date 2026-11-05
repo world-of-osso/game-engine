@@ -18,10 +18,9 @@ uniform sampler2D foam_river : repeat_enable, filter_linear_mipmap;
 uniform sampler2D screen_texture : hint_screen_texture, filter_linear, repeat_disable;
 uniform sampler2D depth_texture : hint_depth_texture, filter_nearest, repeat_disable;
 
-// G10 / liquid_shore::ShoreDepthMap.
-uniform sampler2D shore_depth_map : repeat_disable, filter_linear;
-uniform vec4 shore_map_transform = vec4(0.0);
-uniform bool shore_map_enabled = false;
+// G10 shore: the refuted per-surface bottom-height map is gone from this lane too; both
+// liquid families read the view-depth prepass sample instead (see the water and Fel
+// shaders). `shore_scale` carries the row's fade width where a row supplies one.
 uniform float shore_scale = 1.0;
 
 // Forever EF2: one CPU-assembled 38-float batch, copied verbatim. vec0 is
@@ -62,7 +61,6 @@ const float DEGREES = 0.017453292;
 const float SPECULAR_POWER = 1.0;
 
 varying vec3 wow_position;
-varying vec2 shore_uv;
 varying float authored_coverage;
 
 vec3 to_wow(vec3 godot) {
@@ -113,7 +111,6 @@ void vertex() {
 	wow_position = to_wow((MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz);
 	// I2 B.4: the authored depth byte rides the second texture pair's second component.
 	authored_coverage = UV2.y > 0.0 ? 1.0 : 0.0;
-	shore_uv = VERTEX.xz * shore_map_transform.xy + shore_map_transform.zw;
 }
 
 void fragment() {
@@ -137,11 +134,8 @@ void fragment() {
 	vec4 depth_mask = texture(foam_depth, uv1);
 	vec4 river = texture(foam_river, uv2);
 
-	// G10 shore: D = saturate(water depth / Float[11]).
+	// G10 shore: D = saturate(water depth / Float[11]) once the depth source is settled.
 	float d = 1.0;
-	if (shore_map_enabled) {
-		d = clamp(texture(shore_depth_map, shore_uv).r * shore_scale, 0.0, 1.0);
-	}
 
 	// Forever Water PBR branch: cubic(mask) * weight drives the close/far mix.
 	float m = mid.r;
