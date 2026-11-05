@@ -157,7 +157,10 @@ fn extract_mesh(mesh: &Gd<ArrayMesh>) -> Option<MeshTriangles> {
         triangles.extend(
             complete_triangles(source.as_slice(), positions.len())
                 .into_iter()
-                .map(|triangle| triangle.map(|index| base + index)),
+                // The drawn meshes carry Godot's front-face winding, so their geometric
+                // normal points into the surface. Reverse it once here: every query in
+                // `RenderSurface` then sees an outward normal (+y on an upward floor).
+                .map(|triangle| [base + triangle[0], base + triangle[2], base + triangle[1]]),
         );
     }
     (!triangles.is_empty()).then_some(MeshTriangles {
@@ -196,7 +199,8 @@ mod tests {
         crate::wmo::assets::read_wmo(&resolver, &data_root, fdid).expect("local WMO")
     }
 
-    /// Render batches of `asset` in WMO-local space, one surface per group.
+    /// Render batches of `asset` in WMO-local space, one surface per group, with the
+    /// Godot front-face winding the drawn mesh carries (`wmo::scene` swaps it).
     fn render_surfaces(asset: &NativeWmoAsset) -> SurfaceSet {
         let mut surfaces = SurfaceSet::default();
         for group in &asset.groups {
@@ -208,8 +212,8 @@ mod tests {
                 triangles.extend(batch.indices.chunks_exact(3).map(|triangle| {
                     [
                         base + triangle[0] as u32,
-                        base + triangle[1] as u32,
                         base + triangle[2] as u32,
+                        base + triangle[1] as u32,
                     ]
                 }));
             }

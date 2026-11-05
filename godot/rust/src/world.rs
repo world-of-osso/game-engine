@@ -1607,11 +1607,15 @@ impl WorldUnits {
             if Vec3::new(position.x, position.y, position.z).distance(camera) > range {
                 continue;
             }
-            let Some(animation) = unit.animation_player() else {
+            let Some(mut animation) = unit.animation_player() else {
                 continue;
             };
             let (rig, skeleton) = {
-                let player = animation.bind();
+                let mut player = animation.bind_mut();
+                // Last frame's solve must not become this frame's authored pose.
+                if player.pose_stale() {
+                    player.restore_sampled_pose();
+                }
                 let (Some(rig), Some(skeleton)) = (player.leg_rig(), player.skeleton()) else {
                     continue;
                 };

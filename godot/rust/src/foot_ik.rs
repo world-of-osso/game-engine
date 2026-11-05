@@ -6,7 +6,8 @@
 //! and only the difference between the two feet bends a leg.
 
 use game_engine_core::foot_ik::{
-    LegChain, LegJoints, LegRig, MAX_KNEE_EXTRA_BEND, is_stance, root_offset, solve_two_bone,
+    LegChain, LegJoints, LegRig, LegSolution, MAX_KNEE_EXTRA_BEND, is_stance, knee_flexion,
+    root_offset, solve_two_bone,
 };
 use glam::{Quat, Vec3};
 use godot::{
@@ -47,6 +48,12 @@ pub(crate) struct FootSnapshot {
     pub floors: [f32; 2],
     /// Vertical offset applied to the visible skeleton this frame.
     pub root_offset: f32,
+    /// Foot pivot height after the solve, in world yards.
+    pub solved: [f32; 2],
+    /// Knee bend after the solve, in radians past straight.
+    pub knee_bend: [f32; 2],
+    /// Knee bend of the animated pose before the solve, in radians past straight.
+    pub knee_rest: [f32; 2],
 }
 
 #[derive(Default)]
@@ -135,6 +142,15 @@ impl FootIkState {
             animated: [world_end(&joints[0]).y, world_end(&joints[1]).y],
             floors: [f32::NAN; 2],
             root_offset: offset,
+            solved: [world_end(&joints[0]).y, world_end(&joints[1]).y],
+            knee_bend: [
+                knee_flexion(joints[0], LegSolution::identity(joints[0])),
+                knee_flexion(joints[1], LegSolution::identity(joints[1])),
+            ],
+            knee_rest: [
+                knee_flexion(joints[0], LegSolution::identity(joints[0])),
+                knee_flexion(joints[1], LegSolution::identity(joints[1])),
+            ],
         };
         for index in 0..2 {
             let foot = world_end(&joints[index]);
@@ -169,6 +185,10 @@ impl FootIkState {
                 solution.lower_rotation,
                 weights[index],
             );
+            let foot =
+                world_from_model * Vector3::new(solution.end.x, solution.end.y, solution.end.z);
+            self.last.solved[index] = foot.y + offset;
+            self.last.knee_bend[index] = knee_flexion(joints[index], solution);
         }
     }
 }

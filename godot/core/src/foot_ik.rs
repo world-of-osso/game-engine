@@ -276,6 +276,17 @@ pub fn is_stance(foot_y: f32, min_foot_y: f32, lift: f32) -> bool {
     foot_y <= min_foot_y + lift
 }
 
+/// The knee's bend in `solution`, in radians past straight: 0 is a straight leg.
+pub fn knee_flexion(leg: LegJoints, solution: LegSolution) -> f32 {
+    let knee = leg.upper + solution.upper_rotation * (leg.lower - leg.upper);
+    let thigh = (leg.upper - knee).normalize_or_zero();
+    let shin = (solution.end - knee).normalize_or_zero();
+    if thigh == Vec3::ZERO || shin == Vec3::ZERO {
+        return 0.0;
+    }
+    std::f32::consts::PI - thigh.dot(shin).clamp(-1.0, 1.0).acos()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -432,13 +443,7 @@ mod tests {
         let leg = joints();
         let target = Vec3::new(0.2, 0.85, 0.0);
         let solution = solve_two_bone(leg, target, leg.lower, 1.0, MAX_KNEE_EXTRA_BEND);
-        let knee = leg.upper + solution.upper_rotation * (leg.lower - leg.upper);
-        let interior = (leg.upper - knee)
-            .normalize_or_zero()
-            .dot((solution.end - knee).normalize_or_zero())
-            .clamp(-1.0, 1.0)
-            .acos();
-        let flexion = std::f32::consts::PI - interior;
+        let flexion = knee_flexion(leg, solution);
         assert!(
             (flexion - MAX_KNEE_EXTRA_BEND).abs() < 1e-3,
             "flexion {flexion} vs limit {MAX_KNEE_EXTRA_BEND}"

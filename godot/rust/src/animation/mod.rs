@@ -987,6 +987,17 @@ impl WowAnimationPlayer {
         Ok(player)
     }
 
+    /// Whether this frame does not rewrite the animation's own pose (paused, or frozen by
+    /// the animation LOD), so a client-side pose pass must restore it before solving.
+    pub(crate) fn pose_stale(&self) -> bool {
+        self.paused || !self.sampling
+    }
+
+    /// Rewrites the sampled animation pose, discarding last frame's foot IK rotations.
+    pub(crate) fn restore_sampled_pose(&mut self) {
+        self.write_poses();
+    }
+
     /// The displayed skeleton, for client-side pose passes such as foot IK.
     pub(crate) fn skeleton(&self) -> Option<Gd<Skeleton3D>> {
         self.skeleton.clone()

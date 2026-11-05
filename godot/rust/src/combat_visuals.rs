@@ -350,6 +350,9 @@ fn drape_mesh(
         colors: colors.as_deref(),
         indices: &indices,
     };
+    let normals: Option<Vec<[f32; 3]>> = array(godot::classes::mesh::ArrayType::NORMAL)
+        .and_then(|value| value.try_to::<PackedVector3Array>().ok())
+        .map(|normals| normals.as_slice().iter().map(|n| [n.x, n.y, n.z]).collect());
     let placement = crate::render_surface::affine(instance.get_global_transform());
     let mut surface = |x: f32, z: f32, ceiling: f32, floor: f32| {
         surfaces.visible_surface(terrain.height_at(x, z), x, z, floor, ceiling - floor, frame)
@@ -364,7 +367,8 @@ fn drape_mesh(
     }
     log_draped_batch(&instance, placement, &draped);
     let skinned = !instance.get_skeleton_path().is_empty();
-    instance.set_mesh(&draped_mesh(&draped));
+    let flip_normals = winding_normals_are_inward(&positions, &indices, normals.as_deref());
+    instance.set_mesh(&draped_mesh(&draped, flip_normals));
     if skinned {
         // The draped geometry is measured in the instance's space, not the animated pose.
         instance.set_skeleton_path(&NodePath::from(""));
@@ -386,12 +390,13 @@ fn log_draped_batch(
         max = max.max(world);
     }
     godot_print!(
-        "drape batch {}: vertices={} triangles={} hits={} discarded={} x={:.2}..{:.2} z={:.2}..{:.2} y={:.2}..{:.2}",
+        "drape batch {}: vertices={} triangles={} hits={} discarded={} max_edge_span={:.3} x={:.2}..{:.2} z={:.2}..{:.2} y={:.2}..{:.2}",
         instance.get_name(),
         draped.positions.len(),
         draped.triangle_count(),
         draped.dropped,
         draped.discarded,
+        draped.max_edge_span,
         min.x,
         max.x,
         min.z,
@@ -405,6 +410,7 @@ fn log_draped_batch(
 /// second UV and vertex colours interpolate from the source.
 fn draped_mesh(
     draped: &game_engine_core::ground_drape::DrapedBatch,
+    flip_normals: bool,
 ) -> Gd<godot::classes::ArrayMesh> {
     use godot::classes::mesh::{ArrayType, PrimitiveType};
     let vertices: Vec<Vector3> = draped
@@ -417,7 +423,7 @@ fn draped_mesh(
         .iter()
         .map(|uv| Vector2::from_array(*uv))
         .collect();
-    let normals = draped_normals(&draped.positions, &draped.indices);
+    let normals = draped_normals(&draped.positions, &draped.indices, flip_normals);
     let indices: Vec<i32> = draped.indices.iter().map(|index| *index as i32).collect();
     let mut arrays = VarArray::new();
     arrays.resize(ArrayType::MAX.ord() as usize, &Variant::nil());
@@ -460,7 +466,35 @@ fn draped_mesh(
 }
 
 /// Area-weighted vertex normals, so the draped surface keeps a lit, unbroken shading.
-fn draped_normals(positions: &[[f32; 3]], indices: &[u32]) -> Vec<Vector3> {
+/// Whether the mesh's winding normals point into the surface. The drawn meshes carry
+/// Godot's front-face winding, so a rebuilt mesh must negate them to keep the authored
+/// lighting; the mesh's own normal stream decides, so a source that already agrees stays.
+fn winding_normals_are_inward(
+    positions: &[[f32; 3]],
+    indices: &[u32],
+    normals: Option<&[[f32; 3]]>,
+) -> bool {
+    let Some(normals) = normals else {
+        return true;
+    };
+    let mut agreement = 0.0f32;
+    for triangle in indices.chunks_exact(3).take(64) {
+        let corners = [
+            glam::Vec3::from_array(positions[triangle[0] as usize]),
+            glam::Vec3::from_array(positions[triangle[1] as usize]),
+            glam::Vec3::from_array(positions[triangle[2] as usize]),
+        ];
+        let winding = (corners[1] - corners[0]).cross(corners[2] - corners[0]);
+        let authored = triangle
+            .iter()
+            .map(|&index| glam::Vec3::from_array(normals[index as usize]))
+            .sum::<glam::Vec3>();
+        agreement += winding.dot(authored);
+    }
+    agreement < 0.0
+}
+
+fn draped_normals(positions: &[[f32; 3]], indices: &[u32], flip: bool) -> Vec<Vector3> {
     let mut normals = vec![glam::Vec3::ZERO; positions.len()];
     for triangle in indices.chunks_exact(3) {
         let corners = [
@@ -468,7 +502,8 @@ fn draped_normals(positions: &[[f32; 3]], indices: &[u32]) -> Vec<Vector3> {
             glam::Vec3::from_array(positions[triangle[1] as usize]),
             glam::Vec3::from_array(positions[triangle[2] as usize]),
         ];
-        let normal = (corners[1] - corners[0]).cross(corners[2] - corners[0]);
+        let normal = (corners[1] - corners[0]).cross(corners[2] - corners[0])
+            * if flip { -1.0 } else { 1.0 };
         for index in triangle {
             normals[*index as usize] += normal;
         }

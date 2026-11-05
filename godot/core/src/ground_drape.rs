@@ -51,6 +51,8 @@ pub struct DrapedBatch {
     pub dropped: usize,
     /// Triangles removed because a draped edge spans more than the step height.
     pub discarded: usize,
+    /// Largest vertical edge span of a kept triangle, in yards.
+    pub max_edge_span: f32,
 }
 
 impl DrapedBatch {
@@ -136,11 +138,14 @@ impl GroundDrape {
         // bridges a missing hit, which keeps its authored height) would draw as a shard.
         let mut indices = Vec::with_capacity(triangles.indices.len());
         let mut discarded = 0;
+        let mut max_edge_span = 0.0f32;
         for triangle in triangles.indices.chunks_exact(3) {
-            if height_span(triangle, &heights) > window {
+            let span = height_span(triangle, &heights);
+            if span > window {
                 discarded += 1;
                 continue;
             }
+            max_edge_span = max_edge_span.max(span);
             indices.extend_from_slice(triangle);
         }
         Some(DrapedBatch {
@@ -151,6 +156,7 @@ impl GroundDrape {
             indices,
             dropped,
             discarded,
+            max_edge_span,
         })
     }
 }
@@ -336,16 +342,19 @@ fn emit_grid(
         }
         start
     };
+    // The barycentric grid runs (b, c) with the source corners at (0, 0), (1, 0), (0, 1),
+    // so a cell must be emitted as (top, below, top + 1) to keep the source triangle's
+    // winding: the opposite order faces away and the drawn surface is culled.
     for row in 0..steps {
         for column in 0..(steps - row) {
             let top = row_start(row) + column;
             let below = row_start(row + 1) + column;
             let is_last = column + 1 == steps - row;
             out.indices
-                .extend_from_slice(&[base + top, base + top + 1, base + below]);
+                .extend_from_slice(&[base + top, base + below, base + top + 1]);
             if !is_last {
                 out.indices
-                    .extend_from_slice(&[base + top + 1, base + below + 1, base + below]);
+                    .extend_from_slice(&[base + top + 1, base + below, base + below + 1]);
             }
         }
     }
@@ -379,7 +388,8 @@ mod tests {
                 [-3.0, 0.0, 3.0],
             ],
             vec![[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]],
-            vec![0, 1, 2, 0, 2, 3],
+            // Wound upward, as every drawn mesh's front face is in this engine.
+            vec![0, 2, 1, 0, 3, 2],
         )
     }
 
@@ -576,6 +586,47 @@ mod tests {
 
     /// A vertex without a hit keeps its authored height, so a triangle that bridges the
     /// two heights would stretch. Its edge span is more than a step, and it is dropped.
+    /// A drawn mesh culls its back faces, so every draped triangle must keep the source
+    /// triangle's winding; the opposite order rendered as a torn, mostly culled disc.
+    #[test]
+    fn draped_triangles_keep_the_source_winding() {
+        let (positions, uvs, indices) = ground_quad();
+        let source = |triangle: &[u32]| {
+            let corners = [
+                Vec3::from_array(positions[triangle[0] as usize]),
+                Vec3::from_array(positions[triangle[1] as usize]),
+                Vec3::from_array(positions[triangle[2] as usize]),
+            ];
+            (corners[1] - corners[0]).cross(corners[2] - corners[0])
+        };
+        let reference = source(&indices[0..3]);
+        assert!(reference.y > 0.0, "the source quad winds upward");
+        let mesh = batch(&positions, &uvs, &indices);
+        let draped = GroundDrape::default()
+            .drape_batch(
+                &mesh,
+                Affine3A::IDENTITY,
+                0.0,
+                1.6,
+                |_, _| Some(0.0),
+                |_, _, _, _| Some(0.0),
+            )
+            .expect("draped");
+        assert!(draped.triangle_count() > 100);
+        for triangle in draped.indices.chunks_exact(3) {
+            let corners = [
+                Vec3::from_array(draped.positions[triangle[0] as usize]),
+                Vec3::from_array(draped.positions[triangle[1] as usize]),
+                Vec3::from_array(draped.positions[triangle[2] as usize]),
+            ];
+            let normal = (corners[1] - corners[0]).cross(corners[2] - corners[0]);
+            assert!(
+                normal.dot(reference) > 0.0,
+                "draped triangle {triangle:?} faces the other way"
+            );
+        }
+    }
+
     #[test]
     fn triangles_whose_draped_edge_spans_more_than_a_step_are_dropped() {
         let (positions, uvs, indices) = ground_quad();

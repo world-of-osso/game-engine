@@ -199,6 +199,9 @@ impl GameClient {
             entry.set("animated", &PackedFloat32Array::from(last.animated));
             entry.set("floors", &PackedFloat32Array::from(last.floors));
             entry.set("root_offset", last.root_offset);
+            entry.set("solved", &PackedFloat32Array::from(last.solved));
+            entry.set("knee_bend", &PackedFloat32Array::from(last.knee_bend));
+            entry.set("knee_rest", &PackedFloat32Array::from(last.knee_rest));
             characters.push(&entry.to_variant());
         }
         state.set("characters", &characters);
@@ -289,14 +292,17 @@ impl GameClient {
             },
         };
         for character in &mut self.preview_characters {
-            let Some(animation) = character
+            let Some(mut animation) = character
                 .node
                 .try_get_node_as::<WowAnimationPlayer>("M2Animation")
             else {
                 continue;
             };
             let (rig, skeleton) = {
-                let player = animation.bind();
+                let mut player = animation.bind_mut();
+                if player.pose_stale() {
+                    player.restore_sampled_pose();
+                }
                 let (Some(rig), Some(skeleton)) = (player.leg_rig(), player.skeleton()) else {
                     continue;
                 };
