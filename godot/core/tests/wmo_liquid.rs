@@ -116,7 +116,7 @@ fn abbey_gate_fountain_draws_ten_water_tiles() {
     // Tile 0: vertices 0, 1, 5, 4 in two triangles; the hidden tile 2 uses vertex 3.
     assert_eq!(&geometry.indices[..6], &[0, 1, 5, 0, 5, 4]);
     assert!(!geometry.indices.contains(&3));
-    assert!(geometry.colors.iter().all(|color| color[..3] == [1.0; 3]));
+    assert!(geometry.colors.iter().all(|&color| color == [1.0; 4]));
 
     let transform = glam::Affine3A::from_translation(glam::Vec3::new(100.0, 5.0, 200.0))
         * glam::Affine3A::from_rotation_y(std::f32::consts::FRAC_PI_2);
