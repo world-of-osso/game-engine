@@ -51,10 +51,26 @@ func run() -> void:
 	camera.position = point + offset
 	camera.look_at(point)
 	var deadline := Time.get_ticks_msec() + 240000
+	var lit := false
 	while Time.get_ticks_msec() < deadline:
 		await process_frame
+		camera.current = true
 		var state: Dictionary = client.account_state()
 		if client.terrain_height_at(point.x, point.z) == null or state.terrain.pending_count != 0:
+			continue
+		# The preview does not spawn its world objects until the lighting pass adopts the global
+		# WMO, so run that pass once the WDT is loaded. Without it the object queue stays idle
+		# while the readiness flags already read ready, and the capture saves either the empty
+		# world or the populated one depending on how many objects finish in the draw frames:
+		# the same pose then differs by 89% of its pixels (9 spawned objects against 10001).
+		if not lit:
+			error = client.preview_world_lighting(point, camera.position)
+			if error != "":
+				fail(error)
+				return
+			lit = true
+			continue
+		if state.world_objects.pending != 0 or state.world_objects.spawned == 0:
 			continue
 		var surfaces := await wait_surfaces(camera, deadline)
 		if surfaces < 0:
