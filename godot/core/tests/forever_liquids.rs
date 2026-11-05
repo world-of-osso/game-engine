@@ -1,4 +1,4 @@
-use game_engine_core::liquid_data::{LiquidCatalog, LiquidShader, MapLiquidCatalog};
+use game_engine_core::liquid_data::{LiquidCatalog, LiquidFamily, LiquidShader, MapLiquidCatalog};
 use std::{fs, os::unix::fs::PermissionsExt, path::PathBuf};
 
 fn data_root() -> PathBuf {
