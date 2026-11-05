@@ -1,3 +1,7 @@
+## PBR water chain ported literally from the Forever DXBC
+
+[[northshire-pale-water#Zephras Material130 — PBR contract, opt-in (fallback default)]] now records the permutation-255 chain: t0/t1 on the first UV pair, t2/t3 on the second, coverage `2*(t0*t1) + t2.wxyz`, `mask = coverage * luma`, colour `t3.rgb * tint * t3.a`, a 0..1 attenuation, and the row's first float as the tint blend against the LightData river colour. The Zephras coast water region goes from sd 11.9/13.8/17.3 to 28.0/30.2/29.7 (fallback 30.0/41.6/47.7) and mean 101/166/202 to 60/70/65 (fallback 44/60/70); clipping stays at 0.13%. The default is unchanged pending the eye check.
+
 ## PBR water light factor clamped; coast receipts published
 
 Reading Forever DXBC 2977157 permutation 255 shows the PBRWater pass multiplies its colour by a light factor built only from saturating terms, so it is an attenuation in 0..1, and writes `o0` with no tonemap or sRGB step. Clamping our factor and dropping the invented `water_color*NdotL*0.25` term takes the Zephras coast from 19.97% saturated pixels to 0.12%, equal to the fallback; the water region is still flat bright cyan, so the opt-in stays opt-in. Separately, the coast's 612 spawn failures were all missing `wow_classic_beta` receipts for files already on disk; publishing 181 receipts (60 m2, 60 skin, 61 blp) and 19 Retail receipts takes the coast to 0 failures of 2571 and the lake to 0 of 10010. [[northshire-pale-water#Product receipts and the coast's 612 missing objects — 2026-11-05]] has the method and counts.

@@ -107,105 +107,73 @@ void vertex() {
 void fragment() {
 	float time = pbr_time_ms;
 	vec2 uv = mesh_uv ? UV : wow_position.xy * 0.06;
-	// G4 triples split across EF2 batch words: (Float_0,Float_1,Float_2) etc.
+	// Forever PBRWater pixel program (2977157 permutation 255) samples four 2D stages with two
+	// vertex texture-coordinate pairs: t0 with the first pair, t1 with its second half, t2 with
+	// the second pair and t3 with its second half. Each pair keeps the material's own scroll
+	// transform (G4 triples from the batch).
 	vec4 layer_0 = vec4(pbr_batch_0.w, pbr_batch_3.w, pbr_batch_2.w, 0.0);
 	vec4 layer_1 = vec4(pbr_batch_1.x, pbr_batch_1.y, pbr_batch_1.z, 0.0);
 	vec4 layer_2 = vec4(pbr_batch_1.w, pbr_batch_4.x, pbr_batch_4.y, 0.0);
 	vec2 uv0 = layer_uv(layer_0, uv, time);
 	vec2 uv1 = layer_uv(layer_1, uv, time);
 	vec2 uv2 = layer_uv(layer_2, uv, time);
-	// Float_13..17 = the batch words at +0x58..+0x68 (batch[22..26]).
-	vec4 foam_cubic = vec4(pbr_batch_5.z, pbr_batch_5.w, pbr_batch_6.x, pbr_batch_6.y);
-	float foam_strength = pbr_batch_6.z;
 
+	// INFERRED role assignment: the shading path binds four surface textures to four
+	// consecutive stages in the row's role order, so t0..t3 are the high, mid, low and rim
+	// elements. The depth and river elements belong to the depth variant and this permutation
+	// never reads them.
 	vec4 high = texture(foam_high, uv0);
 	vec4 mid = texture(foam_mid, uv1);
 	vec4 low = texture(foam_low, uv2);
 	vec4 rim = texture(foam_rim, uv0);
-	vec4 depth_mask = texture(foam_depth, uv1);
-	vec4 river = texture(foam_river, uv2);
 
-	// RF3: thickness from the water's own inputs. The `_depth` element of the row's six-mask
-	// set (slot 4 canonically, slot 3 in the two swapped rows, bound by role) is the authored
-	// depth/height art; the masks are near-white with the signal in alpha. Register 36's
-	// hard-coded distance pair (100000.0 or 50000.0 with 1.0, selected by a per-draw float in
-	// the 0.220833..0.875 band) is not recoverable without that float, so ADAPTED: only its
-	// unit scale participates, applied to the mask's own yard scale (255/9 = 28.3333).
-	float d = clamp(depth_mask.a, 0.0, 1.0);
-	float thickness = d * 28.3333;
+	// Program lines 130-138: coverage = 2*(t0*t1) + t2.wxyz, its x component saturated is the
+	// alpha coverage and the luminance of yzw is the foam amount. All six authored masks are
+	// near-white coverage art with the signal in alpha (measured 0.91-0.96 rgb, 0.18-0.46 a).
+	vec4 stack = low.wxyz + 2.0 * (high * mid).wxyz;
+	float coverage = clamp(stack.x, 0.0, 1.0);
+	float foam_luma = dot(stack.yzw, vec3(0.300000, 0.590000, 0.110000));
+	float mask = coverage * foam_luma;
 
-	// Forever Water PBR branch: cubic(mask) * weight drives the close/far mix.
-	float m = mid.r;
-	float m2 = m * m;
-	float foam = clamp(foam_cubic.x + foam_cubic.y * m
-		+ foam_cubic.z * m2 + foam_cubic.w * m2 * m, 0.0, 1.0);
-	foam = clamp(foam * foam_strength, 0.0, 1.0);
-	// ADAPTED: the authored masks are near-white coverage; their alpha is the foam
-	// amount. High/mid/low stack, rim and river add near the shoreline.
-	float mask = clamp(high.a + mid.a + low.a, 0.0, 1.0);
-	foam = clamp(max(foam, mask * (1.0 - d)), 0.0, 1.0);
+	// Program lines 134-136: the water colour is t3.rgb * the material tint * t3.a. The row
+	// colours upload as RGB triples prepared by the client (colour 0 already inverted into
+	// batch word 0), so no channel swap is applied here.
+	// ADAPTED: the client uploads the row's first float as a blend amount against a
+	// per-channel target table whose contents are unpublished. Colour 1 is the first
+	// non-inverted triple; the table stands in as the LightData river close colour, which is
+	// the same water colour the LiquidType5 fallback uses.
+	vec3 tint = mix(pbr_batch_2.rgb, river_close.rgb, clamp(pbr_batch_0.w, 0.0, 1.0));
+	vec3 water_color = rim.rgb * tint * rim.a;
 
-	// ADAPTED: Color[1]/Color[2] act as the close/far pair and Color[0] tints foam.
-	// ADAPTED: LightData's River alpha pair is the water opacity for the PBR class;
-	// LightData7588's Ocean deep alpha is zero, which would make open water invisible.
-	vec4 close_color = vec4(row_rgb(pbr_batch_2.rgb), river_close.a);
-	vec4 far_color = vec4(row_rgb(pbr_batch_3.rgb), river_far.a);
-	if (color_source == 2 && interior) {
-		close_color.rgb = vec3(1.0);
-		far_color.rgb = vec3(1.0);
-	}
-	vec4 water_color = mix(close_color, far_color, foam);
-	// ADAPTED: the river mask tints the authored water colour; it is white for calm water.
-	water_color.rgb = mix(water_color.rgb, water_color.rgb * river.rgb, river.a * (1.0 - foam));
+	// Program line 680: the light factor multiplies the water colour, and every term that
+	// builds it saturates, so it is an attenuation in 0..1.
+	vec3 to_sun = normalize(-to_wow(light_sun_direction()));
+	vec3 attenuation = clamp(light_direct() * clamp(to_sun.z, 0.0, 1.0) + light_ambient(), 0.0, 1.0);
 
 	vec3 camera = to_wow(CAMERA_POSITION_WORLD);
 	vec3 to_fragment = wow_position - camera;
-	float distance_to_camera = length(to_fragment);
-	vec3 view_direction = to_fragment / distance_to_camera;
+	vec3 view_direction = to_fragment / length(to_fragment);
 
+	// The screen copy and its underwater fog are the same inputs the fallback uses; the
+	// authored masks replace the MH2O depth byte as the blend weight (deviation: retail writes
+	// an alpha-to-coverage mask and discards below 0.501961, which a forward renderer has no
+	// equivalent for).
+	vec3 below = linear_to_gamma(texture(screen_texture, SCREEN_UV).rgb);
+	float fog_distance = max(0.0, -underwater_fog.x);
+	float fog_visibility = min(1.0 / exp(fog_distance * underwater_fog.z),
+		clamp(1.0 / 0.7, 0.0, 1.0));
+	vec3 scene_color = underwater_fog_color + (below - underwater_fog_color) * fog_visibility;
 
+	vec3 color = mix(scene_color, water_color * attenuation, clamp(mask, 0.0, 1.0));
+	// A small view-dependent term keeps the surface from reading as a flat wash: the program's
+	// rim element feeds its normal, and the fresnel-weighted sky tint is the fallback's own.
 	vec3 normal_world = normalize(to_wow(NORMAL));
 	vec3 normal = normalize(vec3(0.35 * (rim.rg * 2.0 - 1.0) + 0.65 * normal_world.xy, 1.0));
 	float facing = 1.0 - clamp(dot(-view_direction, normal), 0.0, 1.0);
 	float fresnel = facing * facing;
+	color += specular_color * fresnel * 0.15;
 
-	vec3 to_sun = normalize(-to_wow(light_sun_direction()));
-	// Retail's PBRWater pass multiplies the water colour by a light factor built only from
-	// saturating terms (`add_sat`/`mul_sat`/`min`, then `mad factor, -factor, cb0[23].z, 1.0`),
-	// so that factor is an attenuation in 0..1, not an HDR intensity: at the Zephras coast the
-	// unbounded direct+ambient sum reached 1.5 mean and 3.2 at the 99th percentile and pushed
-	// the near-white authored colour (0.46, 0.88, 0.98) past 250 on 20% of the frame.
-	vec3 surface_light = clamp(light_direct() * clamp(to_sun.z, 0.0, 1.0) + light_ambient(), 0.0, 1.0);
-	vec3 lit_water = water_color.rgb * surface_light;
-
-	// ADAPTED: with no scene depth to reject an offset that lands in front of the water, the
-	// screen copy is sampled at a small depth-art-scaled offset from the pixel itself.
-	vec2 refracted_uv = SCREEN_UV + 0.01 * normal.xy * d;
-	vec3 below = linear_to_gamma(texture(screen_texture, refracted_uv).rgb);
-	float below_thickness = thickness;
-
-	float fog_distance = max(0.0, below_thickness - underwater_fog.x);
-	float fog_visibility = min(1.0 / exp(fog_distance * underwater_fog.z),
-		clamp((1.0 / 0.7) * (1.0 - below_thickness / underwater_fog.y), 0.0, 1.0));
-	vec3 color = underwater_fog_color + (below - underwater_fog_color) * fog_visibility;
-
-	// Forever Water: t1's alpha scales the accumulated water alpha; the authored masks
-	// supply the remaining coverage. ADAPTED: coverage weights come from row alphas.
-	float opacity = clamp((1.0 - fresnel * 0.1) * water_color.a, 0.0, 1.0);
-	color = mix(color, lit_water, opacity);
-
-	vec3 halfway = normalize(to_sun - view_direction);
-	float highlight = pow(clamp(dot(halfway, normal), 0.0, 1.0), SPECULAR_POWER);
-	vec3 specular = specular_color * highlight * fresnel * depth_mask.a;
-	color += specular;
-
-	// ADAPTED: shore foam and the authored floor coverage replace the MH2O depth byte.
-	float shore_foam = clamp(rim.a + low.a, 0.0, 1.0) * (1.0 - d);
-	color = mix(color, mix(water_color.rgb, 1.0 - row_rgb(pbr_batch_0.rgb), high.a * 0.5) + high.r * 0.2,
-		shore_foam * 0.6);
-
-	float alpha = clamp((0.45 + 0.55 * d) * water_color.a + shore_foam * 0.35, 0.0, 1.0);
-	alpha = clamp(alpha * authored_coverage, 0.0, 1.0);
+	float alpha = clamp(mask * authored_coverage, 0.0, 1.0);
 
 	color = apply_retail_fog(color, VERTEX, INV_VIEW_MATRIX);
 	ALBEDO = gamma_to_linear(max(color, vec3(0.0)));
