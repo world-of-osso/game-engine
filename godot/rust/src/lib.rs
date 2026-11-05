@@ -2312,6 +2312,15 @@ impl GameClient {
         }
     }
 
+    /// Transform of the viewport's current camera: the offline preview's own Camera3D when
+    /// no world camera exists.
+    fn viewport_camera_transform(&self) -> Option<Transform3D> {
+        self.base()
+            .get_viewport()?
+            .get_camera_3d()
+            .map(|camera| camera.get_global_transform())
+    }
+
     /// A failure handling one event is reported and the next event still applies;
     /// only a transport or protocol failure ends the poll.
     /// One frame of client steps (`process`, which times it).

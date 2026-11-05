@@ -81,7 +81,13 @@ impl GameClient {
         let held = self
             .spell_effects
             .sync_casts(&self.replica, &mut self.world);
-        let camera = self.world_camera.transform();
+        // The offline preview has no world camera; its own Camera3D is current, and the
+        // particle pass needs a view to draw at all. Without this the preview shows a kit's
+        // mesh layers and none of its emitters.
+        let camera = self
+            .world_camera
+            .transform()
+            .or_else(|| self.viewport_camera_transform());
         let sound = &self.client_options.sound;
         let gain = if sound.muted {
             0.0
