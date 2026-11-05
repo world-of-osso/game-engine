@@ -17,7 +17,11 @@ fn forever_liquids_resolve_observed_objects_and_preserve_every_retail_material()
         assert_eq!(actual.liquid_type, u32::from(kind));
         assert!(!actual.texture_slots[2].is_empty());
         assert!(!actual.texture_slots[3].is_empty());
-        assert!(catalogs.liquid_material(0, kind, object).is_err());
+        // Unknown Retail ids retry Retail type8, never the colliding Forever row.
+        assert_eq!(
+            catalogs.liquid_material(0, kind, object).unwrap(),
+            retail.liquid_material(8, 0).unwrap()
+        );
     }
     let csv = fs::read_to_string(data.join("db2/active/LiquidType.csv")).unwrap();
     for row in game_engine_core::csv_util::parse_csv_records(&csv)
@@ -38,11 +42,9 @@ fn forever_liquids_resolve_observed_objects_and_preserve_every_retail_material()
             .unwrap_err()
             .contains("Forever LiquidObject 65535")
     );
-    assert!(
-        catalogs
-            .liquid_material(2991, 65535, 0)
-            .unwrap_err()
-            .contains("LiquidType 65535")
+    assert_eq!(
+        catalogs.liquid_material(2991, 65535, 0).unwrap(),
+        forever.liquid_material(8, 0).unwrap()
     );
 }
 

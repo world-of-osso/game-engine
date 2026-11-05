@@ -289,9 +289,34 @@ fn kul_tiras_ocean_object_42_layers_read_material_lvf0() {
 }
 
 #[test]
-fn unknown_liquid_type_is_an_error() {
-    let error = catalog().liquid_material(65_000, 0).unwrap_err();
-    assert_eq!(error, "LiquidType 65000 has no DB2 row");
+fn unknown_and_zero_liquid_types_retry_type_eight_not_material_eight() {
+    let catalog = catalog();
+    let slow_slime = catalog.liquid_material(8, 0).unwrap();
+    assert_eq!(slow_slime.material_id, 2);
+    assert_eq!(slow_slime.shader, LiquidShader::Magma);
+    for id in [0, 65_000] {
+        assert_eq!(catalog.liquid_material(id, 0).unwrap(), slow_slime);
+    }
+}
+
+#[test]
+fn forge_molten_lava_selects_fel_from_db2_and_keeps_all_six_layer_groups() {
+    let material = catalog().liquid_material(1192, 0).unwrap();
+    assert_eq!((material.material_id, material.lvf), (13, 3));
+    assert_eq!(material.shader, LiquidShader::Fel);
+    assert_eq!(
+        material.texture_slots[..5],
+        [
+            vec![3920543],
+            vec![3888632],
+            vec![3887333],
+            vec![3920233],
+            vec![3920224],
+        ]
+    );
+    assert_eq!(material.texture_slots[5].len(), 30);
+    assert_eq!(material.texture_slots[5][0], 5186474);
+    assert_eq!((material.flow_speed, material.flow_direction), (0.0, 0.0));
 }
 
 #[test]

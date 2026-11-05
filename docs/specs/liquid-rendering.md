@@ -6,6 +6,7 @@ WMO MLIQ and terrain MH2O liquids use LiquidType-backed material data. The [liqu
 
 - [x] Resolve the Neltharus Forge WMO group's authored LiquidType and its material and texture data, rather than selecting a shader from its liquid name.
 - [x] Resolve magma and slime LiquidType data through their LiquidMaterial class and retain authored MH2O vertex data.
+- [x] Retry unknown liquid type IDs, including zero without a geometry-derived type, through same-product LiquidType8 and its material/textures; never select Material8 directly.
 - [ ] Render Material 2/4 with Retail ProcMagma behavior at the applicable detail level using sourced inputs and equations.
 - [ ] Render the reported Neltharus Forge liquid with sourced Retail Material 13 behavior, including any applicable flow and shoreline data.
 

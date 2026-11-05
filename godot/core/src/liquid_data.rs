@@ -27,6 +27,8 @@ const OCEAN_LVF: u8 = 2;
 pub const TEXTURE_SLOTS: usize = 6;
 pub const PBR_WATER_MATERIAL: u8 = 130;
 const LEGACY_WATER_TYPE: u16 = 5;
+/// Retail 70688 E6: a missing LiquidType retries row 8, not LiquidMaterial 8.
+const MISSING_LIQUID_TYPE: u32 = 8;
 
 /// The pixel shader of a LiquidMaterial (LiquidMaterialManager.cpp `createLiquidMaterial`;
 /// IDs without a case, such as 8, use water).
@@ -319,10 +321,7 @@ impl LiquidCatalog {
             Some(object) => (object.liquid_type, object.flow_direction, object.flow_speed),
             None => (u32::from(liquid_type), 0.0, 0.0),
         };
-        let row = self
-            .types
-            .get(&type_id)
-            .ok_or_else(|| format!("LiquidType {type_id} has no DB2 row"))?;
+        let (type_id, row) = self.resolve_type_row(type_id)?;
         let material_lvf = *self
             .material_lvf
             .get(&u32::from(row.material_id))
@@ -355,6 +354,19 @@ impl LiquidCatalog {
                 wave_periods(&row.floats)
             },
         })
+    }
+
+    fn resolve_type_row(&self, type_id: u32) -> Result<(u32, &LiquidTypeRow), String> {
+        if let Some(row) = self.types.get(&type_id) {
+            return Ok((type_id, row));
+        }
+        let row = self.types.get(&MISSING_LIQUID_TYPE).ok_or_else(|| {
+            format!(
+                "LiquidType {type_id} missing; retry LiquidType {MISSING_LIQUID_TYPE} also missing"
+            )
+        })?;
+        eprintln!("LiquidType {type_id} missing; using LiquidType {MISSING_LIQUID_TYPE}");
+        Ok((MISSING_LIQUID_TYPE, row))
     }
 
     /// LiquidMaterialManager.cpp `assignLiquidTextures`: rows in `OrderIndex` order fill a
