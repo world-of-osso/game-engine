@@ -1,4 +1,4 @@
-use game_engine_core::liquid_data::{LiquidCatalog, MapLiquidCatalog};
+use game_engine_core::liquid_data::{LiquidCatalog, LiquidShader, MapLiquidCatalog};
 use std::{fs, os::unix::fs::PermissionsExt, path::PathBuf};
 
 fn data_root() -> PathBuf {
@@ -19,10 +19,12 @@ fn forever_liquids_resolve_observed_objects_and_preserve_every_retail_material()
         assert!(!actual.texture_slots[3].is_empty());
         // Unknown Retail ids retry Retail type8 on the WMO path only, never the
         // colliding Forever row; the terrain path has no retry.
-        assert_eq!(
-            catalogs.wmo_material(0, kind, object).unwrap(),
-            retail.liquid_material(8, 0).unwrap()
-        );
+        // The retry lands on Retail's shared type 8; its vertex format comes from
+        // LiquidMaterial, because the object key is above 42.
+        let retried = catalogs.wmo_material(0, kind, object).unwrap();
+        assert_eq!(retried.liquid_type, 8);
+        assert_eq!(retried.material_id, 2);
+        assert_eq!(retried.shader, LiquidShader::Magma);
         assert_eq!(
             catalogs.liquid_material(0, kind, object).unwrap_err(),
             format!("LiquidType {kind} has no DB2 row")
@@ -41,12 +43,11 @@ fn forever_liquids_resolve_observed_objects_and_preserve_every_retail_material()
             "Retail LiquidType {id}"
         );
     }
-    assert!(
-        catalogs
-            .liquid_material(2991, 1251, 65535)
-            .unwrap_err()
-            .contains("Forever LiquidObject 65535")
-    );
+    // An authored object id with no row resolves to the layer's own type and no flow, the
+    // same rule the ocean object 42 needs; only the type lookup can still fail.
+    let authored = catalogs.liquid_material(2991, 1251, 65535).unwrap();
+    assert_eq!(authored.liquid_type, 1251);
+    assert_eq!(authored.flow_speed, 0.0);
     assert_eq!(
         catalogs.wmo_material(2991, 65535, 0).unwrap(),
         forever.liquid_material(8, 0).unwrap()
@@ -244,4 +245,44 @@ fn material130_depth_art_slot_follows_the_row_order() {
 
     // A non-Material130 row keeps the canonical slot, which it never binds.
     assert_eq!(forever.liquid_material(5, 0).unwrap().pbr_depth_slot, 4);
+}
+
+/// The ocean object 42 has no `LiquidObject` row, and dropping it removed entire seas (73
+/// layers on map 2959 alone). It resolves to the layer's own LiquidType 2 with no flow and the
+/// ocean vertex format, which is what the Retail path and WebWowViewerCpp do.
+#[test]
+fn forever_ocean_object_42_takes_the_layer_liquid_type() {
+    let maps = MapLiquidCatalog::read(&data_root()).unwrap();
+    let material = maps.liquid_material(2959, 2, 42).unwrap();
+    assert_eq!(material.liquid_type, 2);
+    assert_eq!(material.lvf, 2);
+    assert_eq!(material.flow_speed, 0.0);
+    assert_eq!(material.flow_direction, 0.0);
+    assert_eq!(material.shader, LiquidShader::Water);
+    assert!(maps.liquid_material(2959, 2, 42).is_ok());
+}
+
+/// MH2O's `LiquidObject` is a hybrid: below 42 the value is the vertex format itself, exactly
+/// 42 is a sentinel that is never looked up, and above 42 a miss yields a zero-flow record.
+#[test]
+fn liquid_object_is_a_hybrid_of_format_key_and_sentinel() {
+    let data = data_root();
+    let forever = LiquidCatalog::read(&data.join("db2/1.60.1.70205")).unwrap();
+    let retail = LiquidCatalog::read(&data.join("db2/active")).unwrap();
+    // Ocean layers store the sentinel with LiquidType 2 and take the hard-coded format 2.
+    let ocean = forever.surface(LiquidFamily::Terrain, 2, 42).unwrap();
+    assert_eq!(ocean.liquid_type, 2);
+    assert_eq!(ocean.lvf, 2);
+    // Below 42 the value is the format, with no table lookup.
+    let literal = retail.surface(LiquidFamily::Terrain, 8, 1).unwrap();
+    assert_eq!(literal.lvf, 1);
+    assert_eq!(literal.liquid_type, 8);
+    // Above 42 a missing key keeps the layer's type and zeroes the flow.
+    let missing = forever.surface(LiquidFamily::Terrain, 1251, 65535).unwrap();
+    assert_eq!(missing.liquid_type, 1251);
+    assert_eq!(missing.flow_speed, 0.0);
+    // A real key still supplies its own type and flow.
+    let keyed = forever.surface(LiquidFamily::Terrain, 0, 18420).unwrap();
+    assert_eq!(keyed.liquid_type, 1251);
+    assert_eq!(keyed.flow_speed, 0.0);
 }

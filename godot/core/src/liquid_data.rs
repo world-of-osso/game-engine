@@ -471,13 +471,11 @@ impl MapLiquidCatalog {
             .forever
             .as_ref()
             .map_err(|error| format!("Forever map {map_id}: {error}"))?;
-        if liquid_object >= FIRST_LIQUID_OBJECT
-            && !catalog.objects.contains_key(&u32::from(liquid_object))
-        {
-            return Err(format!(
-                "Forever LiquidObject {liquid_object} has no DB2 row"
-            ));
-        }
+        // A LiquidObject without a DB2 row (the ocean object 42 on every Forever map, plus a
+        // few authored ids the shipped table omits) takes the layer's own `liquid_type` with
+        // no flow, exactly as the Retail path and WebWowViewerCpp
+        // `CSqliteDB::getLiquidObjectData` do. Returning an error dropped the layer instead:
+        // map 2959 alone carries 73 ocean layers, so whole seas were missing.
         let material = catalog
             .surface(family, liquid_type, liquid_object)
             .map_err(|error| format!("Forever map {map_id}: {error}"))?;
@@ -577,7 +575,11 @@ impl LiquidCatalog {
         liquid_type: u16,
         liquid_object: u16,
     ) -> Result<LiquidMaterial, String> {
-        let object = (liquid_object >= FIRST_LIQUID_OBJECT)
+        // MH2O's `LiquidObject` is a hybrid field, verified against build 70707: below 42 the
+        // value IS the vertex format and is used literally with no lookup, exactly 42 is a
+        // sentinel for "no overridden vertex format" and is never looked up, and above 42 it is
+        // a real key whose miss falls back to a zero-flow record.
+        let object = (liquid_object > FIRST_LIQUID_OBJECT)
             .then(|| self.objects.get(&u32::from(liquid_object)))
             .flatten();
         let (type_id, flow_direction, flow_speed) = match object {
@@ -589,7 +591,11 @@ impl LiquidCatalog {
             .material_lvf
             .get(&u32::from(row.material_id))
             .ok_or_else(|| format!("LiquidMaterial {} has no DB2 row", row.material_id))?;
-        let lvf = if type_id == OCEAN_LIQUID_TYPE && liquid_object >= FIRST_LIQUID_OBJECT {
+        let lvf = if liquid_object < FIRST_LIQUID_OBJECT {
+            liquid_object as u8
+        } else if liquid_object == FIRST_LIQUID_OBJECT && type_id == OCEAN_LIQUID_TYPE {
+            // The sentinel's hard-coded rule: an Ocean layer is vertex format 2, overriding
+            // LiquidMaterial 1's LVF 0.
             OCEAN_LVF
         } else {
             material_lvf
