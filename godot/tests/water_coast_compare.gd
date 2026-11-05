@@ -9,6 +9,8 @@ extends SceneTree
 ## WATER_COAST_MAP     overrides the map
 ## WATER_COAST_POINT   overrides the looked-at point as "x,y,z"
 ## WATER_COAST_EYE     camera offset from the point as "dx,dy,dz" (default 110,120,110)
+## WATER_COAST_HIDE_LIQUIDS "1" hides the terrain liquid surfaces, so the same pose shows the
+##                     scene without them and the difference measures what the liquid covers
 
 const STABLE_FRAMES := 60
 
@@ -68,15 +70,38 @@ func run() -> void:
 		if error != "":
 			fail(error)
 			return
+		var liquid_root_count := client.find_children("Water", "Node3D", true, false).size()
+		if OS.get_environment("WATER_COAST_HIDE_LIQUIDS") == "1":
+			for node in client.find_children("Water", "Node3D", true, false):
+				node.visible = false
 		hide_ui(client)
-		camera.current = true
-		await RenderingServer.frame_post_draw
+		# The root viewport keeps the frame it was last handed: reading it in the same frame as
+		# the hide returns the UI frame, which is identical for every pose. Draw with the
+		# capture camera active first. The water animation is time-driven, so align the
+		# material clock on a 30 s boundary and freeze it: without this, two runs sample
+		# different authored frames and the comparison measures the animation, not the code.
+		for frame in 30:
+			camera.current = true
+			await process_frame
+		var clock := client.get_node_or_null("/root/M2MaterialClock")
+		if clock != null:
+			var delta := 30000.0 - fmod(float(clock.call("elapsed_time_ms")), 30000.0)
+			clock.call("advance_time_ms", delta)
+			for frame in 3:
+				await process_frame
+			clock.set_process(false)
+		client.set_process(false)
+		RenderingServer.global_shader_parameter_set("liquid_animation_time_ms", 1000.0)
+		for frame in 3:
+			camera.current = true
+			await process_frame
+			await RenderingServer.frame_post_draw
 		var image := root.get_texture().get_image()
 		if image == null or image.is_empty() or image.save_png(output) != OK:
 			fail("Cannot capture coast")
 			return
 		state = client.account_state()
-		print("WATER_COAST_PROOF map=%s point=%s water_roots=%d eye=%s ground=%.2f above_ground=%.2f terrain=%s objects=%s screenshot=%s lighting=production" % [map, point, surfaces, camera.position, float(ground), camera.position.y - float(ground), state.terrain, state.world_objects, output])
+		print("WATER_COAST_PROOF map=%s point=%s water_roots=%d water_hidden=%d eye=%s ground=%.2f above_ground=%.2f terrain=%s objects=%s screenshot=%s lighting=production" % [map, point, surfaces, liquid_root_count if OS.get_environment("WATER_COAST_HIDE_LIQUIDS") == "1" else 0, camera.position, float(ground), camera.position.y - float(ground), state.terrain, state.world_objects, output])
 		client.free()
 		print("PASS: normal-lit coast capture")
 		quit(0)
