@@ -10,17 +10,18 @@
 
 use glam::Vec3;
 
+/// How far under its collision floor an authored floor may sit and still count as the
+/// visible floor: collision faces are often a few centimetres above the drawn surface.
+pub const FLOOR_TOLERANCE: f32 = 0.05;
+
 /// Only faces a character could visually stand on: no more than about 53 degrees from
 /// horizontal. Render treads, carpets and ramps pass; risers, ceilings and walls do not.
-pub const MIN_UP_NORMAL_Y: f32 = 0.6;
+const MIN_UP_NORMAL_Y: f32 = 0.6;
 
 /// Triangles per BVH leaf.
 const LEAF_SIZE: usize = 4;
 /// Split bound for the traversal stack.
 const MAX_DEPTH: usize = 64;
-/// Below this depth the build uses median splits only, which halve the triangles: a run
-/// of lopsided splits cannot reach `MAX_DEPTH`.
-const MEDIAN_DEPTH: usize = 32;
 /// Segment ends exclude a triangle that touches only the segment's start (a point resting
 /// on a surface is not a hit above itself).
 const END_EPSILON: f32 = 1e-5;
@@ -81,6 +82,31 @@ impl RenderSurface {
         self.triangles.len()
     }
 
+    /// Area of triangle `index`, in the mesh's own space.
+    pub fn triangle_area(&self, index: usize) -> Option<f32> {
+        let triangle = self.triangles.get(index)?;
+        let corners = triangle.map(|index| self.vertices[index as usize]);
+        Some(
+            (corners[1] - corners[0])
+                .cross(corners[2] - corners[0])
+                .length()
+                * 0.5,
+        )
+    }
+
+    /// Absolute up component of triangle `index`'s normal.
+    pub fn triangle_normal_y(&self, index: usize) -> Option<f32> {
+        let triangle = self.triangles.get(index)?;
+        let corners = triangle.map(|index| self.vertices[index as usize]);
+        Some(
+            (corners[1] - corners[0])
+                .cross(corners[2] - corners[0])
+                .normalize_or_zero()
+                .y
+                .abs(),
+        )
+    }
+
     /// Centroid of triangle `index`, in the mesh's own space.
     pub fn triangle_centroid(&self, index: usize) -> Option<Vec3> {
         let triangle = self.triangles.get(index)?;
@@ -100,11 +126,12 @@ impl RenderSurface {
             return None;
         }
         // Cast a hair past both ends so a face exactly at the floor or the ceiling is a
-        // hit; the height filter below keeps the requested interval.
+        // hit; the height filter below keeps the requested interval, widened by the floor
+        // tolerance: an authored floor often sits a few centimetres under its collision face.
         const MARGIN: f32 = 1e-3;
+        let bottom = floor - FLOOR_TOLERANCE;
         let top = Vec3::new(x, ceiling + MARGIN, z);
-        let dir = Vec3::new(0.0, floor - ceiling - 2.0 * MARGIN, 0.0);
-        let inv = Vec3::new(1e30, dir.y.recip(), 1e30);
+        let dir = Vec3::new(0.0, bottom - ceiling - 2.0 * MARGIN, 0.0);
         let mut found: Option<f32> = None;
         let mut stack = Vec::with_capacity(MAX_DEPTH);
         stack.push(0usize);
@@ -126,7 +153,7 @@ impl RenderSurface {
                 }
                 if let Some(t) = segment_triangle(top, dir, corners) {
                     let height = top.y + dir.y * t;
-                    if (floor..=ceiling).contains(&height) {
+                    if (bottom..=ceiling).contains(&height) {
                         found = Some(found.map_or(height, |high| high.max(height)));
                     }
                 }
@@ -271,7 +298,6 @@ fn build_bvh(vertices: &[Vec3], triangles: &[[u32; 3]]) -> (Vec<Node>, Vec<usize
         count: 0,
     }];
     let mut builder = Builder {
-        vertices,
         boxes: &boxes,
         order: &mut order,
         nodes: &mut nodes,
@@ -282,7 +308,6 @@ fn build_bvh(vertices: &[Vec3], triangles: &[[u32; 3]]) -> (Vec<Node>, Vec<usize
 }
 
 struct Builder<'a> {
-    vertices: &'a [Vec3],
     boxes: &'a [(Vec3, Vec3)],
     order: &'a mut Vec<usize>,
     nodes: &'a mut Vec<Node>,
@@ -374,6 +399,22 @@ mod tests {
     fn plane(y: f32) -> RenderSurface {
         let (vertices, triangles) = quad(y, -10.0, 10.0, -10.0, 10.0);
         RenderSurface::build(vertices, triangles).expect("plane")
+    }
+
+    #[test]
+    fn an_authored_floor_just_under_its_collision_face_is_found() {
+        // Collision faces sit a couple of centimetres above the drawn floor in authored data.
+        let surface = plane(-0.02);
+        let height = surface
+            .highest_upward_below(0.0, 0.0, 1.6, 0.0)
+            .expect("floor just under collision");
+        assert!((height + 0.02).abs() < 1e-3, "height {height}");
+    }
+
+    #[test]
+    fn a_floor_well_under_its_collision_face_is_not_the_visible_floor() {
+        let surface = plane(-0.5);
+        assert_eq!(surface.highest_upward_below(0.0, 0.0, 1.6, 0.0), None);
     }
 
     #[test]

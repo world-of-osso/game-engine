@@ -38,7 +38,6 @@ pub(crate) struct MeshTriangles {
 #[derive(Default)]
 pub(crate) struct RenderSurfaceCache {
     meshes: HashMap<InstanceId, Option<Rc<MeshTriangles>>>,
-    surfaces: HashMap<InstanceId, Option<Rc<RenderSurface>>>,
     roots: HashMap<InstanceId, Option<Rc<RenderSurface>>>,
 }
 
@@ -46,7 +45,6 @@ impl RenderSurfaceCache {
     /// Drops every cached surface: spawned nodes and their meshes were freed or replaced.
     pub(crate) fn clear(&mut self) {
         self.meshes.clear();
-        self.surfaces.clear();
         self.roots.clear();
     }
 
@@ -65,18 +63,24 @@ impl RenderSurfaceCache {
     }
 
     fn build_root(&mut self, root: &Gd<Node3D>) -> Option<RenderSurface> {
-        let meshes = root
-            .find_children_ex("*")
-            .type_("MeshInstance3D")
-            .owned(false)
-            .recursive(true)
-            .done();
+        // A WMO batch node is itself the mesh; a doodad wraps its meshes as children.
+        let mut instances: Vec<Gd<MeshInstance3D>> = root
+            .clone()
+            .try_cast::<MeshInstance3D>()
+            .into_iter()
+            .collect();
+        instances.extend(
+            root.find_children_ex("*")
+                .type_("MeshInstance3D")
+                .owned(false)
+                .recursive(true)
+                .done()
+                .iter_shared()
+                .filter_map(|node| node.try_cast::<MeshInstance3D>().ok()),
+        );
         let mut vertices: Vec<Vec3> = Vec::new();
         let mut triangles: Vec<[u32; 3]> = Vec::new();
-        for node in meshes.iter_shared() {
-            let Ok(instance) = node.try_cast::<MeshInstance3D>() else {
-                continue;
-            };
+        for instance in &instances {
             if !instance.get_skeleton_path().is_empty() {
                 continue;
             }
@@ -108,7 +112,7 @@ impl RenderSurfaceCache {
     }
 
     /// The triangles of a mesh as authored, in the mesh's own space, read once.
-    pub(crate) fn mesh_triangles(&mut self, mesh: &Gd<ArrayMesh>) -> Option<Rc<MeshTriangles>> {
+    fn mesh_triangles(&mut self, mesh: &Gd<ArrayMesh>) -> Option<Rc<MeshTriangles>> {
         let key = mesh.instance_id();
         if let Some(cached) = self.meshes.get(&key) {
             return cached.clone();
@@ -116,22 +120,6 @@ impl RenderSurfaceCache {
         let extracted = extract_mesh(mesh).map(Rc::new);
         self.meshes.insert(key, extracted.clone());
         extracted
-    }
-
-    /// The authored triangles of a mesh as a BVH surface, in the mesh's own space.
-    pub(crate) fn mesh_surface(&mut self, mesh: &Gd<ArrayMesh>) -> Option<Rc<RenderSurface>> {
-        let key = mesh.instance_id();
-        if let Some(cached) = self.surfaces.get(&key) {
-            return cached.clone();
-        }
-        let surface = self
-            .mesh_triangles(mesh)
-            .and_then(|triangles| {
-                RenderSurface::build(triangles.vertices.clone(), triangles.triangles.clone())
-            })
-            .map(Rc::new);
-        self.surfaces.insert(key, surface.clone());
-        surface
     }
 }
 
