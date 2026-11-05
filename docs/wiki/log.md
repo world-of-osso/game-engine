@@ -1,3 +1,7 @@
+## PBR depth art landed behind the opt-in; default not flipped
+
+[[northshire-pale-water#Zephras Material130 — PBR contract, opt-in (fallback default)]] now records RF3 on top of the fixed capture harness. The PBR water reads the row's `_depth` art and binds all six masks (`pbr_water_pixels`: shallow 0.0927 against deep 0.0074). Same-state captures at 1280x720: the Zephras coast keeps the fallback at mean 82.0 with 0.11% of pixels at or above 250, the PBR path reaches 158.0 with 20.04% clipped, and the two differ by 66.17%; Crystal Lake is unchanged (the rows use the Water shader) and the stream stays inside its 4.79% repeat floor. The previous 87.8% figure was the preview's object queue, not shading. `GAME_ENGINE_PBR_WATER=1` remains opt-in.
+
 ## Forever PBR thickness from the row's depth art; default stays opt-in
 
 [[northshire-pale-water#Retail70688 clean-room corrections]] records RF3: the PBRWater shading pass binds no scene depth and `Float_11` is not a fade, so thickness comes from the row's `_depth` mask — index 4 canonically, index 3 in the two swapped rows, detected from the modal slot-3/slot-4 pair because the Forever export has no path table. The six masks now bind by role for the PBR shader only. `pbr_water_pixels` proves the depth mask drives the water. The default is **not** flipped: the same build renders the coast water in two states (region mean 28.7 or 229.4) in about one run in four, so same-mode repeats differ 66-75% and the comparison is inconclusive; the PBR path is also much brighter (192 vs 68).
