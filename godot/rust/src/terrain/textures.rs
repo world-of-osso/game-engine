@@ -177,27 +177,28 @@ mod tests {
     fn zero_diffuse_keeps_authored_layers_and_shares_internal_dark_gray() {
         let (data_root, resolver, mut tex) = fixture();
         tex.chunk_layers.truncate(1);
-        let layers_before = tex.chunk_layers[0].layers.clone();
-        for layer in &layers_before {
-            tex.texture_fdids[layer.texture_index as usize] = 0;
+        let indices_before: Vec<_> = tex.chunk_layers[0]
+            .layers
+            .iter()
+            .map(|layer| layer.texture_index)
+            .collect();
+        for &index in &indices_before {
+            tex.texture_fdids[index as usize] = 0;
         }
         let mut cache = TerrainTextureCache::default();
         let images = cache.load_for_tile(&resolver, &data_root, &tex).unwrap();
-        let first = &images[&layers_before[0].texture_index];
+        let first = &images[&indices_before[0]];
         assert_eq!(first.diffuse_fdid, 0);
         assert_eq!((first.diffuse.width, first.diffuse.height), (1, 1));
         assert_eq!(first.diffuse.pixels, [0x3f, 0x3f, 0x3f, 0xff]);
-        assert_eq!(tex.chunk_layers[0].layers.len(), layers_before.len());
-        for layer in &layers_before {
-            assert!(Arc::ptr_eq(
-                &first.diffuse,
-                &images[&layer.texture_index].diffuse
-            ));
+        assert_eq!(tex.chunk_layers[0].layers.len(), indices_before.len());
+        for index in &indices_before {
+            assert!(Arc::ptr_eq(&first.diffuse, &images[index].diffuse));
         }
         let again = cache.load_for_tile(&resolver, &data_root, &tex).unwrap();
         assert!(Arc::ptr_eq(
             &first.diffuse,
-            &again[&layers_before[0].texture_index].diffuse
+            &again[&indices_before[0]].diffuse
         ));
     }
 
