@@ -293,7 +293,7 @@ impl SpellCensusFixture {
             let mut root = Node3D::new_alloc();
             root.set_name("CensusWorld");
             self.base_mut().add_child(&root);
-            self.world.set_census_root(root);
+            self.world.set_root(root);
         }
         if let Some(request) = self.request.take() {
             self.world.cancel_detached_visual(request);

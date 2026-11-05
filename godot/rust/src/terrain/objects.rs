@@ -406,6 +406,52 @@ fn wmo_model_label(resolver: &CascListfileResolver, root_fdid: u32, name_set: u1
     }
 }
 
+/// The object selection of an offline preview: only placements within `radius` of its
+/// focus, not every doodad of the nine streamed tiles.
+pub(crate) struct PreviewObjects {
+    pub center: Vec3,
+    pub radius: f32,
+}
+
+impl ObjectSelection for PreviewObjects {
+    fn tiles(&self, terrain: &StreamedTerrain) -> Vec<Tile> {
+        terrain
+            .parsed_tiles
+            .keys()
+            .copied()
+            .filter(|tile| {
+                let (min, max) = tile_world_bounds(*tile);
+                let nearest = self.center.clamp(min, max);
+                self.center.distance_squared(nearest) <= self.radius * self.radius
+            })
+            .collect()
+    }
+
+    fn doodad(&self, doodad: &DoodadPlacement, _: Option<&str>, tile: Tile) -> bool {
+        let position = doodad_position(doodad, tile.0, tile.1);
+        position.distance_squared(self.center) <= self.radius * self.radius
+    }
+
+    fn wmo(&self, wmo: &WmoPlacement, tile: Tile) -> bool {
+        let (min, max) = wmo_bounds(wmo, tile.0, tile.1);
+        let nearest = self.center.clamp(min, max);
+        self.center.distance_squared(nearest) <= self.radius * self.radius
+    }
+}
+
+/// Terrain-space bounds of one ADT tile, in engine axes.
+fn tile_world_bounds(tile: Tile) -> (Vec3, Vec3) {
+    // ADT tile edge: 16 chunks of 33.333 yd (same value bevy_to_tile_coords uses).
+    let size = 533.333_3;
+    let center = 32.0 * size;
+    let min = Vec3::new(
+        center - (tile.1 as f32 + 1.0) * size,
+        -10_000.0,
+        tile.0 as f32 * size - center,
+    );
+    (min, min + Vec3::new(size, 20_000.0, size))
+}
+
 pub(crate) struct TerrainObjects {
     name: &'static str,
     budget: Duration,
@@ -604,6 +650,25 @@ impl TerrainObjects {
         }
         self.surface_columns.insert(key, found);
         found
+    }
+
+    /// Internal queue and loader counters, for offline fixture diagnostics.
+    pub fn debug_state(&self) -> serde_json::Value {
+        serde_json::json!({
+            "pending": self.pending.len(),
+            "first": self.first.len(),
+            "ready": self.ready.len(),
+            "waiting": self.waiting_count,
+            "waiting_assets": self.waiting.len(),
+            "arrived": self.arrived.len(),
+            "loading": self.loader.loading(),
+            "models": self.models.len(),
+            "wmos": self.wmo_assets.len(),
+            "spawned_doodads": self.spawned_doodads.len(),
+            "spawned_wmos": self.spawned_wmos.len(),
+            "failures": self.failures,
+            "queued_tiles": self.queued_tiles.len(),
+        })
     }
 
     pub fn spawned_count(&self) -> usize {

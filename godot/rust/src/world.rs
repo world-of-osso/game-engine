@@ -1794,8 +1794,8 @@ impl WorldUnits {
         }
     }
 
-    #[cfg(debug_assertions)]
-    pub(crate) fn set_census_root(&mut self, root: Gd<Node3D>) {
+    /// Binds the node units and spell effects hang under (offline fixtures and census).
+    pub(crate) fn set_root(&mut self, root: Gd<Node3D>) {
         self.root = Some(root);
     }
 
