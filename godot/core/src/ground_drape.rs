@@ -81,9 +81,11 @@ impl GroundDrape {
         let Some(analysis) = analyze(mesh, placement) else {
             return false;
         };
+        // Authored ground effects often hover up to a step above their placement to avoid
+        // z-fighting; only a batch higher than the step window is a different part.
         analysis.horizontal_area >= MIN_GROUND_AREA_FRACTION * analysis.total_area
             && analysis.min.y >= ground_y - MAX_GROUND_BATCH_THICKNESS
-            && analysis.max.y <= ground_y + window + MAX_GROUND_BATCH_THICKNESS
+            && analysis.max.y <= ground_y + window
             && analysis.max.y - analysis.min.y <= MAX_GROUND_BATCH_THICKNESS
             && analysis.max.x - analysis.min.x <= MAX_GROUND_BATCH_EXTENT
             && analysis.max.z - analysis.min.z <= MAX_GROUND_BATCH_EXTENT
@@ -204,11 +206,15 @@ struct Tessellated {
 /// triangles become a regular grid. UVs interpolate linearly, keeping the authored mapping.
 fn subdivide(mesh: &BatchMesh<'_>, placement: Affine3A, edge: f32) -> Option<Tessellated> {
     let edge = edge.max(0.02);
+    // A stream that does not cover every position cannot interpolate every triangle.
+    let vertices = mesh.positions.len();
+    let uvs2 = mesh.uvs2.filter(|uvs| uvs.len() == vertices);
+    let colors = mesh.colors.filter(|colors| colors.len() == vertices);
     let mut tessellated = Tessellated {
         positions: Vec::new(),
         uvs: Vec::new(),
-        uvs2: mesh.uvs2.map(|_| Vec::new()),
-        colors: mesh.colors.map(|_| Vec::new()),
+        uvs2: uvs2.map(|_| Vec::new()),
+        colors: colors.map(|_| Vec::new()),
         indices: Vec::new(),
     };
     for triangle in mesh.indices.chunks_exact(3) {
@@ -222,7 +228,7 @@ fn subdivide(mesh: &BatchMesh<'_>, placement: Affine3A, edge: f32) -> Option<Tes
             *mesh.uvs.get(triangle[1] as usize)?,
             *mesh.uvs.get(triangle[2] as usize)?,
         ];
-        let uv2 = match mesh.uvs2 {
+        let uv2 = match uvs2 {
             Some(uvs) => Some([
                 *uvs.get(triangle[0] as usize)?,
                 *uvs.get(triangle[1] as usize)?,
@@ -230,7 +236,7 @@ fn subdivide(mesh: &BatchMesh<'_>, placement: Affine3A, edge: f32) -> Option<Tes
             ]),
             None => None,
         };
-        let color = match mesh.colors {
+        let color = match colors {
             Some(colors) => Some([
                 *colors.get(triangle[0] as usize)?,
                 *colors.get(triangle[1] as usize)?,
@@ -458,6 +464,45 @@ mod tests {
             .collect();
         let lifted_mesh = batch(&lifted, &uvs, &indices);
         assert!(!drape.is_ground_batch(&lifted_mesh, Affine3A::IDENTITY, 0.0, 1.6));
+    }
+
+    #[test]
+    fn a_hovering_ground_quad_drapes_onto_the_surface() {
+        let (positions, uvs, indices) = ground_quad();
+        let hovering: Vec<_> = positions
+            .iter()
+            .map(|[x, y, z]| [*x, y + 1.0, *z])
+            .collect();
+        let mesh = batch(&hovering, &uvs, &indices);
+        let drape = GroundDrape::default();
+        let draped = drape
+            .drape_batch(
+                &mesh,
+                Affine3A::IDENTITY,
+                0.0,
+                1.6,
+                |_, _| Some(0.0),
+                |_, _, _, _| Some(0.0),
+            )
+            .expect("hovering ground quad drapes");
+        assert!(draped.dropped > 100, "dropped {}", draped.dropped);
+        let lowest = draped
+            .positions
+            .iter()
+            .fold(f32::INFINITY, |low, point| low.min(point[1]));
+        assert!(lowest >= 0.0, "lowest {lowest}");
+    }
+
+    #[test]
+    fn a_ground_quad_hovering_within_a_step_is_a_ground_batch() {
+        let (positions, uvs, indices) = ground_quad();
+        let hovering: Vec<_> = positions
+            .iter()
+            .map(|[x, y, z]| [*x, y + 1.0, *z])
+            .collect();
+        let mesh = batch(&hovering, &uvs, &indices);
+        let drape = GroundDrape::default();
+        assert!(drape.is_ground_batch(&mesh, Affine3A::IDENTITY, 0.0, 1.6));
     }
 
     #[test]

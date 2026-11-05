@@ -139,20 +139,25 @@ impl GameClient {
             };
             let ground_y = floor_at(anchor.x, anchor.z).unwrap_or(anchor.y);
             let mut retry = false;
-            let meshes = candidate
+            // A kit model node can be the mesh itself or wrap its batches.
+            let mut instances: Vec<Gd<godot::classes::MeshInstance3D>> = candidate
                 .node
-                .find_children_ex("*")
-                .type_("MeshInstance3D")
-                .owned(false)
-                .recursive(true)
-                .done();
-            for node in meshes.iter_shared() {
-                let Ok(mut instance) = node.try_cast::<godot::classes::MeshInstance3D>() else {
-                    continue;
-                };
-                if !instance.get_skeleton_path().is_empty() {
-                    continue;
-                }
+                .clone()
+                .try_cast::<godot::classes::MeshInstance3D>()
+                .into_iter()
+                .collect();
+            instances.extend(
+                candidate
+                    .node
+                    .find_children_ex("*")
+                    .type_("MeshInstance3D")
+                    .owned(false)
+                    .recursive(true)
+                    .done()
+                    .iter_shared()
+                    .filter_map(|node| node.try_cast::<godot::classes::MeshInstance3D>().ok()),
+            );
+            for mut instance in instances {
                 let Some(mesh) = instance
                     .get_mesh()
                     .and_then(|mesh| mesh.try_cast::<godot::classes::ArrayMesh>().ok())
@@ -279,7 +284,8 @@ enum DrapeOutcome {
 }
 
 /// Drapes one `MeshInstance3D` of a spell model, keeping its UVs, second UVs, colours and
-/// material. A skinned batch is never touched: its drawn shape is the animated pose.
+/// material. A skinned batch is measured in its authored bind pose; once draped it draws
+/// as the static ground decal it now is, with the kit's own transform and material.
 #[allow(clippy::too_many_arguments)]
 fn drape_mesh(
     instance: &mut Gd<godot::classes::MeshInstance3D>,
@@ -356,7 +362,12 @@ fn drape_mesh(
     if draped.dropped == 0 {
         return DrapeOutcome::NoSurface;
     }
+    let skinned = !instance.get_skeleton_path().is_empty();
     instance.set_mesh(&draped_mesh(&draped));
+    if skinned {
+        // The draped geometry is measured in the instance's space, not the animated pose.
+        instance.set_skeleton_path(&NodePath::from(""));
+    }
     DrapeOutcome::Draped
 }
 
@@ -440,3 +451,7 @@ fn draped_normals(positions: &[[f32; 3]], indices: &[u32]) -> Vec<Vector3> {
         })
         .collect()
 }
+
+#[cfg(test)]
+#[path = "combat_visuals_ground_batch_tests.rs"]
+mod ground_batch_tests;
