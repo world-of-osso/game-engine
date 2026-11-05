@@ -87,6 +87,35 @@ fn authored_dxt5_alpha_is_kept() {
     );
 }
 
+/// Death and Decay's ground sprite 167039: compression 2 (DXTC) with alpha_type 7 is DXT5,
+/// because the DXT variant comes from alpha_type, not from the compression byte (image-blp
+/// `parser/direct/mod.rs` dispatches Dxt1/Dxt3/Dxt5 on alpha_type 0/1/7; its own BLP2 tests
+/// pair `Compression::Dxtc` with `alpha_type: 7`). Decoding it as DXT3 turns its authored
+/// radial alpha into blocky noise and every sprite quad becomes an opaque square.
+#[test]
+fn a_dxtc_blp_with_alpha_type_7_decodes_as_dxt5_and_keeps_its_radial_alpha() {
+    let bytes = texture(167039);
+    let blp = load_blp_from_buf(&bytes).unwrap();
+    assert!(
+        matches!(blp.content, BlpContent::Dxt5(_)),
+        "alpha_type 7 must decode as DXT5"
+    );
+    assert_eq!(decode_gpu(&bytes).unwrap().format, GpuFormat::Dxt5);
+
+    let rgba = decode_rgba(&bytes).unwrap();
+    let alpha = |x: usize, y: usize| rgba.pixels[(y * 64 + x) * 4 + 3];
+    let centre = alpha(32, 32);
+    let half = alpha(48, 32);
+    let near_border = alpha(60, 32);
+    assert!(centre > 200, "centre alpha {centre}");
+    assert!(
+        (20..120).contains(&half),
+        "half-radius alpha {half} is not on the falloff"
+    );
+    assert!(near_border < 24, "alpha near the border {near_border}");
+    assert_eq!(alpha(63, 63), 0, "corner alpha");
+}
+
 /// 1022933 is palettized: there are no blocks to upload, so it decodes to RGBA8.
 #[test]
 fn a_palettized_blp_decodes_to_rgba() {
