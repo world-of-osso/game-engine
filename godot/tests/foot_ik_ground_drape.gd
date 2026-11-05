@@ -55,6 +55,8 @@ func run() -> void:
 		await capture_drape("steps", STAIR_BOTTOM)
 	elif case == "drape_wall":
 		await capture_drape("wall", WALL_FOOT)
+	elif case == "footik_fps":
+		await capture_fps()
 	else:
 		fail("unknown CAPTURE_CASE " + case)
 
@@ -307,6 +309,51 @@ func ground_probe(x: float, z: float, near: float) -> Dictionary:
 			continue
 		return probe
 	return {}
+
+# Ten paired fixed-pose windows with foot IK off and on in one client: wall-clock and
+# engine process milliseconds per frame, the cost the solve adds to a still frame.
+func capture_fps() -> void:
+	if not await load_world(STAIR_BOTTOM):
+		return
+	client.preview_set_focus(STAIR_BOTTOM)
+	if not await wait_objects():
+		return
+	var spot: Dictionary = await wait_surface(STAIR_BOTTOM.x, STAIR_BOTTOM.z, 120.0, 0.2)
+	if spot.is_empty():
+		fail("no stair surface at the capture point")
+		return
+	var error: String = client.preview_character(1, 2, 0,
+		Vector3(STAIR_BOTTOM.x, spot.floor, STAIR_BOTTOM.z), PI)
+	if error != "":
+		fail("character: " + error)
+		return
+	client.preview_character_clip(0, 0, 0.0)
+	client.preview_pause_character(0, true)
+	await wait_ms(1200)
+	place_camera(Vector3(STAIR_BOTTOM.x, spot.floor + 0.75, STAIR_BOTTOM.z + 2.8),
+		Vector3(STAIR_BOTTOM.x, spot.floor + 0.35, STAIR_BOTTOM.z))
+	var off := []
+	var on := []
+	for round in 10:
+		client.preview_foot_ik_enabled(false)
+		await wait_ms(500)
+		off.append(await sample_frames(120))
+		client.preview_foot_ik_enabled(true)
+		await wait_ms(500)
+		on.append(await sample_frames(120))
+	print("FPS off=%s" % JSON.stringify(off))
+	print("FPS on=%s" % JSON.stringify(on))
+	print("FPS state %s" % JSON.stringify(client.preview_foot_ik_state()))
+	finish()
+
+func sample_frames(count: int) -> Array:
+	var started := Time.get_ticks_usec()
+	var process := 0.0
+	for index in count:
+		await process_frame
+		process += Performance.get_monitor(Performance.TIME_PROCESS) * 1000.0
+	var wall_ms := float(Time.get_ticks_usec() - started) / float(count) / 1000.0
+	return [wall_ms, process / float(count)]
 
 # The meshes the previewed kit has spawned under its anchors.
 func kit_meshes() -> int:
