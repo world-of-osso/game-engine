@@ -51,10 +51,19 @@ func run() -> void:
 	var stable := 0
 	var state: Dictionary = {}
 	var drained := false
+	var lit := false
 	while Time.get_ticks_msec() < deadline:
 		await process_frame
 		camera.current = true
 		state = client.account_state()
+		# The preview adopts the map's light only when this pass runs, and the call fails until
+		# the WDT is loaded. Without it `scene_light` stays unset, so the terrain and the M2
+		# shaders read an ambient of zero and the frame is a black silhouette.
+		if not lit:
+			var lighting_error: String = client.preview_world_lighting(point, camera.position)
+			if lighting_error == "":
+				lit = true
+			continue
 		var objects: Dictionary = state.world_objects
 		if int(objects.pending) == 0 and int(objects.spawned) > 0:
 			stable += 1
@@ -78,6 +87,8 @@ func run() -> void:
 		state.terrain.parsed_tiles.size(), state.terrain.failures.size(), output])
 	if not drained:
 		print("WORLD_CENSUS_WARNING object queue did not drain within %d ms" % timeout)
+	if state.terrain.parsed_tiles.size() == 0:
+		print("WORLD_CENSUS_TERRAIN attached=%s terrain=%s" % [state.world_attached, state.terrain])
 	quit(0)
 
 func hide_ui(node: Node) -> void:

@@ -213,3 +213,15 @@ The nine remaining FDIDs are one class, absent from the build itself: 192262, 19
 | 2980 | 10,681 | 1627 spawned, 7459 failed | 4159 spawned, 0 failed |
 
 Two limitations. First, four of the Forever maps (`2807`, `3021`, `2853`, `2998`) stream zero or one tile in the preview at every pose derived from their MAID data, so no object counts or useful frame could be taken there; the pose derivation is the same one that works for 2991, 2832, 2959 and 2980, so the cause is in the map's streaming state, not in the arithmetic. Second, map 2832 renders a uniform frame at every pose tried even though its counts move from 140/969 to 1109/0, so its before/after images are not reviewable; only 2959 and 2980 produced visible pairs.
+
+## Black terrain and black trees on the Forever maps were the harness, not the content — 2026-11-05
+
+Two defects in the census captures had one cause. `world_object_census.gd` never called `preview_world_lighting`: the preview adopts the map's light only when that pass runs, and without it `scene_light` stays unset, so the terrain material and the M2 materials read an ambient of zero. Terrain and trees then draw as black silhouettes while anything with its own material light stays visible, which reads exactly like missing textures. With the pass added, map 2980 goes from 75.8% of its pixels below 12/255 to 0.0%, and map 2959 from 22.7% to 0.2%; the counts are unchanged (2980 4159 spawned / 0 failed, 2959 4950 spawned / 0 failed).
+
+The terrain-texture census was run anyway, because the ADT `_tex0` layers name BLPs that no receipt covered: 185 distinct texture FDIDs across the 33 Forever maps, 184 of them unreceipted. They are published as their own fragment (`model-asset-index-forever-terrain-textures-20261105.json`, 182 receipts, 18.0 MiB) — but the render did not change, because the terrain texture path does not use model receipts: `terrain/textures.rs` resolves each BLP through `CascListfileResolver::ensure_cached_checked` into `data/textures/<fdid>.blp`, and those files were already present. So the receipts close a coverage gap, not the black terrain.
+
+Tree silhouettes were not a texture gap either: of the 461 M2s placed on map 2959, every TXID texture they reference already had a receipt (four M2 files were missing, not their textures).
+
+## Why five Forever maps never stream a tile — 2026-11-05
+
+`preview_world_map` derives the streaming tile from `bevy_to_tile_coords(position.x, position.z)`, i.e. `row = 32 + z / 533.33` and `col = 32 - x / 533.33`, so the point must carry the WoW world coordinate in Godot's z. Even with poses derived that way from each WDT's `MAIN`-active tiles, and with the root and `_tex0` ADT files present, maps 2807, 3021, 2853, 2998 and 2832 report `world_attached: false` with `parsed_tiles: []` and `failures: []` — the preview never queues a tile, so nothing is attempted and no error is raised. Maps 2991, 2959 and 2980 stream normally with the same arithmetic, which rules out the pose maths, the tile data and the receipts; the difference is in those maps' streaming state and is not yet located.
