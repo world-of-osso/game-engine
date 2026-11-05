@@ -32,7 +32,7 @@ WMO MLIQ and terrain MH2O liquids use LiquidType-backed material data. The [liqu
 - [ ] Complete E5 ProcMagma detail0 versus1..4 routing and exact UV/sampling equations. G1 confirms the existing FDID768431 loader is authored16-plane RGBA noise, not synthetic generation; array/volume semantics and cadence still await evidence.
 - [x] Decode far-terrain `_lod.adt` MLLD maps: depth128x128 bytes; alpha2048-byte bitmap expanded to0/255. Big-endian RLE zero tokens are no-ops. Retain owned payload/maps independently of mesh lifetime; concrete Neltharus outer-LOD payloads cover the header/bitmap layout.
 - [ ] Render those authored maps in the far-terrain LOD liquid renderer. Do not bind them to WMO liquids: the Forge tile's LOD has no MLLD.
-- [ ] Confirm Retail header flags and coverage bit order independently of the observed payloads; depth world units remain unknown.
+- [x] Preserve G2's confirmed12-byte header/flags and truncate final RLE runs/literals at output capacity. Interpret depth linearly as byte/9yd (G2 shipped-asset measurement); preserve zero-depth texels that still have coverage. Coverage bit order is corroborated by real border maps.
 - [ ] Exact Retail environment-to-DB2 UV-triple and definition scale/bias mapping remains unestablished. The fix removes zero LiquidObject-flow multiplication without choosing an arbitrary LiquidObject row.
 - [ ] Matched before/after Forge captures and visual proof are pending a sourced rendering change.
 

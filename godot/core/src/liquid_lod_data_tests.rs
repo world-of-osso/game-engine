@@ -64,9 +64,29 @@ fn zero_tokens_are_no_ops_and_literals_preserve_all_byte_values() {
 
 #[test]
 fn corrupt_runs_and_short_literals_fail_explicitly() {
-    for encoded in [&[0x80][..], &[0x80, 1], &[0, 2, 1], &[0x80, 3, 7]] {
+    for encoded in [&[0x80][..], &[0x80, 1], &[0, 2, 1]] {
         assert!(decode_rle(encoded, 2).unwrap_err().contains("MLLD RLE"));
     }
+}
+
+#[test]
+fn final_runs_and_literals_stop_at_output_capacity_without_a_terminator() {
+    assert_eq!(decode_rle(&[0x80, 3, 7], 2).unwrap(), [7, 7]);
+    assert_eq!(decode_rle(&[0, 3, 19, 20, 21], 2).unwrap(), [19, 20]);
+}
+
+#[test]
+fn depth_unit_is_linear_and_zero_depth_does_not_remove_coverage() {
+    for (byte, yards) in [(0, 0.0), (9, 1.0), (90, 10.0), (255, 255.0 / 9.0)] {
+        assert_eq!(depth_yards(byte), yards);
+    }
+    let mut payload = vec![7, 0, 0, 0, 3, 0, 3, 0, 0, 0, 0, 0];
+    payload.extend_from_slice(&[0xc0, 0, 0]); // 16384 depth-zero texels
+    payload.extend_from_slice(&[0x88, 0, 255]); // 2048 all-covered bitmap bytes
+    payload.extend_from_slice(&[0, 0]); // permitted chunk padding, not part of either stream
+    let maps = decode_directory(&payload).unwrap().unwrap();
+    assert!(maps.depth.iter().all(|byte| *byte == 0));
+    assert!(maps.coverage.iter().all(|byte| *byte == 255));
 }
 
 #[test]

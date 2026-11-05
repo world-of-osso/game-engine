@@ -1,3 +1,7 @@
+## 2026-11-05 — MLLD is far-LOD only
+
+[Liquid evidence update](investigations/northshire-pale-water.md#retail70688-clean-room-corrections--2026-11-05): owned MLLD BE-RLE maps, binary coverage and measured byte/9yd;90-file Neltharus census excludes ForgeWMO applicability. Rejected raw-MLIQ-depth experiment reverted; authored shore texture UV/blend remains a separate gap.
+
 ## 2026-11-05 — Terrain and liquid70688 evidence
 
 [Terrain zero diffuse](systems/terrain.md#assigned-zero-diffuse-retail-70688) keeps28 base layers on map2579 tile13,48. [Liquid corrections](investigations/northshire-pale-water.md#retail70688-clean-room-corrections--2026-11-05) record Fel motion/detail, type8 retry, authored magma noise and MLLD gaps, with release Forever before/after proof boundaries.

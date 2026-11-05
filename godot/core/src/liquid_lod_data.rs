@@ -1,7 +1,8 @@
 //! Authored far-terrain `_lod.adt` MLLD maps, not WMO MLIQ shoreline data.
 //! Retail70688 E3 defines BE run/literal RLE, depth bytes and binary coverage.
-//! The 12-byte directory header and LSB-first coverage agree with cached Neltharus
-//! LOD4334712/4335067/4335112; do not assign these maps to unrelated WMO surfaces.
+//! G2 confirms the 12-byte header/flags and capacity-truncated codec. Its measured
+//! depth unit is 1/9 yard; LSB-first coverage agrees with cached Neltharus border
+//! maps4334712/4335067/4335112. Never assign these maps to WMO surfaces.
 
 pub const MAP_SIDE: usize = 128;
 pub const MAP_TEXELS: usize = MAP_SIDE * MAP_SIDE;
@@ -16,10 +17,15 @@ const RUN_BIT: u16 = 0x8000;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LodLiquidMaps {
     pub source: Vec<u8>,
-    /// Raw byte values; no world-distance unit is inferred here.
+    /// Raw byte values, preserved verbatim. G2's measured scale is 1/9 yard per unit.
     pub depth: Vec<u8>,
     /// One bit per texel expanded to exactly 0 or 255, never an alpha ramp.
     pub coverage: Vec<u8>,
+}
+
+/// G2's shipped-asset measurement: linear absolute depth, saturated at255 =28⅓yd.
+pub fn depth_yards(stored: u8) -> f32 {
+    f32::from(stored) / 9.0
 }
 
 /// Consume only the far-terrain container's MLLD payload via its existing chunk parser.
@@ -87,10 +93,8 @@ fn decode_rle(mut source: &[u8], output_size: usize) -> Result<Vec<u8>, String> 
         let token = source.get(..2).ok_or("MLLD RLE token is truncated")?;
         let token = u16::from_be_bytes(token.try_into().unwrap());
         source = &source[2..];
-        let count = usize::from(token & !RUN_BIT);
-        if count > output_size - output.len() {
-            return Err("MLLD RLE run exceeds the map output size".into());
-        }
+        // Retail truncates the final run/literal at output capacity (G2).
+        let count = usize::from(token & !RUN_BIT).min(output_size - output.len());
         if token & RUN_BIT != 0 {
             let value = *source.first().ok_or("MLLD RLE repeat value is truncated")?;
             source = &source[1..];
