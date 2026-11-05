@@ -31,8 +31,9 @@ uniform vec4 depth_coefficients = vec4(0.0);
 uniform ivec4 liquid_ints = ivec4(0);
 // Frame counts of slots 3-5; .z is the normal map's (FelData intParams.w).
 uniform vec3 frame_counts_3 = vec3(1.0);
-// LiquidObject FlowSpeed and FlowDirection (degrees).
-uniform vec2 flow = vec2(0.0);
+// Retail 70688 E1: two base layers at level 0; the third UV block, emissive,
+// procedural normals and shore at >=1; specular at >1. Sampled at material creation.
+uniform int liquid_detail = 2;
 
 #include "res://shaders/scene_light.gdshaderinc"
 global uniform vec3 specular_color;
@@ -112,7 +113,6 @@ void fragment() {
 	float f9 = floats_8.y;
 	float f10 = floats_8.z;
 	float f11 = floats_8.w;
-	float f12 = floats_12.x;
 	float f13 = floats_12.y;
 	float f14 = floats_12.z;
 	float f15 = floats_12.w;
@@ -122,36 +122,37 @@ void fragment() {
 	float has_depth = liquid_ints.y != 0 ? 1.0 : 0.0;  // v94
 	float int_offset = float(liquid_ints.z) * 0.01;  // v36
 	float int_blend = float(liquid_ints.w) * 0.01;  // v37
-	float normal_frames = frame_counts_3.z;  // v98
 
 	// Exterior ADT liquid maps world position * 0.06 (LiquidInstance.cpp generateTexCoordsFromPos).
 	vec2 uv = wow_position.xy * 0.06;  // v7
-	float flow_speed = flow.x;  // v17
-	float flow_angle = flow.y * DEGREES;  // v71
-	vec2 uv_0 = f0 * uv + scroll_along(time, (flow.y + f1) * DEGREES, f2 * flow_speed);  // v100
-	vec2 uv_1 = f3 * uv + scroll_along(time, (flow.y + f4) * DEGREES, f5 * flow_speed);  // v101
-	vec2 uv_2 = f6 * uv + scroll_along(time, (flow.y + f7) * DEGREES, f8 * flow_speed);  // v102
-	float glow_speed = f10 * flow_speed;  // v72
+	// Material UV triples are independent of LiquidObject flow. In particular WMO
+	// MLIQ has no LiquidObject: multiplying by its zero flow froze every scroll block.
+	// The DB2 triple interpretation remains the WVV adaptation, not decoded Retail math.
+	float flow_angle = 0.0;
+	vec2 uv_0 = f0 * uv + scroll_along(time, f1 * DEGREES, f2);
+	vec2 uv_1 = f3 * uv + scroll_along(time, f4 * DEGREES, f5);
+	vec2 uv_2 = f6 * uv + scroll_along(time, f7 * DEGREES, f8);
+	float glow_speed = f10;
 	vec2 uv_3 = f9 * (int_blend + 1.0) * uv + scroll_along(time, flow_angle, glow_speed);  // v103
 	float reverse_angle = flow_angle + PI;  // v76 (Godot built-in PI)
 	vec2 uv_4 = f9 * (1.0 - int_blend) * uv + scroll_along(time, reverse_angle, glow_speed)
 		+ vec2(sin(reverse_angle), cos(reverse_angle)) * int_offset;  // v104
 
-	// Normal-map crossfade fraction between frame k (slot 5) and k+1 (v97-v99).
-	float interval = f12 * 1000.0;
+	// E5 corrects E1: Fel's group lookup period is zero, so frame zero is fixed.
 	float frame_blend = 0.0;
-	if (interval > 0.0 && normal_frames > 1.0) {
-		frame_blend = fract(normal_frames * mod(time, interval) / interval);
-	}
 
 	float d = vertex_depth;
 	float depth_mix = clamp(depth_coefficients.x + depth_coefficients.y * d + depth_coefficients.z * d * d
 		+ depth_coefficients.w * d * d * d, 0.0, 1.0);  // v107
 
-	vec3 normal = mix(unpack_normal(texture(texture_5, uv_2).xy), unpack_normal(texture(texture_next, uv_2).xy), frame_blend);
-	normal = 2.0 * normal - 1.0;
-	normal = mix(normal, vec3(0.0, 0.0, 1.0), 1.0 - depth_mix * f16);  // v119
-	vec2 distortion = f15 * normal.xy;  // v122
+	vec3 normal = vec3(0.0, 0.0, 1.0);
+	vec2 distortion = vec2(0.0);
+	if (liquid_detail >= 1) {
+		normal = mix(unpack_normal(texture(texture_5, uv_2).xy), unpack_normal(texture(texture_next, uv_2).xy), frame_blend);
+		normal = 2.0 * normal - 1.0;
+		normal = mix(normal, vec3(0.0, 0.0, 1.0), 1.0 - depth_mix * f16);
+		distortion = f15 * normal.xy;
+	}
 
 	vec3 layer_0 = texture(texture_0, uv_0 + distortion).rgb;  // v123
 	vec3 layer_1 = texture(texture_1, uv_1 + distortion).rgb;  // v124
@@ -172,20 +173,25 @@ void fragment() {
 	vec3 to_camera = -normalize(wow_position - camera);  // v151
 	vec3 halfway = normalize(to_sun + to_camera);  // v153
 	float highlight = pow(clamp(dot(halfway, normal), 0.0, 1.0), SPECULAR_POWER) * sun_attenuation;  // v155
-	vec4 specular_mask = texture(texture_2, uv + distortion);  // v156
-	color += specular_color * specular_mask.rgb * highlight * specular_mask.a;  // v157
-
-	vec4 glow_0 = texture(texture_4, uv_3 + distortion);  // v158
-	vec4 glow_1 = texture(texture_4, uv_4 + distortion);  // v159
-	color += (glow_0.rgb + glow_1.rgb) * glow_0.a * glow_1.a * (depth_mix * f17);  // v161
+	if (liquid_detail > 1) {
+		vec4 specular_mask = texture(texture_2, uv + distortion);
+		color += specular_color * specular_mask.rgb * highlight * specular_mask.a;
+	}
+	if (liquid_detail >= 1) {
+		vec4 glow_0 = texture(texture_4, uv_3 + distortion);
+		vec4 glow_1 = texture(texture_4, uv_4 + distortion);
+		color += (glow_0.rgb + glow_1.rgb) * glow_0.a * glow_1.a * (depth_mix * f17);
+	}
 
 	// Shore gradient from the opaque depth behind the surface (v163-v167).
 	float edge_scale = f11 > 0.0 ? 1.0 / f11 : 1.0;  // v95
 	float fragment_depth = -VERTEX.z;  // abs(vPositionDepth.z)
 	float scene_depth = abs(scene_view_depth(depth_texture, SCREEN_UV, INV_PROJECTION_MATRIX));  // v163
 	float edge = clamp(edge_scale * (scene_depth - fragment_depth), 0.0, 1.0);  // v165
-	vec4 shore = texture(texture_3, vec2(uv_1.x, 1.0 - edge));  // v167
-	color = mix(shore.rgb, color, edge * shore.a);
+	if (liquid_detail >= 1) {
+		vec4 shore = texture(texture_3, vec2(uv_1.x, 1.0 - edge));
+		color = mix(shore.rgb, color, edge * shore.a);
+	}
 	// v106/v168 (authored depth * shore alpha) only feed makeFog2's alpha; the output alpha is 1.
 
 	color = apply_retail_fog(color, VERTEX, INV_VIEW_MATRIX);

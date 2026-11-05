@@ -8,7 +8,8 @@ WMO MLIQ and terrain MH2O liquids use LiquidType-backed material data. The [liqu
 - [x] Resolve magma and slime LiquidType data through their LiquidMaterial class and retain authored MH2O vertex data.
 - [x] Retry unknown liquid type IDs, including zero without a geometry-derived type, through same-product LiquidType8 and its material/textures; never select Material8 directly.
 - [ ] Render Material 2/4 with Retail ProcMagma behavior at the applicable detail level using sourced inputs and equations.
-- [ ] Render the reported Neltharus Forge liquid with sourced Retail Material 13 behavior, including any applicable flow and shoreline data.
+- [x] Keep the Forge on Material13/Fel with two base layers, detail>=1 emissive/procedural/shore and detail>1 specular; WMO UV scrolling must not be multiplied by absent LiquidObject flow.
+- [ ] Complete sourced Retail Material13 UV equations and authored MLLD shoreline integration. Current Float triples and fragment equations remain a qualified WebWowViewerCpp adaptation.
 
 ## How it works
 
@@ -29,8 +30,8 @@ WMO MLIQ and terrain MH2O liquids use LiquidType-backed material data. The [liqu
 ## Known gaps (current cycle)
 
 - [ ] ProcMagma draw bindings and displacement equations are not established.
-- [ ] Area depth/alpha blob provenance and its use by the Forge lake are not established.
-- [ ] The cause of the reported hard edges and the correct Material 13 WMO flow are not established.
+- [ ] Load authored per-area/per-LOD MLLD maps: depth128x128 bytes; alpha2048-byte bitmap expanded to0/255. Big-endian RLE zero tokens are no-ops. Preserve payload across mesh repack. No MLLD parser/loader currently exists, so parser compliance is unverified; file identity, header layout and depth unit await upstream evidence.
+- [ ] Exact Retail environment-to-DB2 UV-triple and definition scale/bias mapping remains unestablished. The fix removes zero LiquidObject-flow multiplication without choosing an arbitrary LiquidObject row.
 - [ ] Matched before/after Forge captures and visual proof are pending a sourced rendering change.
 
 ## Out of scope

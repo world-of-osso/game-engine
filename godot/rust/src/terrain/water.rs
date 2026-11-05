@@ -40,6 +40,8 @@ struct LiquidSurface {
     /// Frame each slot has bound. Every texture write rebuilds the material's uniform set
     /// and re-validates every instance drawing it, so only a changed frame is written.
     bound: [Option<usize>; TEXTURE_SLOTS],
+    /// E5 Retail70688: Fel calls the group lookup with frame period zero.
+    fixed_frames: bool,
 }
 
 impl WaterMaterials {
@@ -202,6 +204,7 @@ impl WaterMaterials {
             slots,
             crossfade,
             bound: [None; TEXTURE_SLOTS],
+            fixed_frames: native.params.shader == LiquidShader::Fel,
         };
         surface.set_time(0.0);
         self.warn_borrowed_water(&native.params);
@@ -290,6 +293,7 @@ impl LiquidSurface {
     /// frame per second; a crossfaded slot binds frame k and k+1 as `texture_next`
     /// (`resolveAnimatedTextures`), the shader blending by the fractional frame position.
     fn set_time(&mut self, milliseconds: f64) {
+        let milliseconds = if self.fixed_frames { 0.0 } else { milliseconds };
         let second = (milliseconds * 0.001) as usize;
         for (slot, frames) in self.slots.iter().enumerate() {
             if frames.is_empty() {
