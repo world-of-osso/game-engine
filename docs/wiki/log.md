@@ -1,3 +1,7 @@
+## Dead bottom-height shore module deleted
+
+The refuted `game_engine_core::liquid_shore::ShoreDepthMap` bake and its five tests are deleted; no render path and no lane referenced its contract after the view-depth prepass landed. `docs/specs/liquid-rendering.md` and [[northshire-pale-water]] now state one shore source. No pixel changed: the module had no consumer.
+
 ## Liquid depth byte on its retail channel; terrain fallback greys verified
 
 [[northshire-pale-water#Retail70688 clean-room corrections]] records I2: the MH2O depth byte rides the second texture pair (`UV2.y` in the mesh, read as `vertex_depth`), colour constant white, and the fallback greys are dark `0x3f3f3f` for both reachable cases with mid `0x808080` confined to the unimplemented area-LOD builder. `water_material_pixels`, `liquid_material_pixels` (with a new flow-bound Fel case and objectless Fel static) and the opt-in `pbr_water_pixels` pass; Zephras coast and Northshire stream captures stay inside their noise floors.
