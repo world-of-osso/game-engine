@@ -79,6 +79,30 @@ color = shore.rgb + (base_color-shore.rgb)*(D*shore.a)
 
 It also propagates shore.a through the subsequent cb5 weighted accumulation into output alpha. Final t16 screen-volume compositing changes RGB only: `accumulated.rgb*(1-S.a)+S.rgb`. Opaque shore texture alpha therefore still permits the depth-difference transition. The CPU-bound identity of t6, cb1[12].y and the rule selecting procfel are **not** established by this shader alone. Constant indices address float4 vectors, not byte offsets.
 
+## Magma and procmagma pixel math
+
+Verified on all four permutations of magma (2977160) and procmagma (2977219). Neither family declares t5 or t6: there is **no procfel-style shore sample or projective difference** in these programs.
+
+Magma 0/2 binds t0 (2D) and t16 (3D), with s0/s13. Its base RGB is simply `sample(t0,s0,TEXCOORD1.xy).rgb`, with base alpha 1. Magma 1/3 adds t15/s15, samples its **red channel** at centroid TEXCOORD2.xy and discards pixels below 0.1. That sample does not modulate surviving RGB or alpha. These pixel programs contain no flow-noise planes; any UV movement must come from their vertex inputs.
+
+Procmagma 0/2 binds t0 (3D noise-weight volume), t1/t2/t3 (2D layers), and t16 (3D screen volume), with s0/s1/s2/s3/s13. Procmagma 1/3 additionally binds t15/s15. For all four, base RGB is exactly:
+
+```
+N0 = sample(t0,s0,float3(TEXCOORD1.xy,cb1[12].w)).rgb
+N1 = sample(t0,s0,float3(TEXCOORD1.zw,cb1[12].w)).rgb
+N = N0 + TEXCOORD3.z * (N1-N0)
+L1 = sample(t1,s1,TEXCOORD2.xy).rgb
+L2 = sample(t2,s2,TEXCOORD2.zw)
+L3 = sample(t3,s3,TEXCOORD3.xy)
+C1 = cb1[12].xyz + N.x * (L1-cb1[12].xyz)
+C2 = C1 + (N.y*L2.a) * (L2.rgb-C1)
+C3 = C2 + (N.z*L3.a) * (L3.rgb-C2)
+```
+
+These are sequential interpolations, not additive layers or UV distortion. No saturation is applied to N or the vertex interpolation factor. The pixel shader forms two 3D noise sampling positions from two input UV planes and one common cb1[12].w slice coordinate. The origin/motion of those input UVs and whether that slice is time remain CPU/vertex-stage questions. cb1[12].xyz is a baseline color, not a flow speed.
+
+Procmagma 1/3 samples t15.red at centroid TEXCOORD4.xy, discards below 0.1, and also uses that red value as base alpha; 0/2 use alpha 1. Both families then use the same cb1[8..10]/cb5 weighted accumulation and cb1[9].w-gated t16 RGB composite described above. Neither t15 variant establishes a shore identity: CPU bindings are unknown. In both families, 2/3 additionally write TEXCOORD0.z into SV_TARGET1.x; this is a second render target, **not SV_DEPTH**.
+
 ## Limits
 
 - No original resource, variable or constant-buffer member names; semantic names such as TEXCOORD are retained.
