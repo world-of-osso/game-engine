@@ -151,6 +151,8 @@ pub use asset::m2_batch_data;
 mod cache_source_mtime;
 #[path = "cache_sqlite.rs"]
 mod cache_sqlite;
+pub mod foot_ik;
+pub mod ground_drape;
 #[path = "game/equipment/helmet_geoset_data.rs"]
 mod helmet_geoset_data;
 #[cfg(test)]
@@ -183,8 +185,6 @@ pub mod pet_autocast_shine_data;
 pub mod player_model_data;
 #[path = "player_physics_data.rs"]
 pub mod player_physics_data;
-pub mod foot_ik;
-pub mod ground_drape;
 pub mod render_surface;
 pub mod retail_fog;
 #[path = "rendering/lighting/retail_light_data.rs"]
