@@ -91,6 +91,7 @@ pub mod light_lookup_types;
 pub mod lighting_assets;
 pub mod liquid_data;
 pub mod liquid_lod_data;
+pub mod liquid_shore;
 #[path = "game/state/loading_readiness.rs"]
 pub mod loading_readiness;
 pub mod m2;

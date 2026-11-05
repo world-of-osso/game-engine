@@ -15,6 +15,9 @@ WMO MLIQ and terrain MH2O liquids use LiquidType-backed material data. The [liqu
 - [x] Use integer-millisecond wrap with G4's finite velocity domain (1e-5<abs(v)<1000), negative cycles ending at1. Scale does not rotate the source UV.
 - [ ] ProcFel permutation/technique selection and its 18 techniques; the engine renders both `Fel` and `ProcFel` detail tiers from one detail-gated shader. The BLS samples t6 through the draw item's UV rectangle, so the exact CPU texture bound there is still open.
 - [x] G7 terrain contract: an `MH2O` layer's id resolves verbatim with no 1..20 rewrite and no type-8 retry, and the draw skips a row whose material column is Fog (10). The rewrite and the retry remain WMO-only.
+- [x] G10 shore depth source: `D = saturate(water depth / Float_11)` from a per-surface baked bottom map in the surface's own parameter space, sampled in the vertex shader from local `VERTEX.xz`. Baked at load from the geometry under the liquid and cached per liquid surface; the scene-depth sample is gone. The client's own resource and fill time are unknown, so this is an equivalent map, not a copy.
+- [ ] Baked bottom-map coverage for WMO pools: a single WMO asset's BSP collision does not contain every pool floor. Neltharus group 8 bakes 392x375 texels with 131,135 open (89%), so most texels carry the conservative deepest value rather than real geometry. Bake from the engine's merged ground query (terrain heights plus all WMO floors plus M2 hulls) at tile level instead of one WMO's own groups.
+- [ ] The water family does not consume the baked map yet; `game_engine_core::liquid_shore::ShoreDepthMap` is the shared API for it.
 - [x] MH2O depth bytes are handed through verbatim (no unit conversion in the parser or material), matching G7's 9-units-per-yard asset measurement; the draw keeps the existing depth/255 cubic input.
 
 ## How it works

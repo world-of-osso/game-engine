@@ -150,18 +150,55 @@ impl WaterMaterials {
     /// A WMO group's liquid surface (`game_engine_core::wmo_liquid`), in a set of materials
     /// of WMO liquids only, keyed by (LiquidType, interior): the mesh carries its texture
     /// coordinates, and an interior group's procedural WMO water is white
-    /// (`liquidWaterMat.slang:162-176`).
+    /// (`liquidWaterMat.slang:162-176`). A baked shore depth map is per surface, so a
+    /// surface with one owns a duplicate of the shared material.
     pub fn wmo_surface(
         &mut self,
         liquid_type: u16,
         interior: bool,
         native: &NativeLiquidMaterial,
         geometry: adt::WaterGeometry,
+        shore: Option<game_engine_core::liquid_shore::ShoreDepthMap>,
     ) -> Result<Gd<MeshInstance3D>, String> {
         let mut material = self.material((liquid_type, u16::from(interior)), native)?;
         material.set_shader_parameter("mesh_uv", &true.to_variant());
         material.set_shader_parameter("interior", &interior.to_variant());
+        if let Some(map) = shore {
+            material = self.with_shore_map(material, &map)?;
+        }
         Ok(water_instance(&build_mesh(geometry), &material))
+    }
+
+    /// A material variant carrying one surface's baked bottom-depth map. Retail70688 G10:
+    /// the shore fade reads physical water depth from this map, never the scene depth.
+    fn with_shore_map(
+        &mut self,
+        material: Gd<ShaderMaterial>,
+        map: &game_engine_core::liquid_shore::ShoreDepthMap,
+    ) -> Result<Gd<ShaderMaterial>, String> {
+        let mut material: Gd<ShaderMaterial> = material
+            .duplicate_resource()
+            .try_cast()
+            .map_err(|_| "Duplicated liquid material is not a ShaderMaterial".to_string())?;
+        let [width, height] = map.resolution;
+        let bytes = PackedByteArray::from(map.image_bytes().as_slice());
+        let image = Image::create_from_data(
+            width as i32,
+            height as i32,
+            false,
+            image::Format::RF,
+            &bytes,
+        )
+        .ok_or("Godot rejected the shore depth map image")?;
+        let texture = ImageTexture::create_from_image(&image)
+            .ok_or("Godot rejected the shore depth map texture")?;
+        material.set_shader_parameter("shore_depth_map", &texture.to_variant());
+        material.set_shader_parameter(
+            "shore_map_transform",
+            &Vector4::from_array(map.local_transform()).to_variant(),
+        );
+        material.set_shader_parameter("shore_map_enabled", &true.to_variant());
+        Ok(material)
     }
 
     fn material(

@@ -27,6 +27,56 @@ pub(super) struct WmoLiquids {
     materials: WaterMaterials,
 }
 
+/// Bake the shore depth map of one WMO liquid surface from the geometry beneath it.
+/// Retail70688 G10 makes the shore fade physical water depth, so the map is baked once
+/// here from the model-local collision and cached with the surface.
+pub(crate) fn bake_shore_map(
+    geometry: &game_engine_core::adt::WaterGeometry,
+    collision: &[shared::ground::WmoCollision],
+) -> Option<game_engine_core::liquid_shore::ShoreDepthMap> {
+    use game_engine_core::liquid_shore::ShoreDepthMap;
+    if geometry.positions.len() < 3 {
+        return None;
+    }
+    let (mut min_x, mut max_x) = (f32::MAX, f32::MIN);
+    let (mut min_z, mut max_z) = (f32::MAX, f32::MIN);
+    let mut surface = f32::MIN;
+    for position in &geometry.positions {
+        min_x = min_x.min(position[0]);
+        max_x = max_x.max(position[0]);
+        min_z = min_z.min(position[2]);
+        max_z = max_z.max(position[2]);
+        surface = surface.max(position[1]);
+    }
+    let map = ShoreDepthMap::bake([min_x, min_z], [max_x, max_z], surface, |x, z| {
+        highest_below(collision, x, z, surface)
+    });
+    Some(map)
+}
+
+/// The highest collision face under `(x, z)` at or below `surface`, in model-local space.
+fn highest_below(
+    collision: &[shared::ground::WmoCollision],
+    x: f32,
+    z: f32,
+    surface: f32,
+) -> Option<f32> {
+    let mut heights = Vec::new();
+    for placed in collision {
+        heights.clear();
+        placed.collision_heights(x, z, surface, surface - 400.0, &mut heights);
+        if let Some(height) = heights
+            .iter()
+            .copied()
+            .filter(|height| *height <= surface + 0.01)
+            .max_by(f32::total_cmp)
+        {
+            return Some(height);
+        }
+    }
+    None
+}
+
 impl WmoLiquids {
     /// Adds each group's liquid under WMO `node` as `Group{g}_Liquid`, in the group's
     /// WMO-local frame; returns one error per group whose liquid cannot be drawn.
@@ -39,6 +89,16 @@ impl WmoLiquids {
         data_root: &Path,
     ) -> Vec<String> {
         let mut errors = Vec::new();
+        let local_collision: Vec<_> = asset
+            .groups
+            .iter()
+            .map(|group| {
+                shared::ground::WmoCollision::new(
+                    glam::Affine3A::IDENTITY,
+                    vec![group.collision.clone()],
+                )
+            })
+            .collect();
         for group in &asset.groups {
             let (header, geometry) = (&group.group.header, &group.group.geometry);
             let Some(liquid) = &geometry.liquid else {
@@ -47,13 +107,35 @@ impl WmoLiquids {
             let Some(liquid_type) = wmo_liquid::group_liquid_type(asset.root.flags, header) else {
                 continue;
             };
+            let geometry = wmo_liquid::liquid_geometry(liquid, liquid_type);
+            let shore = bake_shore_map(&geometry, &local_collision);
+            match &shore {
+                Some(map) => {
+                    let total: f32 = map.depth.iter().sum();
+                    let mean = total / map.depth.len().max(1) as f32;
+                    godot_print!(
+                        "WMO {} group {} shore map {}x{} open {}/{} mean {:.2} yd",
+                        asset.root_fdid,
+                        group.index,
+                        map.resolution[0],
+                        map.resolution[1],
+                        map.open,
+                        map.depth.len(),
+                        mean
+                    );
+                }
+                None => godot_warn!(
+                    "WMO {} group {} liquid {liquid_type} has no shore depth map",
+                    asset.root_fdid,
+                    group.index
+                ),
+            }
             let surface = self
                 .native(map_id, liquid_type, resolver, data_root)
                 .and_then(|native| {
                     let interior = wmo_liquid::group_interior_lit(header.flags);
-                    let geometry = wmo_liquid::liquid_geometry(liquid, liquid_type);
                     self.materials
-                        .wmo_surface(liquid_type, interior, &native, geometry)
+                        .wmo_surface(liquid_type, interior, &native, geometry, shore)
                 });
             match surface {
                 Ok(mut surface) => {

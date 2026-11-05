@@ -15,7 +15,12 @@ uniform sampler2D texture_3 : repeat_enable, filter_linear_mipmap;
 uniform sampler2D texture_4 : repeat_enable, filter_linear_mipmap;
 uniform sampler2D texture_5 : repeat_enable, filter_linear_mipmap;
 uniform sampler2D texture_next : repeat_enable, filter_linear_mipmap;
-uniform sampler2D depth_texture : hint_depth_texture, filter_nearest, repeat_disable;
+// Retail70688 G10: the shore's depth input is a per-surface map in the surface's own
+// parameter space carrying physical water depth, not the scene depth buffer. The engine
+// bakes it from the geometry beneath the liquid (`game_engine_core::liquid_shore`).
+uniform sampler2D shore_depth_map : repeat_disable, filter_linear;
+uniform vec4 shore_map_transform = vec4(0.0);
+uniform bool shore_map_enabled = false;
 
 // Shared material clock in milliseconds (the reference scene time).
 global uniform float liquid_animation_time_ms;
@@ -53,6 +58,9 @@ const float DEGREES = 0.017453292;
 
 varying vec3 wow_position;
 varying float vertex_depth;
+// Local XZ mapped into the baked shore depth map, so the map never depends on the texture
+// UV convention or on the WMO placement.
+varying vec2 shore_uv;
 
 vec3 linear_to_gamma(vec3 color) {
 	return mix(12.92 * color, 1.055 * pow(color, vec3(1.0 / 2.4)) - 0.055, step(vec3(0.0031308), color));
@@ -106,6 +114,7 @@ void vertex() {
 	wow_position = to_wow((MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz);
 	// adt_water_geometry: MH2O vertex depth / 255 (vPositionDepth.w).
 	vertex_depth = COLOR.a;
+	shore_uv = VERTEX.xz * shore_map_transform.xy + shore_map_transform.zw;
 }
 
 void fragment() {
@@ -137,8 +146,7 @@ void fragment() {
 
 	// Exterior ADT liquid maps world position * 0.06 (LiquidInstance.cpp generateTexCoordsFromPos).
 	vec2 uv = wow_position.xy * 0.06;  // v7
-	// G4: (scale, phase degrees, velocity) triples. Phase orients translation,
-	// never the source UV; a missing/zero-speed LiquidObject produces no scroll.
+	// G4: (scale, phase degrees, velocity) triples. Phase orients translation,	// never the source UV; a missing/zero-speed LiquidObject produces no scroll.
 	float flow_angle = flow.y * DEGREES;
 	vec2 uv_0 = f0 * uv + scroll_along(time, (f1 + flow.y) * DEGREES, f2 * flow.x);
 	vec2 uv_1 = f3 * uv + scroll_along(time, (f4 + flow.y) * DEGREES, f5 * flow.x);
@@ -195,15 +203,15 @@ void fragment() {
 		color += (glow_0.rgb + glow_1.rgb) * glow_0.a * glow_1.a * (depth_mix * glow_strength);
 	}
 
-	// G8 shore: D is saturate((scene depth - liquid surface depth) / Float_11); both
-	// depths are linear view-space yards, so Float_11 is the fade width in yards (2.6 for
-	// type 1192). D = 0 is the shoreline and D = 1 is the open surface. The BLS samples
-	// t6 through the draw item's UV rectangle; its CPU binding is open, so the linearised
-	// screen depth buffer supplies the same quantity.
-	float surface_depth = -VERTEX.z;
-	float scene_depth = scene_view_depth(depth_texture, SCREEN_UV, INV_PROJECTION_MATRIX);
-	float shore_fade = clamp(shore_scale * (scene_depth - surface_depth), 0.0, 1.0);
-	if (liquid_detail >= 2) {
+	// G10 shore: D = saturate(water depth / Float_11). The baked map holds depth in yards,
+	// so the fade is independent of the camera. D = 0 is the shoreline, D = 1 open water.
+	// A surface without a baked map keeps its base colour rather than inventing a fade.
+	float shore_fade = 1.0;
+	if (shore_map_enabled) {
+		float water_depth = texture(shore_depth_map, shore_uv).r;
+		shore_fade = clamp(water_depth * shore_scale, 0.0, 1.0);
+	}
+	if (liquid_detail >= 2 && shore_map_enabled) {
 		// t5 at (TC1.z, 1 - D): TC1.z is the second base layer's U, as G8/BLS specify.
 		vec4 shore = texture(texture_3, vec2(uv_1.x, 1.0 - shore_fade));
 		color = shore.rgb + (color - shore.rgb) * (shore_fade * shore.a);

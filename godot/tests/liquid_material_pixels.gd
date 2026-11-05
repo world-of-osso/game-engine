@@ -141,11 +141,15 @@ func liquid_quad() -> ArrayMesh:
 	var colors := PackedColorArray()
 	colors.resize(4)
 	colors.fill(Color(1.0, 1.0, 1.0, 80.0 / 255.0))
+	var uvs := PackedVector2Array()
+	for corner in [Vector2(-100, -100), Vector2(100, -100), Vector2(-100, 100), Vector2(100, 100)]:
+		uvs.append((corner + Vector2(100, 100)) / 200.0)
 	var arrays := []
 	arrays.resize(Mesh.ARRAY_MAX)
 	arrays[Mesh.ARRAY_VERTEX] = vertices
 	arrays[Mesh.ARRAY_NORMAL] = PackedVector3Array([Vector3.UP, Vector3.UP, Vector3.UP, Vector3.UP])
 	arrays[Mesh.ARRAY_COLOR] = colors
+	arrays[Mesh.ARRAY_TEX_UV] = uvs
 	arrays[Mesh.ARRAY_INDEX] = PackedInt32Array([0, 1, 2, 1, 3, 2])
 	var mesh := ArrayMesh.new()
 	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
