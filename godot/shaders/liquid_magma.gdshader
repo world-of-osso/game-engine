@@ -5,11 +5,17 @@ render_mode unshaded, cull_disabled, fog_disabled;
 // liquidMagmaMat.slang calcMagmaLiquidMat. The v-names in comments are that function's
 // locals. Opaque; texel maths in authored colour (bytes / 255), result converted to linear.
 
-// LiquidTypeXTexture slots 1-3 and the 16-slice noise volume (FDID 768431) as a 128x2048 atlas.
+// LiquidTypeXTexture slots 1-3, the level-0 slot 0 layer, and the 16-slice noise blob
+// (FDID 768431) as a 128x2048 atlas.
+uniform sampler2D texture_0 : repeat_enable, filter_linear_mipmap;
 uniform sampler2D texture_1 : repeat_enable, filter_linear_mipmap;
 uniform sampler2D texture_2 : repeat_enable, filter_linear_mipmap;
 uniform sampler2D texture_3 : repeat_enable, filter_linear_mipmap;
 uniform sampler2D noise_volume : repeat_enable, filter_linear;
+
+// E5: detail 0 is the Magma definition (one layer, one transform); detail 1..4 share
+// ProcMagma. Sampled once at class registration in the client.
+uniform int liquid_detail = 2;
 
 global uniform float liquid_animation_time_ms;
 // LiquidType.Float[0..11] (MagmaData f0..f11).
@@ -89,10 +95,15 @@ void vertex() {
 	wow_position = vec3(world.x, -world.z, world.y);
 }
 
-void fragment() {
-	float time = liquid_animation_time_ms;
-	// Exterior ADT liquid maps world position * 0.06 (LiquidInstance.cpp generateTexCoordsFromPos).
-	vec2 uv = mesh_uv ? UV : wow_position.xy * 0.06;
+// BLS magma: base RGB is t0(TC1.xy) with alpha 1; the family binds no noise layer.
+vec3 magma_color(vec2 uv) {
+	return texture(texture_0, uv).rgb;
+}
+
+// BLS procmagma: the noise volume and the three layers supply successive lerp weights,
+// never UV offsets. Our liquid vertex format supplies one UV plane, so the second noise
+// position and the per-layer planes reuse it with the reference's scroll and rotation.
+vec3 procmagma_color(vec2 uv, float time) {
 	float flow_angle = flow.y * DEGREES;
 	vec2 flow_speed = vec2((floats_0.x + flow.x) * cos(flow_angle), (floats_0.y + flow.x) * sin(flow_angle));  // v35
 	vec2 flow_scroll = scroll(time, flow_speed);  // v36
@@ -117,7 +128,13 @@ void fragment() {
 	color = color + (layer_1.rgb - color) * blend.x;
 	color = color + (layer_2.rgb - color) * (layer_2.a * blend.y);
 	color = color + (layer_3.rgb - color) * (layer_3.a * blend.z);
+	return color;
+}
 
-	color = apply_retail_fog(color, VERTEX, INV_VIEW_MATRIX);
-	ALBEDO = gamma_to_linear(color);
+void fragment() {
+	float time = liquid_animation_time_ms;
+	// Exterior ADT liquid maps world position * 0.06 (LiquidInstance.cpp generateTexCoordsFromPos).
+	vec2 uv = mesh_uv ? UV : wow_position.xy * 0.06;
+	vec3 color = liquid_detail < 1 ? magma_color(uv) : procmagma_color(uv, time);
+	ALBEDO = gamma_to_linear(apply_retail_fog(color, VERTEX, INV_VIEW_MATRIX));
 }

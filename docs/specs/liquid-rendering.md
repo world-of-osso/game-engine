@@ -6,6 +6,8 @@ WMO MLIQ and terrain MH2O liquids use LiquidType-backed material data. The [liqu
 
 - [x] Resolve the Neltharus Forge WMO group's authored LiquidType and its material and texture data, rather than selecting a shader from its liquid name.
 - [x] Resolve magma and slime LiquidType data through their LiquidMaterial class and retain authored MH2O vertex data.
+- [x] Magma and ProcMagma colour chains (BLS, all four permutations): neither family binds a shore. Magma at detail 0 is `t0(TC1.xy).rgb` with alpha 1 and no noise layer; ProcMagma adds the noise-weighted three-layer chain. The noise RGB supplies successive lerp weights, not UV offsets.
+- [ ] ProcMagma's interpolated UV planes (TC1.zw, TC2, TC3), the per-draw cb1[12].w noise slice and the cb1[12].xyz baseline colour. The engine's liquid vertex format supplies one UV plane, so those inputs are not available yet.
 - [x] Retry unknown liquid type IDs, including zero without a geometry-derived type, through same-product LiquidType8 and its material/textures; never select Material8 directly.
 - [ ] Render Material 2/4 with Retail ProcMagma behavior at the applicable detail level using sourced inputs and equations.
 - [x] Keep Forge on Material13/Fel: two base layers, detail>=1 emissive/procedural, detail>=2 shore and detail>=3 specular. G4 UV triples are (scale,phaseDegrees,velocity); phase adds LiquidObject.FlowDirection and velocity multiplies FlowSpeed. Missing/zero-flow records remain static, with no guessed WMO flow.

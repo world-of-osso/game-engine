@@ -62,7 +62,9 @@ impl LiquidShader {
     pub fn texture_slots(self) -> &'static [usize] {
         match self {
             Self::Water => &[2, 3],
-            Self::Magma => &[1, 2, 3],
+            // E5: level 0 draws environment group 0 (the type's first texture); levels 1+
+            // replace it with the class-owned noise blob, so both are read.
+            Self::Magma => &[0, 1, 2, 3],
             Self::Mercury => &[2],
             Self::Fog => &[0],
             Self::LeyLine => &[0, 1, 3, 4],
