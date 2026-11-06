@@ -8,7 +8,7 @@ extends SceneTree
 ##   walk   real key input: W runs forward for BENCH_WALK_S seconds (default 2), S backpedals
 ##          the same distance back (run 7 yd/s, backpedal 4.5 yd/s), repeatedly
 ## Environment: GODOT_TEST_SERVER, BENCH_ACCOUNT (password fbtest), BENCH_CHARACTER;
-## BENCH_SCREENSHOT=<png> saves the settled idle view before measuring.
+## BENCH_SCREENSHOT=<png> saves the idle view after its measured segment.
 ## BENCH_SCENERY_RECEIPT=<path> records real Stormwind visibility for comparison.
 ## Place the character with `game-server-admin set-position|teleport` while it is offline.
 ## BENCH_SYSTEMS_S=<seconds> adds an `idle_systems` segment of that length that reads
@@ -130,12 +130,15 @@ func run_test() -> void:
 	var spawn := Vector2(player.position.x, player.position.z)
 	print("BENCH_SCENE ", JSON.stringify({"character": character, "spawn": [spawn.x, spawn.y],
 		"objects": client.account_state().world_objects, "load": load_average()}))
-	if OS.get_environment("BENCH_SCREENSHOT") != "":
-		await RenderingServer.frame_post_draw
-		root.get_texture().get_image().save_png(OS.get_environment("BENCH_SCREENSHOT"))
 	if OS.get_environment("BENCH_NODES") == "1":
 		print("BENCH_NODES ", JSON.stringify(node_census(root)))
 	await measure("idle", segment_s, func(_t: float): pass)
+	# After a measured segment, not on the first settled frame: the loading fade and the
+	# world light both finish within those seconds, and their overlay would otherwise be
+	# the captured frame.
+	if OS.get_environment("BENCH_SCREENSHOT") != "":
+		await RenderingServer.frame_post_draw
+		root.get_texture().get_image().save_png(OS.get_environment("BENCH_SCREENSHOT"))
 	var systems_s := OS.get_environment("BENCH_SYSTEMS_S")
 	if systems_s != "":
 		await measure("idle_systems", float(systems_s), func(_t: float): pass, true)
