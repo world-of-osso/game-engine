@@ -14,6 +14,8 @@ extends SceneTree
 ## the text alone. Run against the release library.
 
 const OUT_DIR := "/syncthing/AgentShared/2026-11-06/combat-text/"
+## File-name prefix: "master-" for the before-everything baseline.
+var file_prefix := OS.get_environment("CAPTURE_PREFIX")
 ## Open ground inside the Stormwind wall (the healer-ring capture's flat row).
 const ROW := Vector3(-8591.0, 96.9, -770.0)
 const HIT := 0
@@ -56,7 +58,8 @@ func run() -> void:
 	client.set_world_minutes(1440.0)
 	spawn_character(Vector3(ROW.x, floor_y, ROW.z))
 	client.preview_set_focus(ROW)
-	place_camera(Vector3(ROW.x, floor_y + 3.0, ROW.z + 8.0),
+	# Ten yards from the anchor, where the calibrated distance law keeps a hit at master's size.
+	place_camera(Vector3(ROW.x, floor_y + 3.4, ROW.z + 10.0),
 		Vector3(ROW.x, floor_y + 1.8, ROW.z))
 	await settle_scene()
 	match case:
@@ -68,12 +71,94 @@ func run() -> void:
 			await capture_spread()
 		"perf":
 			await measure_perf()
+		"measure":
+			await measure_one()
 		_:
 			fail("unknown CAPTURE_CASE " + case)
 			return
 	print("CAPTURE skin=%s case=%s DONE" % [client.account_state().ui_skin, case])
 	client.free()
 	quit(0)
+
+## One hit alone: the rendered ink box, against the one the fixture can compute without a
+## second render, so the no-overlap metric uses a box that matches the pixels.
+func measure_one() -> void:
+	var before: Image = await grab()
+	client.preview_combat_text(HIT, 4000, anchor(Vector3(-7.0, 0.0, 0.0)))
+	client.preview_combat_text(CRIT, 4001, anchor(Vector3(7.0, 0.0, 0.0)))
+	freeze(0.4)
+	var after: Image = await capture("measure", before)
+	# One text at a time, with and without on adjacent frames so scene drift cannot widen it.
+	for label in text_labels():
+		label.visible = false
+		var without: Image = await grab()
+		label.visible = true
+		var with: Image = await grab()
+		var center: Vector2 = camera.unproject_position(label.global_position)
+		print("MEASURE text=%s ink=%s reserved=%s center=%s font=%d pixel=%.6f" % [
+			label.text, diff_box(with, without, 0.2),
+			engine_box(center, float(label.font_size), float(label.pixel_size), label.text),
+			center, label.font_size, label.pixel_size])
+	report_overlap()
+	var before_edges := dark_edge(after)
+	for label in text_labels():
+		label.outline_size = 24
+	var thick: Image = await grab()
+	var after_edges := dark_edge(thick)
+	print("OUTLINE size8=%d size24=%d text_pixels=%d" % [
+		before_edges, after_edges, bright_text_pixels(thick)])
+	save_jpeg(thick, "measure-outline24")
+
+## Bright text pixels: the ink the outline has to surround.
+func bright_text_pixels(image: Image) -> int:
+	var count := 0
+	for y in image.get_height():
+		for x in image.get_width():
+			var pixel := image.get_pixel(x, y)
+			if maxf(pixel.r, maxf(pixel.g, pixel.b)) > 0.75:
+				count += 1
+	return count
+
+## Bounding box of the pixels whose colour moved by `threshold` between two frames.
+func diff_box(a: Image, b: Image, threshold: float) -> Rect2:
+	var low := Vector2i(a.get_width(), a.get_height())
+	var high := Vector2i(-1, -1)
+	for y in a.get_height():
+		for x in a.get_width():
+			var p := a.get_pixel(x, y)
+			var q := b.get_pixel(x, y)
+			if absf(p.r - q.r) + absf(p.g - q.g) + absf(p.b - q.b) > threshold:
+				low = Vector2i(mini(low.x, x), mini(low.y, y))
+				high = Vector2i(maxi(high.x, x), maxi(high.y, y))
+	if high.x < 0:
+		return Rect2()
+	return Rect2(low, high - low)
+
+## Every live world text, in the order the client added them.
+func text_labels() -> Array:
+	var labels := []
+	for child in client.get_children():
+		if child is Label3D and not child.has_meta("combat_text_shadow"):
+			labels.append(child)
+	return labels
+
+## Bounding box of the pixels that differ between two frames inside a window around `center`,
+## so scene noise outside the text cannot widen it.
+func ink_box(after: Image, before: Image, center: Vector2, half_width: int = 320) -> Rect2:
+	var low := Vector2i(after.get_width(), after.get_height())
+	var high := Vector2i(-1, -1)
+	var x0 := maxi(0, int(center.x) - half_width)
+	var x1 := mini(after.get_width() - 1, int(center.x) + half_width)
+	var y0 := maxi(0, int(center.y) - 240)
+	var y1 := mini(after.get_height() - 1, int(center.y) + 240)
+	for y in range(y0, y1 + 1):
+		for x in range(x0, x1 + 1):
+			if is_text_pixel(after.get_pixel(x, y), before.get_pixel(x, y)):
+				low = Vector2i(mini(low.x, x), mini(low.y, y))
+				high = Vector2i(maxi(high.x, x), maxi(high.y, y))
+	if high.x < 0:
+		return Rect2()
+	return Rect2(low, high - low)
 
 ## Nine texts over three pseudo-units (three each, under the four-slot limit), so every
 ## style the mapping produces appears in one frame.
@@ -85,10 +170,11 @@ func capture_set() -> void:
 		var at := anchor(Vector3(-1.4 + 1.4 * slot, 0.0, 0.0))
 		var live: int = client.preview_combat_text(text_indices[index], 1000 + slot, at)
 		print("SPAWN index=%d unit=%d live=%d" % [text_indices[index], 1000 + slot, live])
-	freeze(0.2)
+	freeze(0.4)
 	var after: Image = await capture("set", before)
 	check_count(9, "nine world texts over three units")
 	report_text(after, before)
+	report_overlap()
 
 ## Headless frames are far slower than real time, so a 1.5 s text would expire between the
 ## spawn and the capture: stop time and set the age the capture shows.
@@ -113,9 +199,10 @@ func capture_limit() -> void:
 	var dropped: int = client.preview_combat_text(PERIODIC, 2000, anchor(Vector3.ZERO))
 	print("LIMIT after a fifth plain text live=%d" % dropped)
 	check(dropped == 4, "a fifth text evicts the oldest slot, it does not grow the unit")
-	freeze(0.2)
+	freeze(0.4)
 	var after: Image = await capture("limit", before)
 	report_text(after, before)
+	report_overlap()
 
 ## Non-crit styles, so no slot is replaced: 13 units hold four each.
 const SPREAD_STYLES := [HIT, HEAL, PERIODIC, PET_MELEE]
@@ -124,19 +211,21 @@ const SPREAD_STYLES := [HIT, HEAL, PERIODIC, PET_MELEE]
 func capture_spread() -> void:
 	var before: Image = await grab()
 	spawn_fifty()
-	freeze(0.2)
+	freeze(0.4)
 	var live: int = client.spells_state().combat_text
 	print("SPREAD live=%d" % live)
 	check(live == 50, "fifty simultaneous numbers over thirteen units")
 	var after: Image = await capture("spread", before)
 	report_text(after, before)
+	report_overlap()
 	measure_cost()
 
 func spawn_fifty() -> void:
+	# Thirteen units spread across the visible ground, as a raid would stand.
 	for index in 50:
 		var unit := 3000 + index / 4
 		var column := float(index / 4)
-		var at := anchor(Vector3(-3.6 + 0.6 * column, 0.0, 0.9 * (index % 4)))
+		var at := anchor(Vector3(-10.8 + 1.8 * column, 0.0, 1.2 * (index % 4) - 1.8))
 		client.preview_combat_text(SPREAD_STYLES[index % 4], unit, at)
 
 func measure_perf() -> void:
@@ -157,6 +246,43 @@ func measure_cost() -> void:
 
 ## Text alone: how many pixels the numbers cover, and how many of those are each style's
 ## colour, as the numeric description of a capture the reviewer cannot see.
+## The same screen box the engine reserves for a text (combat_text::SCREEN_PX_PER_EM), so the
+## metric measures the placement rule itself.
+func engine_box(center: Vector2, font: float, pixel: float, text: String) -> Rect2:
+	var em := 1699.0 * font * pixel
+	var height := em * 0.7
+	var width := em * (0.5 * text.length() + 0.25)
+	return Rect2(center - Vector2(width * 0.5, height * 0.5), Vector2(width, height))
+
+## Screen boxes of the live texts, from the node's own font size and pixel size.
+func report_overlap() -> void:
+	var boxes := []
+	for label in text_labels():
+		var center: Vector2 = camera.unproject_position(label.global_position)
+		boxes.append({
+			"text": label.text,
+			"rect": engine_box(center, float(label.font_size), float(label.pixel_size), label.text),
+		})
+	var clashes := 0
+	for i in boxes.size():
+		for j in range(i + 1, boxes.size()):
+			if boxes[i]["rect"].intersects(boxes[j]["rect"]):
+				clashes += 1
+				if clashes <= 6:
+					print("OVERLAP %s %s %s %s" % [
+						boxes[i]["text"], boxes[i]["rect"], boxes[j]["text"], boxes[j]["rect"]])
+	print("OVERLAP_COUNT %d of %d pairs" % [clashes, boxes.size() * (boxes.size() - 1) / 2])
+
+func report_label_properties() -> void:
+	var labels := text_labels()
+	if labels.is_empty():
+		print("LABEL_PROPS none")
+		return
+	var label: Label3D = labels[0]
+	print("LABEL_PROPS text=%s outline=%d outline_modulate=%s modulate=%s font=%s" % [
+		label.text, label.outline_size, label.outline_modulate, label.modulate,
+		label.font.resource_path if label.font != null else "<builtin>"])
+
 func report_text(after: Image, before: Image) -> void:
 	var diff := image_diff(before, after, 0.15)
 	print("DIFF count=%d fraction=%.5f box=%s..%s" % [
@@ -178,8 +304,29 @@ func report_text(after: Image, before: Image) -> void:
 				yellow += 1
 			elif pixel.r > 0.75 and pixel.g > 0.75 and pixel.b > 0.75:
 				white += 1
-	print("TEXT_PIXELS white=%d green=%d orange=%d yellow=%d" % [white, green, orange, yellow])
+	report_label_properties()
+	print("TEXT_PIXELS white=%d green=%d orange=%d yellow=%d dark=%d" % [
+		white, green, orange, yellow, dark_edge(after)])
 	check(white + green + orange + yellow > 0, "the frame drew coloured combat text")
+
+## Near-black pixels around the text: the outline/shadow that makes it readable on bright
+## ground. Retail's world font carries a black shadow (`GxuFontAddShadow`).
+func dark_edge(image: Image) -> int:
+	var dark := 0
+	for y in range(1, image.get_height() - 1):
+		for x in range(1, image.get_width() - 1):
+			var pixel := image.get_pixel(x, y)
+			if maxf(pixel.r, maxf(pixel.g, pixel.b)) > 0.12:
+				continue
+			var bright := false
+			for offset in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+				var neighbour := image.get_pixel(x + offset.x, y + offset.y)
+				if maxf(neighbour.r, maxf(neighbour.g, neighbour.b)) > 0.75:
+					bright = true
+					break
+			if bright:
+				dark += 1
+	return dark
 
 func is_text_pixel(pixel: Color, background: Color) -> bool:
 	var delta := absf(pixel.r - background.r) + absf(pixel.g - background.g) + absf(pixel.b - background.b)
@@ -280,12 +427,12 @@ func spawn_character(position: Vector3, yaw: float = PI) -> void:
 ## The frame with the text, after the same frame without it.
 func capture(name: String, before: Image) -> Image:
 	var after := await grab()
-	save_jpeg(before, name + "-notext")
-	save_jpeg(after, name)
+	save_jpeg(before, file_prefix + name + "-notext")
+	save_jpeg(after, file_prefix + name)
 	var diff := image_diff(before, after, 0.15)
 	print("CAPTURE case=%s ui=%s file=%s notext=%s" % [
-		name, client.account_state().ui_skin, OUT_DIR.path_join(name + ".jpg"),
-		OUT_DIR.path_join(name + "-notext.jpg")])
+		name, client.account_state().ui_skin, OUT_DIR.path_join(file_prefix + name + ".jpg"),
+		OUT_DIR.path_join(file_prefix + name + "-notext.jpg")])
 	print("CAPTURE_DIFF case=%s count=%d fraction=%.5f" % [name, diff["count"], diff["fraction"]])
 	return after
 

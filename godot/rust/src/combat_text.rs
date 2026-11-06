@@ -21,9 +21,11 @@ use shared::protocol::{CombatLogEvent, CombatLogKind, MissKind};
 
 /// `WorldTextStartPosRandomness_v2`: sideways start spread either side, in units.
 const START_POS_RANDOMNESS: f32 = 1.0;
-/// `WorldTextRandomZMin_v2` / `WorldTextRandomZMax_v2`, in units.
-const RANDOM_Z_MIN: f32 = 0.8;
-const RANDOM_Z_MAX: f32 = 1.5;
+/// `WorldTextRandomZMin_v2` / `WorldTextRandomZMax_v2`, in units. Retail randomises the start
+/// height over this band; the engine instead stacks a unit's four slots one text height apart
+/// (see `spells::floating_text`), which is what keeps them from covering each other, so the
+/// band only fixes the lowest start.
+pub(crate) const RANDOM_Z_MIN: f32 = 0.8;
 /// The pop-and-settle curve Retail shares with 15890 (`s_critHeightCurve`,
 /// `WorldText.cpp:37-42`): from 10 % of the settled height at spawn, to 200 % at 10 % of the
 /// lifetime, back to 100 % at 20 %, then settled.
@@ -249,16 +251,62 @@ pub(crate) fn slot_eviction(live: usize, spell_crit_slot: Option<usize>) -> Opti
     spell_crit_slot.or_else(|| (live >= SLOTS_PER_UNIT).then(|| SLOTS_PER_UNIT - 1))
 }
 
+/// Combat text `pixel_size` at a hit's settled size; the layout constant the captures were
+/// tuned with.
+pub(crate) const TEXT_PIXEL: f32 = 0.0016;
+/// Settled font size of a hit (`SystemFont_World` height 64).
+pub(crate) const TEXT_FONT_SIZE: i32 = 64;
+/// One spread unit is this many normal text heights.
+pub(crate) const SPREAD_HEIGHTS: f32 = 1.5;
+/// Screen pixels Godot's fixed-size text draws per world em, measured on the release build at
+/// 1280x720 with a 75-degree camera: a 64 px font at `TEXT_PIXEL` drew a 174 px em (and the
+/// four-digit ink measured 333x104 px against a 391x122 box).
+pub(crate) const SCREEN_PX_PER_EM: f32 = 1699.0;
+
+/// Screen pixels one world yard covers at `distance`.
+fn pixels_per_yard(distance: f32, fov_degrees: f32, viewport_height: f32) -> f32 {
+    let half_fov = (fov_degrees * std::f32::consts::PI / 360.0).tan();
+    viewport_height.max(1.0) / (2.0 * distance.max(1.0) * half_fov)
+}
+
+/// Shadow offset as a fraction of a text em: the black copy sits down-right of the glyphs.
+pub(crate) const SHADOW_OFFSET_EM: f32 = 0.045;
+
+/// World yards one screen em covers at `distance` for a `font`/`pixel_size` text; the shadow
+/// step is a fraction of it.
+pub(crate) fn shadow_step_yards(
+    pixel_size: f32,
+    distance: f32,
+    font_px: f32,
+    fov_degrees: f32,
+    viewport_height: f32,
+) -> f32 {
+    text_height_yards(font_px, pixel_size, distance, fov_degrees, viewport_height)
+        * SHADOW_OFFSET_EM
+}
+
+/// World yards one settled text em covers on screen, the unit every placement offset uses.
+/// Fixed-size text is a screen rectangle, so its world size grows with camera distance.
+pub(crate) fn text_height_yards(
+    font_px: f32,
+    pixel_size: f32,
+    distance: f32,
+    fov_degrees: f32,
+    viewport_height: f32,
+) -> f32 {
+    SCREEN_PX_PER_EM * font_px * pixel_size
+        / pixels_per_yard(distance, fov_degrees, viewport_height)
+}
 /// R2 low-discrepancy sequence (plastic number): consecutive spawns land far apart in
 /// both axes, so numbers spawned together never share a start.
 const R2: [f32; 2] = [0.754_877_7, 0.569_840_3];
 
-/// Where the `index`th number starts relative to the anchor over the target's head:
-/// sideways along the camera's right, and up by the random Z range, `unit` long each.
-pub(crate) fn start_offset(index: u32, camera_right: Vector3, unit: f32) -> Vector3 {
-    let [u, v] = R2.map(|alpha| (0.5 + alpha * index as f32).fract());
-    let side = camera_right.normalized() * (START_POS_RANDOMNESS * (2.0 * u - 1.0));
-    (side + Vector3::UP * ((RANDOM_Z_MAX - RANDOM_Z_MIN) * v)) * unit
+/// Sideways start of the `index`th number relative to the anchor over the target's head, along
+/// the camera's right. `WorldTextStartPosRandomness_v2` gives the range; the vertical axis is
+/// the per-slot ladder in `spells::floating_text`, so numbers on one unit never share a row.
+pub(crate) fn side_offset(index: u32, camera_right: Vector3, unit: f32) -> Vector3 {
+    let u = (0.5 + R2[0] * index as f32).fract();
+    camera_right.normalized() * (START_POS_RANDOMNESS * (2.0 * u - 1.0)) * unit
 }
 
 /// Height multiplier `age` seconds after spawn. A crit (and an absorbed amount) starts at
@@ -383,6 +431,24 @@ mod tests {
     }
 
     #[test]
+    fn amounts_are_whole_numbers_without_a_fraction() {
+        // 15890 prints "%d" (`Unit_C.cpp:17775`); a label showing "+900.0" means two texts
+        // overlapped or a value reached the formatter as a float.
+        let hit = text_for(&event(CombatLogKind::Damage, 1234), Attacker::Player).unwrap();
+        assert_eq!(hit.text, "1234");
+        let heal = text_for(&event(CombatLogKind::Heal, 900), Attacker::Player).unwrap();
+        assert_eq!(heal.text, "+900");
+        let mut crit = event(CombatLogKind::Damage, 2345);
+        crit.crit = true;
+        assert_eq!(text_for(&crit, Attacker::Player).unwrap().text, "2345!");
+        for text in [hit.text, heal.text, "2345!".to_owned()] {
+            assert!(!text.contains('.'), "{text} carries a decimal fraction");
+            let digits: String = text.chars().filter(char::is_ascii_digit).collect();
+            assert!(digits.parse::<u64>().is_ok(), "{text} is not an integer");
+        }
+    }
+
+    #[test]
     fn healing_is_a_green_plus_amount_without_a_crit_mark() {
         let mut heal = event(CombatLogKind::Heal, 700);
         heal.crit = true;
@@ -472,6 +538,24 @@ mod tests {
     }
 
     #[test]
+    fn a_text_height_in_yards_is_the_screen_em_at_that_distance() {
+        // 1280x720, 75 degrees: 720 / (2 * 10 * tan(37.5)) = 46.9 px per yard, so the 174 px em
+        // of a hit at 10 yards is 3.71 yards wide in the world.
+        let height = text_height_yards(64.0, TEXT_PIXEL, 10.0, 75.0, 720.0);
+        assert!((height - 3.71).abs() < 0.02, "{height}");
+        // Fixed-size text: twice the distance is twice the world height, same pixels.
+        let far = text_height_yards(64.0, TEXT_PIXEL, 20.0, 75.0, 720.0);
+        assert!((far - 2.0 * height).abs() < 0.02, "{far}");
+        // The 1/d text law keeps the on-screen separation constant: the pixel height barely
+        // moves with distance.
+        let near_pixels = text_height_yards(64.0, TEXT_PIXEL, 10.0, 75.0, 720.0)
+            * pixels_per_yard(10.0, 75.0, 720.0);
+        let far_pixels = far * pixels_per_yard(20.0, 75.0, 720.0);
+        assert!((near_pixels - far_pixels).abs() < 1.0);
+        assert!((near_pixels - 174.0).abs() < 3.0, "{near_pixels}");
+    }
+
+    #[test]
     fn text_shrinks_with_distance_and_stops_at_the_far_floor() {
         // Verified Retail 12.1.5: the size falls as 1/d. The anchor is calibrated, so a
         // 10-yard target keeps the size this engine drew before the law existed.
@@ -505,31 +589,31 @@ mod tests {
     }
 
     #[test]
-    fn numbers_spawned_together_start_apart() {
-        // Showcase: a Frostbolt hit and a crit landed on the same frame, drawn on top of
-        // each other. Any four numbers in a row start at least half a unit apart.
+    fn consecutive_numbers_start_sideways_apart() {
+        // Showcase: a Frostbolt hit and a crit landed on the same frame, drawn on top of each
+        // other. The R2 sequence keeps consecutive sideways starts far apart.
         let right = Vector3::new(0.6, 0.0, -0.8);
         let unit = 2.0;
         for first in 0..1000 {
             let starts: Vec<_> = (first..first + 4)
-                .map(|index| start_offset(index, right, unit))
+                .map(|index| side_offset(index, right, unit))
                 .collect();
             for (i, a) in starts.iter().enumerate() {
                 for b in &starts[i + 1..] {
-                    assert!(a.distance_to(*b) >= 0.5 * unit, "{first}: {a} vs {b}");
+                    assert!(a.distance_to(*b) >= 0.3 * unit, "{first}: {a} vs {b}");
                 }
             }
         }
     }
 
     #[test]
-    fn starts_stay_in_the_camera_plane_within_the_random_ranges() {
+    fn the_sideways_start_stays_in_the_camera_plane_and_range() {
         let right = Vector3::new(0.0, 0.0, 2.0);
         for index in 0..200 {
-            let offset = start_offset(index, right, 1.0);
+            let offset = side_offset(index, right, 1.0);
             assert_eq!(offset.x, 0.0);
+            assert_eq!(offset.y, 0.0);
             assert!(offset.z.abs() <= START_POS_RANDOMNESS);
-            assert!((0.0..=RANDOM_Z_MAX - RANDOM_Z_MIN).contains(&offset.y));
         }
     }
 
