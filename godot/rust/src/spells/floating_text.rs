@@ -26,6 +26,11 @@ pub(super) struct FloatingText {
     spell_crit: bool,
     /// Down-right screen direction the shadow is offset along.
     shadow_offset: Vector3,
+    /// World height of a style-scale-1 em, from the CVar fraction and the camera.
+    em_base: f32,
+    /// Camera field of view and viewport height, for the 7 px floor.
+    fov: f32,
+    viewport_height: f32,
 }
 
 impl FloatingText {
@@ -44,12 +49,15 @@ impl FloatingText {
         let t = self.age / self.style.duration;
         let position = self.origin + Vector3::new(0.0, self.style.ascend * t, 0.0);
         self.node.set_position(position);
-        let distance = eye.map_or(combat_text::DISTANCE_ANCHOR_YARDS, |eye| {
+        let distance = eye.map_or(combat_text::REFERENCE_YARDS, |eye| {
             eye.distance_to(self.origin)
         });
-        let pixel = combat_text::TEXT_PIXEL
-            * combat_text::height_scale(self.age, self.style)
-            * combat_text::distance_scale(distance);
+        // A constant world em makes the screen height follow Retail's 1/d law; the 7 px draw
+        // clamp then holds the far sizes up.
+        let em = self.em_base * self.style.scale * combat_text::height_scale(self.age, self.style);
+        let pixel = self.em_base * combat_text::height_scale(self.age, self.style)
+            / combat_text::TEXT_FONT_SIZE as f32
+            * combat_text::min_pixel_scale(em, distance, self.fov, self.viewport_height);
         self.node.set_pixel_size(pixel);
         let alpha = combat_text::fade_alpha(self.age, self.style);
         let mut color = self.node.get_modulate();
@@ -66,10 +74,10 @@ impl FloatingText {
     }
 }
 
-/// Settled font size: 64 at the style's own scale (0.6 for the avoidance words), × 1.5 for a
-/// crit and × 0.75 for a glancing blow (`WorldText.cpp:44-56` for the crit ratio;
-/// `CombatFeedback_OnCombatEvent`, CombatFeedback.lua:39-42, for the glancing size). A crit
-/// then pops over its lifetime through [`combat_text::height_scale`].
+/// Settled font size: 64 at the style's own scale (0.6 for the avoidance words, the Retail CVar
+/// pair for a crit) and × 0.75 for a glancing blow (`CombatFeedback_OnCombatEvent`,
+/// CombatFeedback.lua:39-42). A crit then pops over its lifetime through
+/// [`combat_text::height_scale`].
 pub(super) fn combat_text_size(event: &CombatLogEvent, style: Style) -> i32 {
     let mut size = combat_text::TEXT_FONT_SIZE as f32 * style.scale;
     if event.glancing {
@@ -176,9 +184,6 @@ fn spawn_label(
         label.set_font(&font);
     }
     label.set_font_size(combat_text_size(event, text.style));
-    // Constant on-screen size, as 15890 draws world text in a screen-space ortho projection
-    // at a fixed NDC height (`WorldText.cpp:234-253`).
-    label.set_draw_flag(godot::classes::label_3d::DrawFlags::FIXED_SIZE, true);
     label.set_modulate(color);
     label
 }
@@ -302,30 +307,30 @@ impl GameClient {
         );
         let camera_transform = camera.get_global_transform();
         let distance = camera_transform.origin.distance_to(origin);
-        let shadow_step = combat_text::shadow_step_yards(
-            combat_text::TEXT_PIXEL * combat_text::distance_scale(distance),
-            distance,
-            combat_text_size(event, text.style) as f32,
-            camera.get_fov(),
-            Self::viewport_height(&camera),
-        ) * (camera_transform.basis.col_a() - camera_transform.basis.col_b())
-            .normalized();
+        let fov = camera.get_fov();
+        let viewport_height = Self::viewport_height(&camera);
+        let em_base = combat_text::em_yards(fov);
+        let em = em_base * text.style.scale * combat_text::height_scale(0.0, text.style);
+        // 15890's shadow is a tenth of an em, and an em is the text height.
+        let shadow_step = em
+            * combat_text::SHADOW_OFFSET_EM
+            * (camera_transform.basis.col_a() - camera_transform.basis.col_b()).normalized();
+        let pixel = em_base * combat_text::height_scale(0.0, text.style)
+            / combat_text::TEXT_FONT_SIZE as f32
+            * combat_text::min_pixel_scale(em, distance, fov, viewport_height);
         label.set_position(origin);
-        label.set_pixel_size(
-            combat_text::TEXT_PIXEL
-                * combat_text::height_scale(0.0, text.style)
-                * combat_text::distance_scale(
-                    camera.get_global_transform().origin.distance_to(origin),
-                ),
-        );
+        label.set_pixel_size(pixel);
         shadow.set_position(origin);
-        shadow.set_pixel_size(label.get_pixel_size());
+        shadow.set_pixel_size(pixel);
         self.base_mut().add_child(&shadow);
         self.base_mut().add_child(&label);
         self.spells.floating.push(FloatingText {
             node: label,
             shadow,
             shadow_offset: shadow_step,
+            em_base,
+            fov,
+            viewport_height,
             unit: unit_id,
             age: 0.0,
             origin,
@@ -416,16 +421,10 @@ impl GameClient {
         font_px: f32,
     ) -> Vector3 {
         let camera_transform = camera.get_global_transform();
-        let distance = camera_transform.origin.distance_to(anchor);
-        // Fixed-size text is a screen rectangle: its world height grows with distance, so the
-        // spread and the per-slot ladder are measured in that height at the target's depth.
-        let height = combat_text::text_height_yards(
-            font_px,
-            combat_text::TEXT_PIXEL * combat_text::distance_scale(distance),
-            distance,
-            camera.get_fov(),
-            Self::viewport_height(camera),
-        );
+        // Text is a constant world size, so its height is the same at every distance and the
+        // spread is a constant world offset too.
+        let height =
+            combat_text::em_yards(camera.get_fov()) * font_px / combat_text::TEXT_FONT_SIZE as f32;
         let origin = anchor
             + combat_text::side_offset(
                 self.spells.floats_spawned,
@@ -433,16 +432,15 @@ impl GameClient {
                 combat_text::SPREAD_HEIGHTS * height,
             );
         self.spells.floats_spawned = self.spells.floats_spawned.wrapping_add(1);
-        let slot = self
+        let live: Vec<(f32, f32)> = self
             .spells
             .floating
             .iter()
             .filter(|live| live.unit == unit_id)
-            .count();
-        // `WorldTextRandomZMin_v2` is the lowest start height; each further slot sits one text
-        // height above it.
-        origin
-            + camera_transform.basis.col_b() * (height * (combat_text::RANDOM_Z_MIN + slot as f32))
+            .map(|live| (live.style.ascend, live.em_base * live.style.scale))
+            .collect();
+        let offset = combat_text::stack_offset(&live, height);
+        origin + camera_transform.basis.col_b() * offset
     }
 
     /// Viewport height in pixels: the reference Godot's fixed-size text factor scales with.

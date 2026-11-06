@@ -97,36 +97,35 @@ Every bullet states its proof level:
       200 % at 10 % of the lifetime, 100 % at 20 %, settled after (**verified 12.1.5** styles 2,
       8, 14 and 6; **verified 15890** `s_critHeightCurve`, `WorldText.cpp:37-42,255-286`).
       Every non-crit style keeps its height for its whole lifetime.
-- [x] Settled crit height is 1.5× a normal hit, then the pop multiplies it (**verified 15890**
-      `0.0275 / 0.0183`; **retail CVar** `WorldTextCritScreenY_v2` / `WorldTextScreenY_v2` would
-      give 1.83×, interpretation unproven).
+- [x] Settled crit height is `WorldTextCritScreenY_v2 / WorldTextScreenY_v2` = 1.833× a normal
+      hit (**retail CVar** `0.0275 / 0.015`, the pair Retail ships; 15890's own table gives
+      `0.0275 / 0.0183` = 1.5×, the older ratio), then the pop multiplies it.
 - [x] The engine appends "!" to crit amounts (**ours**; not present in 15890
       `Unit_C.cpp:17775`; kept because `godot/tests/melee_outcomes_live.gd` and
       `docs/specs/spellbook-action-bar.md` assert it).
 - [x] Amounts are whole numbers, never a decimal fraction (`%d`, **verified 15890**
       `Unit_C.cpp:17775`). The "+900.0" seen in the first review was two labels overlapping,
       not a formatter: `text_for` formats `i32` and its test asserts `"+900"`.
-- [ ] Size: a 64 px font at `TEXT_PIXEL` draws a 174 px em at 1280x720 (four-digit ink measured
-      333x104 px at 10 yards). That is master's size and is kept deliberately because no Retail
-      frame fixes the absolute scale. Retail's own constants imply a far smaller em —
-      `WorldTextScreenY_v2` `0.015` as a fraction of the screen width is 19 px at 1280, and
-      15890's 0.0183 height is ~12 px at 1024 — so **this is the one open size decision**: at
-      master's size a unit's four slots fit, but 50 simultaneous numbers need twice the frame
-      area and cannot be separated. Shrinking to the CVar value is a one-line change to
-      `TEXT_FONT_SIZE`/`TEXT_PIXEL` once the lead decides.
+- [x] Absolute size comes from Retail's constants, not from this engine's old 174 px em:
+      `WorldTextScreenY_v2` (`0.015`) is the text height as a fraction of the viewport height at
+      the reference distance, `WorldTextCritScreenY_v2` sets the crit ratio, and
+      `WorldTextScale_v2` (`1.0`) multiplies both. At 1280x720 a hit therefore draws a 10.8 px em
+      (7.6 px of digit ink, FRIZQT__ cap height 0.701 em) and a crit 19.8 px, and a fixed world em
+      makes the screen height follow Retail's 1/d law with no per-frame distance maths.
+      **Calibrated operand:** Retail 12.1.5 builds that fraction through two calls
+      (`0x141e67100`, `0x1401f45a0`) that are still undecoded, so `REFERENCE_YARDS` (10) stands in
+      for them; retirement is to replace it with whatever distance those operands resolve to.
+      Consequences: a text no longer keeps master's enormous 174 px em, and a target ten times
+      further out is held at the draw path's 7 px floor (**verified 12.1.5**).
 
 ### Distance
 
-- [x] Text scales inversely with camera distance (**verified 12.1.5**): nearer targets draw
-      larger, farther smaller, with a far floor (**verified 12.1.5** a constant 7 px draw
-      clamp). The scale constant's two call operands (`0x141e67100`, `0x1401f45a0`) are not
-      decoded, so the anchor is **calibrated**: a target 10 yards away keeps the size this
-      engine drew before the law existed, and the far floor is 20 % of it
-      (`combat_text.rs` `DISTANCE_ANCHOR_YARDS`, `FAR_SIZE_FLOOR`). Retirement: replace both
-      with the decoded operands.
+- [x] Text scales inversely with camera distance (**verified 12.1.5**): the text is a fixed
+      world size, so the projected height is exactly `CVar fraction x viewport height x
+      reference / distance`, with the draw path's constant 7 px clamp taking over far out
+      (**verified 12.1.5**).
 - [x] `WorldTextMinSize` is a floor that only applies beyond 1 yard (**verified 12.1.5**, exact
-      formula unproven); the default `0.0` means no extra floor, so the engine's far floor
-      stands alone.
+      formula unproven); its default `0.0` means no extra floor, so the 7 px clamp stands alone.
 
 ### Lifetime, rise and fade
 

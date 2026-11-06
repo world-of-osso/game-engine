@@ -58,8 +58,10 @@ func run() -> void:
 	client.set_world_minutes(1440.0)
 	spawn_character(Vector3(ROW.x, floor_y, ROW.z))
 	client.preview_set_focus(ROW)
-	# Ten yards from the anchor, where the calibrated distance law keeps a hit at master's size.
-	place_camera(Vector3(ROW.x, floor_y + 3.4, ROW.z + 10.0),
+	# The CVar height is anchored at ten yards (combat_text::REFERENCE_YARDS); single30 checks
+	# the 1/d law three times further out.
+	var yards := 30.0 if case == "single30" else 10.0
+	place_camera(Vector3(ROW.x, floor_y + 3.4, ROW.z + yards),
 		Vector3(ROW.x, floor_y + 1.8, ROW.z))
 	await settle_scene()
 	match case:
@@ -73,12 +75,48 @@ func run() -> void:
 			await measure_perf()
 		"measure":
 			await measure_one()
+		"single10", "single30":
+			await capture_single()
 		_:
 			fail("unknown CAPTURE_CASE " + case)
 			return
 	print("CAPTURE skin=%s case=%s DONE" % [client.account_state().ui_skin, case])
 	client.free()
 	quit(0)
+
+## One target: a hit, a crit and a heal on the same unit, at 10 or 30 yards.
+func capture_single() -> void:
+	var before: Image = await grab()
+	for style in [HIT, CRIT, HEAL]:
+		client.preview_combat_text(style, 5000, anchor(Vector3.ZERO))
+	freeze(0.4)
+	var after: Image = await capture(OS.get_environment("CAPTURE_CASE"), before)
+	report_text(after, before)
+	report_overlap()
+	report_text_height()
+
+## Rendered em per text, from its own projected box: the CVar fraction times the viewport
+## height at the reference distance, and its 1/d share beyond it.
+func report_text_height() -> void:
+	for label in text_labels():
+		var height := projected_height(label)
+		var em: float = float(label.font_size) * float(label.pixel_size)
+		var distance: float = camera.global_position.distance_to(label.global_position)
+		print("HEIGHT text=%s distance=%.1f em_yards=%.4f em_px=%.1f ink_px=%.1f" % [
+			label.text, distance, em, em * pixels_per_yard(distance), height])
+
+func pixels_per_yard(distance: float) -> float:
+	var half_fov := deg_to_rad(camera.fov) * 0.5
+	return float(camera.get_viewport().get_visible_rect().size.y) \
+		/ (2.0 * maxf(distance, 1.0) * tan(half_fov))
+
+## Screen height of a label's glyph box: its world em projected through the camera.
+func projected_height(label: Label3D) -> float:
+	var em: float = float(label.font_size) * float(label.pixel_size)
+	var up := camera.global_transform.basis.y
+	var bottom: Vector2 = camera.unproject_position(label.global_position - up * em * 0.5)
+	var top: Vector2 = camera.unproject_position(label.global_position + up * em * 0.5)
+	return absf(top.y - bottom.y)
 
 ## One hit alone: the rendered ink box, against the one the fixture can compute without a
 ## second render, so the no-overlap metric uses a box that matches the pixels.
@@ -97,7 +135,7 @@ func measure_one() -> void:
 		var center: Vector2 = camera.unproject_position(label.global_position)
 		print("MEASURE text=%s ink=%s reserved=%s center=%s font=%d pixel=%.6f" % [
 			label.text, diff_box(with, without, 0.2),
-			engine_box(center, float(label.font_size), float(label.pixel_size), label.text),
+			engine_box(label),
 			center, label.font_size, label.pixel_size])
 	report_overlap()
 
@@ -230,20 +268,23 @@ func measure_cost() -> void:
 ## colour, as the numeric description of a capture the reviewer cannot see.
 ## The same screen box the engine reserves for a text (combat_text::SCREEN_PX_PER_EM), so the
 ## metric measures the placement rule itself.
-func engine_box(center: Vector2, font: float, pixel: float, text: String) -> Rect2:
-	var em := 1699.0 * font * pixel
-	var height := em * 0.7
-	var width := em * (0.5 * text.length() + 0.25)
+func engine_box(label: Label3D) -> Rect2:
+	# Godot keeps a Label3D at font_size * pixel_size world units per line; FRIZQT_'s digits
+	# fill 0.701 em (cap height: data/fonts/FRIZQT__.TTF OS/2 sCapHeight 701/1000).
+	var center: Vector2 = camera.unproject_position(label.global_position)
+	var em: float = float(label.font_size) * float(label.pixel_size)
+	var px := em * pixels_per_yard(camera.global_position.distance_to(label.global_position))
+	var height := px * 0.701
+	var width := px * (0.5 * label.text.length() + 0.25)
 	return Rect2(center - Vector2(width * 0.5, height * 0.5), Vector2(width, height))
 
 ## Screen boxes of the live texts, from the node's own font size and pixel size.
 func report_overlap() -> void:
 	var boxes := []
 	for label in text_labels():
-		var center: Vector2 = camera.unproject_position(label.global_position)
 		boxes.append({
 			"text": label.text,
-			"rect": engine_box(center, float(label.font_size), float(label.pixel_size), label.text),
+			"rect": engine_box(label),
 		})
 	var clashes := 0
 	for i in boxes.size():
