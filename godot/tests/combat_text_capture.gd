@@ -100,24 +100,6 @@ func measure_one() -> void:
 			engine_box(center, float(label.font_size), float(label.pixel_size), label.text),
 			center, label.font_size, label.pixel_size])
 	report_overlap()
-	var before_edges := dark_edge(after)
-	for label in text_labels():
-		label.outline_size = 24
-	var thick: Image = await grab()
-	var after_edges := dark_edge(thick)
-	print("OUTLINE size8=%d size24=%d text_pixels=%d" % [
-		before_edges, after_edges, bright_text_pixels(thick)])
-	save_jpeg(thick, "measure-outline24")
-
-## Bright text pixels: the ink the outline has to surround.
-func bright_text_pixels(image: Image) -> int:
-	var count := 0
-	for y in image.get_height():
-		for x in image.get_width():
-			var pixel := image.get_pixel(x, y)
-			if maxf(pixel.r, maxf(pixel.g, pixel.b)) > 0.75:
-				count += 1
-	return count
 
 ## Bounding box of the pixels whose colour moved by `threshold` between two frames.
 func diff_box(a: Image, b: Image, threshold: float) -> Rect2:
@@ -273,16 +255,6 @@ func report_overlap() -> void:
 						boxes[i]["text"], boxes[i]["rect"], boxes[j]["text"], boxes[j]["rect"]])
 	print("OVERLAP_COUNT %d of %d pairs" % [clashes, boxes.size() * (boxes.size() - 1) / 2])
 
-func report_label_properties() -> void:
-	var labels := text_labels()
-	if labels.is_empty():
-		print("LABEL_PROPS none")
-		return
-	var label: Label3D = labels[0]
-	print("LABEL_PROPS text=%s outline=%d outline_modulate=%s modulate=%s font=%s" % [
-		label.text, label.outline_size, label.outline_modulate, label.modulate,
-		label.font.resource_path if label.font != null else "<builtin>"])
-
 func report_text(after: Image, before: Image) -> void:
 	var diff := image_diff(before, after, 0.15)
 	print("DIFF count=%d fraction=%.5f box=%s..%s" % [
@@ -304,7 +276,6 @@ func report_text(after: Image, before: Image) -> void:
 				yellow += 1
 			elif pixel.r > 0.75 and pixel.g > 0.75 and pixel.b > 0.75:
 				white += 1
-	report_label_properties()
 	print("TEXT_PIXELS white=%d green=%d orange=%d yellow=%d dark=%d" % [
 		white, green, orange, yellow, dark_edge(after)])
 	check(white + green + orange + yellow > 0, "the frame drew coloured combat text")

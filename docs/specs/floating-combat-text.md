@@ -103,6 +103,17 @@ Every bullet states its proof level:
 - [x] The engine appends "!" to crit amounts (**ours**; not present in 15890
       `Unit_C.cpp:17775`; kept because `godot/tests/melee_outcomes_live.gd` and
       `docs/specs/spellbook-action-bar.md` assert it).
+- [x] Amounts are whole numbers, never a decimal fraction (`%d`, **verified 15890**
+      `Unit_C.cpp:17775`). The "+900.0" seen in the first review was two labels overlapping,
+      not a formatter: `text_for` formats `i32` and its test asserts `"+900"`.
+- [ ] Size: a 64 px font at `TEXT_PIXEL` draws a 174 px em at 1280x720 (four-digit ink measured
+      333x104 px at 10 yards). That is master's size and is kept deliberately because no Retail
+      frame fixes the absolute scale. Retail's own constants imply a far smaller em —
+      `WorldTextScreenY_v2` `0.015` as a fraction of the screen width is 19 px at 1280, and
+      15890's 0.0183 height is ~12 px at 1024 — so **this is the one open size decision**: at
+      master's size a unit's four slots fit, but 50 simultaneous numbers need twice the frame
+      area and cannot be separated. Shrinking to the CVar value is a one-line change to
+      `TEXT_FONT_SIZE`/`TEXT_PIXEL` once the lead decides.
 
 ### Distance
 
@@ -136,11 +147,21 @@ Every bullet states its proof level:
 
 ### Placement and stacking
 
-- [x] Simultaneous numbers from one unit start at different points (**verified 15890** spawn Z
-      is offset by the type's rise, `PlayerName.cpp:786`; **retail CVar**
-      `WorldTextStartPosRandomness_v2` `1.0`, `WorldTextRandomZMin_v2` `0.8`,
-      `WorldTextRandomZMax_v2` `1.5`, `WorldTextNonRandomZ_v2` `2.5`, `WorldTextRandomXY_v2`
-      `0.0`).
+- [x] Simultaneous numbers from one unit start at different points: the sideways start keeps
+      `WorldTextStartPosRandomness_v2` (**retail CVar** `1.0`), and every further live number on
+      the unit sits exactly one text height above the previous one, with
+      `WorldTextRandomZMin_v2` (`0.8`) as the floor. Measured on the Forever capture: a unit's
+      four slots never intersect (0 of 6 box pairs), and master's four slots all intersect
+      (15 of 15). The height is measured at the target's depth because fixed-size text covers
+      more world space the further away it is.
+- [ ] Retail instead packs rectangles in screen space (`SmartScreenRectPlace`, BFS up/left/
+      right/down, SmartScreenRect.cpp:432; crits skip it, WorldText.cpp:440-441). Not
+      implemented: at master's text size 50 numbers need 1.9 M px of boxes in a 0.9 M px frame,
+      so no packing can separate them — see the size bullet.
+- [x] World text carries a black shadow. Label3D outlines do not render for this font (raising
+      `outline_size` 8 -> 24 changed the dark-edge pixel count by 1), so the shadow is a black
+      copy of the label one fortieth of an em down-right, moved and faded with the text
+      (**verified 15890** `GxuFontAddShadow` with a 1,-1 shadow, WorldText.cpp:75).
 - [x] One unit holds four world texts (search bound 4, array declared as 5): a spell crit
       replaces that unit's existing spell crit, otherwise the first free slot is used, otherwise
       the third slot is evicted, otherwise the text is dropped — in practice the newest text
@@ -206,8 +227,8 @@ The engine has no CVar store; the defaults are compile-time constants.
 ### Performance
 
 - [x] Fifty simultaneous numbers cost no more than 0.1 ms/frame in the release library:
-      18.8-19.0 µs per frame over 13 units, three 2000-iteration samples
-      (`preview_combat_text_cost`, release `libgame_engine_godot.so`, 2026-11-06).
+      40.7 µs per frame over 13 units with their shadows (three 2000-iteration samples,
+      `preview_combat_text_cost`, release `libgame_engine_godot.so`, 2026-11-06).
 
 ## How it works
 
@@ -234,12 +255,19 @@ The engine has no CVar store; the defaults are compile-time constants.
 - `godot/rust/src/spells.rs` — settled sizes (64 / 96 / 48).
 - `godot/tests/combat_text_capture.gd` — Forever capture fixture, offline in Stormwind:
   `set` (nine texts over three units, every style), `limit` (four slots, crit replacement,
-  fifth-text eviction), `spread` (fifty over thirteen units) and `perf` (the frame cost). Each
-  capture saves a 960×540 JPEG plus the same frame without text. Evidence:
-  `/syncthing/AgentShared/2026-11-06/combat-text/{set,limit,spread}.jpg` with
-  `-notext.jpg` partners; 2026-11-06 the `set` frame drew 12 872 white, 12 979 green,
-  436 orange and 370 yellow text pixels, `limit` 2 012 / 926 / 1 169 / 39, `spread`
-  12 118 / 4 551 / 22 313 / 90.
+  fifth-text eviction), `spread` (fifty over thirteen units), `measure` and `perf` (the frame
+  cost). Each capture saves a 960×540 JPEG plus the same frame without text, and
+  `CAPTURE_PREFIX=master-` records the same scenes from a build of local `master` carrying only
+  these preview hooks. Evidence: `/syncthing/AgentShared/2026-11-06/combat-text/`, 2026-11-06:
+
+  | scene | boxes intersecting, master | ours | text pixels (white/green/orange/yellow) |
+  |---|---|---|---|
+  | `set`, 9 texts over 3 units | 36 of 36 | 6 of 36 (crits excluded from stacking) | 954 / 1774 / 601 / 0 |
+  | `limit`, 4 slots on 1 unit | 15 of 15 | 0 of 6 | 1001 / 0 / 0 / 0 |
+  | `spread`, 50 over 13 units | 640 of 1225 | 80 of 1225 | 5861 / 0 / 6 / 0 |
+
+  Master drew 13 799 yellow and 899 white pixels in `set` (school split, no heals or words) and
+  36 928 yellow in `spread`.
 - `godot/tests/melee_outcomes_live.gd` — live crit text is 1.5× the plain size (Forever).
 
 ## Known gaps (current cycle)
