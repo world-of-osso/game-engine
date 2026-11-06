@@ -250,7 +250,9 @@ void fragment() {
 	// GxBlend_BlendAdd (13) blends ONE / ONE_MINUS_SRC_ALPHA, like the ribbon shader: without
 	// premultiplying here a texel whose alpha is 0 still adds its full colour, which fills a
 	// billboard's soft corners and draws a hard-edged square.
-	premultiplied = gx_blend == 13 ? ALPHA : 1.0;
+	// Read the value, not ALPHA: any ALPHA reference moves the opaque variants, which drop the
+	// write above, into Godot's transparent pass without a depth write.
+	premultiplied = gx_blend == 13 ? color.a * scenery_opacity : 1.0;
 	authored_color = color.rgb;
 	authored_specular = specular * mesh.rgb;
 	camera_position = CAMERA_POSITION_WORLD;
