@@ -20,8 +20,6 @@ extends SceneTree
 ## TIME_PROCESS/TIME_PHYSICS_PROCESS monitors (each the longest step of the last second),
 ## the viewport's GPU render time, and the main thread's on-CPU time per frame
 ## (/proc/thread-self/schedstat), so a frame splits into main-thread work and waiting.
-## Run with Godot's --gpu-profile and `render_areas` adds the mean CPU ms per frame of each
-## renderer timestamp area (the time until the next timestamp), the 15 largest.
 ## Reports only; frame-time budgets are not asserted (they depend on host load).
 
 const PASSWORD := "fbtest"
@@ -49,7 +47,6 @@ var shadow_draw_calls: Array[float] = []
 var gpu_ms: Array[float] = []
 var main_cpu_ms: Array[float] = []
 var last_cpu_ns := 0
-var area_ms := {}
 var systems_ms := {}
 var recording_systems := false
 
@@ -72,7 +69,6 @@ func _process(_delta: float) -> bool:
 			Viewport.RENDER_INFO_DRAW_CALLS_IN_FRAME))
 		gpu_ms.append(RenderingServer.viewport_get_measured_render_time_gpu(root.get_viewport_rid()))
 		main_cpu_ms.append((cpu_ns - last_cpu_ns) / 1e6)
-		add_render_areas()
 		if recording_systems:
 			var steps: Dictionary = client.frame_stats().systems_ms
 			for name in steps:
@@ -177,7 +173,6 @@ func measure(segment: String, seconds: float, step: Callable, with_systems := fa
 func begin(segment: String, with_systems := false) -> void:
 	for samples in [intervals, client_ms, process_ms, physics_ms, render_ms, draw_calls, shadow_draw_calls, gpu_ms, main_cpu_ms]:
 		samples.clear()
-	area_ms.clear()
 	systems_ms.clear()
 	recording_systems = with_systems
 	print("BENCH_MARK %s start" % segment)
@@ -199,13 +194,6 @@ func finish(segment: String, extra: Dictionary) -> void:
 		"shadow_draw_calls": mean(shadow_draw_calls), "load": load_average(),
 		"render_gpu_ms": mean(gpu_ms), "main_thread_cpu_ms": mean(main_cpu_ms),
 	}
-	if not area_ms.is_empty():
-		var names := area_ms.keys()
-		names.sort_custom(func(a, b): return area_ms[a] > area_ms[b])
-		var areas := {}
-		for name in names.slice(0, 15):
-			areas[name] = area_ms[name] / sorted.size()
-		report["render_areas"] = areas
 	if recording_systems:
 		report["systems_ms_median"] = per_system(systems_ms, 0.5)
 		report["systems_ms_p95"] = per_system(systems_ms, 0.95)
@@ -232,17 +220,6 @@ func parse_resolution(text: String) -> Vector2i:
 	if parts.size() != 2:
 		return Vector2i(1280, 720)
 	return Vector2i(int(parts[0]), int(parts[1]))
-
-## CPU ms between consecutive renderer timestamps of the last captured frame, per area.
-func add_render_areas() -> void:
-	var device := RenderingServer.get_rendering_device()
-	var count := device.get_captured_timestamps_count() if device != null else 0
-	for i in range(count - 1):
-		var name := device.get_captured_timestamp_name(i)
-		if name.begins_with("<") or name.begins_with(">"):
-			continue
-		var ms := (device.get_captured_timestamp_cpu_time(i + 1) - device.get_captured_timestamp_cpu_time(i)) / 1000.0
-		area_ms[name] = area_ms.get(name, 0.0) + ms
 
 ## Per class: nodes, nodes with process/physics process enabled, visible 3D nodes.
 func node_census(top: Node) -> Dictionary:
