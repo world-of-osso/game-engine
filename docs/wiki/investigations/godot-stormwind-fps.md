@@ -313,6 +313,34 @@ Receipts now report `threads` (main and render CPU and wait per frame, read from
 thread clocks at each segment end; `godot/tests/thread_cpu_split.gd`) and the viewport's
 render CPU and GPU time, so a Windows frame can be split into work and waiting.
 
+## Water draws and the M2 alpha pass (2026-11-06)
+
+A per-owner census (each owner hidden in turn, Godot's draw counters read before and after)
+at the canonical pose after the WMO merge put ADT water first: about 670 of 2650 draws
+came from about 740 MH2O chunk-layer instances over the canals. The canals sit behind the
+walls but inside the frustum, and nothing occludes a transparent surface. Layers of one
+LiquidType/LiquidObject in one 4x4-chunk block (about 133 yd) now share one mesh
+(`terrain/water.rs`): 2650 -> 2045 draws, shadow draws unchanged at 327.
+
+The proof capture (`water_coast_compare.gd`, Stormwind canal, clock frozen) first lost a
+boat afloat in the canal. The cause was older: `4cd7bc671` (2026-11-05) premultiplied
+BlendAdd with `premultiplied = gx_blend == 13 ? ALPHA : 1.0`. Godot's shader compiler
+flags any `ALPHA` reference, including a read (`shader_compiler.cpp`), and
+`uses_alpha_pass()` then sends the material to the transparent pass. The opaque
+GxBlend 0/1 variants drop only the `ALPHA` write, so from that commit every opaque M2
+batch drew back to front with no depth write and cast no shadow. A water surface sorted
+after a boat blended over it, tree canopies showed their branches through the leaves,
+and characters and doodads lost their shadows. The premultiply now reads
+`color.a * scenery_opacity`; `m2_blend_pixels.gd` checks an opaque batch over a
+later-sorted depth-less surface.
+
+Restoring the opaque pass raises the canonical-pose draws (Linux, per owner, bug -> fix):
+units 230 -> 541 (shadow 0 -> 311), doodads 353 -> 541 (shadow 0 -> 244); Forward+
+always runs its opaque depth prepass, so opaque batches count twice. Total 2045 -> 2561,
+shadow 327 -> 937. The 10-31 Windows receipt, taken before `4cd7bc671`, had 3822 draws
+and a 6.7 ms p50. With the fix, the water merge changes no canal pixel (SSIM 0.99997;
+the only differences are animated particles).
+
 ## Sources
 
 - `src/rendering/camera/culling.rs`: the original doodad, WMO and portal culling. Its 200/2,000/400 yd distances cite no source (commit `f475000f`), so they were not used.
