@@ -411,7 +411,13 @@ mod tests {
                 .expect("a hit draws");
             combat_text_size(event, text.style)
         };
-        assert_eq!([size(&hit), size(&crit), size(&glancing)], [64, 96, 48]);
+        // A crit carries `WorldTextCritScreenY_v2 / WorldTextScreenY_v2` (1.833x) over a hit.
+        let crit_size = (64.0 * crate::combat_text::CRIT_SCALE).round() as i32;
+        assert_eq!(
+            [size(&hit), size(&crit), size(&glancing)],
+            [64, crit_size, 48]
+        );
+        assert_eq!(crit_size, 117);
     }
 
     fn spell(id: u32, available_at: Option<u32>) -> SpellbookSpell {
