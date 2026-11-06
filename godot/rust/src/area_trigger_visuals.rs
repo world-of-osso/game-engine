@@ -5,9 +5,8 @@
 //! Consecration, Flamestrike) has to come from the trigger, not from the cast. This module
 //! is the client half: it collects the live triggers and decides what to show for each.
 //!
-//! Decompilation has not yet said whether retail holds the one-shot destination kit or
-//! re-triggers it for the trigger's lifetime, so nothing is drawn until that lands:
-//! [`SHOW_AREA_TRIGGER_VISUALS`] stays false and the collection below is inert.
+//! The client re-issues the trigger's one-shot destination kit on each server pulse, so the
+//! lifetime stays authoritative on the server instead of being guessed from a timestamp.
 
 use game_engine_network::replica::Replica;
 use shared::{AreaTriggerVisual, components::Position};
@@ -70,8 +69,6 @@ impl AreaTriggerVisuals {
     /// moved since the last frame: those replay the spell's one-shot kits.
     pub(crate) fn replays(&mut self, live: &[LiveAreaTrigger]) -> Vec<LiveAreaTrigger> {
         let mut replays = Vec::new();
-        self.seen
-            .retain(|id, _| live.iter().any(|trigger| trigger.id == *id));
         for trigger in live {
             match self.seen.insert(trigger.id, trigger.pulse) {
                 Some(pulse) if pulse == trigger.pulse => {}
@@ -79,6 +76,21 @@ impl AreaTriggerVisuals {
             }
         }
         replays
+    }
+
+    /// Triggers the replica reported before and no longer does: only these may be freed.
+    /// Anchors the preview fixture created directly were never in `seen`, so a replica with
+    /// no triggers never tears them down.
+    pub(crate) fn retired(&mut self, live: &[LiveAreaTrigger]) -> Vec<u64> {
+        let mut retired = Vec::new();
+        self.seen.retain(|id, _| {
+            let present = live.iter().any(|trigger| trigger.id == *id);
+            if !present {
+                retired.push(*id);
+            }
+            present
+        });
+        retired
     }
 }
 

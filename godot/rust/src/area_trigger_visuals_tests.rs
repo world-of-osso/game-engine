@@ -116,7 +116,12 @@ fn only_a_new_or_pulsed_trigger_reissues_its_kits() {
 
     assert!(
         visuals.replays(&[]).is_empty(),
-        "a despawned trigger forgets its pulse"
+        "a trigger the replica stopped reporting does not replay"
+    );
+    assert_eq!(
+        visuals.retired(&[]),
+        vec![trigger.id],
+        "and only a previously reported trigger may be torn down"
     );
     assert_eq!(
         visuals.replays(&[trigger]).len(),

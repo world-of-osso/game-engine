@@ -121,8 +121,8 @@ impl GameClient {
                 godot_error!("Area trigger {} visual: {error}", replay.id);
             }
         }
-        let ids: Vec<u64> = live.iter().map(|trigger| trigger.id).collect();
-        self.spell_effects.retain_area_triggers(&ids);
+        let retired = self.area_trigger_visuals.retired(&live);
+        self.spell_effects.retain_area_triggers(&retired);
     }
 
     /// Drape the flat ground batches of newly spawned spell models onto the visible render

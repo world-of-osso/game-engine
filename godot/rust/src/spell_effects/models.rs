@@ -189,21 +189,15 @@ impl SpellEffects {
         for kit in &kits {
             self.census_start(kit, visual_id, spell_id);
         }
-        godot_print!(
-            "area trigger {trigger}: anchor={:?} in_tree={} children={} pending={} active={}",
-            anchor.get_global_position(),
-            anchor.is_inside_tree(),
-            anchor.get_child_count(),
-            self.pending.len(),
-            self.active.len()
-        );
         Ok(())
     }
 
-    /// Free the anchors of triggers the server no longer reports.
-    pub(crate) fn retain_area_triggers(&mut self, live: &[u64]) {
+    /// Free the anchors of triggers the replica stopped reporting. Only those may be freed:
+    /// a trigger the replica never saw (a preview fixture injecting one directly) must keep
+    /// its anchor, or the models it queued resolve against a freed node and never draw.
+    pub(crate) fn retain_area_triggers(&mut self, retired: &[u64]) {
         self.area_trigger_anchors.retain(|trigger, anchor| {
-            let keep = live.contains(trigger);
+            let keep = !retired.contains(trigger);
             if !keep && anchor.is_instance_valid() {
                 anchor.clone().free();
             }
@@ -341,7 +335,7 @@ impl ActiveEffect {
 /// clip it plays (id, looping, seconds into the clip), or `None` once a one-shot is
 /// over. One-shots play Start, then End, then the particle tail; held kits loop their
 /// Hold (else Start) clip after Start until their end event.
-pub(super) fn phase_at(
+pub(crate) fn phase_at(
     clips: &EffectClips,
     held: bool,
     seconds: f32,
@@ -476,7 +470,7 @@ pub(super) fn missile_basis(direction: Vector3, scale: f32) -> Basis {
 
 /// A missile at `position` moving `step` yards straight at `goal`: its next position,
 /// or `None` when it arrives within this step.
-pub(super) fn missile_step(position: Vector3, goal: Vector3, step: f32) -> Option<Vector3> {
+pub(crate) fn missile_step(position: Vector3, goal: Vector3, step: f32) -> Option<Vector3> {
     let to_goal = goal - position;
     (to_goal.length() > step).then(|| position + to_goal.normalized() * step)
 }
