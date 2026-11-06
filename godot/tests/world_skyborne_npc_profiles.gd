@@ -129,14 +129,12 @@ func await_npc_visual(client, npc_name: String) -> Node3D:
 	return null
 
 func freeze_animation(visual: Node3D) -> void:
-	var animation: Node = visual.get_node_or_null("M2Animation")
-	if animation == null:
-		return
-	animation.set_process(false)
-	if not animation.play_animation(0, true):
-		return
-	animation.advance_time_ms(1000.0)
-	animation.set_paused(true)
+	# The model root is NpcVisualRoot/NpcModel, so the player is not a direct child.
+	for animation in visual.find_children("*", "WowAnimationPlayer", true, false):
+		animation.set_process(false)
+		if animation.play_animation(0, true):
+			animation.advance_time_ms(1000.0)
+			animation.set_paused(true)
 
 func ready_deadline_check(ui: Node) -> void:
 	var deadline := Time.get_ticks_msec() + 2000

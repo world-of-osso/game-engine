@@ -701,6 +701,32 @@ mod tests {
         }
     }
 
+    /// The skip only fires for a bound model with no selected mesh; the unaffected
+    /// Stockade guard display 2989 has a selected part in every bound model.
+    #[test]
+    fn unaffected_display_2989_keeps_every_bound_model() {
+        let data = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data");
+        let gear = crate::npc_gear_data::NpcGearData::load(&data.join("db2/active")).unwrap();
+        let armor = gear.display_armor(2989).unwrap();
+        let catalog = game_engine_core::outfit_data::OutfitData::load(&data);
+        let resolved =
+            crate::equipment_appearance_data::resolve_equipment_appearance(&armor, &catalog, 1, 0)
+                .unwrap();
+        for model in resolved
+            .runtime_models
+            .iter()
+            .filter(|model| model.bind_to_character)
+        {
+            let item = load_definition_model_for(&data, model.product, model.fdid);
+            assert!(
+                !draws_no_visible_mesh(model, &item.model),
+                "display 2989 {:?} model {} keeps a selected mesh",
+                model.slot,
+                model.fdid
+            );
+        }
+    }
+
     fn load_definition_model_for(
         data: &Path,
         product: AssetProduct,
