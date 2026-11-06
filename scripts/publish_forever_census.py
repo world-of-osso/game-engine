@@ -179,8 +179,16 @@ def main() -> int:
     parser.add_argument("--report", type=Path, required=True)
     parser.add_argument("--casc-cache", type=Path, required=True)
     parser.add_argument("--rounds", type=int, default=8)
+    parser.add_argument("--product", help="CASC product; defaults to wow_classic_beta")
+    parser.add_argument("--build", help="build version string for the receipts")
+    parser.add_argument("--build-key", help="build key for the receipts")
     parser.add_argument("--estimate-only", action="store_true")
     args = parser.parse_args()
+
+    global PRODUCT, BUILD, BUILD_KEY
+    PRODUCT = args.product or PRODUCT
+    BUILD = args.build or BUILD
+    BUILD_KEY = args.build_key or BUILD_KEY
 
     os.environ["WOW_INSTALL_PATH"] = str(args.install)
     os.environ["WOW_PRODUCT"] = PRODUCT
