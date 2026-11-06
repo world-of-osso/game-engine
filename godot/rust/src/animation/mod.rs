@@ -888,6 +888,8 @@ pub struct WowAnimationPlayer {
     velocity: momentum::VelocityTracker,
     /// The two foot chains found from attachment points 47/48, for client-side foot IK.
     leg_rig: Option<game_engine_core::foot_ik::LegRig>,
+    /// Attachment participation and the participation epoch it was read at.
+    participation: std::cell::Cell<Option<(u64, bool)>>,
 }
 
 #[godot_api]
@@ -906,6 +908,7 @@ impl INode for WowAnimationPlayer {
             bounds_sequence: None,
             velocity: Default::default(),
             leg_rig: None,
+            participation: std::cell::Cell::new(None),
         }
     }
 
@@ -981,6 +984,7 @@ impl WowAnimationPlayer {
             bounds_sequence: None,
             velocity: Default::default(),
             leg_rig: detect_leg_rig(model),
+            participation: std::cell::Cell::new(None),
         });
         player.set_name("WowAnimationPlayer");
         player.bind_mut().write_poses();
@@ -1376,7 +1380,17 @@ impl WowAnimationPlayer {
     /// Attached children may retain color/identity/clock while callbacks are ineligible.
     #[func]
     fn callbacks_eligible(&self) -> bool {
-        attachment::participates(&self.base().clone())
+        let node = self.base().clone();
+        let epoch = attachment::participation_epoch(&node);
+        if let (Some(epoch), Some((read_at, participates))) = (epoch, self.participation.get())
+            && read_at == epoch
+        {
+            return participates;
+        }
+        let participates = attachment::participates(&node);
+        self.participation
+            .set(epoch.map(|epoch| (epoch, participates)));
+        participates
     }
 
     #[func]

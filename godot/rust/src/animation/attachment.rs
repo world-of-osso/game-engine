@@ -40,6 +40,25 @@ pub(super) struct AttachmentGates {
 thread_local! {
     static TREE_GENERATION: RefCell<Option<(InstanceId, Rc<Cell<u64>>)>> = const { RefCell::new(None) };
     static GATE_TIME: Cell<Duration> = const { Cell::new(Duration::ZERO) };
+    /// Advances whenever participation may have changed: an attachment's active meta was
+    /// written, or the watched tree gained, lost or moved a node.
+    static PARTICIPATION_EPOCH: Cell<u64> = const { Cell::new(0) };
+}
+
+fn advance_participation_epoch() {
+    PARTICIPATION_EPOCH.with(|epoch| epoch.set(epoch.get().wrapping_add(1)));
+}
+
+/// The epoch under which a participation read for `node` stays valid; `None` outside
+/// the scene tree, whose changes are not watched there.
+pub(super) fn participation_epoch(node: &Gd<Node>) -> Option<u64> {
+    if !node.is_inside_tree() {
+        return None;
+    }
+    if TREE_GENERATION.with(|slot| slot.borrow().is_none()) {
+        watch_tree(node);
+    }
+    Some(PARTICIPATION_EPOCH.with(Cell::get))
 }
 
 /// Take the gate time accumulated since the previous GameClient frame.
@@ -48,7 +67,7 @@ pub(crate) fn take_gate_time_ms() -> f64 {
 }
 
 /// A single scene-tree signal tracks descendant additions, removals and replacements.
-fn watch_tree(point: &Gd<Node3D>) -> Option<Rc<Cell<u64>>> {
+fn watch_tree(point: &Gd<Node>) -> Option<Rc<Cell<u64>>> {
     if !point.is_inside_tree() {
         return None;
     }
@@ -64,6 +83,7 @@ fn watch_tree(point: &Gd<Node3D>) -> Option<Rc<Cell<u64>>> {
         let changed = generation.clone();
         let callback = Callable::from_fn("attachment-tree-changed", move |_| {
             changed.set(changed.get().wrapping_add(1));
+            advance_participation_epoch();
         });
         let result = tree.connect("tree_changed", &callback);
         assert_eq!(
@@ -72,6 +92,8 @@ fn watch_tree(point: &Gd<Node3D>) -> Option<Rc<Cell<u64>>> {
             "Cannot watch attachment tree changes"
         );
         *slot = Some((tree.instance_id(), generation.clone()));
+        // Changes before the watch were not counted.
+        advance_participation_epoch();
         Some(generation)
     })
 }
@@ -115,7 +137,7 @@ impl AttachmentGates {
             self.tree_generation = self
                 .points
                 .first()
-                .and_then(|point| watch_tree(&point.node));
+                .and_then(|point| watch_tree(&point.node.clone().upcast()));
         }
         let generation = self.tree_generation.as_ref().map(|value| value.get());
         for point in &mut self.points {
@@ -129,6 +151,7 @@ impl AttachmentGates {
             if changed {
                 point.node.set_meta(ACTIVE_META, &active.to_variant());
                 point.active = Some(active);
+                advance_participation_epoch();
             }
             let tree_changed = generation.is_none_or(|value| value != point.tree_generation);
             if changed || tree_changed || !point.node.is_inside_tree() {
