@@ -94,6 +94,7 @@ mod pet_bar;
 mod pet_journal;
 mod pet_stable;
 mod player_spells;
+mod power_throttling;
 mod preview_world;
 #[path = "process_memory_status.rs"]
 mod process_memory_status;
@@ -241,6 +242,9 @@ unsafe impl ExtensionLibrary for GameEngineExtension {
     }
 
     fn on_stage_init(stage: godot::init::InitStage) {
+        if stage == godot::init::InitStage::Core {
+            power_throttling::opt_out();
+        }
         if stage == godot::init::InitStage::Servers {
             display_options::initialize_ssao_prepass();
         }
