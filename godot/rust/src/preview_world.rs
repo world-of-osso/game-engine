@@ -373,5 +373,5 @@ fn start_kit(
     kit: &VisualKit,
     preview: &PreviewKit,
 ) {
-    effects.census_start(kit, preview.anchor.instance_id(), preview.spell);
+    effects.census_start(kit, preview.anchor.instance_id(), preview.spell, None);
 }

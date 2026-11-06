@@ -28,13 +28,26 @@ impl SpellEffects {
         Ok(Some(kit))
     }
 
-    pub(crate) fn census_start(&mut self, kit: &VisualKit, visual: InstanceId, spell: u32) {
+    /// `trigger_radius`: set for an area trigger, which fits the art to its own radius.
+    pub(crate) fn census_start(
+        &mut self,
+        kit: &VisualKit,
+        visual: InstanceId,
+        spell: u32,
+        trigger_radius: Option<f32>,
+    ) {
         let lifetime = if kit.end == VisualEvent::OneShot {
             Lifetime::OneShot
         } else {
             Lifetime::UntilDetachedEnds { visual }
         };
-        self.queue_owned_models(kit, EffectOwner::Detached(visual), lifetime, spell);
+        self.queue_owned_models(
+            kit,
+            EffectOwner::Detached(visual),
+            lifetime,
+            spell,
+            trigger_radius,
+        );
     }
 
     pub(crate) fn census_clear(&mut self, visual: InstanceId) {

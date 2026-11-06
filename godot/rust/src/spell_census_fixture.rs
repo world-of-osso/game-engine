@@ -371,7 +371,7 @@ impl SpellCensusFixture {
         };
         self.played_animation = played;
         self.effects
-            .census_start(&kit, self.base().instance_id(), spell);
+            .census_start(&kit, self.base().instance_id(), spell, None);
         Ok((requested, played))
     }
 }

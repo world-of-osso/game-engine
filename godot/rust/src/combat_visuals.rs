@@ -116,6 +116,7 @@ impl GameClient {
                 replay.id,
                 replay.spell_id,
                 replay.center,
+                replay.radius,
                 &mut self.world,
             ) {
                 godot_error!("Area trigger {} visual: {error}", replay.id);

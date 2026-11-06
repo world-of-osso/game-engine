@@ -12,14 +12,24 @@ impl SpellVisualCatalog {
     pub(super) fn read_effect_names(&mut self, dir: &Path) -> Result<(), String> {
         let names = Table::read(dir, "SpellVisualEffectName")?;
         let name_ints = names.ints(["ID", "ModelFileDataID"])?;
+        // Builds before 12.1.5 do not author an effect radius; their ground art is drawn at
+        // its natural size.
+        let radii = if names.has_column("EffectRadius") {
+            names.floats(["EffectRadius"])?
+        } else {
+            vec![[0.0]; name_ints.len()]
+        };
         let name_floats = names.floats(["Scale", "Alpha"])?;
-        for ([id, model], [scale, alpha]) in name_ints.into_iter().zip(name_floats) {
+        for (([id, model], [scale, alpha]), [effect_radius]) in
+            name_ints.into_iter().zip(name_floats).zip(radii)
+        {
             self.effect_names.insert(
                 id as u32,
                 EffectName {
                     model_fdid: model as u32,
                     scale,
                     alpha,
+                    effect_radius,
                 },
             );
         }
@@ -146,6 +156,7 @@ fn parse_kit_model(
         roll,
         scale: scale * effect.scale,
         alpha: effect.alpha,
+        effect_radius: effect.effect_radius,
         start_delay: delay,
         start_anim_id: anim_id(start),
         anim_id: anim_id(anim),

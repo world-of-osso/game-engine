@@ -149,25 +149,34 @@ impl SpellEffects {
             ..
         } = start;
         let lifetime = start.hold.map_or(Lifetime::OneShot, KitHold::lifetime);
-        self.queue_owned_models(kit, EffectOwner::Unit(unit), lifetime, spell_id);
+        self.queue_owned_models(kit, EffectOwner::Unit(unit), lifetime, spell_id, None);
     }
 
+    /// `trigger_radius`: an area trigger fits each model to the radius the server reports,
+    /// using the effect's authored ground radius (`SpellVisualEffectName.EffectRadius`).
     pub(super) fn queue_owned_models(
         &mut self,
         kit: &VisualKit,
         owner: EffectOwner,
         lifetime: Lifetime,
         spell_id: u32,
+        trigger_radius: Option<f32>,
     ) {
         for model in &kit.models {
             self.assets
                 .request(SpellAsset::Model(model.model_fdid), Priority::Now);
+            let mut model = model.clone();
+            if let Some(radius) = trigger_radius
+                && model.effect_radius > 0.0
+            {
+                model.scale *= radius / model.effect_radius;
+            }
             self.pending.push(PendingModel {
                 due_at: self.clock + model.start_delay,
                 owner,
                 spell_id,
                 kit_id: kit.kit_id,
-                model: model.clone(),
+                model,
                 lifetime,
             });
         }

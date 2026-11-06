@@ -1097,13 +1097,14 @@ impl GameClient {
         duration: f64,
         pulse: i64,
     ) {
-        let _ = (radius, duration, pulse);
+        let _ = (duration, pulse);
         let spell = u32::try_from(spell).unwrap_or(0);
         let center = [position.x, position.y, position.z];
+        let radius = radius.max(0.0) as f32;
         let id = 900_000 + u64::from(spell);
         if let Err(error) =
             self.spell_effects
-                .replay_area_trigger(id, spell, center, &mut self.world)
+                .replay_area_trigger(id, spell, center, radius, &mut self.world)
         {
             godot_error!("Area trigger {id} visual: {error}");
         }

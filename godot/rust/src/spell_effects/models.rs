@@ -159,12 +159,13 @@ impl SpellEffects {
         trigger: u64,
         spell_id: u32,
         position: [f32; 3],
+        radius: f32,
         world: &mut WorldUnits,
     ) -> Result<(), String> {
         let Some(catalog) = self.catalog()? else {
             return Ok(());
         };
-        let kits = catalog.replayed_kits_for_spell(spell_id);
+        let kits = catalog.area_trigger_kits(spell_id);
         godot_print!(
             "area trigger {trigger} spell {spell_id}: kits {:?} at {position:?}",
             kits.iter().map(|kit| kit.kit_id).collect::<Vec<_>>()
@@ -186,8 +187,18 @@ impl SpellEffects {
             }
         };
         let visual_id = anchor.instance_id();
+        let owner = EffectOwner::Detached(visual_id);
         for kit in &kits {
-            self.census_start(kit, visual_id, spell_id);
+            // A held display kit already on this anchor is the ground look itself, so a
+            // server pulse must not stack a second copy of it.
+            if self
+                .active
+                .iter()
+                .any(|effect| effect.owner == owner && effect.kit_id == kit.kit_id)
+            {
+                continue;
+            }
+            self.census_start(kit, visual_id, spell_id, Some(radius));
         }
         Ok(())
     }

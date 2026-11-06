@@ -547,10 +547,27 @@ func capture_trigger(spell: int, prefix: String, shots: Array) -> void:
 		pulse += 1
 		# The one-shot fades in over its first 600 ms; capture at its steady frame.
 		await wait_ms(800)
+		var extent := effect_extent()
+		print("EXTENT-%s-%s %s" % [prefix, shot[1], JSON.stringify(extent)])
 		await capture("area-trigger-%s-%s" % [prefix, shot[1]], false)
 		if closed:
 			return
 	finish()
+
+# World-space bounds of every mesh a replayed area trigger drew, in yards.
+func effect_extent() -> Dictionary:
+	var lo := Vector3(INF, INF, INF)
+	var hi := -lo
+	for anchor in root.find_children("AreaTrigger*", "", true, false):
+		for mesh in anchor.find_children("*", "MeshInstance3D", true, false):
+			var box: AABB = (mesh as MeshInstance3D).get_aabb()
+			var placed: Transform3D = (mesh as MeshInstance3D).get_global_transform()
+			for corner in 8:
+				var point := placed * box.get_endpoint(corner)
+				lo = lo.min(point)
+				hi = hi.max(point)
+	return {"min": [lo.x, lo.y, lo.z], "max": [hi.x, hi.y, hi.z],
+		"x": hi.x - lo.x, "z": hi.z - lo.z}
 
 func pause_kits(paused: bool) -> void:
 	for child in client.get_children():
