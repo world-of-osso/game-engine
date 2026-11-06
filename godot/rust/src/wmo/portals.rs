@@ -18,7 +18,7 @@ use super::assets::{NativeWmoAsset, NativeWmoGroup};
 /// the frustum says (WebWowViewerCpp `dotepsilon`, 1.5², as the original client).
 const PORTAL_NEAR_DISTANCE: f32 = 2.25;
 const ROOT_ALWAYS_DRAW_MASK: u32 = 0x2001_0008;
-const ROOT_ANTIPORTAL: u32 = 0x0400_0000;
+pub(super) const ROOT_ANTIPORTAL: u32 = 0x0400_0000;
 const SPLIT_GROUP_PARENT: u32 = 0x40;
 const SPLIT_GROUP_CHILD: u32 = 0x80;
 

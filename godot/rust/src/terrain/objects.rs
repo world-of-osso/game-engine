@@ -91,7 +91,7 @@ use crate::{
         assets::{LitDoodad, NativeWmoAsset, ShadowGroups, wmo_fog_volume},
         doodad_light::bind_doodad_light,
         portals::{HalfSpace, WmoPortals},
-        scene::WmoBuild,
+        scene::{MERGED_GROUPS_META, WmoBuild},
     },
     world_models::bind_visual_light,
 };
@@ -365,7 +365,13 @@ pub(crate) struct CulledWmo {
     portals: WmoPortals,
     fog: WmoFogVolume,
     world_from_local: Affine3A,
+    /// Per group, the meshes holding its geometry: its own batches and the merged
+    /// exterior batches it is part of.
     groups: HashMap<u16, Vec<Gd<Node3D>>>,
+    /// Per group, the batches only it draws; the cull shows them with the group.
+    own: HashMap<u16, Vec<Gd<Node3D>>>,
+    /// Merged exterior batches and their groups; the cull shows one while any is drawn.
+    merged: Vec<(Gd<Node3D>, Vec<u16>)>,
     /// Each drawn group's world bounds, from the batch meshes placed by the caller.
     group_boxes: HashMap<u16, (Vec3, Vec3)>,
     shadow_groups: ShadowGroups,
@@ -380,7 +386,13 @@ impl CulledWmo {
         world_from_local: Affine3A,
         node: &Gd<Node3D>,
     ) -> Self {
-        let groups = group_batches(node);
+        let (own, merged) = group_batches(node);
+        let mut groups = own.clone();
+        for (batch, members) in &merged {
+            for group in members {
+                groups.entry(*group).or_default().push(batch.clone());
+            }
+        }
         let group_boxes = groups
             .iter()
             .filter_map(|(group, batches)| {
@@ -398,6 +410,8 @@ impl CulledWmo {
             fog: wmo_fog_volume(asset),
             world_from_local,
             groups,
+            own,
+            merged,
             group_boxes,
             shadow_groups: asset.shadow_groups(),
             drawn: None,
@@ -1509,15 +1523,24 @@ impl TerrainObjects {
             // Only groups whose state changed touch their batch nodes.
             let previous = wmo.drawn.take();
             self.wmo_drawn_changed |= previous.as_ref() != Some(&drawn);
-            for (&group, batches) in &mut wmo.groups {
-                let shown = drawn.get(group as usize).copied().unwrap_or(false);
+            let shown_in =
+                |drawn: &[bool], group: u16| drawn.get(group as usize).copied().unwrap_or(false);
+            for (&group, batches) in &mut wmo.own {
+                let shown = shown_in(&drawn, group);
                 let was = previous
-                    .as_ref()
-                    .map(|previous| previous.get(group as usize).copied().unwrap_or(false));
+                    .as_deref()
+                    .map(|previous| shown_in(previous, group));
                 if was != Some(shown) {
                     for batch in batches {
                         batch.set_visible(shown);
                     }
+                }
+            }
+            for (batch, members) in &mut wmo.merged {
+                let any = |drawn: &[bool]| members.iter().any(|&group| shown_in(drawn, group));
+                let shown = any(&drawn);
+                if previous.as_deref().map(any) != Some(shown) {
+                    batch.set_visible(shown);
                 }
             }
             wmo.drawn = Some(drawn);
@@ -1698,9 +1721,25 @@ fn disable_shadows(model: &Gd<Node3D>) {
 
 /// Batch and liquid meshes by group index, from their `Group{g}_Batch{i}` and
 /// `Group{g}_Liquid` names.
-fn group_batches(wmo: &Gd<Node3D>) -> HashMap<u16, Vec<Gd<Node3D>>> {
+/// The WMO's batch meshes by group (`Group{g}_Batch{i}`), and its merged exterior
+/// batches with the groups they draw.
+fn group_batches(wmo: &Gd<Node3D>) -> GroupBatches {
     let mut groups: HashMap<u16, Vec<Gd<Node3D>>> = HashMap::new();
+    let mut merged = Vec::new();
     for child in wmo.get_children().iter_shared() {
+        if child.has_meta(MERGED_GROUPS_META)
+            && let Ok(batch) = child.clone().try_cast::<Node3D>()
+        {
+            let members = child
+                .get_meta(MERGED_GROUPS_META)
+                .to::<PackedInt32Array>()
+                .as_slice()
+                .iter()
+                .filter_map(|&group| u16::try_from(group).ok())
+                .collect();
+            merged.push((batch, members));
+            continue;
+        }
         let name = child.get_name().to_string();
         let group = name
             .strip_prefix("Group")
@@ -1710,8 +1749,10 @@ fn group_batches(wmo: &Gd<Node3D>) -> HashMap<u16, Vec<Gd<Node3D>>> {
             groups.entry(group).or_default().push(batch);
         }
     }
-    groups
+    (groups, merged)
 }
+
+type GroupBatches = (HashMap<u16, Vec<Gd<Node3D>>>, Vec<(Gd<Node3D>, Vec<u16>)>);
 
 /// Index of the column cell that holds `position`; a column query visits the cell it
 /// falls in.
