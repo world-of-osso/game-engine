@@ -121,10 +121,10 @@ func run_blend_pixels() -> bool:
 
 # KNOWN GAP (open rendering item, 2026-11-06): BlendAdd (M2 blend 7, GX 13). The expectation
 # is WebWowViewerCpp's straight output (commonM2Material.slang:269, factors ONE /
-# ONE_MINUS_SRC_ALPHA); m2.gdshader premultiplies (4cd7bc671). Neither matches retail Death
-# and Decay: premultiplied, its ground layer vanishes after the cast burst; straight, it is a
-# hard-edged red quad (docs/wiki/formats/m2-format.md, "BlendAdd known gap"). Reported, not
-# asserted, until the texture-alpha investigation decides the output.
+# ONE_MINUS_SRC_ALPHA); m2.gdshader premultiplies (4cd7bc671), as retail's ONE source factor
+# expects. Death and Decay draws soft-edged premultiplied and as a hard-edged quad straight;
+# neither is compared with retail yet (docs/wiki/formats/m2-format.md, "BlendAdd known gap").
+# Reported, not asserted, until that comparison decides the output.
 const BLEND_ADD_KNOWN_GAP := 7
 
 func report_known_gap(label: String, expected: Color) -> void:
