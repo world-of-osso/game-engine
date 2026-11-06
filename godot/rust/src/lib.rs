@@ -1461,6 +1461,18 @@ impl GameClient {
         )
     }
 
+    /// Offline fixture: hold every live world text at its current age.
+    #[func]
+    fn preview_combat_text_hold(&mut self, hold: bool) {
+        self.preview_float_text_hold(hold);
+    }
+
+    /// Offline fixture: advance every live world text by `seconds`, as a frame would.
+    #[func]
+    fn preview_combat_text_advance(&mut self, seconds: f64) -> i64 {
+        self.preview_float_text_advance(seconds.clamp(0.0, 10.0) as f32)
+    }
+
     /// Offline fixture: microseconds one frame spends advancing all live world texts.
     #[func]
     fn preview_combat_text_cost(&mut self, iterations: i64) -> f64 {

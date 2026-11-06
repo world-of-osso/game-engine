@@ -28,7 +28,7 @@ const PERIODIC := 8
 ## Longest frame an already-running text may take on the release library.
 const FRAME_BUDGET_US := 100.0
 
-var client: Node3D
+var client: Node
 var camera: Camera3D
 var spawned := 0
 var floor_y := 0.0
@@ -85,9 +85,16 @@ func capture_set() -> void:
 		var at := anchor(Vector3(-1.4 + 1.4 * slot, 0.0, 0.0))
 		var live: int = client.preview_combat_text(text_indices[index], 1000 + slot, at)
 		print("SPAWN index=%d unit=%d live=%d" % [text_indices[index], 1000 + slot, live])
+	freeze(0.2)
 	var after: Image = await capture("set", before)
 	check_count(9, "nine world texts over three units")
 	report_text(after, before)
+
+## Headless frames are far slower than real time, so a 1.5 s text would expire between the
+## spawn and the capture: stop time and set the age the capture shows.
+func freeze(seconds: float) -> void:
+	client.preview_combat_text_advance(seconds)
+	client.preview_combat_text_hold(true)
 
 ## One unit holds four; a new crit replaces that unit's crit; a fifth plain hit is dropped.
 func capture_limit() -> void:
@@ -105,7 +112,8 @@ func capture_limit() -> void:
 	check(replaced == 4, "a second crit replaces the first, it does not add a slot")
 	var dropped: int = client.preview_combat_text(PERIODIC, 2000, anchor(Vector3.ZERO))
 	print("LIMIT after a fifth plain text live=%d" % dropped)
-	check(dropped == 4, "a plain text with no free slot is dropped")
+	check(dropped == 4, "a fifth text evicts the oldest slot, it does not grow the unit")
+	freeze(0.2)
 	var after: Image = await capture("limit", before)
 	report_text(after, before)
 
@@ -116,6 +124,7 @@ const SPREAD_STYLES := [HIT, HEAL, PERIODIC, PET_MELEE]
 func capture_spread() -> void:
 	var before: Image = await grab()
 	spawn_fifty()
+	freeze(0.2)
 	var live: int = client.spells_state().combat_text
 	print("SPREAD live=%d" % live)
 	check(live == 50, "fifty simultaneous numbers over thirteen units")
@@ -132,6 +141,7 @@ func spawn_fifty() -> void:
 
 func measure_perf() -> void:
 	spawn_fifty()
+	freeze(0.2)
 	check(client.spells_state().combat_text == 50, "fifty live numbers to measure")
 	measure_cost()
 
@@ -172,7 +182,7 @@ func report_text(after: Image, before: Image) -> void:
 	check(white + green + orange + yellow > 0, "the frame drew coloured combat text")
 
 func is_text_pixel(pixel: Color, background: Color) -> bool:
-	var delta := abs(pixel.r - background.r) + abs(pixel.g - background.g) + abs(pixel.b - background.b)
+	var delta := absf(pixel.r - background.r) + absf(pixel.g - background.g) + absf(pixel.b - background.b)
 	return delta > 0.15
 
 func anchor(offset: Vector3) -> Vector3:
@@ -310,7 +320,7 @@ func image_diff(before: Image, after: Image, threshold: float) -> Dictionary:
 		for x in before.get_width():
 			var a := before.get_pixel(x, y)
 			var b := after.get_pixel(x, y)
-			if abs(a.r - b.r) + abs(a.g - b.g) + abs(a.b - b.b) > threshold:
+			if absf(a.r - b.r) + absf(a.g - b.g) + absf(a.b - b.b) > threshold:
 				count += 1
 				low = Vector2i(mini(low.x, x), mini(low.y, y))
 				high = Vector2i(maxi(high.x, x), maxi(high.y, y))

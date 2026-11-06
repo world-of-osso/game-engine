@@ -239,6 +239,16 @@ pub(crate) fn distance_scale(distance: f32) -> f32 {
     (DISTANCE_ANCHOR_YARDS / distance).max(FAR_SIZE_FLOOR)
 }
 
+/// Simultaneous world texts one unit may hold (Retail 12.1.5 searches four slots; the array
+/// is declared with five).
+pub(crate) const SLOTS_PER_UNIT: usize = 4;
+
+/// Which of a unit's live world texts a new one evicts, if any: a spell crit first replaces the
+/// unit's existing spell crit (`spell_crit_slot`), then a fifth text evicts the last slot.
+pub(crate) fn slot_eviction(live: usize, spell_crit_slot: Option<usize>) -> Option<usize> {
+    spell_crit_slot.or_else(|| (live >= SLOTS_PER_UNIT).then(|| SLOTS_PER_UNIT - 1))
+}
+
 /// R2 low-discrepancy sequence (plastic number): consecutive spawns land far apart in
 /// both axes, so numbers spawned together never share a start.
 const R2: [f32; 2] = [0.754_877_7, 0.569_840_3];
@@ -479,6 +489,19 @@ mod tests {
             DISTANCE_ANCHOR_YARDS / NEAREST_YARDS,
             "a camera at the text does not divide by zero"
         );
+    }
+
+    #[test]
+    fn a_unit_evicts_only_when_its_four_slots_are_full() {
+        assert_eq!(slot_eviction(0, None), None);
+        assert_eq!(slot_eviction(3, None), None);
+        assert_eq!(slot_eviction(4, None), Some(3));
+        assert_eq!(
+            slot_eviction(4, Some(1)),
+            Some(1),
+            "a spell crit replaces its predecessor"
+        );
+        assert_eq!(slot_eviction(2, Some(0)), Some(0));
     }
 
     #[test]

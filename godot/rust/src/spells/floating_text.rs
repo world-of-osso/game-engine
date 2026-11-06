@@ -16,8 +16,6 @@ const FLOAT_TEXT_PIXEL: f32 = 0.0016;
 const FLOAT_TEXT_FONT_SIZE: i32 = 64;
 /// Normal text heights in one unit of the combat text start spread.
 const FLOAT_TEXT_SPREAD_HEIGHTS: f32 = 1.5;
-/// Simultaneous world texts one unit may hold (`PlayerName.cpp:711-746`).
-const SLOTS_PER_UNIT: usize = 4;
 
 pub(super) struct FloatingText {
     pub(super) node: Gd<Label3D>,
@@ -64,9 +62,7 @@ impl FloatingText {
 /// then pops over its lifetime through [`combat_text::height_scale`].
 pub(super) fn combat_text_size(event: &CombatLogEvent, style: Style) -> i32 {
     let mut size = FLOAT_TEXT_FONT_SIZE as f32 * style.scale;
-    if event.crit {
-        size *= 1.5;
-    } else if event.glancing {
+    if event.glancing {
         size *= 0.75;
     }
     size.round() as i32
@@ -173,9 +169,11 @@ impl GameClient {
             self.spawn_combat_text(&event, attacker, camera);
         }
         let eye = camera.map(|camera| camera.origin);
-        self.spells
-            .floating
-            .retain_mut(|text| text.advance(delta, eye));
+        if !self.spells.combat_text_hold {
+            self.spells
+                .floating
+                .retain_mut(|text| text.advance(delta, eye));
+        }
     }
 
     fn combat_text_camera(&self) -> Option<Transform3D> {
@@ -299,6 +297,22 @@ impl GameClient {
         self.spawn_combat_text_at(unit, at, &event, attacker, camera)
     }
 
+    /// Offline fixture: hold every live world text at its current age, so an offline capture
+    /// can take as many slow frames as it needs.
+    pub(crate) fn preview_float_text_hold(&mut self, hold: bool) {
+        self.spells.combat_text_hold = hold;
+    }
+
+    /// Offline fixture: advance every live world text by `seconds`, as a frame would, and
+    /// return the live count. Lets a capture decide the texts' age.
+    pub(crate) fn preview_float_text_advance(&mut self, seconds: f32) -> i64 {
+        let eye = self.combat_text_camera().map(|camera| camera.origin);
+        self.spells
+            .floating
+            .retain_mut(|text| text.advance(seconds, eye));
+        self.spells.floating.len() as i64
+    }
+
     /// Offline fixture: microseconds one frame spends advancing all live world texts.
     pub(crate) fn preview_float_text_cost(&mut self, iterations: u32) -> f64 {
         let iterations = iterations.clamp(1, 100_000);
@@ -323,7 +337,7 @@ impl GameClient {
             .filter(|(_, text)| text.unit == unit)
             .map(|(index, _)| index)
             .collect();
-        let replaced = if spell_crit {
+        let spell_crit_slot = if spell_crit {
             slots
                 .iter()
                 .rev()
@@ -332,10 +346,8 @@ impl GameClient {
         } else {
             None
         };
-        let evicted = replaced
-            .or_else(|| (slots.len() >= SLOTS_PER_UNIT).then_some(slots[SLOTS_PER_UNIT - 1]));
-        if let Some(index) = evicted {
-            let mut text = self.spells.floating.remove(index);
+        if let Some(index) = combat_text::slot_eviction(slots.len(), spell_crit_slot) {
+            let text = self.spells.floating.remove(index);
             text.node.clone().queue_free();
         }
     }
