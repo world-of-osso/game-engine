@@ -102,9 +102,10 @@ fn malformed_triggers_are_skipped() {
     assert_eq!(triggers[0].id, 42);
 }
 
-/// A new trigger replays once, an unchanged pulse never replays, and a bumped pulse does.
+/// A trigger starts its effect on first sight only: the ground art is held, so a pulse is
+/// not a re-cast and must not replay the burst.
 #[test]
-fn only_a_new_or_pulsed_trigger_reissues_its_kits() {
+fn only_a_new_trigger_starts_its_kits() {
     let mut visuals = AreaTriggerVisuals::default();
     let mut trigger = live_area_triggers(&fixture())[0];
 
@@ -112,7 +113,10 @@ fn only_a_new_or_pulsed_trigger_reissues_its_kits() {
     assert!(visuals.replays(&[trigger]).is_empty(), "unchanged pulse");
 
     trigger.pulse = 1;
-    assert_eq!(visuals.replays(&[trigger]).len(), 1, "pulse replays");
+    assert!(
+        visuals.replays(&[trigger]).is_empty(),
+        "a pulse is not a re-cast"
+    );
 
     assert!(
         visuals.replays(&[]).is_empty(),

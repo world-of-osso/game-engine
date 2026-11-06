@@ -385,6 +385,8 @@ pub struct GameClient {
     preview_foot_ik: bool,
     /// Loading focus for offline previews (no local player exists to supply one).
     preview_focus: Option<glam::Vec3>,
+    /// Area triggers the preview already started, so a fixture pulse does not re-cast them.
+    preview_area_triggers: std::collections::HashSet<u64>,
     frame_system_ms: Vec<(&'static str, f64)>,
     frame_node_ms: Vec<(&'static str, f64)>,
     attachment_gate_ms: f64,
@@ -548,6 +550,7 @@ impl INode3D for GameClient {
             preview_kits: Vec::new(),
             preview_foot_ik: true,
             preview_focus: None,
+            preview_area_triggers: std::collections::HashSet::new(),
             frame_system_ms: Vec::new(),
             frame_node_ms: Vec::new(),
             attachment_gate_ms: 0.0,
@@ -1097,15 +1100,22 @@ impl GameClient {
         duration: f64,
         pulse: i64,
     ) {
+        // A trigger starts its effect once and then holds it, so a fixture pulse is not a
+        // re-cast: only the first sight of this id replays. The set is the preview's own, so
+        // it never interferes with the replica's bookkeeping.
         let _ = (duration, pulse);
         let spell = u32::try_from(spell).unwrap_or(0);
-        let center = [position.x, position.y, position.z];
-        let radius = radius.max(0.0) as f32;
         let id = 900_000 + u64::from(spell);
-        if let Err(error) =
-            self.spell_effects
-                .replay_area_trigger(id, spell, center, radius, &mut self.world)
-        {
+        if !self.preview_area_triggers.insert(id) {
+            return;
+        }
+        if let Err(error) = self.spell_effects.replay_area_trigger(
+            id,
+            spell,
+            [position.x, position.y, position.z],
+            radius.max(0.0) as f32,
+            &mut self.world,
+        ) {
             godot_error!("Area trigger {id} visual: {error}");
         }
     }

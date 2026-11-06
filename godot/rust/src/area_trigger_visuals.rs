@@ -26,7 +26,8 @@ pub(crate) struct LiveAreaTrigger {
     pub(crate) radius: f32,
     /// Lifetime the server still reports, in seconds.
     pub(crate) duration: f32,
-    /// Server update counter; a change means the kits are re-issued.
+    /// Server update counter. The display kit is held for the trigger's lifetime, so a new
+    /// pulse does not replay the burst; it is kept for triggers that move or change shape.
     pub(crate) pulse: u32,
 }
 
@@ -65,14 +66,14 @@ pub(crate) struct AreaTriggerVisuals {
 }
 
 impl AreaTriggerVisuals {
-    /// Update the pulse bookkeeping and return the triggers that are new or whose pulse
-    /// moved since the last frame: those replay the spell's one-shot kits.
+    /// Return the triggers seen for the first time: those start the effect. The ground art
+    /// is a display kit held until the anchor retires, so a server pulse is not a re-cast
+    /// and must not play the burst again.
     pub(crate) fn replays(&mut self, live: &[LiveAreaTrigger]) -> Vec<LiveAreaTrigger> {
         let mut replays = Vec::new();
         for trigger in live {
-            match self.seen.insert(trigger.id, trigger.pulse) {
-                Some(pulse) if pulse == trigger.pulse => {}
-                _ => replays.push(*trigger),
+            if self.seen.insert(trigger.id, trigger.pulse).is_none() {
+                replays.push(*trigger);
             }
         }
         replays
