@@ -72,16 +72,18 @@ this mode: `m2.gdshader` for meshes (4cd7bc671) and `particle_composite.glsl.in`
 (30937455f). Add (M2 blend 4 -> GX 3, SRC_ALPHA/ONE) and NoAlphaAdd (M2 blend 3 -> GX 10,
 ONE/ONE) keep unpremultiplied colour, as their factors expect.
 
-**BlendAdd known gap (2026-11-06, open).** Neither output matches retail Death and Decay
-(`foot_ik_ground_drape.gd` `drape_trigger`, ground batches pixel shaders 7 Mod_Mod2x and 8
-Mod_Add, combiners identical to WebWowViewerCpp). Premultiplied (current), the ground layer
-changes 15-99 px against the no-effect frame at 3-9 s, so it is invisible after the cast
-burst; straight (WebWowViewerCpp `commonM2Material.slang:269`), it draws as a hard-edged red
-quad (159k px, 40-51k saturated). The textures' alpha is near 0 where their RGB is not; the
-open question is the BLP alpha decode against retail BlendAdd semantics, which postdate WWV's
-reference and the 15890 decompilation (no GX 13 in `Gx/Types.h`). `m2_blend_pixels.gd` reports
-its blend 7 case as a known gap instead of asserting it. Captures:
-`/syncthing/AgentShared/2026-11-06/fps-120-close/blend7-decay-{0.5,6}-premul-vs-straight.jpg`.
+**BlendAdd known gap (2026-11-06, open).** `m2.gdshader` premultiplies BlendAdd output;
+WebWowViewerCpp (`commonM2Material.slang:269`) writes it straight. Retail maps M2 blend 7 to
+GxBlend 13 = ONE / INV_SRC_ALPHA (12.1.5 and Forever binaries), which expects a premultiplied
+source; no retail capture of Death and Decay has been compared yet. Death and Decay in the
+offline preview (`foot_ik_ground_drape.gd` `drape_trigger`, ground batches pixel shaders 7
+Mod_Mod2x and 8 Mod_Add): premultiplied, a soft-edged fiery layer (about 158k px changed at
+3-9 s); straight, a pinker hard-edged quad (159k px); premultiplied with PS8's additive
+specular zeroed, a dark layer. An earlier premultiplied capture changed only 15-99 px at
+3-9 s; a rerun of the same build drew the layer, so that run's replay drew nothing and it is
+not evidence. `m2_blend_pixels.gd` reports its blend 7 case (WebWowViewerCpp's straight
+expectation) as a known gap instead of asserting it. Captures:
+`/syncthing/AgentShared/2026-11-06/fps-120-close/blend7-decay-6-premul2-nospec-straight.jpg`.
 
 NoAlphaAdd is unexercised: of 80,782 extracted M2s, material blend modes are 0:86,346,
 1:23,814, 2:67,951, 4:34,791, 5:325, 6:2,170, 7:8,036 and none use blend 3, so the shader's
