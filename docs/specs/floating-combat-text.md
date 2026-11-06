@@ -115,8 +115,9 @@ Every bullet states its proof level:
       **Calibrated operand:** Retail 12.1.5 builds that fraction through two calls
       (`0x141e67100`, `0x1401f45a0`) that are still undecoded, so `REFERENCE_YARDS` (10) stands in
       for them; retirement is to replace it with whatever distance those operands resolve to.
-      Consequences: a text no longer keeps master's enormous 174 px em, and a target ten times
-      further out is held at the draw path's 7 px floor (**verified 12.1.5**).
+      Consequences: the engine no longer draws master's 174 px em, and the 7 px clamp holds far
+      targets up. Measured on the Forever captures (1280x720): a hit draws a 10.7 px em and a
+      crit 18.4 px at 10 yards, and every text sits exactly at the 7 px floor at 30 yards.
 
 ### Distance
 
@@ -226,7 +227,7 @@ The engine has no CVar store; the defaults are compile-time constants.
 ### Performance
 
 - [x] Fifty simultaneous numbers cost no more than 0.1 ms/frame in the release library:
-      40.7 µs per frame over 13 units with their shadows (three 2000-iteration samples,
+      53.6 µs per frame over 13 units with their shadows (three 2000-iteration samples,
       `preview_combat_text_cost`, release `libgame_engine_godot.so`, 2026-11-06).
 
 ## How it works
@@ -259,14 +260,16 @@ The engine has no CVar store; the defaults are compile-time constants.
   `CAPTURE_PREFIX=master-` records the same scenes from a build of local `master` carrying only
   these preview hooks. Evidence: `/syncthing/AgentShared/2026-11-06/combat-text/`, 2026-11-06:
 
-  | scene | boxes intersecting, master | ours | text pixels (white/green/orange/yellow) |
+  | scene | boxes intersecting, master | ours | text pixels (white/green/orange/yellow), ours |
   |---|---|---|---|
-  | `set`, 9 texts over 3 units | 36 of 36 | 6 of 36 (crits excluded from stacking) | 954 / 1774 / 601 / 0 |
-  | `limit`, 4 slots on 1 unit | 15 of 15 | 0 of 6 | 1001 / 0 / 0 / 0 |
-  | `spread`, 50 over 13 units | 640 of 1225 | 80 of 1225 | 5861 / 0 / 6 / 0 |
+  | `set`, 9 texts over 3 units | 36 of 36 | 0 of 36 | 397 / 278 / 44 / 46 |
+  | `limit`, 4 slots on 1 unit | 15 of 15 | 0 of 6 | 65 / 0 / 43 / 4 |
+  | `spread`, 50 over 13 units | 640 of 1225 | 0 of 1225 | 950 / 647 / 5 / 0 |
+  | `single10`, 3 texts at 10 yd | 0 of 3 (fixed-size boxes modelled with the old factor) | 0 of 3 | 319 / 62 / 7 / 2 |
+  | `single30`, 3 texts at 30 yd | 0 of 3 | 0 of 3 | 11 / 6 / 21 / 2 |
 
-  Master drew 13 799 yellow and 899 white pixels in `set` (school split, no heals or words) and
-  36 928 yellow in `spread`.
+  Master drew 13 800 yellow and 899 white pixels in `set` (school split, no heals or words) and
+  36 928 yellow in `spread`, because its labels kept the old size.
 - `godot/tests/melee_outcomes_live.gd` — live crit text is 1.5× the plain size (Forever).
 
 ## Known gaps (current cycle)
