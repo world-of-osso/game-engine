@@ -276,6 +276,43 @@ No visual change: the scenery receipt records every spawned placement's in-tree 
 
 Evidence: `data/diagnostics/fps-regressions-2026-11-06/culling/` (`summary.json`, `a*.{log,png,receipt.json,maps}`, `b*.{log,png,receipt.json,maps}`, `compare.py`, `run-client.sh`), the foot IK fixture captures in `data/diagnostics/fps-regressions-2026-11-06/foot-ik/`, and the 960 px Forever captures in `/syncthing/AgentShared/2026-11-06/fps-regressions/`. The Windows re-measurement of the gate is the lead's.
 
+## Render thread and WMO draws (2026-11-06)
+
+The Windows receipt for `71621ba9d` (84.1 FPS) spent about 7 ms per frame outside every
+client step. A Linux profile at the canonical pose (symbolized `lto=none` build of the
+pinned Godot, release extension, 3030 draw calls, 441 of them shadow) splits the frame
+across two CPU-bound threads, with the GPU at 3.1 ms:
+
+| Thread | CPU ms/frame | Largest costs |
+|---|---|---|
+| main | 8.6 (client 5.1) | `Skeleton3D` deferred updates, transform propagation, label reshaping |
+| render (`WorkerThread 0`) | 8.1 | draw recording plus `RenderingDeviceGraph` translation about 50%, M2 material uniform re-uploads 9%, GDScript compositor callbacks 6% |
+
+Draw submission scales with draw calls, and WMO group batches were nearly all of them:
+one `MeshInstance3D` and `ShaderMaterial` per MOBA batch, 333 visible groups.
+
+- **Exterior batch merge** (`wmo/merge.rs`). Batches within a group never share a material
+  (Stormwind magic district: 186 groups, 864 batches, 101 materials), so the merge is
+  across groups. Opaque batches of exterior groups in the portal graph merge when every
+  material input matches (material, exterior lighting, shadow casting, vertex colour and
+  UV streams) and they fall in the same 256-yard cell; blended batches keep their draw
+  order and interior groups keep exact portal culling. Portal traversal starts from every
+  exterior group, so they are drawn together; `cull_wmos` shows a merged node while any
+  of its groups is drawn. Canonical pose: 3030 -> 2671 draw calls, shadow 441 -> 327,
+  GPU 3.09 -> 2.92 ms, same-pose capture SSIM 0.9988 (differences only in the clock text).
+  Merged exterior batches are often outside the frustum already, so the draw saving is
+  smaller than the node count suggests (magic district: 544 exterior nodes -> 189).
+- **Nameplate theme overrides.** `add_theme_*_override` always notifies, and a Label then
+  reshapes its text. Nameplates set font size and colour every frame; they now set them
+  only when the style changes (the cast bar likewise).
+- The "canvas free" entry in the render-thread profile is symbol aliasing: the stack is
+  canvas `update_dirty_items` -> `update_dirty_resources` -> `_update_queued_materials`,
+  about 24 M2 material updates per frame from animated texture matrices and colours.
+
+Receipts now report `threads` (main and render CPU and wait per frame, read from both
+thread clocks at each segment end; `godot/tests/thread_cpu_split.gd`) and the viewport's
+render CPU and GPU time, so a Windows frame can be split into work and waiting.
+
 ## Sources
 
 - `src/rendering/camera/culling.rs`: the original doodad, WMO and portal culling. Its 200/2,000/400 yd distances cite no source (commit `f475000f`), so they were not used.
