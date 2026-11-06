@@ -76,6 +76,9 @@ struct UnitNode {
     visual: Option<Gd<Node3D>>,
     /// The parts of `visual` its animation LOD reads every frame.
     lod_target: Option<LodTarget>,
+    /// `visual`'s model and its merged mesh bounds, read when the visual is attached:
+    /// walking the model's mesh children costs more than the whole cull that reads it.
+    model_bounds: Option<ModelBounds>,
     /// Whether portal visibility admitted the unit to the camera when its subtree was
     /// last refreshed; `None` once new geometry needs it applied.
     camera_admitted: Option<bool>,
@@ -125,6 +128,34 @@ struct UnitNode {
     passenger: Option<mount::UnitPassenger>,
 }
 
+/// A unit visual's model node with the merged bounds of its mesh children, in model
+/// space. `mesh_bounds` walks every child through the Godot API, so it is read when the
+/// visual (or its equipment placement) changes, not on every frame that culls the unit.
+struct ModelBounds {
+    model: Gd<Node3D>,
+    bounds: Aabb,
+}
+
+/// The model node of `visual` and the merged mesh bounds of its children.
+fn model_bounds_of(visual: &Gd<Node3D>) -> Option<ModelBounds> {
+    let model = visual
+        .try_get_node_as::<Node3D>("NpcModel")
+        .or_else(|| visual.try_get_node_as::<Node3D>("PlayerModel"))?;
+    let bounds = crate::world_models::mesh_bounds(&model);
+    Some(ModelBounds { model, bounds })
+}
+
+/// The world box of `bounds` placed by its model's current transform.
+fn model_world_box(bounds: &ModelBounds) -> (Vec3, Vec3) {
+    let to_glam = |v: Vector3| Vec3::new(v.x, v.y, v.z);
+    SceneryDistance::new(
+        to_glam(bounds.bounds.position),
+        to_glam(bounds.bounds.end()),
+        crate::terrain::objects::affine(bounds.model.get_global_transform()),
+    )
+    .world_bounds()
+}
+
 /// An NPC visual's model, animations and merged mesh bounds, looked up on attachment.
 struct LodTarget {
     model: Gd<Node3D>,
@@ -134,8 +165,7 @@ struct LodTarget {
 }
 
 impl LodTarget {
-    fn of(visual: &Gd<Node3D>) -> Option<Self> {
-        let model = visual.try_get_node_as::<Node3D>("NpcModel")?;
+    fn of(model: Gd<Node3D>, bounds: Aabb) -> Option<Self> {
         let animation = model.try_get_node_as::<WowAnimationPlayer>("M2Animation");
         let materials = model.try_get_node_as::<WowMaterialAnimation>("M2MaterialAnimation");
         if animation.is_none() && materials.is_none() {
@@ -144,7 +174,7 @@ impl LodTarget {
         Some(Self {
             animation,
             materials,
-            bounds: crate::world_models::mesh_bounds(&model),
+            bounds,
             model,
         })
     }
@@ -162,7 +192,17 @@ impl UnitNode {
         self.item_particles.clear();
         self.ribbons = None;
         self.item_ribbons.clear();
-        self.lod_target = visual.as_ref().and_then(LodTarget::of);
+        let npc_model = visual
+            .as_ref()
+            .and_then(|visual| visual.try_get_node_as::<Node3D>("NpcModel"));
+        self.model_bounds = visual.as_ref().and_then(model_bounds_of);
+        self.lod_target = npc_model.and_then(|model| {
+            let bounds = self
+                .model_bounds
+                .as_ref()
+                .filter(|bounds| bounds.model == model)?;
+            LodTarget::of(model, bounds.bounds)
+        });
         self.visual = visual;
         self.camera_admitted = None;
     }
@@ -352,6 +392,7 @@ fn spawn_unit(
         appearance: None,
         visual: None,
         lod_target: None,
+        model_bounds: None,
         camera_admitted: None,
         loading: None,
         visual_player_model: None,
@@ -1013,6 +1054,8 @@ fn sync_unit_sheath(unit: &mut UnitNode, snapshot: Unit, models: &mut WorldModel
     if let Err(error) = placed {
         godot_error!("Unit {} {sheath:?}: {error}", snapshot.server_id);
     }
+    // Placing items reparents the model's equipment meshes, so its merged bounds move.
+    unit.model_bounds = unit.visual.as_ref().and_then(model_bounds_of);
 }
 
 fn sync_unit_animation(unit: &mut UnitNode, snapshot: Unit, fallbacks: &HashMap<u16, u16>) {
@@ -1442,6 +1485,7 @@ impl WorldUnits {
                     Ok(model) => {
                         bind_visual_light(&model, self.light.as_ref());
                         unit.node.add_child(&model);
+                        mount.bounds = model_bounds_of(&model);
                         mount.node = Some(model);
                         unit.camera_admitted = None;
                         mount::seat_rider(unit);
@@ -1612,6 +1656,12 @@ impl WorldUnits {
             };
             let (rig, skeleton) = {
                 let mut player = animation.bind_mut();
+                // A pose the animation did not sample this frame is the one the last solve
+                // left: the feet are already planted, and rewriting the sampled pose to
+                // solve it again would only repeat last frame's work.
+                if !player.samples_poses() {
+                    continue;
+                }
                 // Last frame's solve must not become this frame's authored pose.
                 if player.pose_stale() {
                     player.restore_sampled_pose();
@@ -2051,25 +2101,11 @@ const UNIT_BOX_MARGIN: f32 = 1.0;
 /// World box of a unit's model and its mount's model, grown by `UNIT_BOX_MARGIN`;
 /// `None` while it shows neither.
 fn unit_world_box(unit: &UnitNode) -> Option<(Vec3, Vec3)> {
-    let mount = unit.mount.as_ref().and_then(|mount| mount.node.as_ref());
-    [unit.visual.as_ref(), mount]
+    let mount = unit.mount.as_ref().and_then(|mount| mount.bounds.as_ref());
+    [unit.model_bounds.as_ref(), mount]
         .into_iter()
         .flatten()
-        .filter_map(|visual| {
-            visual
-                .try_get_node_as::<Node3D>("NpcModel")
-                .or_else(|| visual.try_get_node_as::<Node3D>("PlayerModel"))
-        })
-        .map(|model| {
-            let bounds = crate::world_models::mesh_bounds(&model);
-            let to_glam = |v: Vector3| Vec3::new(v.x, v.y, v.z);
-            SceneryDistance::new(
-                to_glam(bounds.position),
-                to_glam(bounds.end()),
-                crate::terrain::objects::affine(model.get_global_transform()),
-            )
-            .world_bounds()
-        })
+        .map(model_world_box)
         .reduce(|(low, high), (min, max)| (low.min(min), high.max(max)))
         .map(|(min, max)| {
             (

@@ -19,7 +19,7 @@ use shared::components::{Mounted, SheathState, VehiclePassenger};
 
 use std::collections::HashMap;
 
-use super::{Locomotion, UnitNode};
+use super::{Locomotion, ModelBounds, UnitNode};
 use crate::animation::WowAnimationPlayer;
 use crate::world_models::{UnitAppearance, WorldModels};
 
@@ -104,6 +104,8 @@ pub(super) struct UnitMount {
     pub request: Option<u64>,
     /// The loaded mount model, a child of the unit's node.
     pub node: Option<Gd<Node3D>>,
+    /// The mount model's merged mesh bounds, read when the model is attached.
+    pub bounds: Option<ModelBounds>,
 }
 
 /// The mount's clip for the rider's locomotion clip: the same gait on the ground, the
@@ -225,6 +227,7 @@ pub(super) fn sync_mount(unit: &mut UnitNode, mounted: Option<&Mounted>, models:
             SheathState::Unarmed,
         )),
         node: None,
+        bounds: None,
     });
 }
 

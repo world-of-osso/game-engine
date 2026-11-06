@@ -1,5 +1,5 @@
 //! Offline scene-graph regression; synthetic visuals isolate host selection from asset loading.
-use super::{WorldUnits, mount, spawn_unit};
+use super::{WorldUnits, model_bounds_of, mount, spawn_unit};
 use godot::{classes::ProjectSettings, prelude::*};
 use shared::components::VehiclePassenger;
 
@@ -85,6 +85,7 @@ impl VehicleAttachmentFixture {
                 mount_id: 280,
                 display_id: 27237,
                 request: None,
+                bounds: model_bounds_of(&visual),
                 node: Some(visual),
             });
         }
