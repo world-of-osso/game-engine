@@ -91,6 +91,17 @@ impl UnitAdmissionFixture {
         unit.replace_visual(Some(visual));
     }
 
+    /// Moves a unit, as a replicated position does.
+    #[func]
+    fn place_unit(&mut self, index: i64, position: Vector3) {
+        let unit = self
+            .world
+            .units
+            .get_mut(&(index as u64 + 1))
+            .expect("Fixture unit");
+        unit.node.set_position(position);
+    }
+
     /// Reapplies attachment participation, as attachment gates do when it changes.
     #[func]
     fn refresh_shadows(&mut self, index: i64) {

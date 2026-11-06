@@ -45,6 +45,15 @@ func run_test() -> void:
 	fixture.cull(false, INTERIOR_MIN, INTERIOR_MAX, PackedVector4Array())
 	expect(WINDOWED, [ONLY, DOUBLE, OFF], "unit once its window closes")
 
+	# The admitted box follows the unit's position: moving it through the window
+	# admits it, and moving it out again rejects it.
+	fixture.place_unit(OUTSIDE, Vector3(40, 0, 0))
+	fixture.cull(false, INTERIOR_MIN, INTERIOR_MAX, PackedVector4Array([WINDOW]))
+	expect(OUTSIDE, [ON, DOUBLE, OFF], "unit moved into the window")
+	fixture.place_unit(OUTSIDE, Vector3(-30, 0, 0))
+	fixture.cull(false, INTERIOR_MIN, INTERIOR_MAX, PackedVector4Array([WINDOW]))
+	expect(OUTSIDE, [ONLY, DOUBLE, OFF], "unit moved back out of the window")
+
 	# A new visual on a rejected unit is rejected with it.
 	fixture.replace_visual(OUTSIDE)
 	expect(OUTSIDE, [ON, DOUBLE, OFF], "fresh visual before culling")

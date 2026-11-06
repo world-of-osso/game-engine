@@ -3399,8 +3399,12 @@ impl GameClient {
             self.world_objects.cull_wmos(camera, &frustum);
             drop(span);
             let (windows, interiors) = self.world_objects.outdoor_visibility();
+            let span = profile::span(|| "cull.terrain_outdoor".to_owned());
             self.terrain_materials.cull_outdoor(windows, interiors);
+            drop(span);
+            let span = profile::span(|| "cull.units_outdoor".to_owned());
             self.world.cull_outdoor(windows, interiors);
+            drop(span);
             let span = profile::span(|| "cull.doodads".to_owned());
             self.world_objects
                 .cull_doodads(camera, &frustum, delta_ms, frame);
