@@ -1,4 +1,15 @@
 ## The 2959 hillside pond is legacy material-1 water with zero colour inputs
+## Healer ground rings drawn on the visible surface
+
+Client-only rings now sit under each party member: a clockwise-shrinking health arc
+hidden above 92%, a pulsing outer ring for the dispel schools of the player's known
+DB2 spells, screen-edge chevrons for off-screen members and click picking on the drawn
+arc. Scope defaults on for healer parties, off for other roles and raids (lowest-N
+opt-in), and the HUD page carries the controls in both skins. Forever captures and
+pixel diffs live in `/syncthing/AgentShared/2026-11-05/healer-ground-ring/`; the
+feature's own cost measures 0.12-0.16 ms per debug frame. [[healer-ground-rings]]
+
+## Object-42 A/B on real release builds; streaming and legacy water colour still open
 
 With the release build fixed on master, the object-42 change is measured on genuine release artefacts (pre-fix library still contains the drop error string, post-fix does not; `/proc/<pid>/maps` confirmed the path each run): map 2959 goes from 73 dropped ocean layers to 0, map 2980 from 42 to 0, object counts unchanged. The silent non-attachment is located at `queue_tile`'s wordless early return when the tile is not in `wdt.tiles.active`, with the two sides using opposite `(row, col)` / `(col, row)` orders — but adding the transposed containment test changed nothing, so that is not the whole cause and was reverted. Legacy material-1 water colour turns out to come from per-view environment records, not LightData, so the current behaviour stays with the gap documented. [[northshire-pale-water#Release-library A/B, and where the silent non-attachment actually lives — 2026-11-05]].
 ## Area trigger ground art is the display kit, not the cast burst
