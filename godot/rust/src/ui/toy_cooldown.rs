@@ -19,6 +19,10 @@ impl RegistryUi {
         fraction: f32,
         opacity: f32,
     ) -> Result<(), String> {
+        // No swipe to hide and none to show: skip the frame and node lookups.
+        if fraction <= 0.0 && !self.cooldown_swipes.contains(name) {
+            return Ok(());
+        }
         let Some(mut parent) = self.frame_control(name) else {
             return Ok(());
         };
@@ -38,6 +42,7 @@ impl RegistryUi {
             rect.set_mouse_filter(godot::classes::control::MouseFilter::IGNORE);
             rect.set_material(&material);
             parent.add_child(&rect);
+            self.cooldown_swipes.insert(name.to_owned());
             rect
         };
         rect.set_size(parent.get_size());

@@ -521,7 +521,14 @@ pub(crate) struct TerrainObjects {
     spawned_wmos: BTreeSet<u32>,
     wmo_doodads: HashMap<u32, WmoDoodads>,
     doodads: Vec<CulledDoodad>,
+    /// Indices of the doodads with particle emitters or ribbons, in `doodads` order.
+    emitting_doodads: Vec<usize>,
     scenery_index: SceneryIndex,
+    /// Whether the last portal cull drew a different set of WMO groups than the one
+    /// before it.
+    wmo_drawn_changed: bool,
+    /// The camera and frustum of the last portal cull, until a WMO is added.
+    wmo_cull_view: Option<(Vec3, Vec<HalfSpace>)>,
     wmos: Vec<CulledWmo>,
     outdoor_windows: Option<Vec<Vec<HalfSpace>>>,
     interior_bounds: Vec<(Vec3, Vec3)>,
@@ -580,7 +587,10 @@ impl TerrainObjects {
             spawned_wmos: BTreeSet::new(),
             wmo_doodads: HashMap::new(),
             doodads: Vec::new(),
+            emitting_doodads: Vec::new(),
             scenery_index: SceneryIndex::default(),
+            wmo_drawn_changed: true,
+            wmo_cull_view: None,
             wmos: Vec::new(),
             outdoor_windows: None,
             interior_bounds: Vec::new(),
@@ -1287,6 +1297,9 @@ impl TerrainObjects {
         }
         let animated = doodad.bones.is_some() || doodad.materials.is_some();
         self.scenery_index.push(doodad.scenery, animated);
+        if doodad.particles.is_some() || doodad.ribbons.is_some() {
+            self.emitting_doodads.push(self.doodads.len());
+        }
         self.doodads.push(doodad);
     }
 
@@ -1367,6 +1380,7 @@ impl TerrainObjects {
         culled: CulledWmo,
     ) {
         self.wmos.push(culled);
+        self.wmo_cull_view = None;
         self.queue_wmo_doodads(wmo, node, doodads, self.wmos.len() - 1);
     }
 
@@ -1466,8 +1480,20 @@ impl TerrainObjects {
     /// whose groups this frame culled.
     pub fn cull_wmos(&mut self, camera: Vector3, frustum: &[HalfSpace]) {
         let camera = Vec3::new(camera.x, camera.y, camera.z);
+        // Portal visibility depends only on the view and the WMOs: an unchanged view
+        // keeps the groups, windows and interiors of the last cull.
+        if self
+            .wmo_cull_view
+            .as_ref()
+            .is_some_and(|(seen, planes)| *seen == camera && planes.as_slice() == frustum)
+        {
+            self.wmo_drawn_changed = false;
+            return;
+        }
+        self.wmo_cull_view = Some((camera, frustum.to_vec()));
         self.outdoor_windows = None;
         self.interior_bounds.clear();
+        self.wmo_drawn_changed = false;
         for wmo in &mut self.wmos {
             let visibility = wmo
                 .portals
@@ -1482,6 +1508,7 @@ impl TerrainObjects {
             let drawn = visibility.groups;
             // Only groups whose state changed touch their batch nodes.
             let previous = wmo.drawn.take();
+            self.wmo_drawn_changed |= previous.as_ref() != Some(&drawn);
             for (&group, batches) in &mut wmo.groups {
                 let shown = drawn.get(group as usize).copied().unwrap_or(false);
                 let was = previous
@@ -1515,7 +1542,9 @@ impl TerrainObjects {
         let camera = Vec3::new(camera.x, camera.y, camera.z);
         self.scenery_index
             .update_admission(self.outdoor_windows.as_deref(), &self.interior_bounds);
-        let (work, admission) = self.scenery_index.update_with_admission(camera);
+        let (work, admission) = self
+            .scenery_index
+            .update_with_admission(camera, self.wmo_drawn_changed);
         for &index in work {
             let doodad = &mut self.doodads[index];
             let group_drawn = doodad.group_drawn(&self.wmos);
@@ -1550,10 +1579,8 @@ impl TerrainObjects {
         let started = Instant::now();
         pools.begin_frame();
         let mut updated = 0;
-        for doodad in &mut self.doodads {
-            if doodad.particles.is_none() && doodad.ribbons.is_none() {
-                continue;
-            }
+        for &index in &self.emitting_doodads {
+            let doodad = &mut self.doodads[index];
             let visible = doodad.opacity > 0.0 && doodad.scenery.box_in_frustum(frustum);
             if let Some(placed) = &mut doodad.particles {
                 if visible {
@@ -1636,8 +1663,10 @@ impl TerrainObjects {
         self.spawned_wmos.clear();
         self.wmo_doodads.clear();
         self.doodads.clear();
+        self.emitting_doodads.clear();
         self.scenery_index = SceneryIndex::default();
         self.wmos.clear();
+        self.wmo_cull_view = None;
         self.progress = TileProgress::default();
         self.nearby = super::object_progress::NearbyProgress::default();
         self.priority_focus = None;

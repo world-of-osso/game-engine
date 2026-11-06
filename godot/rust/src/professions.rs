@@ -41,6 +41,8 @@ pub(crate) struct Professions {
     order_form_initialized: bool,
     pub(crate) concentration: Option<shared::concentration::ConcentrationSnapshot>,
     concentration_skill: Option<u32>,
+    /// Whether `book.recipes` reflects the current snapshot and catalogs.
+    recipes_current: bool,
 }
 impl Professions {
     pub(crate) fn recipe(
@@ -97,6 +99,7 @@ impl Professions {
             Ok(result) => {
                 self.loading = None;
                 self.catalog = Some(result?);
+                self.recipes_current = false;
             }
             Err(TryRecvError::Empty) => {}
             Err(TryRecvError::Disconnected) => {
@@ -119,6 +122,7 @@ impl GameClient {
             self.professions.selected_favorite = false;
         }
         self.professions.book.snapshot = snapshot;
+        self.professions.recipes_current = false;
     }
     pub(super) fn receive_profession_concentration(
         &mut self,
@@ -250,12 +254,36 @@ impl GameClient {
         Ok(())
     }
     fn refresh_profession_recipes(&mut self) {
-        let Some(catalog) = self.professions.catalog.as_ref() else {
+        if !self.professions.recipes_current && !self.rebuild_profession_recipes() {
             return;
+        }
+        if self.professions.book.selected_recipe().is_none() {
+            self.professions.book.selected = self
+                .professions
+                .book
+                .recipes
+                .iter()
+                .min_by_key(|recipe| {
+                    !self
+                        .professions
+                        .book
+                        .snapshot
+                        .spells
+                        .contains(&recipe.spell_id)
+                })
+                .map(|recipe| recipe.spell_id);
+        }
+    }
+    /// The learned recipes, rebuilt only after the snapshot or the recipe catalog
+    /// changed; `false` until both catalogs are loaded.
+    fn rebuild_profession_recipes(&mut self) -> bool {
+        let Some(catalog) = self.professions.catalog.as_ref() else {
+            return false;
         };
         let Some(spells) = self.spells.catalog() else {
-            return;
+            return false;
         };
+        self.professions.recipes_current = true;
         self.professions.book.recipes = catalog
             .recipes
             .iter()
@@ -274,22 +302,7 @@ impl GameClient {
                 Some(recipe)
             })
             .collect();
-        if self.professions.book.selected_recipe().is_none() {
-            self.professions.book.selected = self
-                .professions
-                .book
-                .recipes
-                .iter()
-                .min_by_key(|recipe| {
-                    !self
-                        .professions
-                        .book
-                        .snapshot
-                        .spells
-                        .contains(&recipe.spell_id)
-                })
-                .map(|recipe| recipe.spell_id);
-        }
+        true
     }
     fn apply_profession_key(&mut self) -> Result<(), FrameError> {
         if self.game_menu_ui.is_some() || !self.account.session.gameplay_input_allowed() {

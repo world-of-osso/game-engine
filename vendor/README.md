@@ -1,8 +1,9 @@
 # Patched crates
 
-Copied from `world-of-osso/bevy-patches` at fork commit
-`ad6dd31447a48082bcdcc783f4a4951c9d47e4ba`. No sibling checkout is required.
-Only `ktx2-rw` and `taffy` are patched; Bevy dependencies remain registry crates.
+`ktx2-rw` and `taffy` are copied from `world-of-osso/bevy-patches` at fork commit
+`ad6dd31447a48082bcdcc783f4a4951c9d47e4ba`; `godot-ffi` is the crates.io 0.5.5 package.
+No sibling checkout is required. Only these three are patched; Bevy dependencies remain
+registry crates.
 Sources, examples, tests, authorship and license declarations are retained.
 Neither imported package contained separate LICENSE files.
 
@@ -47,3 +48,42 @@ Standalone crate tests can run with `cargo test --manifest-path
 vendor/taffy/Cargo.toml --test rounding_gaps` (through `agent-run` for agents).
 Godot tests use `scripts/engine-build.py`; its source snapshot includes `vendor/`,
 including taffy's compile-time README input.
+
+## godot-ffi (MPL-2.0)
+
+The crates.io `godot-ffi` 0.5.5 package (gdext commit
+`e7b3a4a7dc9678a5502dc8432c258c702ff89429`), with its normalized `Cargo.toml`, `build.rs`
+and `src/`. One change, in `src/lib.rs` `is_main_thread`: the calling thread's id comes
+from a thread-local instead of `std::thread::current().id()`. With the default balanced
+safeguards every engine call checks the main thread; `std::thread::current()` clones and
+drops the thread handle (two atomic operations) each time: 4.4% of the main thread's CPU
+in Stormwind in a release profile (`docs/wiki/investigations/godot-stormwind-fps.md`). The comparison with
+`main_thread_id()` is unchanged, so `discover_main_thread` still moves the main thread.
+
+Retire the patch when upstream godot-rust releases an equivalent fix.
+
+### Upstream patch note
+
+Title: `is_main_thread`: cache the calling thread's id in a thread-local.
+
+```diff
+-        std::thread::current().id() == main_thread_id()
++        thread_local! {
++            static CURRENT_THREAD_ID: std::thread::ThreadId = std::thread::current().id();
++        }
++        CURRENT_THREAD_ID.with(|id| *id == main_thread_id())
+```
+
+With balanced safeguards every engine call checks the main thread, and
+`std::thread::current()` clones and drops the `Thread` handle (an atomic increment and
+decrement) each time. A thread's id never changes, so a lazily initialized thread-local
+gives the same answer; `main_thread_id()` is still read on every call, so
+`discover_main_thread` still moves the main thread.
+
+Benchmark (Godot 4.7.2 release template, Linux, Stormwind indoor pose, 1920x1080):
+- microbenchmark: 15.1 → 4.8 ns per `is_main_thread` call;
+- frame-pointer profile: `std::thread::current` was 4.4% (release) to 9% (debug) of
+  main-thread samples;
+- interleaved A/B, 4 pairs per build (`data/diagnostics/fps-measure-2026-11-06/close-2`):
+  main-thread CPU 15.73 → 15.05 ms per frame (−0.68 ms), client process 10.54 → 9.78 ms,
+  p99 frame 47.2 → 38.5 ms.
