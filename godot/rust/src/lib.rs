@@ -128,6 +128,7 @@ mod startup;
 mod swim;
 mod targeting;
 mod terrain;
+mod thread_clock;
 mod tooltip_sources;
 mod tooltip_units;
 mod tooltips;
@@ -1421,10 +1422,17 @@ impl GameClient {
     }
 
     /// The calling thread's CPU time in milliseconds, or -1 where it cannot be read.
-    /// Benchmarks also call it on the render thread through `call_on_render_thread`.
     #[func]
     fn thread_cpu_ms() -> f64 {
-        profile::thread_cpu_ms().unwrap_or(-1.0)
+        thread_clock::thread_cpu_ms().unwrap_or(-1.0)
+    }
+
+    /// CPU time in milliseconds of the one thread of this process named `name` (set
+    /// with `OS.set_thread_name` on that thread), or -1 when no single thread has that
+    /// name. Read from the main thread: the render thread may not call into the extension.
+    #[func]
+    fn named_thread_cpu_ms(name: GString) -> f64 {
+        thread_clock::named_thread_cpu_ms(&name.to_string()).unwrap_or(-1.0)
     }
 
     /// Main-thread time of the last `process`, in milliseconds.
