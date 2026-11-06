@@ -1,26 +1,31 @@
 //! Floating damage labels and their animation.
 
-use crate::{GameClient, combat_text};
-use godot::classes::{Label3D, base_material_3d::BillboardMode};
+use crate::{GameClient, combat_text, replicated::UnitFields};
+use godot::classes::{FontFile, Label3D, base_material_3d::BillboardMode};
 use godot::prelude::*;
 use shared::protocol::{CombatLogEvent, CombatLogKind};
+use ui_toolkit::widgets::font_string::GameFont;
 
-/// Floating combat text rises this far over its lifetime.
-const FLOAT_TEXT_RISE: f32 = 1.5;
-const FLOAT_TEXT_SECS: f32 = 1.5;
+use combat_text::{Attacker, Style};
+
 /// Height above the unit origin where combat text starts.
 const FLOAT_TEXT_HEIGHT: f32 = 3.6;
 /// Combat text `pixel_size` at its settled size.
 const FLOAT_TEXT_PIXEL: f32 = 0.0016;
-/// Font size of a hit; a crit is 1.5 times it.
+/// Font size of a hit; a crit is 1.5 times it (`WorldText.cpp:44-56`: 0.0275 / 0.0183).
 const FLOAT_TEXT_FONT_SIZE: i32 = 64;
 /// Normal text heights in one unit of the combat text start spread.
 const FLOAT_TEXT_SPREAD_HEIGHTS: f32 = 1.5;
+/// Simultaneous world texts one unit may hold (`PlayerName.cpp:711-746`).
+const SLOTS_PER_UNIT: usize = 4;
 
 pub(super) struct FloatingText {
     pub(super) node: Gd<Label3D>,
+    /// The unit this text floats over, for the per-unit slot limit.
+    unit: u64,
     age: f32,
     origin: Vector3,
+    style: Style,
     crit: bool,
 }
 
@@ -30,24 +35,25 @@ impl FloatingText {
         if !self.node.is_instance_valid() {
             return false;
         }
-        if self.age >= FLOAT_TEXT_SECS {
+        if self.age >= self.style.duration {
             self.node.clone().queue_free();
             return false;
         }
-        let t = self.age / FLOAT_TEXT_SECS;
+        let t = self.age / self.style.duration;
         self.node
-            .set_position(self.origin + Vector3::new(0.0, FLOAT_TEXT_RISE * t, 0.0));
+            .set_position(self.origin + Vector3::new(0.0, self.style.ascend * t, 0.0));
         self.node
             .set_pixel_size(FLOAT_TEXT_PIXEL * combat_text::ramp_scale(self.age, self.crit));
         let mut color = self.node.get_modulate();
-        color.a = 1.0 - t * t;
+        color.a = combat_text::fade_alpha(self.age, self.style);
         self.node.set_modulate(color);
         true
     }
 }
 
 /// Floating combat text size: 64, × 1.5 for a crit and × 0.75 for a glancing blow
-/// (`CombatFeedback_OnCombatEvent`, CombatFeedback.lua:39-42).
+/// (`WorldText.cpp:44-56` for the crit ratio; `CombatFeedback_OnCombatEvent`,
+/// CombatFeedback.lua:39-42, for the glancing size).
 pub(super) fn combat_text_size(event: &CombatLogEvent) -> i32 {
     if event.crit {
         FLOAT_TEXT_FONT_SIZE * 3 / 2
@@ -58,31 +64,95 @@ pub(super) fn combat_text_size(event: &CombatLogEvent) -> i32 {
     }
 }
 
-fn spawn_combat_label(event: &CombatLogEvent) -> Gd<Label3D> {
-    let text = match event.kind {
-        CombatLogKind::Miss(kind) => format!("{kind:?}"),
-        _ if event.crit => format!("{}!", event.amount),
-        _ => event.amount.to_string(),
+/// The fixture's scripted events, one per `index % SCRIPT.len()`: a plain hit, a crit, a
+/// heal, a heal crit, Dodge, Absorb, pet melee, pet spell and a periodic tick.
+fn preview_combat_event(index: u32) -> (CombatLogEvent, Attacker) {
+    use shared::protocol::{CombatLogKind, MissKind};
+
+    let event = |kind: CombatLogKind, amount: i32, crit: bool, periodic: bool, spell: bool| {
+        CombatLogEvent {
+            source: Some(1),
+            target: Some(2),
+            spell_id: spell.then_some(133),
+            school_mask: 4,
+            amount,
+            overflow: 0,
+            absorbed: 0,
+            resisted: 0,
+            blocked: 0,
+            crit,
+            glancing: false,
+            periodic,
+            extra_spell_id: None,
+            timestamp_unix_ms: 0,
+            kind,
+        }
     };
+    let script = [
+        (
+            event(CombatLogKind::Damage, 1234, false, false, true),
+            Attacker::Player,
+        ),
+        (
+            event(CombatLogKind::Damage, 2345, true, false, true),
+            Attacker::Player,
+        ),
+        (
+            event(CombatLogKind::Heal, 700, false, false, true),
+            Attacker::Player,
+        ),
+        (
+            event(CombatLogKind::Heal, 900, true, false, true),
+            Attacker::Player,
+        ),
+        (
+            event(CombatLogKind::Miss(MissKind::Dodge), 0, false, false, false),
+            Attacker::Player,
+        ),
+        (
+            event(CombatLogKind::Miss(MissKind::Absorb), 0, false, false, true),
+            Attacker::Player,
+        ),
+        (
+            event(CombatLogKind::Damage, 321, false, false, false),
+            Attacker::PetMelee,
+        ),
+        (
+            event(CombatLogKind::Damage, 654, false, false, true),
+            Attacker::PetSpell,
+        ),
+        (
+            event(CombatLogKind::Damage, 88, false, true, true),
+            Attacker::Player,
+        ),
+    ];
+    script[index as usize % script.len()].clone()
+}
+
+/// The world font is `DAMAGE_TEXT_FONT` at `SystemFont_World`'s height 64 with a black
+/// shadow (`Blizzard_Fonts_Shared/Shared/GameFonts.xml:22-23`, `Fonts.xml:1060-1088`).
+fn world_font() -> Option<Gd<FontFile>> {
+    crate::ui::assets::load_font(GameFont::FrizQuadrata).ok()
+}
+
+fn spawn_combat_label(event: &CombatLogEvent, text: &combat_text::FloatText) -> Gd<Label3D> {
     let mut label = Label3D::new_alloc();
     label.set_name("CombatText");
-    label.set_text(&text);
+    label.set_text(&text.text);
     label.set_billboard_mode(BillboardMode::ENABLED);
     label.set_draw_flag(
         godot::classes::label_3d::DrawFlags::DISABLE_DEPTH_TEST,
         true,
     );
+    if let Some(font) = world_font() {
+        label.set_font(&font);
+    }
     label.set_font_size(combat_text_size(event));
     label.set_outline_size(8);
-    // Constant on-screen size, as Retail combat text.
+    // Constant on-screen size, as 15890 draws world text in a screen-space ortho projection
+    // at a fixed NDC height (`WorldText.cpp:234-253`).
     label.set_draw_flag(godot::classes::label_3d::DrawFlags::FIXED_SIZE, true);
-    // Retail white for physical damage, yellow for spell schools.
-    let color = if event.school_mask == 1 {
-        Color::from_rgb(1.0, 1.0, 1.0)
-    } else {
-        Color::from_rgb(1.0, 1.0, 0.0)
-    };
-    label.set_modulate(color);
+    label.set_modulate(Color::from_rgb(text.color[0], text.color[1], text.color[2]));
     label
 }
 
@@ -90,19 +160,25 @@ impl GameClient {
     /// Retail floating combat text over the target for the player's own damage.
     pub(super) fn float_combat_text(&mut self, delta: f32) {
         let events = self.take_combat_text_events();
-        let camera = self
-            .base()
-            .get_viewport()
-            .and_then(|viewport| viewport.get_camera_3d())
-            .map(|camera| camera.get_global_transform());
-        for event in events {
-            self.spawn_combat_text(&event, camera);
+        let camera = self.combat_text_camera();
+        for (event, attacker) in events {
+            self.spawn_combat_text(&event, attacker, camera);
         }
         self.spells.floating.retain_mut(|text| text.advance(delta));
     }
 
-    fn take_combat_text_events(&mut self) -> Vec<CombatLogEvent> {
-        let player = self.world.local_player_id();
+    fn combat_text_camera(&self) -> Option<Transform3D> {
+        self.base()
+            .get_viewport()
+            .and_then(|viewport| viewport.get_camera_3d())
+            .map(|camera| camera.get_global_transform())
+    }
+
+    fn take_combat_text_events(&mut self) -> Vec<(CombatLogEvent, Attacker)> {
+        let Some(player) = self.world.local_player_id() else {
+            self.spells.combat_seen = self.account.combat_log_seq;
+            return Vec::new();
+        };
         let seq = self.account.combat_log_seq;
         let fresh = (seq - self.spells.combat_seen).min(self.account.combat_log.len() as u64);
         self.spells.combat_seen = seq;
@@ -110,32 +186,138 @@ impl GameClient {
             .combat_log
             .iter()
             .skip(self.account.combat_log.len() - fresh as usize)
-            .filter(|event| event.source.is_some() && event.source == player)
-            .filter(|event| matches!(event.kind, CombatLogKind::Damage | CombatLogKind::Miss(_)))
-            .cloned()
+            .filter(|event| {
+                matches!(
+                    event.kind,
+                    CombatLogKind::Damage | CombatLogKind::Heal | CombatLogKind::Miss(_)
+                )
+            })
+            .filter_map(|event| {
+                let attacker = self.combat_text_attacker(event, player)?;
+                Some((event.clone(), attacker))
+            })
             .collect()
     }
 
-    fn spawn_combat_text(&mut self, event: &CombatLogEvent, camera: Option<Transform3D>) {
-        let (Some(unit), Some(camera)) =
-            (event.target.and_then(|id| self.world.unit_node(id)), camera)
-        else {
+    /// Who caused `event` from the local player's view: the player, or a pet/guardian it owns
+    /// (`IsOwnedByActivePlayer`, `Unit_C.cpp:17681-17702`). A pet's melee swing carries no
+    /// spell, its abilities do (`Unit_C.cpp:17753-17757`).
+    fn combat_text_attacker(&self, event: &CombatLogEvent, player: u64) -> Option<Attacker> {
+        let source = event.source?;
+        if source == player {
+            return Some(Attacker::Player);
+        }
+        let unit = self.replica.unit(source)?;
+        let owner = unit.summoned_by()?;
+        let owner_of_owner = self.replica.unit(owner)?.summoned_by();
+        if owner != player && owner_of_owner != Some(player) {
+            return None;
+        }
+        Some(if event.spell_id.is_none() {
+            Attacker::PetMelee
+        } else {
+            Attacker::PetSpell
+        })
+    }
+
+    fn spawn_combat_text(
+        &mut self,
+        event: &CombatLogEvent,
+        attacker: Attacker,
+        camera: Option<Transform3D>,
+    ) {
+        let (Some(unit_id), Some(unit), Some(camera)) = (
+            event.target,
+            event.target.and_then(|id| self.world.unit_node(id)),
+            camera,
+        ) else {
             return;
         };
-        let mut label = spawn_combat_label(event);
+        // 15890 draws no world text on the active player; its damage taken is the screen
+        // combat text frame instead (`Unit_C.cpp:17744-17746`).
+        if Some(unit_id) == self.world.local_player_id() {
+            return;
+        }
+        let anchor = unit.get_global_position() + Vector3::new(0.0, FLOAT_TEXT_HEIGHT, 0.0);
+        self.spawn_combat_text_at(unit_id, anchor, event, attacker, camera);
+    }
+
+    /// Spawn one world text for `unit_id` at `anchor` (over its head), respecting that unit's
+    /// slots. Returns the live text count.
+    fn spawn_combat_text_at(
+        &mut self,
+        unit_id: u64,
+        anchor: Vector3,
+        event: &CombatLogEvent,
+        attacker: Attacker,
+        camera: Transform3D,
+    ) -> i64 {
+        let Some(text) = combat_text::text_for(event, attacker) else {
+            return self.spells.floating.len() as i64;
+        };
+        if !self.take_combat_text_slot(unit_id, text.crit) {
+            return self.spells.floating.len() as i64;
+        }
+        let mut label = spawn_combat_label(event, &text);
         // Under the client root: unit nodes carry model scale. Each number starts at
         // its own offset in the camera plane so simultaneous ones do not stack.
-        let anchor = unit.get_global_position() + Vector3::new(0.0, FLOAT_TEXT_HEIGHT, 0.0);
         let origin = self.next_combat_text_origin(anchor, camera);
         label.set_position(origin);
-        label.set_pixel_size(FLOAT_TEXT_PIXEL * combat_text::ramp_scale(0.0, event.crit));
+        label.set_pixel_size(FLOAT_TEXT_PIXEL * combat_text::ramp_scale(0.0, text.crit));
         self.base_mut().add_child(&label);
         self.spells.floating.push(FloatingText {
             node: label,
+            unit: unit_id,
             age: 0.0,
             origin,
-            crit: event.crit,
+            style: text.style,
+            crit: text.crit,
         });
+        self.spells.floating.len() as i64
+    }
+
+    /// Offline fixture: one scripted world text over `at`, for pseudo-unit `unit`; `index`
+    /// selects the event. Returns the live text count.
+    pub(crate) fn preview_float_text(&mut self, index: u32, unit: u64, at: Vector3) -> i64 {
+        let Some(camera) = self.combat_text_camera() else {
+            return self.spells.floating.len() as i64;
+        };
+        let (event, attacker) = preview_combat_event(index);
+        self.spawn_combat_text_at(unit, at, &event, attacker, camera)
+    }
+
+    /// Offline fixture: microseconds one frame spends advancing all live world texts.
+    pub(crate) fn preview_float_text_cost(&mut self, iterations: u32) -> f64 {
+        let iterations = iterations.clamp(1, 100_000);
+        let started = std::time::Instant::now();
+        for _ in 0..iterations {
+            self.spells.floating.retain_mut(|text| text.advance(0.0));
+        }
+        started.elapsed().as_secs_f64() * 1_000_000.0 / f64::from(iterations)
+    }
+
+    /// Reserve one of the unit's few world-text slots: a new crit replaces the unit's existing
+    /// crit, everything else needs a free slot (`PlayerName.cpp:711-746`).
+    fn take_combat_text_slot(&mut self, unit: u64, crit: bool) -> bool {
+        let live = self
+            .spells
+            .floating
+            .iter()
+            .filter(|text| text.unit == unit)
+            .count();
+        if crit {
+            let existing = self
+                .spells
+                .floating
+                .iter()
+                .position(|text| text.unit == unit && text.crit);
+            if let Some(index) = existing {
+                let mut replaced = self.spells.floating.remove(index);
+                replaced.node.clone().queue_free();
+                return true;
+            }
+        }
+        live < SLOTS_PER_UNIT
     }
 
     fn next_combat_text_origin(&mut self, anchor: Vector3, camera: Transform3D) -> Vector3 {

@@ -1450,6 +1450,23 @@ impl GameClient {
         self.client_options.hud.show_fps_overlay != self.framerate_toggled
     }
 
+    /// Offline fixture: float one scripted world text over `at` for pseudo-unit `unit`;
+    /// `index` selects the event. Returns the live world-text count.
+    #[func]
+    fn preview_combat_text(&mut self, index: i64, unit: i64, at: Vector3) -> i64 {
+        self.preview_float_text(
+            index.clamp(0, i64::from(u32::MAX)) as u32,
+            unit.max(0) as u64,
+            at,
+        )
+    }
+
+    /// Offline fixture: microseconds one frame spends advancing all live world texts.
+    #[func]
+    fn preview_combat_text_cost(&mut self, iterations: i64) -> f64 {
+        self.preview_float_text_cost(iterations.clamp(1, 100_000) as u32)
+    }
+
     #[func]
     fn clear_physical_input(&mut self) {
         self.physical_input.clear();
