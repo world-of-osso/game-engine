@@ -273,3 +273,11 @@ Fix: the harness inverts the real formula, `x = (31.5 - best.y) * 533.33` and `z
 Standing proof in the harness and the suite: `WORLD_CENSUS_PLACEMENT` requires every parsed tile's file stem to equal the slot it was placed in, and `core/tests/adt_tile_seams.rs` requires two adjacent ADTs to agree on every shared world X/Z vertex (129 shared vertices, maximum height difference 0.0).
 
 `StormwindJail` (map 34) is a WMO instance: its WDT carries `global_wmo_fdid` 108631 and no MAIN tiles, so the correct result there is zero tiles, not a load.
+
+## Retail receipts: skin-only gaps at Orgrimmar — 2026-11-05
+
+Retail objects fail the same way as the Forever maps, but with a different shape. At Orgrimmar the census reported 21 failures of the form `model 201781: No verified asset receipt for wow FDID 507146.skin`: the M2 itself is published, only its `skin` is not. Stormwind had none, so the gap is per-model, not per-product.
+
+The retail product the client actually resolves is `wow` build `12.1.5.70783`, key `bc493ecb2898766c0f8947a99b4b3d65`, installed under `/syncthing/World of Warcraft` — not the `/mnt/c` root that [casc extraction](../../casc-extraction.md) recorded for retail. Nine other `wow` build keys and their caches are present, so the key must be selected explicitly.
+
+`scripts/publish_forever_census.py` now takes `--product`, `--build` and `--build-key` instead of hard-coding the Forever values; the staging tree seeds the closure, so extracting the failing M2s into `models/` is enough to pull in every skin, texture and animation they name. Orgrimmar's thirty failing models published 53 receipts (36 skin, 17 blp, 4.7 MiB) and the same two poses then reported 0 failures, up from 21 and 97.
