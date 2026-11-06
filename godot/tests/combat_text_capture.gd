@@ -269,11 +269,14 @@ func measure_cost() -> void:
 ## The same screen box the engine reserves for a text (combat_text::SCREEN_PX_PER_EM), so the
 ## metric measures the placement rule itself.
 func engine_box(label: Label3D) -> Rect2:
-	# Godot keeps a Label3D at font_size * pixel_size world units per line; FRIZQT_'s digits
-	# fill 0.701 em (cap height: data/fonts/FRIZQT__.TTF OS/2 sCapHeight 701/1000).
+	# The parity build draws world-sized text: font_size * pixel_size world units per line, with
+	# FRIZQT_'s digits filling 0.701 em (cap height, data/fonts/FRIZQT__.TTF OS/2 701/1000).
+	# The baseline build still uses Godot's fixed-size flag, whose on-screen scale is a constant
+	# measured at 1699 px per em on this scene, so its box uses that factor instead.
 	var center: Vector2 = camera.unproject_position(label.global_position)
 	var em: float = float(label.font_size) * float(label.pixel_size)
-	var px := em * pixels_per_yard(camera.global_position.distance_to(label.global_position))
+	var px := 1699.0 * em if label.get_draw_flag(Label3D.FLAG_FIXED_SIZE) \
+		else em * pixels_per_yard(camera.global_position.distance_to(label.global_position))
 	var height := px * 0.701
 	var width := px * (0.5 * label.text.length() + 0.25)
 	return Rect2(center - Vector2(width * 0.5, height * 0.5), Vector2(width, height))
