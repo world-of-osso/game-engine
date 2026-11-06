@@ -1,20 +1,19 @@
 #!/usr/bin/env python3
-"""Retail's M2 effect-name hash (MurmurHash3 x64_128 variant) and a key search.
+"""Retail's M2 effect-name hash: textbook MurmurHash3 x64_128, seed 0.
 
-Retail hashes an effect name such as ``Vertex 52(2), Pixel 34(8)`` and looks it up in a global
-registry (`0x140287210` in 12.1.5.70688). The function is MurmurHash3 x64_128 with one change:
-the second half's round addend is ``0x0b41def1`` instead of ``0x38495ab5``. Decompilation gives
-the constants, the rotations and the finalisation:
+Retail hashes an effect name such as ``Vertex 52(2), Pixel 34(8)`` and looks it up in an
+in-memory registry (`0x140287210` in 12.1.5.70688). Decompilation first reported the second
+half's round addend as ``0x0b41def1``; an instruction-level emulator matched on 196 strings with
+0 mismatches then showed the image computes ``h2 = (rot + h1 + 0x0b41def1) * 5``, and
+``0x0b41def1 * 5 == 0x38495ab5``, so the algorithm is the published one:
 
-    c1 = 0x87c37b91114253d5, c2 = 0x4cf5ad432745937f   (standard)
-    k1 rotr 31, k2 rotr 33, h1 rotr 27, h2 rotr 31      (standard)
-    h1 = h1 * 5 + 0x52dce729                            (standard)
-    h2 = h2 * 5 + 0x0b41def1                            (variant)
+    c1 = 0x87c37b91114253d5, c2 = 0x4cf5ad432745937f
+    k1 rotr 31, k2 rotr 33, h1 rotr 27, h2 rotr 31
+    h1 = h1 * 5 + 0x52dce729, h2 = h2 * 5 + 0x38495ab5
     h1 ^= len, h2 ^= len, h1 += h2, h2 += h1, fmix64 both, return h1 + h2
 
-The seed is the third argument of the client function and is not proven; the search below tries
-0 and a few common seeds. `--textbook` restores 0x38495ab5 so the implementation can be checked
-against the published algorithm.
+The hash only indexes that in-memory map: it is never written to an asset, so a bundle's
+permutation keys can never match it (see docs/wiki/reference/bls-shaders.md).
 
 Usage:
     python3 scripts/bls_effect_hash.py values
@@ -29,8 +28,8 @@ import sys
 MASK = (1 << 64) - 1
 C1 = 0x87C37B91114253D5
 C2 = 0x4CF5AD432745937F
-ADDEND_STANDARD = 0x38495AB5
-ADDEND_RETAIL = 0x0B41DEF1
+# The image's per-round addend, which becomes the published constant once multiplied by five.
+ADDEND = 0x38495AB5
 
 
 def rotl(value, bits):
@@ -46,7 +45,7 @@ def fmix64(value):
     return value
 
 
-def murmur3_x64_128(data, seed=0, addend=ADDEND_RETAIL):
+def murmur3_x64_128(data, seed=0, addend=ADDEND):
     """MurmurHash3 x64_128 as the client implements it; returns the 64-bit (h1 + h2) sum."""
     h1 = seed & MASK
     h2 = seed & MASK
@@ -93,16 +92,11 @@ def murmur3_x64_128(data, seed=0, addend=ADDEND_RETAIL):
     return (h1 + h2) & MASK
 
 
-# Decompilation's own values: (name, low 32 bits, full 64 bits) for the retail constant, and the
-# textbook constant's low 32 bits where it differs.
-RETAIL_VALUES = [
-    ("M2Effect 21", 0xFEB758E6, 0x022770DBFEB758E6),
-    ("Vertex 52(2), Pixel 34(8)", 0x8947BA84, 0x72063A208947BA84),
-    ("Vertex 52(2), Pixel 35(7)", 0x5D747F0D, 0xBEE80F7E5D747F0D),
-]
-TEXTBOOK_VALUES = [
-    ("Vertex 52(2), Pixel 34(8)", 0x7B426C12),
-    ("Vertex 52(2), Pixel 35(7)", 0xB2FAB146),
+# Decompilation's final values, from the instruction-level emulator (196 strings, 0 mismatches).
+KNOWN_VALUES = [
+    ("M2Effect 21", 0x022770DBFEB758E6),
+    ("Vertex 52(2), Pixel 34(8)", 0xF76E30B48C110473),
+    ("Vertex 52(2), Pixel 35(7)", 0xFA5E2515CAFF5512),
 ]
 # Names an effect's shader ids together: the search below hashes every variant of these.
 SWAP_NAMES = [
@@ -115,20 +109,11 @@ SEEDS = [0, 1, 0x9747B28C, 0xDEADBEEF, 0xFFFFFFFF]
 
 def check_values():
     failures = 0
-    for name, low32, full64 in RETAIL_VALUES:
+    for name, full64 in KNOWN_VALUES:
         got = murmur3_x64_128(name.encode())
-        ok = got & 0xFFFFFFFF == low32 and got == full64
+        ok = got == full64
         failures += 0 if ok else 1
-        print(f"{'ok  ' if ok else 'FAIL'} retail    {name!r}: {got:#018x} (want {full64:#018x})")
-    for name, low32 in TEXTBOOK_VALUES:
-        got = murmur3_x64_128(name.encode(), addend=ADDEND_STANDARD)
-        ok = got & 0xFFFFFFFF == low32
-        failures += 0 if ok else 1
-        print(f"{'ok  ' if ok else 'FAIL'} textbook  {name!r}: {got:#018x} (low32 {low32:#010x})")
-    # The published algorithm's own vector: the empty input is 0 at seed 0 for both constants.
-    empty = murmur3_x64_128(b"", addend=ADDEND_STANDARD)
-    failures += 0 if empty == 0 else 1
-    print(f"{'ok  ' if empty == 0 else 'FAIL'} textbook  empty input: {empty:#018x} (want 0)")
+        print(f"{'ok  ' if ok else 'FAIL'} {name!r}: {got:#018x} (want {full64:#018x})")
     return failures
 
 
@@ -176,13 +161,12 @@ def search(directory):
         variants(name) for name in SWAP_NAMES
     ):
         for seed in SEEDS:
-            for addend, label in ((ADDEND_RETAIL, "retail"), (ADDEND_STANDARD, "textbook")):
-                value = murmur3_x64_128(encoded, seed=seed, addend=addend)
-                wanted = {(value & 0xFFFFFFFF, 32), (value, 64)}
-                matched = wanted & windows
-                if matched:
-                    hits += 1
-                    print(f"HIT {name} {text} seed={seed:#x} {label}: {value:#018x}")
+            value = murmur3_x64_128(encoded, seed=seed)
+            wanted = {(value & 0xFFFFFFFF, 32), (value, 64)}
+            matched = wanted & windows
+            if matched:
+                hits += 1
+                print(f"HIT {name} {text} seed={seed:#x}: {value:#018x}")
     return hits
 
 

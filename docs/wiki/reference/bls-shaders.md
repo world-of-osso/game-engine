@@ -52,23 +52,37 @@ Forever `wowf` 1.60.1.70790 bundles can publish a fixed 2048-entry permutation t
 Retail resolves an M2 batch to a shader effect by name. Two formats only
 (`work/engine-3d/M2-SHADERID-TABLES.md` §5.3): `"Vertex %d(%u), Pixel %d(%u)"` built from
 (vertexEffectId, vertexIndex, pixelEffectId, pixelIndex), and `"M2Effect %d"` for shader ids with
-bit15 set. The name is hashed by `0x140287210`, which is **MurmurHash3 x64_128 with one variant**:
-the second half's round addend is `0x0b41def1` instead of `0x38495ab5`. Everything else is
-textbook, and the function returns the 64-bit sum of the two fmix64 outputs.
+bit15 set. `0x140287210` hashes the name.
 
-`scripts/bls_effect_hash.py` implements it. Evidence status:
+The hash is **textbook MurmurHash3 x64_128 with seed 0**, returning `fmix64(h1) + fmix64(h2)`.
+Decompilation first reported a variant (`h2`'s round addend `0x0b41def1`), then an
+instruction-level emulator, matched on 196 strings with 0 mismatches, showed the image computes
+`h2 = (rot + h1 + 0x0b41def1) * 5`, and `0x0b41def1 * 5 == 0x38495ab5`: the published algorithm.
+`scripts/bls_effect_hash.py` implements it and asserts the emulator's values:
 
-- **Confirmed** with decompilation: seed 0 and this implementation are correct. All three names
-  reproduce on both sides (`"M2Effect 21"` `low32 0xfeb758e6`, `full64 0x022770dbfeb758e6`;
-  `"Vertex 52(2), Pixel 34(8)"` `0x72063a208947ba84`; `"Vertex 52(2), Pixel 35(7)"`
-  `0xbee80f7e5d747f0d`). The earlier mismatch was their block ordering, not the hash; the tail,
-  length xor, cross-adds, fmix64 and the sum were already proven by the 11-byte name.
-- **Falsified**: the bundle permutation keys are not effect-name hashes. None of the 7,553
-  permutation keys in the 331 GXSH bundles of the local shader cluster (2,976,000-2,982,000)
-  contains any of the confirmed values in any 4- or 8-byte window, and neither does any hash of
-  the names over seeds 0-64 plus four common seeds, both constants and lower/NUL variants.
-  Either the key is a program or permutation identity, or the Model2 family lies outside the
-  scanned range.
+| name | value |
+| --- | --- |
+| `M2Effect 21` | `0x022770dbfeb758e6` |
+| `Vertex 52(2), Pixel 34(8)` | `0xf76e30b48c110473` |
+| `Vertex 52(2), Pixel 35(7)` | `0xfa5e2515caff5512` |
+
+**The hash cannot identify a bundle.** It only indexes an in-memory map keyed by name; it is never
+written into an asset, so no bundle permutation key can match it. Confirmed empirically as well:
+none of the 7,553 permutation keys of the 331 GXSH bundles in the local 2,976,000-2,982,000 range
+equals any of the three values above, nor any hash of the names over seeds 0-64 plus four common
+seeds and raw/lower/NUL spellings.
+
+Bundle facts the emulator settled (`work/engine-3d/SHADER-NAME-HASH.md`):
+
+- A permutation entry is `{u32 packed = (chunk_index << 14) | offset_in_chunk, u32 size}` in a
+  zlib-compressed payload, `size == 0` meaning deleted. Stride 8 for format `0x1000e`, 24 for the
+  older formats. Our reader already uses the 24-byte form for the tested discriminators; the
+  8-byte form is the one to use for the 331 bundles above.
+- Bundles are addressed by FileDataID from static tables in the executable; 329 of those ids fall
+  inside 2,976,000-2,982,000, which is the range scanned above (331 files with GXSH magic).
+- The loader compares DWORD `0x47585348`, the bytes `HSXG` on disk. An optional TAFG wrapper
+  (`0x47464154`, version `0x1000b`) may precede it.
+- Which record is Model2, and the per-effect permutation value, are not derivable from the image.
 
 ## Liquid findings (verified 2026-11-05)
 
