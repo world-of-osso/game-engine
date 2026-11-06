@@ -2925,6 +2925,7 @@ impl RegistryUi {
         if !model.replace_state(state) {
             return Ok(());
         }
+        let _span = crate::profile::span(|| format!("ui.set_state {}", std::any::type_name::<T>()));
         self.sync_model()
     }
 

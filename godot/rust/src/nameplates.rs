@@ -630,6 +630,8 @@ struct PlateNodes {
     cast: CastNodes,
     /// Aura icon slots, grown to the most auras the plate has shown.
     auras: Vec<AuraNodes>,
+    /// The text theme overrides last set: each set makes Godot reshape the label's text.
+    text_style: Option<(i32, Color)>,
 }
 
 struct AuraNodes {
@@ -962,6 +964,7 @@ fn spawn_plate(
         level,
         cast,
         auras: Vec::new(),
+        text_style: None,
     }
 }
 
@@ -1129,11 +1132,19 @@ fn apply_plate(
         if label.get_text().to_string() != *text {
             label.set_text(text);
         }
-        label.add_theme_font_size_override("font_size", font_size);
     }
-    plate
-        .name
-        .add_theme_color_override("font_color", view.name_color);
+    if plate.text_style != Some((font_size, view.name_color)) {
+        plate.text_style = Some((font_size, view.name_color));
+        plate
+            .name
+            .add_theme_font_size_override("font_size", font_size);
+        plate
+            .health
+            .add_theme_font_size_override("font_size", font_size);
+        plate
+            .name
+            .add_theme_color_override("font_color", view.name_color);
+    }
     let name = text_size(&view.name);
     let inside = match layout.text {
         PlateText::Inside {
