@@ -134,6 +134,31 @@ fn quad_batch_textures_report_radial_profiles() {
 }
 
 #[test]
+fn quad_batches_report_positions_and_uvs() {
+    for fdid in [1522961u32, 1248077, 1387771] {
+        let model = model(fdid);
+        for (index, unit) in model.batches.iter().enumerate() {
+            let submesh = &model.submeshes[usize::from(unit.submesh_index)];
+            if submesh.vertex_count > 8 {
+                continue;
+            }
+            let start = usize::from(submesh.vertex_start);
+            let end = start + usize::from(submesh.vertex_count);
+            println!(
+                "QUAD {fdid} unit {index} shader {:#06x} verts:",
+                unit.shader_id
+            );
+            for vertex in &model.vertices[start..end] {
+                println!(
+                    "    pos {:?} uv1 {:?} uv2 {:?}",
+                    vertex.position, vertex.tex_coords, vertex.tex_coords_2
+                );
+            }
+        }
+    }
+}
+
+#[test]
 fn disc_batches_report_texture_alpha_and_wrap() {
     for fdid in [1522961u32, 1248077, 1387770, 1387771] {
         let model = model(fdid);
