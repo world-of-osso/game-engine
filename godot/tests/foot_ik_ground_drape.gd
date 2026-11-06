@@ -547,6 +547,13 @@ func capture_trigger(spell: int, prefix: String, shots: Array) -> void:
 		pulse += 1
 		# The one-shot fades in over its first 600 ms; capture at its steady frame.
 		await wait_ms(800)
+		# A/B: CAPTURE_HIDE lists batch names to hide (e.g. "Batch1,Batch2").
+		var hide := OS.get_environment("CAPTURE_HIDE")
+		if hide != "":
+			for name in hide.split(","):
+				client.preview_hide_batches(name.strip_edges(), true)
+		if OS.get_environment("CAPTURE_MATERIALS") != "":
+			print("MATERIALS-%s %s" % [shot[1], JSON.stringify(client.preview_kit_materials())])
 		var extent := effect_extent()
 		print("EXTENT-%s-%s %s" % [prefix, shot[1], JSON.stringify(extent)])
 		await capture("area-trigger-%s-%s" % [prefix, shot[1]], false)

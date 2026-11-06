@@ -977,11 +977,55 @@ impl GameClient {
         self.clear_preview_kits();
     }
 
+    /// Offline fixture: hide or show the mesh batches of the previewed spell kits whose name
+    /// starts with `prefix` (`Batch0`, `Batch1`, ...), to A/B which batch draws what.
+    #[func]
+    fn preview_hide_batches(&mut self, prefix: GString, hidden: bool) {
+        let prefix = prefix.to_string();
+        for anchor in self.preview_kit_anchors() {
+            for mesh in anchor
+                .find_children_ex("*")
+                .type_("MeshInstance3D")
+                .owned(false)
+                .recursive(true)
+                .done()
+                .iter_shared()
+            {
+                let Ok(mut mesh) = mesh.try_cast::<godot::classes::MeshInstance3D>() else {
+                    continue;
+                };
+                if mesh.get_name().to_string().starts_with(&prefix) {
+                    mesh.set_visible(!hidden);
+                }
+            }
+        }
+        // The area-trigger previews draw under their own anchors.
+        for anchor in self.spell_effects.area_trigger_nodes() {
+            for mesh in anchor
+                .find_children_ex("*")
+                .type_("MeshInstance3D")
+                .owned(false)
+                .recursive(true)
+                .done()
+                .iter_shared()
+            {
+                let Ok(mut mesh) = mesh.try_cast::<godot::classes::MeshInstance3D>() else {
+                    continue;
+                };
+                if mesh.get_name().to_string().starts_with(&prefix) {
+                    mesh.set_visible(!hidden);
+                }
+            }
+        }
+    }
+
     /// Offline fixture: the material values applied to each previewed kit batch.
     #[func]
     fn preview_kit_materials(&mut self) -> VarArray {
         let mut out = VarArray::new();
-        for anchor in self.preview_kit_anchors() {
+        let mut anchors = self.preview_kit_anchors();
+        anchors.extend(self.spell_effects.area_trigger_nodes());
+        for anchor in anchors {
             let meshes = anchor
                 .find_children_ex("*")
                 .type_("MeshInstance3D")

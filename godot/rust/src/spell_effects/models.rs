@@ -203,6 +203,15 @@ impl SpellEffects {
         Ok(())
     }
 
+    /// The anchors of the area triggers currently shown, for the offline fixtures.
+    pub(crate) fn area_trigger_nodes(&self) -> Vec<Gd<Node3D>> {
+        self.area_trigger_anchors
+            .values()
+            .filter(|anchor| anchor.is_instance_valid())
+            .cloned()
+            .collect()
+    }
+
     /// Free the anchors of triggers the replica stopped reporting. Only those may be freed:
     /// a trigger the replica never saw (a preview fixture injecting one directly) must keep
     /// its anchor, or the models it queued resolve against a freed node and never draw.
