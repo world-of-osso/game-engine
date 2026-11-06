@@ -31,7 +31,7 @@ func run() -> void:
 		fail("Scenery fade probe is unavailable")
 		return
 	var shader := Shader.new()
-	shader.code = "shader_type spatial; uniform vec4 tint; uniform float scenery_opacity = 1.0; void fragment() { ALBEDO = tint.rgb; ALPHA = scenery_opacity; }"
+	shader.code = "shader_type spatial; uniform vec4 tint; instance uniform float scenery_opacity = 1.0; void fragment() { ALBEDO = tint.rgb; ALPHA = scenery_opacity; }"
 	var fade_shader := Shader.new()
 	fade_shader.code = shader.code
 	var red := Vector4(1.0, 0.0, 0.0, 1.0)
@@ -59,7 +59,7 @@ func run() -> void:
 	if shared != bm.material_override or shared == cm.material_override or shared == dm.material_override or shared == em.material_override:
 		fail("Material equality or animation isolation is wrong")
 		return
-	var original_opacity = (shared as ShaderMaterial).get_shader_parameter("scenery_opacity")
+	var original_opacity = am.get_instance_shader_parameter("scenery_opacity")
 	if original_opacity != null and original_opacity != 1.0:
 		fail("Peer opacity was not at the shader default")
 		return
@@ -68,14 +68,26 @@ func run() -> void:
 	if faded_material == shared or bm.material_override != shared or faded_material.shader != fade_shader or (shared as ShaderMaterial).shader != shader:
 		fail("Fading one placement changed its shared peer or shader")
 		return
-	if absf(faded_material.get_shader_parameter("scenery_opacity") - 0.5) > 0.001:
+	if faded_material.get_shader_parameter("tint") != red:
+		fail("Fade material lost the shared material's parameters")
+		return
+	if absf(am.get_instance_shader_parameter("scenery_opacity") - 0.5) > 0.001:
 		fail("Fading placement did not receive opacity")
 		return
-	var peer_opacity = (bm.material_override as ShaderMaterial).get_shader_parameter("scenery_opacity")
-	# Resource duplication can cache the shader's default on the original material.
+	var peer_opacity = bm.get_instance_shader_parameter("scenery_opacity")
 	if peer_opacity != null and peer_opacity != 1.0:
 		fail("Fading placement changed its peer's effective opacity: %s -> %s" % [original_opacity, peer_opacity])
 		return
+	# A second fading placement of the same shared material reuses the fade material and
+	# keeps its own opacity: fading makes no per-placement material.
+	probes[1].set_opacity(0.25)
+	if bm.material_override != faded_material:
+		fail("Fading peers of one shared material did not share its fade material")
+		return
+	if absf(am.get_instance_shader_parameter("scenery_opacity") - 0.5) > 0.001 or absf(bm.get_instance_shader_parameter("scenery_opacity") - 0.25) > 0.001:
+		fail("Fading peers did not keep independent opacities")
+		return
+	probes[1].set_opacity(1.0)
 	if am.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_OFF:
 		fail("Fading placement still casts shadows")
 		return

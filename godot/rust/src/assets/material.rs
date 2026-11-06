@@ -52,6 +52,9 @@ thread_local! {
         RefCell::new(HashMap::new());
     static SCENERY_SHADER_DEFAULTS: RefCell<HashMap<i64, Vec<(String, Variant)>>> =
         RefCell::new(HashMap::new());
+    /// The fade-shader copy of each shared scenery material, shared by its fading placements.
+    static SCENERY_FADE_MATERIALS: RefCell<HashMap<InstanceId, Gd<ShaderMaterial>>> =
+        RefCell::new(HashMap::new());
 }
 
 /// A batch's base texture: the file itself, or the file with its character overlays
@@ -120,6 +123,7 @@ pub(crate) fn clear_shared_shaders() {
     BATCH_SHADERS.with_borrow_mut(HashMap::clear);
     SCENERY_MATERIALS.with_borrow_mut(HashMap::clear);
     SCENERY_SHADER_DEFAULTS.with_borrow_mut(HashMap::clear);
+    SCENERY_FADE_MATERIALS.with_borrow_mut(HashMap::clear);
 }
 
 /// Compiles `pipeline`'s shader and, when opaque, its scenery-fade shader: Godot
@@ -473,6 +477,39 @@ fn share_scenery_material(
     })
 }
 
+/// The fade-shader copy of `shared`, made once. Its parameters are copied by uniform name:
+/// `Resource::duplicate` reads the shader's uniform list from the render thread, and that
+/// blocking call stalled the main thread for each placement that started to fade.
+fn shared_fade_material(
+    shared: &Gd<ShaderMaterial>,
+    authored: &Gd<Shader>,
+    fade: &Gd<Shader>,
+) -> Gd<ShaderMaterial> {
+    SCENERY_FADE_MATERIALS.with_borrow_mut(|cache| {
+        cache
+            .entry(shared.instance_id())
+            .or_insert_with(|| {
+                let mut copy = ShaderMaterial::new_gd();
+                copy.set_shader(fade);
+                copy.set_render_priority(shared.get_render_priority());
+                if let Some(next) = shared.get_next_pass() {
+                    copy.set_next_pass(&next);
+                }
+                for (name, _) in scenery_shader_defaults(authored) {
+                    let value = shared.get_shader_parameter(name.as_str());
+                    if !value.is_nil() {
+                        copy.set_shader_parameter(name.as_str(), &value);
+                    }
+                }
+                for name in shared.get_meta_list().iter_shared() {
+                    copy.set_meta(&name, &shared.get_meta(&name));
+                }
+                copy
+            })
+            .clone()
+    })
+}
+
 impl SceneryFade {
     /// The `Batch*` mesh materials under a `build_model` root.
     pub fn from_model(root: &Gd<Node3D>, light_bound: bool) -> Self {
@@ -551,32 +588,11 @@ impl SceneryFade {
         let swap = fading != (self.opacity < 1.0);
         for batch in &mut self.batches {
             if swap {
-                if let Some(shared) = &batch.shared {
-                    batch.material = if fading {
-                        shared.duplicate_resource()
-                    } else {
-                        shared.clone()
-                    };
-                    batch.mesh.set_material_override(&batch.material);
-                    if !fading {
-                        batch.mesh.set_cast_shadows_setting(batch.shadows);
-                        continue;
-                    }
-                }
-                if let Some(fade) = &batch.fade {
-                    batch
-                        .material
-                        .set_shader(if fading { fade } else { &batch.authored });
-                }
-                batch.mesh.set_cast_shadows_setting(if fading {
-                    ShadowCastingSetting::OFF
-                } else {
-                    batch.shadows
-                });
+                batch.swap_fade_shader(fading);
             }
             batch
-                .material
-                .set_shader_parameter("scenery_opacity", &opacity.to_variant());
+                .mesh
+                .set_instance_shader_parameter("scenery_opacity", &opacity.to_variant());
         }
         self.opacity = opacity;
         if !self.camera_admitted {
@@ -588,6 +604,32 @@ impl SceneryFade {
 }
 
 impl FadedBatch {
+    /// Opaque batches draw with their fade shader while fading. A shared material switches
+    /// to its shared fade copy; an own material swaps its shader. Blended batches keep their
+    /// material: the opacity is a per-instance uniform.
+    fn swap_fade_shader(&mut self, fading: bool) {
+        if let Some(fade) = &self.fade {
+            match &self.shared {
+                Some(shared) => {
+                    self.material = if fading {
+                        shared_fade_material(shared, &self.authored, fade)
+                    } else {
+                        shared.clone()
+                    };
+                    self.mesh.set_material_override(&self.material);
+                }
+                None => self
+                    .material
+                    .set_shader(if fading { fade } else { &self.authored }),
+            }
+        }
+        self.mesh.set_cast_shadows_setting(if fading {
+            ShadowCastingSetting::OFF
+        } else {
+            self.shadows
+        });
+    }
+
     fn apply_camera_admission(&mut self, admitted: bool, opacity: f32) {
         let shadows = if opacity < 1.0 {
             ShadowCastingSetting::OFF

@@ -28,8 +28,9 @@ uniform vec3 texture_weights = vec3(1.0);
 uniform vec3 mesh_color = vec3(1.0);
 // meshOpacity: colour alpha times texture weight 0 (unless the batch skips it).
 uniform float transparency = 1.0;
-// Retail scenery distance fade of the placement (1 unless it is in its fade band).
-uniform float scenery_opacity = 1.0;
+// Retail scenery distance fade of the placement (1 unless it is in its fade band). Per
+// instance: placements sharing a material fade independently without a material write.
+instance uniform float scenery_opacity = 1.0;
 uniform int render_flags = 0;
 uniform int gx_blend = 0;
 
