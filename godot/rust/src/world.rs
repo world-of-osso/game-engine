@@ -1267,22 +1267,14 @@ impl WorldUnits {
             {
                 continue;
             }
-            let Some(model) = unit.visual.as_ref().and_then(|visual| {
-                visual
-                    .try_get_node_as::<Node3D>("NpcModel")
-                    .or_else(|| visual.try_get_node_as::<Node3D>("PlayerModel"))
-            }) else {
+            let Some(bounds) = unit.model_bounds.as_ref() else {
                 continue;
             };
-            let bounds = crate::world_models::mesh_bounds(&model);
-            let to_glam = |v: Vector3| Vec3::new(v.x, v.y, v.z);
-            let in_frustum = unit.node.is_visible_in_tree()
-                && SceneryDistance::new(
-                    to_glam(bounds.position),
-                    to_glam(bounds.end()),
-                    crate::terrain::objects::affine(model.get_global_transform()),
-                )
-                .box_in_frustum(frustum);
+            let model = bounds.model.clone();
+            let in_frustum = unit.node.is_visible_in_tree() && {
+                let (min, max) = model_world_box(bounds);
+                crate::terrain::scenery::box_in_frustum(min, max, frustum)
+            };
             if let Some(placed) = unit.particles.as_mut() {
                 if in_frustum {
                     placed.update_and_draw(&model, delta, 1.0, &view, pools);
