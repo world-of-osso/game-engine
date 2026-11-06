@@ -27,10 +27,15 @@ pub(super) struct SceneryIndex {
     cached_interiors: Vec<(Vec3, Vec3)>,
     admission_current: bool,
     always: Vec<u64>,
+    /// The placements in `always`, in order.
+    always_indices: Vec<usize>,
     previous: Vec<u64>,
     current: Vec<u64>,
     work: Vec<usize>,
     len: usize,
+    /// The camera of the last full update, while no placement or cell admission has
+    /// changed since.
+    settled_camera: Option<Vec3>,
 }
 
 impl SceneryIndex {
@@ -60,9 +65,11 @@ impl SceneryIndex {
             cell.indices.push(index);
         } else {
             set_bit(&mut self.always, index);
+            self.always_indices.push(index);
         }
         // Newly spawned nodes start visible and must be evaluated once even when far away.
         set_bit(&mut self.previous, index);
+        self.settled_camera = None;
     }
 
     /// Includes current candidates and prior candidates that may need to be hidden.
@@ -117,14 +124,27 @@ impl SceneryIndex {
                 self.admission[index] = result;
             }
         }
+        self.settled_camera = None;
         self.cached_windows = windows.map(<[Vec<HalfSpace>]>::to_vec);
         self.cached_interiors.clear();
         self.cached_interiors.extend_from_slice(interiors);
         self.admission_current = true;
     }
 
-    pub fn update_with_admission(&mut self, camera: Vec3) -> (&[usize], &[Option<bool>]) {
+    /// The placements to evaluate this frame with their cell admission. A grid placement
+    /// depends only on the camera position, the admission inputs and what `scene_changed`
+    /// reports (the drawn WMO groups); while none of them changed and nothing was added,
+    /// only the per-frame placements are returned.
+    pub fn update_with_admission(
+        &mut self,
+        camera: Vec3,
+        scene_changed: bool,
+    ) -> (&[usize], &[Option<bool>]) {
+        if !scene_changed && self.settled_camera == Some(camera) {
+            return (&self.always_indices, &self.admission);
+        }
         self.update(camera);
+        self.settled_camera = Some(camera);
         (&self.work, &self.admission)
     }
 }
@@ -243,7 +263,7 @@ mod tests {
             (None, &[][..]),
         ] {
             index.update_admission(window, interiors);
-            let (_, admission) = index.update_with_admission(Vec3::ZERO);
+            let (_, admission) = index.update_with_admission(Vec3::ZERO, false);
             for (scenery, result) in placements.iter().zip(admission) {
                 let (min, max) = scenery.world_bounds();
                 let expected = outdoor_box_admitted(min, max, window, interiors);
@@ -251,7 +271,7 @@ mod tests {
             }
         }
         index.update_admission(Some(&windows[0]), &interior);
-        let (_, admission) = index.update_with_admission(Vec3::ZERO);
+        let (_, admission) = index.update_with_admission(Vec3::ZERO, false);
         assert_eq!(admission[0], Some(false));
         assert_eq!(admission[1], None);
         assert_eq!(admission[2], Some(true));
@@ -262,7 +282,7 @@ mod tests {
         placements.push(placement(Vec3::new(1.0, 0.0, 0.0), 4.0));
         index.push(*placements.last().unwrap(), false);
         index.update_admission(Some(&windows[0]), &[]);
-        let (_, admission) = index.update_with_admission(Vec3::ZERO);
+        let (_, admission) = index.update_with_admission(Vec3::ZERO, false);
         let scenery = placements.last().unwrap();
         let (min, max) = scenery.world_bounds();
         let expected = outdoor_box_admitted(min, max, Some(&windows[0]), &[]);
@@ -288,6 +308,60 @@ mod tests {
             visible[i] = placements[i].visible_from(Vec3::ZERO);
         }
         assert_eq!(visible, [false, false]);
+    }
+
+    /// A still camera re-evaluates only the per-frame placements, yet placements spawned
+    /// while it is still and a later camera move keep the reference visible set.
+    #[test]
+    fn settled_camera_keeps_reference_visibility_through_spawns_and_moves() {
+        let mut placements = vec![
+            placement(Vec3::new(5.0, 0.0, 5.0), 0.5),
+            placement(Vec3::new(60.0, 0.0, 0.0), 2.0),
+            placement(Vec3::new(0.0, 0.0, 150.0), 8.0),
+        ];
+        let mut index = SceneryIndex::default();
+        for scenery in &placements {
+            index.push(*scenery, false);
+        }
+        let mut visible = vec![true; placements.len()];
+        let camera = Vec3::new(0.0, 1.0, 0.0);
+        let evaluate = |index: &mut SceneryIndex,
+                        placements: &[SceneryDistance],
+                        visible: &mut Vec<bool>,
+                        camera: Vec3| {
+            visible.resize(placements.len(), true);
+            let (work, _) = index.update_with_admission(camera, false);
+            for &i in work {
+                visible[i] = placements[i].visible_from(camera);
+            }
+            let reference: Vec<_> = placements.iter().map(|p| p.visible_from(camera)).collect();
+            assert_eq!(*visible, reference, "camera {camera:?}");
+        };
+        evaluate(&mut index, &placements, &mut visible, camera);
+        evaluate(&mut index, &placements, &mut visible, camera);
+        // Spawned while the camera is still: a far one must be hidden, a near one shown.
+        for scenery in [
+            placement(Vec3::new(900.0, 0.0, 0.0), 0.5),
+            placement(Vec3::new(-3.0, 0.0, 2.0), 0.5),
+        ] {
+            placements.push(scenery);
+            index.push(scenery, false);
+        }
+        evaluate(&mut index, &placements, &mut visible, camera);
+        evaluate(&mut index, &placements, &mut visible, camera);
+        evaluate(
+            &mut index,
+            &placements,
+            &mut visible,
+            Vec3::new(40.0, 1.0, 0.0),
+        );
+        evaluate(
+            &mut index,
+            &placements,
+            &mut visible,
+            Vec3::new(40.0, 1.0, 0.0),
+        );
+        evaluate(&mut index, &placements, &mut visible, camera);
     }
 
     /// Small placements packed across 15-yard cell edges stay exactly the reference

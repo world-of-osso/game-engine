@@ -524,6 +524,9 @@ pub(crate) struct TerrainObjects {
     /// Indices of the doodads with particle emitters or ribbons, in `doodads` order.
     emitting_doodads: Vec<usize>,
     scenery_index: SceneryIndex,
+    /// Whether the last portal cull drew a different set of WMO groups than the one
+    /// before it.
+    wmo_drawn_changed: bool,
     wmos: Vec<CulledWmo>,
     outdoor_windows: Option<Vec<Vec<HalfSpace>>>,
     interior_bounds: Vec<(Vec3, Vec3)>,
@@ -584,6 +587,7 @@ impl TerrainObjects {
             doodads: Vec::new(),
             emitting_doodads: Vec::new(),
             scenery_index: SceneryIndex::default(),
+            wmo_drawn_changed: true,
             wmos: Vec::new(),
             outdoor_windows: None,
             interior_bounds: Vec::new(),
@@ -1474,6 +1478,7 @@ impl TerrainObjects {
         let camera = Vec3::new(camera.x, camera.y, camera.z);
         self.outdoor_windows = None;
         self.interior_bounds.clear();
+        self.wmo_drawn_changed = false;
         for wmo in &mut self.wmos {
             let visibility = wmo
                 .portals
@@ -1488,6 +1493,7 @@ impl TerrainObjects {
             let drawn = visibility.groups;
             // Only groups whose state changed touch their batch nodes.
             let previous = wmo.drawn.take();
+            self.wmo_drawn_changed |= previous.as_ref() != Some(&drawn);
             for (&group, batches) in &mut wmo.groups {
                 let shown = drawn.get(group as usize).copied().unwrap_or(false);
                 let was = previous
@@ -1521,7 +1527,9 @@ impl TerrainObjects {
         let camera = Vec3::new(camera.x, camera.y, camera.z);
         self.scenery_index
             .update_admission(self.outdoor_windows.as_deref(), &self.interior_bounds);
-        let (work, admission) = self.scenery_index.update_with_admission(camera);
+        let (work, admission) = self
+            .scenery_index
+            .update_with_admission(camera, self.wmo_drawn_changed);
         for &index in work {
             let doodad = &mut self.doodads[index];
             let group_drawn = doodad.group_drawn(&self.wmos);
