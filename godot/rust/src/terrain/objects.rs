@@ -527,6 +527,8 @@ pub(crate) struct TerrainObjects {
     /// Whether the last portal cull drew a different set of WMO groups than the one
     /// before it.
     wmo_drawn_changed: bool,
+    /// The camera and frustum of the last portal cull, until a WMO is added.
+    wmo_cull_view: Option<(Vec3, Vec<HalfSpace>)>,
     wmos: Vec<CulledWmo>,
     outdoor_windows: Option<Vec<Vec<HalfSpace>>>,
     interior_bounds: Vec<(Vec3, Vec3)>,
@@ -588,6 +590,7 @@ impl TerrainObjects {
             emitting_doodads: Vec::new(),
             scenery_index: SceneryIndex::default(),
             wmo_drawn_changed: true,
+            wmo_cull_view: None,
             wmos: Vec::new(),
             outdoor_windows: None,
             interior_bounds: Vec::new(),
@@ -1377,6 +1380,7 @@ impl TerrainObjects {
         culled: CulledWmo,
     ) {
         self.wmos.push(culled);
+        self.wmo_cull_view = None;
         self.queue_wmo_doodads(wmo, node, doodads, self.wmos.len() - 1);
     }
 
@@ -1476,6 +1480,17 @@ impl TerrainObjects {
     /// whose groups this frame culled.
     pub fn cull_wmos(&mut self, camera: Vector3, frustum: &[HalfSpace]) {
         let camera = Vec3::new(camera.x, camera.y, camera.z);
+        // Portal visibility depends only on the view and the WMOs: an unchanged view
+        // keeps the groups, windows and interiors of the last cull.
+        if self
+            .wmo_cull_view
+            .as_ref()
+            .is_some_and(|(seen, planes)| *seen == camera && planes.as_slice() == frustum)
+        {
+            self.wmo_drawn_changed = false;
+            return;
+        }
+        self.wmo_cull_view = Some((camera, frustum.to_vec()));
         self.outdoor_windows = None;
         self.interior_bounds.clear();
         self.wmo_drawn_changed = false;
@@ -1651,6 +1666,7 @@ impl TerrainObjects {
         self.emitting_doodads.clear();
         self.scenery_index = SceneryIndex::default();
         self.wmos.clear();
+        self.wmo_cull_view = None;
         self.progress = TileProgress::default();
         self.nearby = super::object_progress::NearbyProgress::default();
         self.priority_focus = None;
