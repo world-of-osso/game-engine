@@ -47,6 +47,7 @@ mod ground;
 mod guild_charters;
 mod guild_ranks;
 mod guild_tabards;
+mod healer_ground_ring;
 mod housing;
 mod housing_decor;
 mod housing_editor;
@@ -276,6 +277,7 @@ pub struct GameClient {
     xp_bar: xp_bar::XpBarHud,
     reputation_bar: Option<Gd<ui::RegistryUi>>,
     group_frames: party_frames::GroupFramesHud,
+    healer_rings: healer_ground_ring::HealerGroundRings,
     game_menu_options: Option<game_engine_ui_model::options_menu_data::OptionsModel>,
     /// The drawn Edit Mode layout; its skin is the one atlases resolve under.
     ui_layout: game_engine_core::ui_layout_data::ActiveLayout,
@@ -464,6 +466,7 @@ impl INode3D for GameClient {
             xp_bar: xp_bar::XpBarHud::default(),
             reputation_bar: None,
             group_frames: party_frames::GroupFramesHud::default(),
+            healer_rings: healer_ground_ring::HealerGroundRings::default(),
             game_menu_options: None,
             ui_layout: Default::default(),
             hud_editor: Default::default(),
@@ -1064,6 +1067,87 @@ impl GameClient {
     #[func]
     fn preview_remove_characters(&mut self) {
         self.preview_clear_characters();
+    }
+
+    /// Offline fixture: install a party, specialization and known spells for the healer
+    /// ground rings. Each member is `{name, health, position, debuff, dead, offline}`;
+    /// `debuff` is a `SpellDispelType` id or 0.
+    #[func]
+    fn preview_healer_ring_party(
+        &mut self,
+        spec: i64,
+        known: PackedInt64Array,
+        members: VarArray,
+    ) -> GString {
+        let mut preview = Vec::new();
+        for index in 0..members.len() {
+            let Some(member) = members
+                .get(index)
+                .and_then(|value| value.try_to::<VarDictionary>().ok())
+            else {
+                return GString::from(
+                    format!("healer ring member {index} is not a dictionary").as_str(),
+                );
+            };
+            let text = |key: &str| {
+                member
+                    .get(key)
+                    .and_then(|value| value.try_to::<GString>().ok())
+                    .map(|value| value.to_string())
+                    .unwrap_or_default()
+            };
+            let name = text("name");
+            if name.is_empty() {
+                return GString::from(format!("healer ring member {index} has no name").as_str());
+            }
+            let health_fraction = member
+                .get("health")
+                .and_then(|value| value.try_to::<f32>().ok())
+                .unwrap_or(0.0)
+                .clamp(0.0, 1.0);
+            let position = member
+                .get("position")
+                .and_then(|value| value.try_to::<Vector3>().ok())
+                .unwrap_or(Vector3::ZERO);
+            let debuff = member
+                .get("debuff")
+                .and_then(|value| value.try_to::<i64>().ok())
+                .unwrap_or(0);
+            let debuff = u8::try_from(debuff.max(0)).unwrap_or(0);
+            preview.push(healer_ground_ring::PreviewRingMember {
+                name,
+                health_fraction,
+                position,
+                debuff_types: (debuff != 0).then_some(debuff).into_iter().collect(),
+                dead: member
+                    .get("dead")
+                    .and_then(|value| value.try_to::<bool>().ok())
+                    .unwrap_or(false),
+                offline: member
+                    .get("offline")
+                    .and_then(|value| value.try_to::<bool>().ok())
+                    .unwrap_or(false),
+            });
+        }
+        let known: Vec<u32> = known
+            .as_slice()
+            .iter()
+            .filter_map(|id| u32::try_from(*id).ok())
+            .collect();
+        self.install_preview_ring_party(u32::try_from(spec.max(0)).unwrap_or(0), known, preview);
+        GString::new()
+    }
+
+    /// Offline fixture: turn the healer rings off for the no-ring frame.
+    #[func]
+    fn preview_healer_ring_enabled(&mut self, enabled: bool) {
+        self.set_preview_ring_enabled(enabled);
+    }
+
+    /// Offline fixture: the rings, dispel rings and chevrons currently drawn.
+    #[func]
+    fn preview_healer_ring_state(&self) -> VarDictionary {
+        self.preview_ring_state()
     }
 
     /// Offline fixture: hold or resume a preview character's animation.
@@ -2534,6 +2618,10 @@ impl GameClient {
             ("XP bar", |c, _| c.update_xp_bar()),
             ("Reputation bar", |c, _| c.update_reputation_bar()),
             ("Group frames", |c, d| c.update_group_frames(d)),
+            ("Healer ground rings", |c, d| {
+                c.update_healer_ground_rings(d);
+                Ok(())
+            }),
             ("World units", |c, d| {
                 let previous_epoch = c.world.local_player_epoch();
                 c.world.advance(d);

@@ -27,6 +27,9 @@ pub const DEFAULT_NAMEPLATE_DISTANCE: f32 = 40.0;
 pub const MIN_CHAT_FONT_SIZE: f32 = 8.0;
 pub const MAX_CHAT_FONT_SIZE: f32 = 16.0;
 
+/// Largest raid "lowest N" the options page offers.
+pub const MAX_RAID_LOWEST: u8 = 5;
+
 const fn default_mouse_sensitivity() -> f32 {
     0.003
 }
@@ -269,6 +272,39 @@ pub struct CooldownAssistOptions {
     pub highlight_viewer: bool,
 }
 
+/// Healer ground rings: the health arc under party members (PLAN USER 11-05). On by
+/// default for healer specializations in a party; other roles opt in with `all_roles`,
+/// and raids show only the `raid_lowest` lowest-health members unless that is 0.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct HealerGroundRingOptions {
+    pub enabled: bool,
+    /// Show rings for a non-healer specialization (opt-in) and in a party of any role.
+    pub all_roles: bool,
+    /// Colour-blind-safe health ramp, the default secondary cue.
+    pub colorblind_ramp: bool,
+    /// Raid mode: the lowest-health members shown, 0 disables rings in raids.
+    pub raid_lowest: u8,
+}
+
+impl Default for HealerGroundRingOptions {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            all_roles: false,
+            colorblind_ramp: true,
+            raid_lowest: 0,
+        }
+    }
+}
+
+impl HealerGroundRingOptions {
+    pub fn clamped(mut self) -> Self {
+        self.raid_lowest = self.raid_lowest.min(MAX_RAID_LOWEST);
+        self
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HudOptionsFile {
     pub show_minimap: bool,
@@ -277,6 +313,8 @@ pub struct HudOptionsFile {
     pub cooldown_assist: CooldownAssistOptions,
     #[serde(default, rename = "extraActionBars")]
     pub extra_action_bars: ExtraActionBars,
+    #[serde(default, rename = "healerGroundRings")]
+    pub healer_ground_rings: HealerGroundRingOptions,
     pub show_nameplates: bool,
     #[serde(default = "default_nameplate_distance", rename = "nameplateDistance")]
     pub nameplate_distance: f32,
@@ -320,6 +358,7 @@ impl Default for HudOptionsFile {
             show_action_bars: true,
             cooldown_assist: CooldownAssistOptions::default(),
             extra_action_bars: ExtraActionBars::default(),
+            healer_ground_rings: HealerGroundRingOptions::default(),
             show_nameplates: true,
             nameplate_distance: default_nameplate_distance(),
             nameplate_style: NameplateStyle::default(),
@@ -372,6 +411,7 @@ impl GraphicsOptionsFile {
 
 impl HudOptionsFile {
     pub fn clamped(mut self) -> Self {
+        self.healer_ground_rings = self.healer_ground_rings.clamped();
         self.nameplate_distance = self
             .nameplate_distance
             .clamp(MIN_NAMEPLATE_DISTANCE, MAX_NAMEPLATE_DISTANCE);

@@ -472,3 +472,34 @@ fn thickness_radio_choices_set_presets_without_toggling_the_current_choice() {
         NameplateBarThickness::Thick
     );
 }
+
+#[test]
+fn healer_ground_ring_options_have_auto_defaults_and_apply_their_rows() {
+    use game_engine_core::client_options_data::HealerGroundRingOptions;
+    use game_engine_ui_model::options_menu_component::OptionsCategory;
+
+    let mut state = model();
+    state.category = OptionsCategory::Hud;
+    let defaults = HealerGroundRingOptions::default();
+    assert_eq!(state.draft_hud.healer_ground_rings, defaults);
+    assert!(defaults.enabled && defaults.colorblind_ramp && !defaults.all_roles);
+    assert_eq!(defaults.raid_lowest, 0);
+
+    assert!(apply_toggle("healer_ground_rings_all", &mut state));
+    assert!(state.draft_hud.healer_ground_rings.all_roles);
+    assert!(apply_toggle("healer_ground_rings_colorblind", &mut state));
+    assert!(!state.draft_hud.healer_ground_rings.colorblind_ramp);
+    assert!(apply_toggle("healer_ground_rings", &mut state));
+    assert!(!state.draft_hud.healer_ground_rings.enabled);
+
+    let field = parse_slider_action("options_slider:healer_ground_rings_raid").unwrap();
+    assert_eq!(field, SliderField::HealerRaidLowest);
+    assert_eq!(slider_bounds(field), (0.0, 5.0));
+    apply_slider_value(field, 3.4, &mut state);
+    assert_eq!(state.draft_hud.healer_ground_rings.raid_lowest, 3);
+
+    let mut file = HudOptionsFile::default();
+    apply_hud_file_snapshot(&mut file, &state.draft_hud);
+    assert!(file.healer_ground_rings.all_roles);
+    assert_eq!(file.healer_ground_rings.raid_lowest, 3);
+}
