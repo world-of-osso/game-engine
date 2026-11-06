@@ -310,3 +310,22 @@ Every RGB channel is zero; only the alpha differs. So `water_color.rgb` is black
 
 Conclusion: the pond is not a rendering bug to fix in the liquid path. It closes when the environment-record water colour is read.
 
+## Liquid colour now comes from the authored row — 2026-11-05
+
+The black water was a data-binding bug, not a shading one. `WaterLight` took its four colours from the zone sample of the `LightData` rows, and the Forever DB2 (1.60.1.70205 and .70338 agree) leaves `OceanCloseColor`, `OceanFarColor`, `RiverCloseColor` and `RiverFarColor` at **zero on every zone slot** for maps 0, 1 and 2959; the only row that authors them is the Light's fixed record slot, LightParams 7570: close `0x001E303E`, far `0x00001317`. So `river_*`/`ocean_*` bound RGB `[0,0,0]` with alpha only, and every legacy material-1 surface drew specular and foam over black. Retail is different: its zone rows do author water colour (Elwynn's Light slot 0, LightParams 12, `0x213E2F`).
+
+`LightingCatalog::water_colors` now fills only the channels the zone sample leaves at zero, from the Light's fixed row (`LightParamsSlot::Death`, record 4 of the eight the environment block copies, `ENV-RECORD-WRITER.md` §2.1). A colour that is zero in both stays zero and is reported, never replaced by an invented default. `GAME_ENGINE_WATER_DEBUG=1` logs the four bound colours and their source.
+
+Measured on the release library, before = master `fcc1feac3` lighting, after = the fix, same poses:
+
+| case | before | after |
+|---|---|---|
+| 2959 ocean, uniform | `river [0,0,0,0.5]/[0,0,0,1] ocean [0,0,0,0.75]/[0,0,0,1]` | `river [0.1176,0.1882,0.2431,0.5]/[0,0.0745,0.0902,1]`, ocean likewise at 0.75/1 |
+| 2959 ocean, pixels | 3520 near-black of 921,600 | 943 near-black, 4.01% of the frame changed |
+| 2959 pond, pixels | 15 near-black | 34, 1.82% changed (the pond is a small part of that framing) |
+| retail Elwynn lake | 6302 objects, 2 failures | identical, 16 pixels differ of 921,600 |
+
+The pond close-up could not be framed: `capture-water.gd` refuses the pose (no Water node at the lookup point) and the census harness's camera at 60 yd frames hillside rather than the 40×50 yd pond, so the pond evidence is the uniform log plus a small pixel delta. The ocean case carries the visual proof.
+
+`retail_water_keeps_the_zone_colour` pins the retail path: the bound colour equals the zone sample exactly. `forever_water_colours_come_from_the_authored_fixed_row` pins the Forever values to `0x001E303E`/`0x00001317`.
+

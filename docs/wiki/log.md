@@ -10,9 +10,9 @@ pixel diffs live in `/syncthing/AgentShared/2026-11-05/healer-ground-ring/`; the
 feature's own cost measures 0.12-0.16 ms per debug frame. [[healer-ground-rings]]
 
 ## Object-42 A/B on real release builds; streaming and legacy water colour still open
+## Liquid colour was bound from the wrong row, so legacy water drew black
 
-With the release build fixed on master, the object-42 change is measured on genuine release artefacts (pre-fix library still contains the drop error string, post-fix does not; `/proc/<pid>/maps` confirmed the path each run): map 2959 goes from 73 dropped ocean layers to 0, map 2980 from 42 to 0, object counts unchanged. The silent non-attachment is located at `queue_tile`'s wordless early return when the tile is not in `wdt.tiles.active`, with the two sides using opposite `(row, col)` / `(col, row)` orders — but adding the transposed containment test changed nothing, so that is not the whole cause and was reverted. Legacy material-1 water colour turns out to come from per-view environment records, not LightData, so the current behaviour stays with the gap documented. [[northshire-pale-water#Release-library A/B, and where the silent non-attachment actually lives — 2026-11-05]].
-## Area trigger ground art is the display kit, not the cast burst
+The Forever LightData rows leave all four water columns at zero on every zone slot; the only row that authors them is the Light's fixed record slot (0x001E303E close, 0x00001317 far). `river_*`/`ocean_*` therefore bound RGB zero with alpha only. The zone colour now wins where it is authored and the fixed row fills only the zero channels, so retail is unchanged and Forever water is no longer black. [[northshire-pale-water#Liquid colour now comes from the authored row — 2026-11-05]].
 
 Consecration showed nothing because an area trigger replayed only the cast bursts (59536/189337)
 and its golden circle lives in the display kit (59234/187938, `SpellVisualEvent` 9 -> 10). DB2
