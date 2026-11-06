@@ -399,7 +399,13 @@ Consequences, all measured in the offline preview:
   carpets through `drape_ground_effects`; the drape log reports their batch span, discarded
   and steep triangle counts.
 - A server pulse is not a re-cast: the burst plays once on first sight and the display kit
-  is held from then on (`AreaTriggerVisuals::replays` returns a trigger only when new).
+  is held from then on (`AreaTriggerVisuals::replays` returns a trigger only when new). This
+  matches retail's per-message rule: the force-one-shot (3->13) pass runs only when a server
+  `ClientAreaTrigger` message (opcode 0x460002) arrives, and each such message creates a
+  fresh burst instance with no cancellation, while per-frame work is only the
+  channel/display pass, which de-duplicates on the live instance id so 9->10 rows never
+  re-erupt. Our server sends no repeated area-trigger updates, so one burst per trigger is
+  the correct client behaviour (decompilation: engine-3d/AT-PASS-CADENCE-AND-DISCS.md).
 
 ## Gaps
 
