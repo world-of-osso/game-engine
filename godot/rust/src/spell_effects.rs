@@ -115,7 +115,7 @@ impl KitHold {
 /// A kit model's clips (present on the model) and how long its particles outlive
 /// emission.
 #[derive(Clone, Copy, Debug)]
-struct EffectClips {
+pub(crate) struct EffectClips {
     start: (u16, f32),
     hold: Option<u16>,
     end: Option<(u16, f32)>,
@@ -123,7 +123,7 @@ struct EffectClips {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
-enum Phase {
+pub(crate) enum Phase {
     Start(f32),
     Hold,
     End(f32),

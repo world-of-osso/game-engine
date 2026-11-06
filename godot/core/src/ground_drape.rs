@@ -724,7 +724,7 @@ mod tests {
                 0.0,
                 MAX_SURFACE_RISE,
                 floor_at,
-                |x, _z, _ceiling, floor| Some(floor),
+                |_x, _z, _ceiling, floor| Some(floor),
             )
             .expect("draped");
         assert!(draped.steep_discarded > 0, "no steep triangle was dropped");
@@ -759,7 +759,7 @@ mod tests {
                 0.0,
                 MAX_SURFACE_RISE,
                 floor_at,
-                |x, _z, _ceiling, floor| Some(floor),
+                |_x, _z, _ceiling, floor| Some(floor),
             )
             .expect("draped");
         assert!(draped.discarded > 0, "no bridging triangle was dropped");
