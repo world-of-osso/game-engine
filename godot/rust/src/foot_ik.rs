@@ -99,10 +99,16 @@ impl FootIkState {
         let mut targets = [Vec3::ZERO; 2];
         let mut deltas: [Option<f32>; 2] = [None; 2];
         let mut weights = [0.0f32; 2];
+        let mut floors = [f32::NAN; 2];
         for (index, leg) in rig.legs.iter().enumerate() {
             let foot = world_end(&joints[index]);
             let ankle = leg.end_height * model_from_world_scale;
-            let desired = surface_target(foot.x, foot.z, ankle, floor_at, surface_at);
+            let (desired, floor) = match surface_target(foot.x, foot.z, ankle, floor_at, surface_at)
+            {
+                Some((target, floor)) => (Some(target), floor),
+                None => (None, f32::NAN),
+            };
+            floors[index] = floor;
             let state = &mut self.legs[index];
             let smoothed = match (state.ground, desired) {
                 (Some(previous), Some(next)) => {
@@ -145,7 +151,7 @@ impl FootIkState {
             weights,
             targets: [0.0; 2],
             animated: [world_end(&authored[0]).y, world_end(&authored[1]).y],
-            floors: [f32::NAN; 2],
+            floors,
             root_offset: offset,
             solved: [world_end(&joints[0]).y, world_end(&joints[1]).y],
             knee_bend: [
@@ -158,8 +164,6 @@ impl FootIkState {
             ],
         };
         for index in 0..2 {
-            let foot = world_end(&authored[index]);
-            snapshot.floors[index] = floor_at(foot.x, foot.z).unwrap_or(f32::NAN);
             let target = world_from_model
                 * Vector3::new(targets[index].x, targets[index].y, targets[index].z);
             snapshot.targets[index] = target.y;
@@ -201,21 +205,22 @@ fn smoothing(delta: f32, time_constant: f32) -> f32 {
     1.0 - (-delta.max(0.0) / time_constant).exp()
 }
 
-/// The world height a foot pivot should reach: the visible surface plus the bind-pose foot
-/// height, or `None` when the client has no render geometry there yet.
+/// The world height a foot pivot should reach, with the collision floor it was measured
+/// from: the visible surface plus the bind-pose foot height, or `None` when the client has
+/// no render geometry there yet.
 fn surface_target(
     x: f32,
     z: f32,
     ankle: f32,
     floor_at: &dyn Fn(f32, f32) -> Option<f32>,
     surface_at: &mut dyn FnMut(f32, f32, f32, f32) -> Option<f32>,
-) -> Option<f32> {
+) -> Option<(f32, f32)> {
     let floor = floor_at(x, z)?;
     let ceiling = floor + STEP_UP_HEIGHT;
     let surface = surface_at(x, z, ceiling, floor)?;
     let target = surface + ankle;
     // A surface more than a step under the animated foot is a fall, not a step.
-    (target >= floor - 0.05 && target <= ceiling + ankle).then_some(target)
+    (target >= floor - 0.05 && target <= ceiling + ankle).then_some((target, floor))
 }
 
 fn leg_joints(skeleton: &Gd<Skeleton3D>, leg: LegChain) -> LegJoints {

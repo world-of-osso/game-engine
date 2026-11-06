@@ -5,6 +5,45 @@
 #[path = "object_product_tests.rs"]
 mod product_tests;
 
+#[cfg(test)]
+mod surface_cell_tests {
+    use super::{SURFACE_CELL_YARDS, surface_cell};
+
+    /// A placement is indexed in every cell its bounds cover, so the cell of any point
+    /// inside those bounds is one of them: the column query finds the placement again.
+    #[test]
+    fn a_point_inside_a_box_reads_one_of_the_cells_the_box_covers() {
+        let boxes = [
+            (-1.0, 1.0),
+            (-8.0, 8.0),
+            (-8.1, 8.1),
+            (-100.0, -99.5),
+            (16.0, 16.5),
+            (-4.0, 12.0),
+        ];
+        let points = [
+            -8.0, -4.0, -0.5, 0.0, 0.4, 7.99, 8.0, 8.01, 12.0, 15.99, 16.0, -99.75, -100.0,
+        ];
+        for (min, max) in boxes {
+            let cells = surface_cell(min)..=surface_cell(max);
+            for point in points {
+                if point < min || point > max {
+                    continue;
+                }
+                assert!(
+                    cells.contains(&surface_cell(point)),
+                    "{point} in {min}..{max} is outside {cells:?}"
+                );
+            }
+        }
+        assert_eq!(surface_cell(0.0), 0);
+        assert_eq!(surface_cell(SURFACE_CELL_YARDS), 1);
+        assert_eq!(surface_cell(-0.001), -1);
+        assert_eq!(surface_cell(-SURFACE_CELL_YARDS), -1);
+        assert_eq!(surface_cell(-SURFACE_CELL_YARDS - 0.001), -2);
+    }
+}
+
 use std::{
     collections::{BTreeSet, HashMap, VecDeque},
     path::{Path, PathBuf},
@@ -115,6 +154,10 @@ enum LoadedAsset {
 
 /// Two workers: one cold extraction does not hold up the next model.
 const WORKERS: usize = 2;
+
+/// Cell size of the doodad index that answers visible-surface column queries: one cell
+/// holds a handful of placements, so a query tests those instead of every doodad.
+const SURFACE_CELL_YARDS: f32 = 8.0;
 
 /// Worker: extract and parse `asset` and decode the textures it draws with.
 fn load_asset(data_root: &Path, asset: ObjectAsset) -> Result<LoadedAsset, String> {
@@ -501,6 +544,11 @@ pub(crate) struct TerrainObjects {
     render_surface: crate::render_surface::RenderSurfaceCache,
     surface_frame: u64,
     surface_columns: HashMap<(u32, u32, u32), Option<f32>>,
+    /// Doodad indices by the `(x, z)` cells their world bounds cover, so a column query
+    /// tests the doodads over the column instead of all of them.
+    surface_cells: HashMap<(i32, i32), Vec<u32>>,
+    /// Doodads already in `surface_cells`; the vector only grows between resets.
+    surface_cells_len: usize,
 }
 
 impl TerrainObjects {
@@ -549,6 +597,8 @@ impl TerrainObjects {
             render_surface: crate::render_surface::RenderSurfaceCache::default(),
             surface_frame: 0,
             surface_columns: HashMap::new(),
+            surface_cells: HashMap::new(),
+            surface_cells_len: 0,
         }
     }
 
@@ -617,12 +667,18 @@ impl TerrainObjects {
         if let Some(height) = terrain_height {
             consider(height);
         }
-        for index in 0..self.doodads.len() {
-            let (min, max) = self.doodads[index].scenery.world_bounds();
+        self.index_surface_cells();
+        let candidates = self
+            .surface_cells
+            .get(&(surface_cell(x), surface_cell(z)))
+            .cloned()
+            .unwrap_or_default();
+        for index in candidates {
+            let (min, max) = self.doodads[index as usize].scenery.world_bounds();
             if !column_meets(x, z, floor, ceiling, min, max) {
                 continue;
             }
-            let node = self.doodads[index].node.clone();
+            let node = self.doodads[index as usize].node.clone();
             let Some(surface) = self.render_surface.root_surface(&node) else {
                 continue;
             };
@@ -650,6 +706,24 @@ impl TerrainObjects {
         }
         self.surface_columns.insert(key, found);
         found
+    }
+
+    /// Buckets the doodads spawned since the last call by the `(x, z)` cells their world
+    /// bounds cover. Placements are appended and only cleared by `reset`, and their bounds
+    /// are fixed at spawn, so each one is indexed once.
+    fn index_surface_cells(&mut self) {
+        for index in self.surface_cells_len..self.doodads.len() {
+            let (min, max) = self.doodads[index].scenery.world_bounds();
+            for x in surface_cell(min.x)..=surface_cell(max.x) {
+                for z in surface_cell(min.z)..=surface_cell(max.z) {
+                    self.surface_cells
+                        .entry((x, z))
+                        .or_default()
+                        .push(index as u32);
+                }
+            }
+        }
+        self.surface_cells_len = self.doodads.len();
     }
 
     /// Internal queue and loader counters, for offline fixture diagnostics.
@@ -1574,6 +1648,8 @@ impl TerrainObjects {
         self.liquids = WmoLiquids::default();
         self.render_surface.clear();
         self.surface_columns.clear();
+        self.surface_cells.clear();
+        self.surface_cells_len = 0;
         self.failures = 0;
         if let Some(pools) = &mut self.particles {
             pools.reset();
@@ -1606,6 +1682,12 @@ fn group_batches(wmo: &Gd<Node3D>) -> HashMap<u16, Vec<Gd<Node3D>>> {
         }
     }
     groups
+}
+
+/// Index of the column cell that holds `position`; a column query visits the cell it
+/// falls in.
+fn surface_cell(position: f32) -> i32 {
+    (position / SURFACE_CELL_YARDS).floor() as i32
 }
 
 /// Whether a vertical column at `(x, z)` between `floor` and `ceiling` meets `min..max`.

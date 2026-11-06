@@ -1656,6 +1656,12 @@ impl WorldUnits {
             };
             let (rig, skeleton) = {
                 let mut player = animation.bind_mut();
+                // A pose the animation did not sample this frame is the one the last solve
+                // left: the feet are already planted, and rewriting the sampled pose to
+                // solve it again would only repeat last frame's work.
+                if !player.samples_poses() {
+                    continue;
+                }
                 // Last frame's solve must not become this frame's authored pose.
                 if player.pose_stale() {
                     player.restore_sampled_pose();

@@ -8,7 +8,9 @@ extends SceneTree
 #
 # Headless frames run far faster than real time, so every wait is a wall-clock wait.
 
-const OUT_DIR := "/syncthing/AgentShared/2026-11-05/foot-ik-ground-drape/trigger/"
+## CAPTURE_DIR writes the captures elsewhere than the landing evidence directory.
+var out_dir := OS.get_environment("CAPTURE_DIR") if OS.get_environment("CAPTURE_DIR") != "" \
+		else "/syncthing/AgentShared/2026-11-05/foot-ik-ground-drape/trigger/"
 # Stormwind staircase: render treads from 107.95 down to 106.20 between x -8566 and -8562.
 const STAIR_BOTTOM := Vector3(-8564.0, 107.4, -778.0)
 const STAIR_TOP := Vector3(-8566.0, 0.0, -778.0)
@@ -37,7 +39,7 @@ func run() -> void:
 		fail("CAPTURE_CASE is required")
 		return
 	root.size = Vector2i(1280, 720)
-	DirAccess.make_dir_recursive_absolute(OUT_DIR)
+	DirAccess.make_dir_recursive_absolute(out_dir)
 	client = load("res://scenes/client.tscn").instantiate()
 	root.add_child(client)
 	await wait_ms(1500)
@@ -175,7 +177,7 @@ func capture(name: String, with_ui: bool) -> Image:
 	if image == null or image.is_empty():
 		fail("capture " + name + " produced no image")
 		return null
-	var path := OUT_DIR.path_join(name + ".png")
+	var path := out_dir.path_join(name + ".png")
 	var error := image.save_png(path)
 	if error != OK:
 		fail("cannot save " + path)

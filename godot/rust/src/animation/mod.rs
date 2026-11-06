@@ -1264,6 +1264,12 @@ impl WowAnimationPlayer {
         self.sampling = sampling;
     }
 
+    /// Whether this frame's advance wrote the bone pose. A pose that was not written is
+    /// still the one the last pose pass left on the skeleton.
+    pub(crate) fn samples_poses(&self) -> bool {
+        self.sampling
+    }
+
     pub(crate) fn seek_fixed_time_ms(&mut self, time_ms: f64) -> Result<(), String> {
         self.validated_bone_count("Fixed sky animation time")?;
         let animation = self
