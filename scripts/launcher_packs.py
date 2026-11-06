@@ -126,8 +126,10 @@ def build_packs(source, output, input_manifest=None, source_map=None, source_sta
         path = packdir / digest
         try:
             identity = source_identity(path.stat())
-        except OSError as error:
-            raise ValueError(f'missing pack: {path}') from error
+        except OSError:
+            # Chunks reused from the published manifest keep their bucket pack; only packs
+            # written in this run exist locally to validate.
+            continue
         records_digest = hashlib.sha256(json.dumps(
             [(key, existing[key]) for key in sorted(keys)], sort_keys=True, separators=(',', ':')
         ).encode()).hexdigest()

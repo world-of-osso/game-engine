@@ -4,6 +4,7 @@
 import argparse
 import json
 import subprocess
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 from launcher_packs import build_packs
@@ -35,22 +36,46 @@ def build(root, generated, windows, output, pack_cache):
     return sources, manifest
 
 
+UPLOAD_WORKERS = 64
+
+
 def publish(sources, manifest, live, output, pack_cache, destination, rclone='rclone'):
     upload, _ = diff_manifests(live, identities(manifest))
     entries = {entry['path']: entry for entry in manifest['files']}
-    for name in upload:
-        upload_file(sources[name], destination, entries[name], rclone)
+    upload_some(sources, upload, entries, destination, rclone)
     headers = ['--header-upload', 'Cache-Control: no-cache']
     subprocess.run([rclone, 'copyto', str(output / 'manifest.json'),
                     f'{destination}/manifest.json', *headers], check=True)
+    # Packs are content-addressed; --size-only lets an idempotent republish skip packs that
+    # already exist (their names are the sha256 of their bytes) instead of failing on mtime.
     subprocess.run([rclone, 'copy', str(pack_cache / 'packs'), f'{destination}/packs',
-                    '--immutable', '--transfers', '48', '--checkers', '16',
+                    '--immutable', '--size-only', '--transfers', '48', '--checkers', '16',
                     '--low-level-retries', '20'], check=True)
     subprocess.run([rclone, 'check', str(pack_cache / 'packs'), f'{destination}/packs',
                     '--one-way', '--size-only', '--checkers', '16',
                     '--low-level-retries', '20'], check=True)
     subprocess.run([rclone, 'copyto', str(pack_cache / 'manifest-v2.json'),
                     f'{destination}/manifest-v2.json', *headers], check=True)
+
+
+def upload_some(sources, upload, entries, destination, rclone):
+    """Upload the changed files concurrently: a data publish is ~190k small files, and one
+    sequential rclone rcat per file takes days."""
+    done = 0
+    with ThreadPoolExecutor(max_workers=UPLOAD_WORKERS) as pool:
+        futures = {pool.submit(upload_file, sources[name], destination, entries[name], rclone): name
+                   for name in upload}
+        try:
+            for future in as_completed(futures):
+                future.result()
+                done += 1
+                if done % 5000 == 0:
+                    print(f'uploaded {done}/{len(upload)}', flush=True)
+        except BaseException:
+            for pending in futures:
+                pending.cancel()
+            raise
+    print(f'uploaded {done}/{len(upload)}', flush=True)
 
 
 def main():
