@@ -44,6 +44,95 @@ fn alpha_report(fdid: u32) -> Option<String> {
     ))
 }
 
+/// Mean luminance and alpha in eight rings from the texture centre (0) to its corner (7).
+fn radial_profile(fdid: u32) -> Option<String> {
+    let image = texture(fdid)?;
+    let (width, height) = (image.width as usize, image.height as usize);
+    let mut sums = [(0.0f64, 0.0f64, 0usize); 8];
+    let half = ((width * width + height * height) as f64).sqrt() / 2.0;
+    for y in 0..height {
+        for x in 0..width {
+            let dx = x as f64 + 0.5 - width as f64 / 2.0;
+            let dy = y as f64 + 0.5 - height as f64 / 2.0;
+            let ring = (((dx * dx + dy * dy).sqrt() / half) * 8.0).min(7.0) as usize;
+            let texel = &image.pixels[(y * width + x) * 4..(y * width + x) * 4 + 4];
+            let luminance =
+                0.299 * texel[0] as f64 + 0.587 * texel[1] as f64 + 0.114 * texel[2] as f64;
+            sums[ring].0 += luminance;
+            sums[ring].1 += texel[3] as f64;
+            sums[ring].2 += 1;
+        }
+    }
+    let rings: Vec<String> = sums
+        .iter()
+        .map(|(l, a, n)| {
+            let n = (*n).max(1) as f64;
+            format!("{:.0}/{:.0}", l / n, a / n)
+        })
+        .collect();
+    Some(format!(
+        "{fdid} lum/alpha rings centre->corner: {}",
+        rings.join(" ")
+    ))
+}
+
+#[test]
+fn quad_batch_textures_report_radial_profiles() {
+    for fdid in [1522961u32, 1248077, 1387771] {
+        let model = model(fdid);
+        for (index, unit) in model.batches.iter().enumerate() {
+            let start = usize::from(unit.texture_coord_index);
+            let count = usize::from(unit.texture_count);
+            let coords: Vec<i32> = (start..start + count)
+                .map(|slot| {
+                    model
+                        .texture_unit_lookup
+                        .get(slot)
+                        .map_or(-99, |value| i32::from(*value))
+                })
+                .collect();
+            let tex_start = usize::from(unit.texture_id);
+            let combos: Vec<i32> = (tex_start..tex_start + count)
+                .map(|slot| {
+                    model
+                        .texture_lookup
+                        .get(slot)
+                        .map_or(-99, |value| i32::from(*value))
+                })
+                .collect();
+            println!(
+                "RAW {fdid} unit {index} texture_id {} texture_coord_index {} texture_unit_lookup {:?}",
+                unit.texture_id, unit.texture_coord_index, model.texture_unit_lookup,
+            );
+            println!(
+                "PROFILE {fdid} unit {index} shader {:#06x} tex_count {count} texture_combo {combos:?} texcoord_combo {coords:?} uv_anim_lookup {:?}",
+                unit.shader_id,
+                (usize::from(unit.texture_animation_id)
+                    ..usize::from(unit.texture_animation_id) + count)
+                    .map(|slot| {
+                        model
+                            .uv_animation_lookup
+                            .get(slot)
+                            .map_or(-99, |value| i32::from(*value))
+                    })
+                    .collect::<Vec<_>>(),
+            );
+            for combo in &combos {
+                let Some(fdid) = usize::try_from(*combo)
+                    .ok()
+                    .and_then(|slot| model.texture_fdids.get(slot))
+                else {
+                    continue;
+                };
+                match radial_profile(*fdid) {
+                    Some(profile) => println!("    {profile}"),
+                    None => println!("    {fdid}: not local"),
+                }
+            }
+        }
+    }
+}
+
 #[test]
 fn disc_batches_report_texture_alpha_and_wrap() {
     for fdid in [1522961u32, 1248077, 1387770, 1387771] {
