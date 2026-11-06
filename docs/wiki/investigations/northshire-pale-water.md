@@ -257,3 +257,19 @@ The silent non-attachment is located but not fixed. `StreamedTerrain::queue_tile
 ## Legacy water colour is an environment record, not LightData — 2026-11-05
 
 Material-1 water reads two colour records from the per-view environment object — `{ 0xAARRGGBB colour, an int, three floats }`, one of two offset pairs chosen by a runtime predicate (ocean vs river, INFERRED), converted by bytes 2,1,0,3 over 255 with alpha included and staged into five constant slots. LightData's four water colours are not read by the client at all, and our pipeline's alpha comes from LightParams rather than the `0x00RRGGBB` word, which is why a zero row renders as a black surface instead of as nothing. Who fills those environment records per view is still unknown, so the fallback keeps its current behaviour and the gap is recorded rather than papered over with an invented colour.
+
+## The census harness inverted the tile axes — 2026-11-05
+
+Symptom: the five Forever instance maps (3021, 2807, 2832, 2853, 2998) loaded no terrain, with no failure and no rejection line at all.
+
+The confirmed fact first. `bevy_to_tile_coords` returns `(row, col)` — `row = floor((32 + bz) / 533.33)`, `col = floor((32 - bx) / 533.33)` — and that tuple is the same order as the ADT file name, `{map}_{row}_{col}`, and the same order as `WdtTiles::active`, which stores `(index % 64, index / 64)`. Two independent proofs: `azeroth_32_48.adt`'s first KNCM position is `x = -8533.33, z = 233`, which is tile `(row 32, col 48)`; and the untouched streamer loads Stormwind (pose `(-8800, 266.7)`) as 9 tiles and 6487 objects.
+
+The bug was in the census harness, not the streamer. Its pose inversion read `best.x` as the column and `best.y` as the row, and MAIN stores `(row, col)`, so every snapped pose landed on the transposed tile. `queue_tile` then rejected it — silently, because a rejection is a legitimate outcome for an unauthored slot.
+
+That produced two misleading results. First, a one-sided change that swapped the active-set comparison made the transposed poses stream, which looked like a fix. Second, the same change with `file_ids(second, first)` and an unswapped named stem loaded another region's ADT into the slot, so the terrain rendered as separate sheets at different heights with gaps of sky between them — visible in the earlier `map-2807` capture. Retail maps rejected the same way once the harness posed them, which is what exposed the harness as the culprit rather than the streamer.
+
+Fix: the harness inverts the real formula, `x = (31.5 - best.y) * 533.33` and `z = (best.x - 31.5) * 533.33`. `streaming.rs` keeps only the diagnostic — a once-per-map rejection warning gated by `rejected_reported` — and no ordering change.
+
+Standing proof in the harness and the suite: `WORLD_CENSUS_PLACEMENT` requires every parsed tile's file stem to equal the slot it was placed in, and `core/tests/adt_tile_seams.rs` requires two adjacent ADTs to agree on every shared world X/Z vertex (129 shared vertices, maximum height difference 0.0).
+
+`StormwindJail` (map 34) is a WMO instance: its WDT carries `global_wmo_fdid` 108631 and no MAIN tiles, so the correct result there is zero tiles, not a load.
