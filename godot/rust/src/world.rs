@@ -1599,6 +1599,9 @@ impl WorldUnits {
             advance_unit_transform(unit, self.local_player_id == Some(*id), delta);
             mount::seat_rider(unit);
         }
+        if self.units.values().all(|unit| unit.passenger.is_none()) {
+            return;
+        }
         let vehicles: HashMap<_, _> = self
             .units
             .iter()
