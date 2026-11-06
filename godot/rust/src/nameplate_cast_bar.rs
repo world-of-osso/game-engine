@@ -243,6 +243,8 @@ pub(crate) struct CastNodes {
     pub icon: Gd<TextureRect>,
     pub shield: Gd<TextureRect>,
     pub text: Gd<RichTextLabel>,
+    /// The font size override last set: each set makes Godot lay the text out again.
+    font_size: Option<i32>,
 }
 
 fn texture_rect(name: &str) -> Gd<TextureRect> {
@@ -310,6 +312,7 @@ impl CastNodes {
             icon,
             shield,
             text,
+            font_size: None,
         }
     }
 
@@ -369,8 +372,11 @@ impl CastNodes {
             self.text.set_text(&bbcode);
         }
         let size = style.cast_font_size.round() as i32;
-        self.text
-            .add_theme_font_size_override("normal_font_size", size);
+        if self.font_size != Some(size) {
+            self.font_size = Some(size);
+            self.text
+                .add_theme_font_size_override("normal_font_size", size);
+        }
         let height = self.text.get_content_height() as f32;
         let width = self.text.get_content_width() as f32;
         self.text
