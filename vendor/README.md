@@ -60,5 +60,30 @@ drops the thread handle (two atomic operations) each time: 4.4% of the main thre
 in Stormwind in a release profile (`docs/wiki/investigations/godot-stormwind-fps.md`). The comparison with
 `main_thread_id()` is unchanged, so `discover_main_thread` still moves the main thread.
 
-Retire the patch when a godot-rust release no longer calls `std::thread::current()` in
-`is_main_thread`, or when `std::thread::current_id` is stable and used there.
+Retire the patch when upstream godot-rust releases an equivalent fix.
+
+### Upstream patch note
+
+Title: `is_main_thread`: cache the calling thread's id in a thread-local.
+
+```diff
+-        std::thread::current().id() == main_thread_id()
++        thread_local! {
++            static CURRENT_THREAD_ID: std::thread::ThreadId = std::thread::current().id();
++        }
++        CURRENT_THREAD_ID.with(|id| *id == main_thread_id())
+```
+
+With balanced safeguards every engine call checks the main thread, and
+`std::thread::current()` clones and drops the `Thread` handle (an atomic increment and
+decrement) each time. A thread's id never changes, so a lazily initialized thread-local
+gives the same answer; `main_thread_id()` is still read on every call, so
+`discover_main_thread` still moves the main thread.
+
+Benchmark (Godot 4.7.2 release template, Linux, Stormwind indoor pose, 1920x1080):
+- microbenchmark: 15.1 → 4.8 ns per `is_main_thread` call;
+- frame-pointer profile: `std::thread::current` was 4.4% (release) to 9% (debug) of
+  main-thread samples;
+- interleaved A/B, 4 pairs per build (`data/diagnostics/fps-measure-2026-11-06/close-2`):
+  main-thread CPU 15.73 → 15.05 ms per frame (−0.68 ms), client process 10.54 → 9.78 ms,
+  p99 frame 47.2 → 38.5 ms.
