@@ -14,6 +14,7 @@ use game_engine_core::{
     retail_fog::{FogResult, FogUniforms, blend_wmo_fog, fog_uniforms, wmo_fog},
     retail_light_data::RetailLightData,
     sky_cubemap_data::{self, sky_dome_profile},
+    world_time,
 };
 use godot::{
     classes::{
@@ -228,6 +229,7 @@ impl WorldLighting {
         minutes: f32,
         wmo_fog: Option<&WmoFogBlend>,
     ) -> Result<Option<TerrainLight>, String> {
+        let minutes = world_time::light_half_minutes(minutes);
         let sample = catalog.sample(map_id, [position.x, -position.z, position.y], minutes)?;
         let sky = &sample.sky;
         let stops = [
