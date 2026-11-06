@@ -281,3 +281,32 @@ Retail objects fail the same way as the Forever maps, but with a different shape
 The retail product the client actually resolves is `wow` build `12.1.5.70783`, key `bc493ecb2898766c0f8947a99b4b3d65`, installed under `/syncthing/World of Warcraft` — not the `/mnt/c` root that [casc extraction](../../casc-extraction.md) recorded for retail. Nine other `wow` build keys and their caches are present, so the key must be selected explicitly.
 
 `scripts/publish_forever_census.py` now takes `--product`, `--build` and `--build-key` instead of hard-coding the Forever values; the staging tree seeds the closure, so extracting the failing M2s into `models/` is enough to pull in every skin, texture and animation they name. Orgrimmar's thirty failing models published 53 receipts (36 skin, 17 blp, 4.7 MiB) and the same two poses then reported 0 failures, up from 21 and 97.
+
+## The 2959 hillside pond is legacy material-1 water whose colour inputs are all zero — 2026-11-05
+
+Pose `(-800, 100, 266.7)` (tile `row 32, col 33` of map 2959) draws 147 MH2O layers. Four of them cover the black pond: chunks 104, 105, 120 and 121, spanning `x [-795.8, -754.2]`, `z [266.7, 316.7]`, all at `y = 14.7`.
+
+A temporary layer print in `WaterState::layer_mesh` (removed before commit) dumped the row for those layers:
+
+```
+liquid_type   = 5
+liquid_object = 17921        (>= 42, so a real LiquidObject key, not the ocean sentinel)
+material_id   = 1            (legacy water)
+LVF           = 0            (legacy vertex format)
+shader        = Water        (water.gdshader, not the PBR program)
+depth_curve   = [0.0, 6.0714, 0.0, 0.0]
+colors        = [[0,0,0], [0,0,0], [0,0,0]]
+texture_slots = [[219901..219930], [0], [463849], [317230], [], []]
+```
+
+`water.gdshader` does not read `liquid_color_*`. It picks `close_color`/`far_color` from the `river_*` or `ocean_*` globals by `color_source` (`WaterColorSource::Ocean` for LiquidType 5) and computes `lit_water = water_color.rgb * surface_light`. A second temporary print at the global-parameter write showed what those globals hold on this map:
+
+```
+river = [0,0,0,0.5] / [0,0,0,1.0]
+ocean = [0,0,0,0.75] / [0,0,0,1.0]
+```
+
+Every RGB channel is zero; only the alpha differs. So `water_color.rgb` is black, `lit_water` contributes nothing, and the surface is the specular and foam terms alone over zero albedo — the black pond. The LiquidType row's own colour triple is zero too, and the per-view environment-record writer that supplies the real colour is still untraced, so there is nothing to substitute. This is the same gap for every legacy material-1 surface on the map, not a property of the pond: the neighbouring ocean layers (`liquid_type 2`, `liquid_object 42`, `LVF 2`) bind the same black `ocean_*` pair.
+
+Conclusion: the pond is not a rendering bug to fix in the liquid path. It closes when the environment-record water colour is read.
+
