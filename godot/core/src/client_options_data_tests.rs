@@ -14,6 +14,8 @@ fn full_options_round_trip_keeps_custom_values() {
     file.graphics.ssao_enabled = true;
     file.hud.nameplate_style.health_colors.neutral = [0.2, 0.5, 0.8];
     file.hud.auto_loot = true;
+    file.hud.healer_ground_rings.all_roles = true;
+    file.hud.healer_ground_rings.raid_lowest = 3;
     file.bindings.assign(
         InputAction::TargetNearest,
         InputBinding::Keyboard(BindingKey::F5),
@@ -34,6 +36,8 @@ fn full_options_round_trip_keeps_custom_values() {
         [0.2, 0.5, 0.8]
     );
     assert!(restored.hud.auto_loot);
+    assert!(restored.hud.healer_ground_rings.all_roles);
+    assert_eq!(restored.hud.healer_ground_rings.raid_lowest, 3);
     assert_eq!(
         restored.bindings.binding(InputAction::TargetNearest),
         Some(InputBinding::Keyboard(BindingKey::F5))
@@ -145,4 +149,22 @@ fn interact_key_icons_dropdown_sets_and_reads_the_icon_cvars() {
         Some(InteractKeyIcons::ShowAll)
     );
     assert_eq!(InteractKeyIcons::from_value(4), None);
+}
+
+#[test]
+fn healer_ground_rings_default_on_for_healers_and_clamp_the_raid_count() {
+    use crate::client_options_data::{HealerGroundRingOptions, MAX_RAID_LOWEST};
+    let options = HealerGroundRingOptions::default();
+    assert!(options.enabled);
+    assert!(!options.all_roles);
+    assert!(options.colorblind_ramp);
+    assert_eq!(options.raid_lowest, 0);
+
+    let mut file = ClientOptionsFile::default();
+    file.hud.healer_ground_rings.raid_lowest = 200;
+    let effective = file.clamped();
+    assert_eq!(
+        effective.hud.healer_ground_rings.raid_lowest,
+        MAX_RAID_LOWEST
+    );
 }

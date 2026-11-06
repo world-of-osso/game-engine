@@ -758,6 +758,7 @@ impl GameClient {
         let camera = viewport.get_camera_3d()?;
         let pointer = Vector2::from_array(self.physical_input.pointer());
         self.nameplate_at(&camera, pointer)
+            .or_else(|| self.healer_ring_under_pointer(&camera, pointer))
             .or_else(|| pick_unit(&camera, pointer))
             .filter(|id| self.replica.unit(*id).is_some_and(is_unit))
     }
