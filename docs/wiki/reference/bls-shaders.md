@@ -47,6 +47,29 @@ Permutation records have an opaque wrapper around a conventional DXBC container.
 
 Forever `wowf` 1.60.1.70790 bundles can publish a fixed 2048-entry permutation table whose unused slots are all `0xFFFFFFFF/0`; the remaining entries still cover the inflated body contiguously, and the reader now skips the empty slots. New Forever-only bundles: `2977157` (DX5) / `2990839` (DX6), the 256-program uber material family whose `(0,1,3,11,16,23)` pattern takes `COLOR0+COLOR2+TEXCOORD0-5`; `2977280` / `2990958` (MLLD far-terrain LOD); `2977159` / `2990841` (two-texture blend). The Forever `water.bls` family (`2977281`, 12 permutations vs Retail 6) adds the PBR flag `cb5[172].y`, `cb1[32]/[33]` colours, a cubic-height t16 composite via `cb5[168]`, and six permutations with `SV_TARGET1`. See `data/diagnostics/forever-pbr-water-2026-11-05/`.
 
+## Effect-name hash (2026-11-05)
+
+Retail resolves an M2 batch to a shader effect by name. Two formats only
+(`work/engine-3d/M2-SHADERID-TABLES.md` §5.3): `"Vertex %d(%u), Pixel %d(%u)"` built from
+(vertexEffectId, vertexIndex, pixelEffectId, pixelIndex), and `"M2Effect %d"` for shader ids with
+bit15 set. The name is hashed by `0x140287210`, which is **MurmurHash3 x64_128 with one variant**:
+the second half's round addend is `0x0b41def1` instead of `0x38495ab5`. Everything else is
+textbook, and the function returns the 64-bit sum of the two fmix64 outputs.
+
+`scripts/bls_effect_hash.py` implements it. Evidence status:
+
+- Verified: `"M2Effect 21"` (11 bytes, so no 16-byte block) reproduces decompilation's value
+  exactly, `low32 0xfeb758e6`, `full64 0x022770dbfeb758e6`. That validates the tail, length xor,
+  cross-adds, fmix64 and the sum.
+- Not verified: the two 25-byte `"Vertex ..."` names. No variant tried (addend placement, k1/k2
+  and h1/h2 rotations, block order, c1/c2 swap — 512 combinations) reproduces their stated
+  values, so the block body is still open.
+- The keys do not carry the names: none of the 7,553 permutation keys in the 331 GXSH bundles of
+  the local shader cluster (2,976,000-2,982,000) contains any stated candidate value, in any
+  4- or 8-byte window, and no hash of the names over seeds 0-64 plus four common seeds, both
+  constants and lower/NUL variants matches either. The 16-byte opaque key is therefore not an
+  effect-name hash.
+
 ## Liquid findings (verified 2026-11-05)
 
 Local CASC resolution-cache build key: `bc493ecb2898766c0f8947a99b4b3d65`. This identifies the source cache, not a numeric retail build. Names come from the existing local community listfile; no ocean/slime/shore-named BLS entry exists there. This does not prove that those effects do not exist under other shader names.
