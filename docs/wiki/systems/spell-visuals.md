@@ -398,7 +398,8 @@ Consequences, all measured in the offline preview:
 - The held kits are drape candidates like any other kit model, so they bend onto treads and
   carpets through `drape_ground_effects`; the drape log reports their batch span, discarded
   and steep triangle counts.
-- A server pulse must not stack a second copy of a kit that is already on the anchor.
+- A server pulse is not a re-cast: the burst plays once on first sight and the display kit
+  is held from then on (`AreaTriggerVisuals::replays` returns a trigger only when new).
 
 ## Gaps
 
