@@ -1,3 +1,11 @@
 ## Object-42 A/B on real release builds; streaming and legacy water colour still open
 
 With the release build fixed on master, the object-42 change is measured on genuine release artefacts (pre-fix library still contains the drop error string, post-fix does not; `/proc/<pid>/maps` confirmed the path each run): map 2959 goes from 73 dropped ocean layers to 0, map 2980 from 42 to 0, object counts unchanged. The silent non-attachment is located at `queue_tile`'s wordless early return when the tile is not in `wdt.tiles.active`, with the two sides using opposite `(row, col)` / `(col, row)` orders — but adding the transposed containment test changed nothing, so that is not the whole cause and was reverted. Legacy material-1 water colour turns out to come from per-view environment records, not LightData, so the current behaviour stays with the gap documented. [[northshire-pale-water#Release-library A/B, and where the silent non-attachment actually lives — 2026-11-05]].
+## Area trigger ground art is the display kit, not the cast burst
+
+Consecration showed nothing because an area trigger replayed only the cast bursts (59536/189337)
+and its golden circle lives in the display kit (59234/187938, `SpellVisualEvent` 9 -> 10). DB2
+events 9/10 now decode to `DisplayStart`/`DisplayEnd` (cache format 20), the kits are held for
+the trigger's lifetime, and an effect that authors `SpellVisualEffectName.EffectRadius` is fitted
+to the trigger radius. Measured against a same-frame no-effect diff: Consecration 65,735 ->
+331,089 px, Death and Decay 136,200 px at 9 s with no burst in flight. [[spell-visuals#Area trigger ground visuals (2026-11-05)]].

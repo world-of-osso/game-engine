@@ -372,6 +372,34 @@ Runtime: the account's existing `SpecializationChanged` updates `PlayerSpells.sp
 
 Behavioral proof is in the [contract's tests](../../specs/spell-visuals.md#tests-asserting-this-spec): local spell state before the snapshot and Arms→Fury transitions, actual DB2 ID-to-index resolution, same-weapon kits, and remote identity rejection. Native raster/live proof is not claimed; the existing capture fixture requires a live server and no offline spec cast path was found.
 
+## Area trigger ground visuals (2026-11-05)
+
+A replicated `SpellAreaTrigger` carries the persistent ground art, not the cast kit. The art
+is authored as a **display kit** (`SpellVisualEvent` `StartEvent` 9 -> `EndEvent` 10), which
+the trigger holds for its whole lifetime:
+
+| Spell | Display kit | Cast/burst kits | Effect (model, authored radius) |
+|---|---|---|---|
+| Death and Decay 43265 | 243682 | 243680, 243681, 230208 | 36976 (1522961, no radius) |
+| Consecration 26573 | 59234 / 187938 | 59536 / 189337 | 34171 (1248077, `EffectRadius` 8) |
+| Flamestrike 2120 | none authored | 265776, 265781 | 27593/27921 (1387770, 1387771) |
+
+Consequences, all measured in the offline preview:
+
+- Replaying only the burst kits (`end` = 13) is what made Consecration invisible: its burst
+  kits 59536/189337 are small hand-scale models, and its golden circle is 59234/187938.
+- DB2 events 9/10 must decode to `DisplayStart`/`DisplayEnd`; they are real
+  `SpellVisualEvent` rows, not client-only states. A cached catalog built before that
+  decode keeps the old `Other(9)` values, so the cache format has to move with it.
+- Scale: `SpellVisualEffectName.EffectRadius` is the effect's authored ground radius in
+  yards (absent before 12.1.5). A trigger fits the art by `trigger radius / EffectRadius`;
+  effects without one keep their authored size (Death and Decay's held disc is 11.8 yd
+  across, Consecration's circle 19.4 yd, Flamestrike 17.9 yd).
+- The held kits are drape candidates like any other kit model, so they bend onto treads and
+  carpets through `drape_ground_effects`; the drape log reports their batch span, discarded
+  and steep triangle counts.
+- A server pulse must not stack a second copy of a kit that is already on the anchor.
+
 ## Gaps
 
 - The action layer is full-body when standing and upper-body when moving (SpineLow subtree). `AnimKitSegment` conditions, per-segment bone sets and priorities, and `AnimKit` blend times are not applied.
