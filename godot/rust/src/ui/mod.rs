@@ -181,6 +181,8 @@ pub struct RegistryUi {
     ui_scale: Option<f32>,
     scroll_stepper: Option<scroll_lists::StepperHold>,
     section_flash: Option<(u32, std::time::Instant)>,
+    /// Frames given a cooldown swipe node; any other frame has none to update.
+    cooldown_swipes: std::collections::HashSet<String>,
 }
 
 /// Raw authored-slider input; the host applies its own policy and passes back a view.
@@ -1156,6 +1158,7 @@ impl ICanvasLayer for RegistryUi {
             ui_scale: None,
             scroll_stepper: None,
             section_flash: None,
+            cooldown_swipes: std::collections::HashSet::new(),
         }
     }
 }
