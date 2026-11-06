@@ -332,7 +332,7 @@ impl GameClient {
         // The feature is idle outside the world unless a fixture injected a party.
         let preview = self.healer_rings.preview.is_some();
         if !preview && self.account.session.screen != game_engine_session::SessionScreen::InWorld {
-            self.healer_rings.hide_all();
+            self.healer_rings.free_all();
             return;
         }
         self.healer_rings.poll_catalog(&self.data_root);
@@ -511,6 +511,7 @@ impl GameClient {
         known: Vec<u32>,
         members: Vec<PreviewRingMember>,
     ) {
+        self.healer_rings.free_all();
         self.healer_rings = HealerGroundRings::with_preview(PreviewRingParty {
             spec,
             known,
@@ -640,6 +641,16 @@ impl GameClient {
 }
 
 impl HealerGroundRings {
+    /// Frees every member node: a world exit or a new fixture party must not reuse draped
+    /// heights measured on another map.
+    fn free_all(&mut self) {
+        let names: Vec<String> = self.members.keys().cloned().collect();
+        for name in names {
+            self.free_member(&name);
+        }
+        self.hide_all();
+    }
+
     fn hide_all(&mut self) {
         for member in self.members.values_mut() {
             member.mesh.set_visible(false);
