@@ -105,6 +105,7 @@ func capture_dornogal(client) -> bool:
 	for current in extras:
 		for other in extras:
 			other[0].visible = other == current
+		freeze_animation(current[0])
 		var meshes: Array = current[0].find_children("Batch*", "MeshInstance3D", true, false)
 		print("FIXTURE ", current[1], "_MESHES count=", meshes.size())
 		if not await capture_authored_visual(current[0], current[1]):
@@ -126,6 +127,16 @@ func await_npc_visual(client, npc_name: String) -> Node3D:
 		await process_frame
 	fail(npc_name + " authored NPC visual was not allocated")
 	return null
+
+func freeze_animation(visual: Node3D) -> void:
+	var animation: Node = visual.get_node_or_null("M2Animation")
+	if animation == null:
+		return
+	animation.set_process(false)
+	if not animation.play_animation(0, true):
+		return
+	animation.advance_time_ms(1000.0)
+	animation.set_paused(true)
 
 func ready_deadline_check(ui: Node) -> void:
 	var deadline := Time.get_ticks_msec() + 2000
