@@ -1,5 +1,6 @@
 //! Async local-CASC parsing for one native map and its requested terrain tiles.
 
+use godot::global::godot_warn;
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::PathBuf;
 use std::sync::mpsc::{self, Receiver, Sender, TryRecvError};
@@ -95,6 +96,9 @@ pub(crate) struct StreamedTerrain {
     pub(crate) parsed_tiles: BTreeMap<(u32, u32), NativeTerrainTile>,
     pending_tiles: BTreeSet<(u32, u32)>,
     requested_tiles: BTreeSet<(u32, u32)>,
+    /// One warning per map when a requested tile is not authored; a dedicated flag keeps the
+    /// sentinel out of `requested_tiles`, which is unioned and re-queued.
+    rejected_reported: bool,
     failures: BTreeMap<(u32, u32), String>,
     map_error: Option<String>,
 }
@@ -138,6 +142,7 @@ impl StreamedTerrain {
             parsed_tiles: BTreeMap::new(),
             pending_tiles: BTreeSet::new(),
             requested_tiles: BTreeSet::new(),
+            rejected_reported: false,
             failures: BTreeMap::new(),
             map_error: None,
         }
@@ -368,6 +373,7 @@ impl StreamedTerrain {
         self.parsed_tiles.clear();
         self.pending_tiles.clear();
         self.requested_tiles.clear();
+        self.rejected_reported = false;
         self.failures.clear();
         self.map_error = None;
         Ok(())
@@ -423,13 +429,23 @@ impl StreamedTerrain {
 
     fn queue_tile(&mut self, tile: (u32, u32)) -> Result<(), String> {
         // Only tiles WDT MAIN marks as having an ADT exist; the rest of the load square has
-        // no terrain to read.
-        if self
-            .map_wdt
-            .as_ref()
-            .is_some_and(|wdt| !wdt.tiles.active.contains(&tile))
-        {
-            return Ok(());
+        // no terrain to read. A rejection is reported once per map: returning silently left a
+        // preview with `world_attached` true, no tiles, no failures and no error at all.
+        if let Some(wdt) = self.map_wdt.as_ref() {
+            if !wdt.tiles.active.contains(&tile) {
+                if !self.rejected_reported {
+                    self.rejected_reported = true;
+                    let sample: Vec<_> = wdt.tiles.active.iter().copied().take(6).collect();
+                    godot_warn!(
+                        "terrain rejects tile {:?}: not in WDT MAIN active set ({} active, first {:?}); map {}",
+                        tile,
+                        wdt.tiles.active.len(),
+                        sample,
+                        self.map.as_deref().unwrap_or("")
+                    );
+                }
+                return Ok(());
+            }
         }
         if self.pending_tiles.contains(&tile)
             || self.parsed_tiles.contains_key(&tile)
