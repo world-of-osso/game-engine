@@ -13,7 +13,9 @@ extends SceneTree
 ## Place the character with `game-server-admin set-position|teleport` while it is offline.
 ## BENCH_SYSTEMS_S=<seconds> adds an `idle_systems` segment of that length that reads
 ## `GameClient.frame_stats()` every frame and reports each client step's median and p95,
-## the same breakdown the Windows 120 FPS receipt reports as `top_systems_ms`.
+## the same breakdown the Windows 120 FPS receipt reports as `top_systems_ms`, and its ten
+## longest frames (`worst_frames`). This script's `_process` runs before the nodes', so
+## each interval pairs with the client steps of the frame it timed.
 ## Each segment prints `BENCH_MARK <segment> start|end` (for an external profiler) and
 ## `BENCH_SEGMENT {json}`: wall-clock frame interval percentiles, per-frame means of the
 ## client's own process time, Godot's TIME_PROCESS/TIME_PHYSICS_PROCESS monitors (each the
@@ -44,6 +46,8 @@ var physics_ms: Array[float] = []
 var main_cpu_ms: Array[float] = []
 var last_cpu_ns := 0
 var systems_ms := {}
+## Per frame of a systems segment: [interval ms, client ms, main-thread CPU ms, steps].
+var system_frames: Array = []
 var recording_systems := false
 
 func _initialize() -> void:
@@ -65,6 +69,7 @@ func _process(_delta: float) -> bool:
 				if not systems_ms.has(name):
 					systems_ms[name] = [] as Array[float]
 				systems_ms[name].append(steps[name])
+			system_frames.append([intervals.back(), client_ms.back(), main_cpu_ms.back(), steps])
 	last_usec = now
 	last_cpu_ns = cpu_ns
 	return false
@@ -164,6 +169,7 @@ func begin(segment: String, with_systems := false) -> void:
 	for samples in [intervals, client_ms, process_ms, physics_ms, main_cpu_ms]:
 		samples.clear()
 	systems_ms.clear()
+	system_frames.clear()
 	recording_systems = with_systems
 	print("BENCH_MARK %s start" % segment)
 	recording = true
@@ -194,6 +200,7 @@ func finish(segment: String, extra: Dictionary) -> void:
 	if recording_systems:
 		report["systems_ms_median"] = per_system(systems_ms, 0.5)
 		report["systems_ms_p95"] = per_system(systems_ms, 0.95)
+		report["worst_frames"] = worst_frames(10, 5)
 	report.merge(extra)
 	print("BENCH_SEGMENT ", JSON.stringify(report))
 
@@ -210,6 +217,24 @@ func per_system(samples: Dictionary, fraction: float) -> Dictionary:
 	for name in names:
 		ordered[name] = values[name]
 	return ordered
+
+## The `count` longest frames of a systems segment, each with its client and main-thread
+## CPU ms and its `steps` largest client steps: a long frame whose client steps are small
+## spent its time outside the client (render sync, engine work, preemption).
+func worst_frames(count: int, steps: int) -> Array:
+	var frames := system_frames.duplicate()
+	frames.sort_custom(func(a, b): return a[0] > b[0])
+	var worst := []
+	for frame in frames.slice(0, count):
+		var times: Dictionary = frame[3]
+		var names := times.keys()
+		names.sort_custom(func(a, b): return times[a] > times[b])
+		var top := {}
+		for name in names.slice(0, steps):
+			top[name] = times[name]
+		worst.append({"interval_ms": frame[0], "client_ms": frame[1],
+			"main_thread_cpu_ms": frame[2], "top_steps_ms": top})
+	return worst
 
 ## `WIDTHxHEIGHT`; the receipt poses use 1920x1080.
 func parse_resolution(text: String) -> Vector2i:
