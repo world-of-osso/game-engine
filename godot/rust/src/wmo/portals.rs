@@ -65,6 +65,10 @@ pub(crate) struct WmoPortals {
     /// Per group index: (portal index, destination group).
     adjacency: Vec<Vec<(usize, u16)>>,
     portal_vertices: Vec<Vec<Vec3>>,
+    /// The last local camera position and the interior group it lies in: the portal
+    /// cull and the camera fog ask for the same position each frame, and a still camera
+    /// asks again on every frame.
+    camera_group: std::cell::Cell<Option<(Vec3, Option<u16>)>>,
 }
 
 impl WmoPortals {
@@ -93,6 +97,7 @@ impl WmoPortals {
             groups,
             adjacency,
             portal_vertices,
+            camera_group: std::cell::Cell::new(None),
         }
     }
 
@@ -331,6 +336,17 @@ impl WmoPortals {
     /// and one of its triangles lies below it; the highest such floor wins
     /// (WebWowViewerCpp `getGroupWmoThatCameraIsInside`).
     fn camera_interior_group(&self, local_camera: Vec3) -> Option<u16> {
+        if let Some((camera, group)) = self.camera_group.get()
+            && camera == local_camera
+        {
+            return group;
+        }
+        let group = self.find_camera_interior_group(local_camera);
+        self.camera_group.set(Some((local_camera, group)));
+        group
+    }
+
+    fn find_camera_interior_group(&self, local_camera: Vec3) -> Option<u16> {
         self.groups
             .iter()
             .filter(|group| {
@@ -618,6 +634,7 @@ mod tests {
                 Vec3::new(6.0, 2.0, 0.0),
                 Vec3::new(4.0, 2.0, 0.0),
             ]],
+            camera_group: std::cell::Cell::new(None),
         }
     }
 
