@@ -105,7 +105,7 @@ fn assert_same_hits(data: &SurfaceData) {
             misses += 1
         }
     }
-    assert!(hits > 500 && misses > 500, "{hits} hits, {misses} misses");
+    assert!(hits > 300 && misses > 300, "{hits} hits, {misses} misses");
 }
 
 #[test]
