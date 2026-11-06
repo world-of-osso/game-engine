@@ -36,6 +36,11 @@ renderer/rendering_method="forward_plus"
 ; Saved SSAO enables this once in GDExtension Servers init, before RenderingServer.
 driver/depth_prepass/enable=false
 textures/default_filters/use_nearest_mipmap_filter=false
+; Windows windowed/borderless: DWM composition stalls a present for one vblank; a third
+; frame in flight and a fourth swap chain image absorb it (docs/wiki/investigations/
+; godot-vulkan-present-thread.md, "Windows DWM present wait"). Exclusive fullscreen needs neither.
+rendering_device/vsync/frame_queue_size.windows=3
+rendering_device/vsync/swapchain_image_count.windows=4
 
 [shader_globals]
 

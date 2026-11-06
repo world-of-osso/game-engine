@@ -72,6 +72,17 @@ this mode: `m2.gdshader` for meshes (4cd7bc671) and `particle_composite.glsl.in`
 (30937455f). Add (M2 blend 4 -> GX 3, SRC_ALPHA/ONE) and NoAlphaAdd (M2 blend 3 -> GX 10,
 ONE/ONE) keep unpremultiplied colour, as their factors expect.
 
+**BlendAdd known gap (2026-11-06, open).** Neither output matches retail Death and Decay
+(`foot_ik_ground_drape.gd` `drape_trigger`, ground batches pixel shaders 7 Mod_Mod2x and 8
+Mod_Add, combiners identical to WebWowViewerCpp). Premultiplied (current), the ground layer
+changes 15-99 px against the no-effect frame at 3-9 s, so it is invisible after the cast
+burst; straight (WebWowViewerCpp `commonM2Material.slang:269`), it draws as a hard-edged red
+quad (159k px, 40-51k saturated). The textures' alpha is near 0 where their RGB is not; the
+open question is the BLP alpha decode against retail BlendAdd semantics, which postdate WWV's
+reference and the 15890 decompilation (no GX 13 in `Gx/Types.h`). `m2_blend_pixels.gd` reports
+its blend 7 case as a known gap instead of asserting it. Captures:
+`/syncthing/AgentShared/2026-11-06/fps-120-close/blend7-decay-{0.5,6}-premul-vs-straight.jpg`.
+
 NoAlphaAdd is unexercised: of 80,782 extracted M2s, material blend modes are 0:86,346,
 1:23,814, 2:67,951, 4:34,791, 5:325, 6:2,170, 7:8,036 and none use blend 3, so the shader's
 GX 10 path (which writes texture alpha rather than 1) has no scene to verify against.

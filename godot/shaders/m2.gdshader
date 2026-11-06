@@ -28,8 +28,6 @@ uniform vec3 texture_weights = vec3(1.0);
 uniform vec3 mesh_color = vec3(1.0);
 // meshOpacity: colour alpha times texture weight 0 (unless the batch skips it).
 uniform float transparency = 1.0;
-// Retail scenery distance fade of the placement (1 unless it is in its fade band).
-uniform float scenery_opacity = 1.0;
 uniform int render_flags = 0;
 uniform int gx_blend = 0;
 
@@ -246,13 +244,14 @@ void fragment() {
 	RADIANCE = vec4(0.0, 0.0, 0.0, 1.0);
 	ALBEDO = vec3(1.0);
 	ROUGHNESS = 1.0;
-	ALPHA = color.a * scenery_opacity;
+	// ALPHA starts at the instance's fade, 1 - GeometryInstance3D.transparency: the retail
+	// scenery distance fade of a placement, without a per-placement material write.
+	ALPHA *= color.a;
 	// GxBlend_BlendAdd (13) blends ONE / ONE_MINUS_SRC_ALPHA, like the ribbon shader: without
 	// premultiplying here a texel whose alpha is 0 still adds its full colour, which fills a
-	// billboard's soft corners and draws a hard-edged square.
-	// Read the value, not ALPHA: any ALPHA reference moves the opaque variants, which drop the
-	// write above, into Godot's transparent pass without a depth write.
-	premultiplied = gx_blend == 13 ? color.a * scenery_opacity : 1.0;
+	// billboard's soft corners and draws a hard-edged square. The opaque variants replace both
+	// lines: any ALPHA reference moves a material into Godot's transparent pass.
+	premultiplied = gx_blend == 13 ? ALPHA : 1.0;
 	authored_color = color.rgb;
 	authored_specular = specular * mesh.rgb;
 	camera_position = CAMERA_POSITION_WORLD;

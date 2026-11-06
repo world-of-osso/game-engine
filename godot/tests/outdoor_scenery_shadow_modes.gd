@@ -9,7 +9,7 @@ func make_batch(mode: int) -> MeshInstance3D:
 	batch.mesh = BoxMesh.new()
 	batch.cast_shadow = mode
 	var shader := Shader.new()
-	shader.code = "shader_type spatial; uniform float scenery_opacity = 1.0; void fragment() { ALBEDO = vec3(1.0); }"
+	shader.code = "shader_type spatial; void fragment() { ALBEDO = vec3(1.0); }"
 	var material := ShaderMaterial.new()
 	material.shader = shader
 	batch.material_override = material
