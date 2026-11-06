@@ -54,7 +54,7 @@ impl WaterMaterials {
     }
 
     /// A layer whose liquid material is unavailable is reported and left out, as an
-    /// unbuildable tile is.
+    /// unbuildable tile is. Layers of one liquid in one block draw as one instance.
     pub fn build(
         &mut self,
         root: &adt::Root,
@@ -63,36 +63,42 @@ impl WaterMaterials {
         let Some(water) = &root.water else {
             return Ok(None);
         };
-        let mut meshes = Vec::new();
+        let mut blocks = BTreeMap::new();
         for (index, chunk) in water.chunks.iter().enumerate() {
             let position = root
                 .chunk_positions
                 .get(index)
                 .ok_or("MH2O chunk has no authored position")?;
             for layer in &chunk.layers {
-                if let Some(surface) = self.layer_mesh(index, *position, layer, materials)? {
-                    meshes.push(surface);
-                }
+                let Some(surface) = self.layer_surface(index, *position, layer, materials)? else {
+                    continue;
+                };
+                let (geometry, _, _) = blocks
+                    .entry((surface.key, water_block(index)))
+                    .or_insert_with(|| (empty_geometry(), surface.material, surface.depth_curve));
+                append_geometry(geometry, surface.geometry);
             }
         }
-        if meshes.is_empty() {
+        if blocks.is_empty() {
             return Ok(None);
         }
         let mut node = Node3D::new_alloc();
         node.set_name("Water");
-        for (mesh, material) in meshes {
-            node.add_child(&water_instance(&mesh, &material));
+        for ((key, block), (geometry, material, depth_curve)) in blocks {
+            let mut instance = water_instance(&build_mesh(geometry, Some(depth_curve)), &material);
+            instance.set_name(&format!("Liquid{}_{}_Block{block}", key.0, key.1));
+            node.add_child(&instance);
         }
         Ok(Some(node))
     }
 
-    fn layer_mesh(
+    fn layer_surface(
         &mut self,
         chunk: usize,
         position: [f32; 3],
         layer: &adt::WaterLayer,
         materials: &Materials,
-    ) -> Result<Option<(Gd<ArrayMesh>, Gd<ShaderMaterial>)>, String> {
+    ) -> Result<Option<LayerSurface>, String> {
         let key = (layer.liquid_type, layer.liquid_object);
         let native = match materials.get(&key) {
             Some(Ok(native)) => native,
@@ -120,13 +126,14 @@ impl WaterMaterials {
                 vertex[1] = 0.0;
             }
         }
-        let material = self.material(key, native)?;
         // G13: the depth curve is a CPU vertex-write step; no liquid pixel program re-curves
-        // the interpolated value.
-        Ok(Some((
-            build_mesh(geometry, Some(native.params.depth_curve)),
-            material,
-        )))
+        // the interpolated value. It is per LiquidType, so one merged mesh applies one curve.
+        Ok(Some(LayerSurface {
+            key,
+            geometry,
+            material: self.material(key, native)?,
+            depth_curve: native.params.depth_curve,
+        }))
     }
 
     pub fn sample_clock(&mut self, parent: &Gd<Node3D>) -> Result<(), String> {
@@ -478,6 +485,47 @@ fn mipmapped_texture(width: u32, height: u32, pixels: &[u8]) -> Result<Gd<ImageT
     ImageTexture::create_from_image(&image).ok_or_else(|| "Cannot upload water texture".into())
 }
 
+/// One drawable MH2O layer before it is merged into its block.
+struct LayerSurface {
+    key: LiquidKey,
+    geometry: adt::WaterGeometry,
+    material: Gd<ShaderMaterial>,
+    depth_curve: [f32; 4],
+}
+
+/// MH2O chunks per side of one merged water block (4 chunks, about 133 yards). One
+/// instance per chunk layer cost about 670 draws over the Stormwind canals. A block keeps
+/// frustum culling and the per-instance back-to-front sort of these transparent surfaces
+/// local, so water seen through water still sorts by block.
+const BLOCK_CHUNKS: usize = 4;
+
+/// Block of a row-major MH2O chunk index in the tile's 16x16 grid.
+fn water_block(chunk: usize) -> usize {
+    const BLOCKS_PER_ROW: usize = 16 / BLOCK_CHUNKS;
+    (chunk / 16 / BLOCK_CHUNKS) * BLOCKS_PER_ROW + (chunk % 16) / BLOCK_CHUNKS
+}
+
+fn empty_geometry() -> adt::WaterGeometry {
+    adt::WaterGeometry {
+        positions: Vec::new(),
+        normals: Vec::new(),
+        uvs: Vec::new(),
+        colors: Vec::new(),
+        indices: Vec::new(),
+    }
+}
+
+fn append_geometry(target: &mut adt::WaterGeometry, source: adt::WaterGeometry) {
+    let base = target.positions.len() as u32;
+    target.positions.extend(source.positions);
+    target.normals.extend(source.normals);
+    target.uvs.extend(source.uvs);
+    target.colors.extend(source.colors);
+    target
+        .indices
+        .extend(source.indices.into_iter().map(|index| index + base));
+}
+
 fn water_instance(mesh: &Gd<ArrayMesh>, material: &Gd<ShaderMaterial>) -> Gd<MeshInstance3D> {
     let mut surface = MeshInstance3D::new_alloc();
     surface.set_mesh(mesh);
@@ -557,3 +605,7 @@ fn build_mesh(geometry: adt::WaterGeometry, depth_curve: Option<[f32; 4]>) -> Gd
     mesh.add_surface_from_arrays(mesh::PrimitiveType::TRIANGLES, &arrays);
     mesh
 }
+
+#[cfg(test)]
+#[path = "water_tests.rs"]
+mod tests;
