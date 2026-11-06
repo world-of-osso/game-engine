@@ -9,7 +9,7 @@
 use game_engine_core::client_options_data::{HealerGroundRingOptions, MAX_RAID_LOWEST};
 use game_engine_core::dispel_data::{DispelSchool, DispelSchools};
 
-use std::f32::consts::{PI, TAU};
+use std::f32::consts::TAU;
 
 /// Rings stay hidden at or above this health fraction and fade in over the band below it.
 pub const HIDE_ABOVE_HEALTH: f32 = 0.92;
@@ -295,39 +295,13 @@ pub fn ring_ray_hit(
     best
 }
 
-/// Angle of a mesh station, clockwise from 12 o'clock (world -Z).
-pub fn station_angle(station: usize) -> f32 {
-    TAU * station as f32 / ARC_STATIONS as f32
-}
-
 /// Radial offset `(x, z)` of an angle clockwise from 12 o'clock.
 pub fn station_offset(angle: f32, radius: f32) -> (f32, f32) {
     (angle.sin() * radius, -angle.cos() * radius)
 }
 
-/// Angles along `[start, end]`: the exact ends plus every mesh station inside them.
-/// The renderer interpolates each station's draped height, so an arc ends exactly where
-/// the gap ends without extra ground samples.
-pub fn arc_stations(start: f32, end: f32) -> Vec<f32> {
-    let step = TAU / ARC_STATIONS as f32;
-    let end = end.clamp(start, TAU);
-    let mut angles = vec![start];
-    let mut station = (start / step).floor() as usize + 1;
-    while (station as f32) * step < end - 1e-4 {
-        angles.push(station as f32 * step);
-        station += 1;
-    }
-    if end - start > 1e-4 {
-        angles.push(end);
-    }
-    angles
-}
-
 /// The angle 12 o'clock is at, for renderer documentation and tests.
 pub const UP_ANGLE: f32 = 0.0;
-
-/// Half a turn, for callers that draw the opposite edge.
-pub const DOWN_ANGLE: f32 = PI;
 
 #[cfg(test)]
 mod tests {
@@ -336,6 +310,7 @@ mod tests {
     use game_engine_core::dispel_data::{
         DISPEL_CURSE, DISPEL_DISEASE, DISPEL_MAGIC, DISPEL_POISON,
     };
+    use std::f32::consts::PI;
 
     fn member<'a>(name: &'a str, health: f32) -> RingMember<'a> {
         RingMember {
@@ -571,15 +546,7 @@ mod tests {
     }
 
     #[test]
-    fn stations_start_at_the_gap_end_and_advance_clockwise() {
-        let (start, end) = arc_span(0.5);
-        let stations = arc_stations(start, end);
-        assert!((stations.first().unwrap() - start).abs() < 1e-6);
-        assert!((stations.last().unwrap() - end).abs() < 1e-6);
-        // 24 interior stations of 7.5 degrees plus both ends.
-        assert_eq!(stations.len(), ARC_STATIONS / 2 + 1);
-        assert!((stations[1] - (start + TAU / ARC_STATIONS as f32)).abs() < 1e-4);
-        assert_eq!(arc_stations(0.0, TAU).len(), ARC_STATIONS + 1);
+    fn station_offset_is_clockwise_from_twelve_oclock() {
         let (x, z) = station_offset(UP_ANGLE, 1.0);
         assert!(x.abs() < 1e-6 && (z + 1.0).abs() < 1e-6);
         let (x, z) = station_offset(TAU * 0.25, 1.0);

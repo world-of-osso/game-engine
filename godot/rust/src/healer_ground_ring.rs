@@ -15,12 +15,12 @@ use game_engine_core::client_options_data::HealerGroundRingOptions;
 use game_engine_core::dispel_data::{DispelCatalog, DispelSchool, DispelSchools};
 use game_engine_ui_model::healer_ground_ring::{
     ARC_STATIONS, CHEVRON_MARGIN, DISPEL_INNER_RADIUS, DISPEL_OUTER_RADIUS, HEALTH_INNER_RADIUS,
-    HEALTH_OUTER_RADIUS, RING_LIFT, RingDraw, RingMember, RingScope, arc_stations,
-    chevron_placement, dispel_pulse, ring_draws, ring_ray_hit, ring_scope, station_offset,
+    HEALTH_OUTER_RADIUS, RING_LIFT, RingDraw, RingMember, RingScope, chevron_placement,
+    dispel_pulse, ring_draws, ring_ray_hit, ring_scope, station_offset,
 };
 use godot::classes::{
     ArrayMesh, Camera3D, CanvasLayer, MeshInstance3D, Node3D, PhysicsDirectSpaceState3D, Polygon2D,
-    StandardMaterial3D, Viewport, base_material_3d, mesh,
+    Shader, ShaderMaterial, Viewport, mesh,
 };
 use godot::prelude::*;
 use shared::death::DeathState;
@@ -38,8 +38,15 @@ const REDRAPE_SETTLE_SECS: f32 = 2.0;
 const DISPEL_STATIONS: usize = 36;
 /// Reused chevron nodes; a party has at most five members.
 const CHEVRON_NODES: usize = 8;
-/// `StandardMaterial3D` render priority above the ground transparent pass.
-const RING_RENDER_PRIORITY: i32 = 4;
+/// Geometry reaches this far past the band, so the shader's analytic edges stay inside it.
+const BAND_PAD: f32 = 0.06;
+/// Largest rise between two neighbouring stations. A stair tread or a curb is under this;
+/// a planter rim or a crate edge is not, so the ring stays on its own ground and the
+/// obstacle occludes it.
+const MAX_STATION_RISE: f32 = 0.30;
+const RING_SHADER: &str = "res://shaders/healer_ring.gdshader";
+/// Yards of soft falloff at the band's outer edge.
+const OUTER_SOFTNESS: f32 = 0.035;
 
 const CHEVRON_NAME: &str = "HealerGroundRingChevrons";
 /// A ">" chevron pointing along +X, in pixels.
@@ -84,9 +91,9 @@ struct RingSource {
 struct MemberRing {
     node: Gd<Node3D>,
     mesh: Gd<MeshInstance3D>,
-    material: Gd<StandardMaterial3D>,
+    material: Gd<ShaderMaterial>,
     dispel_mesh: Gd<MeshInstance3D>,
-    dispel_material: Gd<StandardMaterial3D>,
+    dispel_material: Gd<ShaderMaterial>,
     /// Per-station `(inner, outer)` heights relative to `anchor.y`.
     heights: Option<Vec<[f32; 2]>>,
     dispel_heights: Option<Vec<[f32; 2]>>,
@@ -96,8 +103,9 @@ struct MemberRing {
     draped_for: f32,
     /// Drapes since the ring appeared: the first, the settle refresh, then movement.
     drapes: u32,
-    built_arc: Option<(f32, [f32; 3])>,
-    built_dis: Option<DispelSchool>,
+    /// Geometry must be rebuilt after a drape; arcs and colours are shader uniforms.
+    health_dirty: bool,
+    dispel_dirty: bool,
     drawn: Option<RingDraw>,
     target: Option<u64>,
     /// World-space bounds of the last built health mesh, for capture proof.
@@ -106,10 +114,12 @@ struct MemberRing {
     /// Last applied presentation, so a still ring makes no Godot calls.
     applied_alpha: f32,
     applied_color: [f32; 3],
+    applied_arc_start: f32,
     shown: bool,
     dispel_shown: bool,
     node_at: Vector3,
     applied_dispel_alpha: f32,
+    applied_dispel_tint: [f32; 3],
 }
 
 pub(crate) struct HealerGroundRings {
@@ -136,6 +146,7 @@ pub(crate) struct HealerGroundRings {
     suspended: bool,
     /// Chevrons re-project at 10 Hz; the edge arrow does not need every frame.
     chevrons_at: f32,
+    shader: Option<Gd<Shader>>,
 }
 
 impl Default for HealerGroundRings {
@@ -158,6 +169,7 @@ impl Default for HealerGroundRings {
             update_frames: 0,
             suspended: false,
             chevrons_at: f32::MIN,
+            shader: None,
         }
     }
 }
@@ -212,6 +224,23 @@ impl HealerGroundRings {
                 }
             },
             CatalogLoad::Ready(_) | CatalogLoad::Failed => {}
+        }
+    }
+
+    /// The ring shader, loaded and recorded for the shader warmup on first use.
+    fn ring_shader(&mut self) -> Option<Gd<Shader>> {
+        if let Some(shader) = &self.shader {
+            return Some(shader.clone());
+        }
+        match crate::shader_warmup::load_shader(RING_SHADER) {
+            Ok(shader) => {
+                self.shader = Some(shader.clone());
+                Some(shader)
+            }
+            Err(error) => {
+                crate::frame_error::report_once(&format!("Healer ring shader: {error}"));
+                None
+            }
         }
     }
 
@@ -438,6 +467,10 @@ impl GameClient {
         }
 
         self.healer_rings.pick.clear();
+        let Some(shader) = self.healer_rings.ring_shader() else {
+            return;
+        };
+        let colorblind_mode = self.client_options.graphics.colorblind_mode;
         for draw in &draws {
             let Some(source) = sources.get(draw.index) else {
                 continue;
@@ -447,8 +480,8 @@ impl GameClient {
                 .healer_rings
                 .members
                 .entry(name.clone())
-                .or_insert_with(|| spawn_member_ring(&mut parent, &name));
-            sync_member(member, source, draw, &mut context, elapsed);
+                .or_insert_with(|| spawn_member_ring(&mut parent, &name, &shader));
+            sync_member(member, source, draw, &mut context, elapsed, colorblind_mode);
             let center = [source.position.x, member.anchor.y, source.position.z];
             let target = source.target.unwrap_or(u64::MAX);
             if draw.alpha > 0.0 && member.shown {
@@ -609,10 +642,22 @@ impl GameClient {
                         .get_mesh()
                         .map_or(0, |mesh| mesh.get_surface_count()) as i64,
                 );
-                let albedo = member.material.get_albedo();
+                let parameter = |name: &str| {
+                    member
+                        .material
+                        .get_shader_parameter(name)
+                        .try_to::<f32>()
+                        .unwrap_or(-1.0)
+                };
+                entry.set("shader_alpha", parameter("alpha"));
+                entry.set("shader_arc_start", parameter("arc_start"));
                 entry.set(
-                    "albedo",
-                    [albedo.r, albedo.g, albedo.b, albedo.a].as_slice(),
+                    "mesh_min_radius",
+                    member
+                        .material
+                        .get_shader_parameter("inner_radius")
+                        .try_to::<f32>()
+                        .unwrap_or(-1.0),
                 );
             }
             if let Some(&[x, y, angle]) = rings.chevron_state.get(name) {
@@ -734,27 +779,32 @@ impl HealerGroundRings {
     }
 }
 
-fn ring_material() -> Gd<StandardMaterial3D> {
-    let mut material = StandardMaterial3D::new_gd();
-    material.set_shading_mode(base_material_3d::ShadingMode::UNSHADED);
-    material.set_transparency(base_material_3d::Transparency::ALPHA);
-    material.set_cull_mode(base_material_3d::CullMode::DISABLED);
-    material.set_render_priority(RING_RENDER_PRIORITY);
+/// A shader material for one band. The shader draws the band, its analytic edges and the
+/// arc from uniforms, so a health change never rebuilds geometry.
+fn ring_material(shader: &Gd<Shader>, inner: f32, outer: f32) -> Gd<ShaderMaterial> {
+    let mut material = ShaderMaterial::new_gd();
+    material.set_shader(shader);
+    material.set_shader_parameter("inner_radius", &inner.to_variant());
+    material.set_shader_parameter("outer_radius", &outer.to_variant());
+    material.set_shader_parameter("outer_softness", &OUTER_SOFTNESS.to_variant());
+    material.set_shader_parameter("ring_color", &Color::from_rgb(1.0, 1.0, 1.0).to_variant());
+    material.set_shader_parameter("alpha", &1.0_f32.to_variant());
+    material.set_shader_parameter("arc_start", &0.0_f32.to_variant());
     material
 }
 
-fn spawn_member_ring(parent: &mut Gd<Node3D>, name: &str) -> MemberRing {
+fn spawn_member_ring(parent: &mut Gd<Node3D>, name: &str, shader: &Gd<Shader>) -> MemberRing {
     let mut node = Node3D::new_alloc();
     node.set_name(&format!("HealerGroundRing:{name}"));
     let mut mesh = MeshInstance3D::new_alloc();
     mesh.set_name("HealthRing");
-    let material = ring_material();
+    let material = ring_material(shader, HEALTH_INNER_RADIUS, HEALTH_OUTER_RADIUS);
     mesh.set_material_override(&material);
     mesh.set_visible(false);
     node.add_child(&mesh);
     let mut dispel_mesh = MeshInstance3D::new_alloc();
     dispel_mesh.set_name("DispelRing");
-    let dispel_material = ring_material();
+    let dispel_material = ring_material(shader, DISPEL_INNER_RADIUS, DISPEL_OUTER_RADIUS);
     dispel_mesh.set_material_override(&dispel_material);
     dispel_mesh.set_visible(false);
     node.add_child(&dispel_mesh);
@@ -771,18 +821,20 @@ fn spawn_member_ring(parent: &mut Gd<Node3D>, name: &str) -> MemberRing {
         draped_at: Vector2::new(f32::MAX, f32::MAX),
         draped_for: f32::MIN,
         drapes: 0,
-        built_arc: None,
-        built_dis: None,
+        health_dirty: true,
+        dispel_dirty: true,
         drawn: None,
         target: None,
         mesh_bounds: None,
         mesh_vertices: 0,
         applied_alpha: f32::NAN,
         applied_color: [f32::NAN; 3],
+        applied_arc_start: f32::NAN,
         shown: false,
         dispel_shown: false,
         node_at: Vector3::ZERO,
         applied_dispel_alpha: f32::NAN,
+        applied_dispel_tint: [f32::NAN; 3],
     }
 }
 
@@ -823,6 +875,34 @@ fn surface_under(context: &mut DrapeContext<'_>, x: f32, z: f32, near: f32) -> O
         .or(Some(floor))
 }
 
+/// A ring follows its own ground: a station may rise at most [`MAX_STATION_RISE`] over its
+/// neighbour. Stair treads and curbs pass; a planter wall or crate edge is clamped to the
+/// ring's ground, so the obstacle occludes the ring instead of the ring climbing it. The
+/// walk starts at the lowest station, which is the member's own floor.
+fn limit_station_rises(heights: &mut [[f32; 2]]) {
+    let stations = heights.len();
+    if stations == 0 {
+        return;
+    }
+    let seed = (0..stations)
+        .min_by(|left, right| heights[*left][0].total_cmp(&heights[*right][0]))
+        .unwrap_or(0);
+    for radius in 0..2 {
+        let mut previous = heights[seed][radius];
+        for step in 1..=stations {
+            let index = (seed + step) % stations;
+            let height = heights[index][radius];
+            let height = if (height - previous).abs() > MAX_STATION_RISE {
+                previous
+            } else {
+                height
+            };
+            heights[index][radius] = height;
+            previous = height;
+        }
+    }
+}
+
 /// Drapes one annulus around `position` onto the visible surface. Returns the node origin
 /// and per-station `(inner, outer)` heights relative to it.
 fn drape_ring(
@@ -852,22 +932,24 @@ fn drape_ring(
             position.y,
         )
         .unwrap_or(anchor);
-        heights.push([inner_y - anchor + RING_LIFT, outer_y - anchor + RING_LIFT]);
+        heights.push([inner_y - anchor, outer_y - anchor]);
     }
+    limit_station_rises(&mut heights);
     (
         Vector3::new(position.x, anchor + RING_LIFT, position.z),
         heights,
     )
 }
 
-/// Per-frame state of one drawn member: re-drape when the ground changed, then rebuild the
-/// arc mesh and the pulsing outer ring as their inputs change.
+/// Per-frame state of one drawn member: re-drape when the ground changed, then set the
+/// shader's band, arc and colour.
 fn sync_member(
     member: &mut MemberRing,
     source: &RingSource,
     draw: &RingDraw,
     context: &mut DrapeContext<'_>,
     elapsed: f32,
+    colorblind_mode: bool,
 ) {
     member.target = source.target;
     let position = source.position;
@@ -888,7 +970,7 @@ fn sync_member(
         );
         member.anchor = anchor;
         member.heights = Some(heights);
-        member.built_arc = None;
+        member.health_dirty = true;
         if draw.dispel.is_some() || member.dispel_heights.is_none() {
             context.samples += (2 * DISPEL_STATIONS) as u64;
             let (_, heights) = drape_ring(
@@ -899,21 +981,21 @@ fn sync_member(
                 DISPEL_OUTER_RADIUS,
             );
             member.dispel_heights = Some(heights);
-            member.built_dis = None;
+            member.dispel_dirty = true;
         }
         member.draped_at = Vector2::new(position.x, position.z);
         member.draped_for = elapsed;
         member.drapes += 1;
     }
     if health_visible {
-        update_health_mesh(member, draw);
+        update_health_mesh(member, draw, elapsed);
     }
     let shown = health_visible && member.heights.is_some();
     if member.shown != shown {
         member.mesh.set_visible(shown);
         member.shown = shown;
     }
-    update_dispel_ring(member, draw, elapsed);
+    update_dispel_ring(member, draw, elapsed, colorblind_mode);
     member.drawn = Some(*draw);
     let at = Vector3::new(position.x, member.anchor.y, position.z);
     if member.node_at != at {
@@ -922,64 +1004,67 @@ fn sync_member(
     }
 }
 
-/// Height of a station pair, interpolated between the draped stations.
-fn station_heights(heights: &[[f32; 2]], angle: f32) -> [f32; 2] {
+/// One draped band as a mesh: an annulus that spans [`BAND_PAD`] past both edges, with the
+/// station fraction in `UV.y` so the shader can draw the arc without `atan`.
+fn build_band_mesh(heights: &[[f32; 2]], inner: f32, outer: f32) -> (Gd<ArrayMesh>, Vec<Vector3>) {
     let stations = heights.len();
-    let step = TAU / stations as f32;
-    let position = (angle.rem_euclid(TAU) / step).rem_euclid(stations as f32);
-    let low = position.floor() as usize % stations;
-    let high = (low + 1) % stations;
-    let blend = position - position.floor();
-    [
-        heights[low][0] + (heights[high][0] - heights[low][0]) * blend,
-        heights[low][1] + (heights[high][1] - heights[low][1]) * blend,
-    ]
-}
-
-fn update_health_mesh(member: &mut MemberRing, draw: &RingDraw) {
-    let Some(heights) = &member.heights else {
-        return;
-    };
-    let rebuilt = member.built_arc.is_none_or(|(start, color)| {
-        (start - draw.arc_start).abs() > 1e-3
-            || color
-                .iter()
-                .zip(draw.color.iter())
-                .any(|(left, right)| (left - right).abs() > 0.01)
-    });
-    if member.applied_color != draw.color || member.applied_alpha != draw.alpha {
-        member.material.set_albedo(Color::from_rgba(
-            draw.color[0],
-            draw.color[1],
-            draw.color[2],
-            draw.alpha,
-        ));
-        member.applied_alpha = draw.alpha;
-        member.applied_color = draw.color;
+    let mut vertices: Vec<Vector3> = Vec::with_capacity((stations + 1) * 2);
+    let mut uvs: Vec<Vector2> = Vec::with_capacity((stations + 1) * 2);
+    for index in 0..=stations {
+        let station = index % stations;
+        let angle = TAU * station as f32 / stations as f32;
+        let fraction = index as f32 / stations as f32;
+        let (inner_x, inner_z) = station_offset(angle, inner - BAND_PAD);
+        let (outer_x, outer_z) = station_offset(angle, outer + BAND_PAD);
+        vertices.push(Vector3::new(inner_x, heights[station][0], inner_z));
+        vertices.push(Vector3::new(outer_x, heights[station][1], outer_z));
+        uvs.push(Vector2::new(0.0, fraction));
+        uvs.push(Vector2::new(1.0, fraction));
     }
-    if !rebuilt {
-        return;
-    }
-    let angles = arc_stations(draw.arc_start, draw.arc_end);
-    let mut vertices: Vec<Vector3> = Vec::with_capacity(angles.len() * 2);
-    for &angle in &angles {
-        let [inner_y, outer_y] = station_heights(heights, angle);
-        let (inner_x, inner_z) = station_offset(angle, HEALTH_INNER_RADIUS);
-        let (outer_x, outer_z) = station_offset(angle, HEALTH_OUTER_RADIUS);
-        vertices.push(Vector3::new(inner_x, inner_y, inner_z));
-        vertices.push(Vector3::new(outer_x, outer_y, outer_z));
-    }
-    let mut indices: Vec<i32> = Vec::with_capacity(angles.len().saturating_sub(1) * 6);
-    for station in 0..angles.len().saturating_sub(1) {
+    let mut indices: Vec<i32> = Vec::with_capacity(stations * 6);
+    for station in 0..stations {
         let inner = (station * 2) as i32;
         let outer = inner + 1;
-        indices.extend([inner, outer, inner + 2, inner, outer + 1, inner + 2]);
+        let next_inner = inner + 2;
+        let next_outer = inner + 3;
+        indices.extend([inner, outer, next_inner, outer, next_outer, next_inner]);
     }
     let normals = vec![Vector3::UP; vertices.len()];
     let mut mesh = ArrayMesh::new_gd();
-    add_surface(&mut mesh, &vertices, &normals, &indices);
+    add_surface(&mut mesh, &vertices, &normals, &uvs, &indices);
+    (mesh, vertices)
+}
+
+fn set_uniform(material: &mut Gd<ShaderMaterial>, name: &str, value: f32) {
+    material.set_shader_parameter(name, &value.to_variant());
+}
+
+fn update_health_mesh(member: &mut MemberRing, draw: &RingDraw, elapsed: f32) {
+    let _ = elapsed;
+    if member.applied_color != draw.color {
+        member.material.set_shader_parameter(
+            "ring_color",
+            &Color::from_rgb(draw.color[0], draw.color[1], draw.color[2]).to_variant(),
+        );
+        member.applied_color = draw.color;
+    }
+    if member.applied_alpha != draw.alpha {
+        set_uniform(&mut member.material, "alpha", draw.alpha);
+        member.applied_alpha = draw.alpha;
+    }
+    if member.applied_arc_start != draw.arc_start {
+        set_uniform(&mut member.material, "arc_start", draw.arc_start);
+        member.applied_arc_start = draw.arc_start;
+    }
+    if !member.health_dirty {
+        return;
+    }
+    let Some(heights) = member.heights.clone() else {
+        return;
+    };
+    let (mesh, vertices) = build_band_mesh(&heights, HEALTH_INNER_RADIUS, HEALTH_OUTER_RADIUS);
     member.mesh.set_mesh(&mesh);
-    member.built_arc = Some((draw.arc_start, draw.color));
+    member.health_dirty = false;
     member.mesh_vertices = vertices.len();
     let (mut low, mut high) = (f32::INFINITY, f32::NEG_INFINITY);
     for vertex in &vertices {
@@ -990,51 +1075,41 @@ fn update_health_mesh(member: &mut MemberRing, draw: &RingDraw) {
     member.mesh_bounds = Some((low, high));
 }
 
-fn update_dispel_ring(member: &mut MemberRing, draw: &RingDraw, elapsed: f32) {
+fn update_dispel_ring(
+    member: &mut MemberRing,
+    draw: &RingDraw,
+    elapsed: f32,
+    colorblind_mode: bool,
+) {
     let Some(school) = draw.dispel else {
         if member.dispel_shown {
             member.dispel_mesh.set_visible(false);
             member.dispel_shown = false;
         }
-        member.built_dis = None;
         return;
     };
-    if member.built_dis != Some(school) || member.dispel_heights.is_none() {
-        let Some(heights) = &member.dispel_heights else {
+    if member.dispel_dirty {
+        let Some(heights) = member.dispel_heights.clone() else {
             member.dispel_mesh.set_visible(false);
             return;
         };
-        let mut vertices: Vec<Vector3> = Vec::with_capacity(DISPEL_STATIONS * 2);
-        for (station, height) in heights.iter().enumerate() {
-            let angle = TAU * station as f32 / DISPEL_STATIONS as f32;
-            let (inner_x, inner_z) = station_offset(angle, DISPEL_INNER_RADIUS);
-            let (outer_x, outer_z) = station_offset(angle, DISPEL_OUTER_RADIUS);
-            vertices.push(Vector3::new(inner_x, height[0], inner_z));
-            vertices.push(Vector3::new(outer_x, height[1], outer_z));
-        }
-        let mut indices: Vec<i32> = Vec::with_capacity(DISPEL_STATIONS * 6);
-        for station in 0..DISPEL_STATIONS {
-            let next = (station + 1) % DISPEL_STATIONS;
-            let inner = (station * 2) as i32;
-            let outer = inner + 1;
-            let next_inner = (next * 2) as i32;
-            let next_outer = next_inner + 1;
-            indices.extend([inner, outer, next_outer, inner, next_outer, next_inner]);
-        }
-        let normals = vec![Vector3::UP; vertices.len()];
-        let mut mesh = ArrayMesh::new_gd();
-        add_surface(&mut mesh, &vertices, &normals, &indices);
+        let (mesh, _) = build_band_mesh(&heights, DISPEL_INNER_RADIUS, DISPEL_OUTER_RADIUS);
         member.dispel_mesh.set_mesh(&mesh);
-        member.built_dis = Some(school);
+        member.dispel_dirty = false;
     }
-    let tint = dispel_color(school);
-    // Quantized to 32 steps: the pulse is identical to the eye and the material only
+    let tint = dispel_color(school, colorblind_mode);
+    if member.applied_dispel_tint != tint {
+        member.dispel_material.set_shader_parameter(
+            "ring_color",
+            &Color::from_rgb(tint[0], tint[1], tint[2]).to_variant(),
+        );
+        member.applied_dispel_tint = tint;
+    }
+    // Quantized to 32 steps: the pulse is identical to the eye and the uniform only
     // changes a few times per second.
     let alpha = (dispel_pulse(elapsed) * 32.0).round() / 32.0;
     if member.applied_dispel_alpha != alpha {
-        member
-            .dispel_material
-            .set_albedo(Color::from_rgba(tint[0], tint[1], tint[2], alpha));
+        set_uniform(&mut member.dispel_material, "alpha", alpha);
         member.applied_dispel_alpha = alpha;
     }
     if !member.dispel_shown {
@@ -1047,6 +1122,7 @@ fn add_surface(
     mesh: &mut Gd<ArrayMesh>,
     vertices: &[Vector3],
     normals: &[Vector3],
+    uvs: &[Vector2],
     indices: &[i32],
 ) {
     let mut arrays = VarArray::new();
@@ -1060,15 +1136,19 @@ fn add_surface(
         &PackedVector3Array::from(normals).to_variant(),
     );
     arrays.set(
+        mesh::ArrayType::TEX_UV.ord() as usize,
+        &PackedVector2Array::from(uvs).to_variant(),
+    );
+    arrays.set(
         mesh::ArrayType::INDEX.ord() as usize,
         &PackedInt32Array::from(indices).to_variant(),
     );
     mesh.add_surface_from_arrays(mesh::PrimitiveType::TRIANGLES, &arrays);
 }
 
-fn dispel_color(school: DispelSchool) -> [f32; 3] {
+fn dispel_color(school: DispelSchool, colorblind_mode: bool) -> [f32; 3] {
     let debuff = game_engine_ui_model::aura_display_data::DebuffType::from_dispel_id(school.id());
-    parse_rgb(debuff.border_color())
+    parse_rgb(debuff.border_color_for_mode(colorblind_mode))
 }
 
 fn parse_rgb(text: &str) -> [f32; 3] {
@@ -1088,21 +1168,9 @@ mod tests {
 
     #[test]
     fn dispel_colors_are_the_debuff_type_borders() {
-        assert_eq!(dispel_color(DispelSchool::Magic), [0.2, 0.6, 1.0]);
-        assert_eq!(dispel_color(DispelSchool::Poison), [0.0, 0.6, 0.0]);
-    }
-
-    #[test]
-    fn station_heights_interpolate_and_wrap() {
-        let heights = vec![[0.0, 0.1], [0.2, 0.3], [0.4, 0.5], [0.6, 0.7]];
-        assert_eq!(station_heights(&heights, 0.0), [0.0, 0.1]);
-        let quarter = TAU / 4.0;
-        assert_eq!(station_heights(&heights, quarter), [0.2, 0.3]);
-        let eighth = TAU / 8.0;
-        let middle = station_heights(&heights, eighth);
-        assert!((middle[0] - 0.1).abs() < 1e-5);
-        assert!((middle[1] - 0.2).abs() < 1e-5);
-        assert_eq!(station_heights(&heights, TAU), [0.0, 0.1]);
+        assert_eq!(dispel_color(DispelSchool::Magic, false), [0.2, 0.6, 1.0]);
+        assert_eq!(dispel_color(DispelSchool::Poison, false), [0.0, 0.6, 0.0]);
+        assert_eq!(dispel_color(DispelSchool::Magic, true), [0.1, 0.7, 1.0]);
     }
 
     #[test]

@@ -3,7 +3,7 @@ extends SceneTree
 # Healer ground ring proofs (PLAN USER 11-05). Offline: a real authored map, real player
 # models and the production ring renderer, with a fixture-supplied party. Forever only.
 #
-# CAPTURE_CASE: party | chevron | stairs | fps
+# CAPTURE_CASE: party | chevron | stairs | occluder | fps
 #
 # Headless frames run far faster than real time, so every wait is a wall-clock wait.
 # Captures are saved as 960x540 JPEGs for review and diffed against a no-ring frame.
@@ -47,6 +47,8 @@ func run() -> void:
 		await capture_chevron(FLAT)
 	elif case == "stairs":
 		await capture_stairs()
+	elif case == "occluder":
+		await capture_occluder(FLAT)
 	elif case == "fps":
 		await capture_fps(FLAT)
 	else:
@@ -148,6 +150,13 @@ func capture(name: String, with_ui: bool) -> Image:
 	print("CAPTURE skin=%s case=%s ui=%s file=%s" % [client.account_state().ui_skin,
 		OS.get_environment("CAPTURE_CASE"), with_ui, OUT_DIR.path_join(name + ".jpg")])
 	return image
+
+func grab() -> Image:
+	hide_ui(client)
+	for frame in 3:
+		await process_frame
+	await RenderingServer.frame_post_draw
+	return root.get_texture().get_image()
 
 func save_jpeg(image: Image, name: String) -> void:
 	var scaled: Image = image.duplicate()
@@ -265,8 +274,10 @@ func capture_party(point: Vector3) -> void:
 		spawn_character(Vector3(members[index].position.x, floor_y, members[index].position.z))
 	await install_party(members)
 	client.preview_set_focus(ROW)
-	place_camera(Vector3(-8591.0, floor_y + 6.5, -758.5),
-		Vector3(-8591.0, floor_y, -769.0))
+	# South of the row, so the planter north of it cannot hide the rings: a fixed pose keeps
+	# the captures comparable between runs.
+	place_camera(Vector3(-8591.0, floor_y + 7.0, -777.5),
+		Vector3(-8591.0, floor_y, -770.0))
 	await settle_scene()
 	var state: Dictionary = client.preview_healer_ring_state()
 	print("RING_STATE " + JSON.stringify(state))
@@ -322,6 +333,18 @@ func capture_party(point: Vector3) -> void:
 	check(deltas["hurt_gap"] < 0.06, "Hurt gap stays empty at 60 degrees")
 	check(deltas["low_in"] > 0.10, "Low arc pixel drawn at 300 degrees")
 	check(deltas["low_gap"] < 0.06, "Low gap stays empty at 100 degrees")
+	# The band edge is analytic in the shader, so a radial slice through it is a short
+	# ramp, not a one-pixel step and not a tessellation scallop.
+	var profile := radial_profile(on, off, hurt_anchor, 225.0)
+	print("EDGE_PROFILE " + JSON.stringify(profile))
+	var peak := 0.0
+	for value in profile:
+		peak = maxf(peak, value)
+	var ramp := 0
+	for value in profile:
+		if value > peak * 0.2 and value < peak * 0.8:
+			ramp += 1
+	check(peak > 0.3 and ramp >= 2, "band edge is an anti-aliased ramp")
 	# Click-to-target: the ring hit test returns this member's entity inside the arc and
 	# nothing in the gap.
 	await wait_ms(600)
@@ -331,6 +354,17 @@ func capture_party(point: Vector3) -> void:
 	check(picked == HURT_ENTITY, "clicking the ring targets its member")
 	check(gap_pick == -1, "clicking the empty gap targets nothing")
 	finish()
+
+# Colour delta along one radial line through the band, from inside the inner edge to
+# beyond the outer falloff.
+func radial_profile(on: Image, off: Image, anchor: Vector3, degrees: float) -> Array:
+	var values := []
+	for step in 38:
+		var radius := 0.72 + step * 0.014
+		var point := Vector3(anchor.x + sin(deg_to_rad(degrees)) * radius,
+			anchor.y + 0.02, anchor.z - cos(deg_to_rad(degrees)) * radius)
+		values.append(snappedf(ring_pixel_delta(on, off, point), 0.01))
+	return values
 
 func ring_point(anchor: Vector3, degrees: float) -> Vector3:
 	return Vector3(anchor.x + sin(deg_to_rad(degrees)) * 0.97, anchor.y + 0.02,
@@ -406,6 +440,104 @@ func capture_stairs() -> void:
 	if on != null and off != null:
 		print("DIFF stairs-rings-vs-no-rings " + JSON.stringify(image_diff(off, on, 0.06)))
 	finish()
+
+# A ring behind authored world geometry must keep the covered part of its arc empty in the
+# same frame. The planter edge is not in the fixture data, so the member is stepped across
+# a few spots and the pose with the strongest covered sector is the one kept.
+const OCCLUDER_CANDIDATES := [
+	Vector3(-8593.0, 0.0, -770.0), Vector3(-8591.0, 0.0, -770.0),
+	Vector3(-8589.0, 0.0, -770.0), Vector3(-8593.0, 0.0, -771.5),
+	Vector3(-8591.0, 0.0, -771.5), Vector3(-8589.0, 0.0, -771.5),
+]
+
+func capture_occluder(point: Vector3) -> void:
+	if not await load_world(point):
+		return
+	client.set_world_minutes(1440.0)
+	var floor_y := floor_at(ROW)
+	place_camera(Vector3(-8591.0, floor_y + 5.0, -760.0),
+		Vector3(-8591.0, floor_y + 0.5, -769.0))
+	await settle_scene()
+	hide_ui(client)
+	var best := {}
+	for candidate in OCCLUDER_CANDIDATES:
+		var at := Vector3(candidate.x, floor_y, candidate.z)
+		await install_party([member("Covered", 0.45, at)])
+		await wait_ms(300)
+		var on: Image = await grab()
+		client.preview_healer_ring_enabled(false)
+		await wait_ms(120)
+		var off: Image = await grab()
+		client.preview_healer_ring_enabled(true)
+		await wait_ms(200)
+		var entry := member_state(client.preview_healer_ring_state(), "Covered")
+		var anchor := Vector3(at.x, floor_y, at.z)
+		print("OCCLUDER_STATE %s %s" % [at, JSON.stringify(entry)])
+		if entry.has("anchor"):
+			anchor = entry["anchor"]
+		var deltas := arc_deltas(on, off, anchor)
+		var runs := delta_runs(deltas)
+		print("OCCLUDER_CANDIDATE %s zero_run=%d lit=%d deltas=%s" % [
+			at, runs["zero"], runs["lit"], JSON.stringify(deltas)])
+		if runs["zero"] >= 2 and runs["lit"] >= 6 and runs["zero"] > best.get("zero", 0):
+			best = {"at": at, "zero": runs["zero"], "lit": runs["lit"]}
+	if best.is_empty():
+		fail("no candidate ring was partly covered by world geometry")
+		return
+	await install_party([member("Covered", 0.45, best["at"])])
+	await wait_ms(300)
+	var on: Image = await capture("occluder-rings", false)
+	client.preview_healer_ring_enabled(false)
+	await wait_ms(400)
+	var off: Image = await capture("occluder-no-rings", false)
+	client.preview_healer_ring_enabled(true)
+	if on == null or off == null:
+		return
+	await wait_ms(200)
+	var entry := member_state(client.preview_healer_ring_state(), "Covered")
+	var anchor: Vector3 = best["at"]
+	if entry.has("anchor"):
+		anchor = entry["anchor"]
+	print("OCCLUDER_FINAL %s" % JSON.stringify(entry))
+	check(entry.get("alpha", 0.0) > 0.3 and entry.get("mesh_vertices", 0) > 10,
+		"the covered member's ring is drawn in the captured frame")
+	var deltas := arc_deltas(on, off, anchor)
+	var runs := delta_runs(deltas)
+	print("OCCLUDER_DELTAS zero_run=%d lit=%d %s" % [
+		runs["zero"], runs["lit"], JSON.stringify(deltas)])
+	print("DIFF occluder-rings-vs-no-rings " + JSON.stringify(image_diff(off, on, 0.06)))
+	check(runs["zero"] >= 2, "world geometry keeps a covered arc sector empty")
+	check(runs["lit"] >= 6, "the uncovered part of the same arc is drawn")
+	finish()
+
+# One member's ring entry, or an empty dictionary when the member is not drawn.
+func member_state(state: Dictionary, name: String) -> Dictionary:
+	for entry in state["members"]:
+		if entry["name"] == name:
+			return entry
+	return {}
+
+# Ring pixel deltas inside the drawn arc, every 10 degrees from the arc start.
+func arc_deltas(on: Image, off: Image, anchor: Vector3) -> Dictionary:
+	var deltas := {}
+	for degrees in range(200, 360, 10):
+		deltas[str(degrees)] = snappedf(ring_pixel_delta(on, off,
+			ring_point(anchor, degrees)), 0.001)
+	return deltas
+
+# Longest run of consecutive covered samples, and how many samples are drawn.
+func delta_runs(deltas: Dictionary) -> Dictionary:
+	var longest := 0
+	var current := 0
+	var lit := 0
+	for key in deltas:
+		if deltas[key] >= 0.02:
+			lit += 1
+			current = 0
+			continue
+		current += 1
+		longest = maxi(longest, current)
+	return {"zero": longest, "lit": lit}
 
 # Six paired fixed-camera windows with the rings suspended and resumed in one client:
 # wall-clock and engine process milliseconds per frame, plus the feature's own frame cost.
