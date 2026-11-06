@@ -8,7 +8,9 @@ use glam::Vec3;
 use super::scenery::{SceneryDistance, box_in_frustum, boxes_overlap};
 use crate::wmo::portals::HalfSpace;
 
-const CELL_YARDS: f32 = 100.0;
+/// A class's cell is half its far radius, so a cull scans about twice the area that can
+/// be drawn rather than whole 100-yard cells around a 30-yard radius.
+const CELLS_PER_RADIUS: f32 = 2.0;
 const WORD_BITS: usize = u64::BITS as usize;
 
 struct Cell {
@@ -47,7 +49,7 @@ impl SceneryIndex {
             let (min, max) = scenery.world_bounds();
             let cell = self
                 .cells
-                .entry((cell(center.x), cell(center.z), class))
+                .entry((cell(center.x, class), cell(center.z, class), class))
                 .or_insert_with(|| Cell {
                     min,
                     max,
@@ -67,8 +69,8 @@ impl SceneryIndex {
     pub fn update(&mut self, camera: Vec3) -> &[usize] {
         self.current.copy_from_slice(&self.always);
         for (class, radius) in SceneryDistance::grid_radii().iter().enumerate() {
-            for x in cell(camera.x - radius)..=cell(camera.x + radius) {
-                for z in cell(camera.z - radius)..=cell(camera.z + radius) {
+            for x in cell(camera.x - radius, class)..=cell(camera.x + radius, class) {
+                for z in cell(camera.z - radius, class)..=cell(camera.z + radius, class) {
                     if let Some(cell) = self.cells.get(&(x, z, class)) {
                         for &index in &cell.indices {
                             set_bit(&mut self.current, index);
@@ -161,8 +163,9 @@ fn classify_cell(
     }
 }
 
-fn cell(position: f32) -> i32 {
-    (position / CELL_YARDS).floor() as i32
+fn cell(position: f32, class: usize) -> i32 {
+    let yards = SceneryDistance::grid_radii()[class] / CELLS_PER_RADIUS;
+    (position / yards).floor() as i32
 }
 
 fn set_bit(words: &mut [u64], index: usize) {
@@ -285,6 +288,38 @@ mod tests {
             visible[i] = placements[i].visible_from(Vec3::ZERO);
         }
         assert_eq!(visible, [false, false]);
+    }
+
+    /// Small placements packed across 15-yard cell edges stay exactly the reference
+    /// visible set while the camera walks over them.
+    #[test]
+    fn dense_small_placements_match_reference_across_cell_edges() {
+        let placements: Vec<_> = (0..400)
+            .map(|i| {
+                let center = Vec3::new(
+                    (i % 20) as f32 * 7.4 - 74.0,
+                    0.0,
+                    (i / 20) as f32 * 7.4 - 74.0,
+                );
+                placement(center, 0.5)
+            })
+            .collect();
+        let mut index = SceneryIndex::default();
+        for scenery in &placements {
+            index.push(*scenery, false);
+        }
+        let mut visible = vec![true; placements.len()];
+        for step in 0..40 {
+            let camera = Vec3::new(step as f32 * 3.7 - 74.0, 1.0, 29.9 - step as f32 * 2.2);
+            for &i in index.update(camera) {
+                visible[i] = placements[i].visible_from(camera);
+            }
+            let reference: Vec<_> = placements
+                .iter()
+                .map(|item| item.visible_from(camera))
+                .collect();
+            assert_eq!(visible, reference, "camera {camera:?}");
+        }
     }
 
     #[test]
