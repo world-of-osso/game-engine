@@ -590,9 +590,7 @@ impl SceneryFade {
             if swap {
                 batch.swap_fade_shader(fading);
             }
-            batch
-                .mesh
-                .set_instance_shader_parameter("scenery_opacity", &opacity.to_variant());
+            batch.mesh.set_transparency(1.0 - opacity);
         }
         self.opacity = opacity;
         if !self.camera_admitted {
@@ -606,7 +604,7 @@ impl SceneryFade {
 impl FadedBatch {
     /// Opaque batches draw with their fade shader while fading. A shared material switches
     /// to its shared fade copy; an own material swaps its shader. Blended batches keep their
-    /// material: the opacity is a per-instance uniform.
+    /// material: the opacity is the instance transparency.
     fn swap_fade_shader(&mut self, fading: bool) {
         if let Some(fade) = &self.fade {
             match &self.shared {
@@ -695,10 +693,7 @@ impl WowSceneryFadeProbe {
 
 fn preview_additive_variant(source: &str, gx_blend: u8) -> Result<Option<String>, String> {
     let (alpha, opacity) = match gx_blend {
-        3 => (
-            "ALPHA = color.a * scenery_opacity;",
-            "color.a * scenery_opacity",
-        ),
+        3 => ("ALPHA *= color.a;", "ALPHA * color.a"),
         10 => ("ALPHA = 1.0;", "1.0"),
         _ => return Ok(None),
     };
@@ -742,17 +737,16 @@ fn replace_shader_fragments(
 
 fn shader_variant(source: &str, pipeline: Pipeline) -> Result<String, String> {
     let variant = with_render_mode(source, pipeline, false)?;
-    let alpha = match pipeline.gx_blend {
-        0 | 1 => "",
-        10 => "ALPHA = 1.0;",
-        _ => return Ok(variant),
-    };
-    replace_alpha(&variant, alpha)
+    match pipeline.gx_blend {
+        0 | 1 => replace_opaque_alpha(&variant, ""),
+        10 => replace_alpha(&variant, "ALPHA = 1.0;"),
+        _ => Ok(variant),
+    }
 }
 
-/// The blended variant of an opaque batch: source-alpha blending by the placement's
-/// `scenery_opacity` alone, as the opaque combiners ignore texture alpha. Blended
-/// batches already multiply their alpha by it. It keeps the opaque depth write, as the
+/// The blended variant of an opaque batch: source-alpha blending by the placement's fade
+/// (its GeometryInstance3D transparency) alone, as the opaque combiners ignore texture
+/// alpha. Blended batches already multiply their alpha by it. It keeps the opaque depth write, as the
 /// fade only enables blending: without it the overlapping cards of a fading tree
 /// compound their coverage toward opaque.
 fn scenery_fade_variant(source: &str, pipeline: Pipeline) -> Result<Option<String>, String> {
@@ -760,15 +754,30 @@ fn scenery_fade_variant(source: &str, pipeline: Pipeline) -> Result<Option<Strin
         return Ok(None);
     }
     let variant = with_render_mode(source, pipeline, true)?;
-    replace_alpha(&variant, "ALPHA = scenery_opacity;").map(Some)
+    replace_opaque_alpha(&variant, SCENERY_FADE_ALPHA).map(Some)
 }
 
+/// The fade variant's alpha output: the instance fade, with no texel alpha.
+pub(crate) const SCENERY_FADE_ALPHA: &str = "ALPHA *= 1.0;";
+
 fn replace_alpha(variant: &str, alpha: &str) -> Result<String, String> {
-    const AUTHORED: &str = "ALPHA = color.a * scenery_opacity;";
+    const AUTHORED: &str = "ALPHA *= color.a;";
     if variant.matches(AUTHORED).count() != 1 {
         return Err("Expected one M2 alpha output".into());
     }
     Ok(variant.replace(AUTHORED, alpha))
+}
+
+/// An opaque combiner's alpha output and a premultiply that reads no ALPHA.
+fn replace_opaque_alpha(variant: &str, alpha: &str) -> Result<String, String> {
+    const PREMULTIPLIED: &str = "premultiplied = gx_blend == 13 ? ALPHA : 1.0;";
+    if variant.matches(PREMULTIPLIED).count() != 1 {
+        return Err("Expected one M2 premultiply".into());
+    }
+    replace_alpha(
+        &variant.replace(PREMULTIPLIED, "premultiplied = 1.0;"),
+        alpha,
+    )
 }
 
 fn with_render_mode(source: &str, pipeline: Pipeline, fading: bool) -> Result<String, String> {
