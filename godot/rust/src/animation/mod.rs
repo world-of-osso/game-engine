@@ -890,6 +890,8 @@ pub struct WowAnimationPlayer {
     leg_rig: Option<game_engine_core::foot_ik::LegRig>,
     /// Attachment participation and the participation epoch it was read at.
     participation: std::cell::Cell<Option<(u64, bool)>>,
+    /// The pose last written to each bone; an unchanged component is not written again.
+    written: Vec<BonePose>,
 }
 
 #[godot_api]
@@ -909,6 +911,7 @@ impl INode for WowAnimationPlayer {
             velocity: Default::default(),
             leg_rig: None,
             participation: std::cell::Cell::new(None),
+            written: Vec::new(),
         }
     }
 
@@ -985,6 +988,7 @@ impl WowAnimationPlayer {
             velocity: Default::default(),
             leg_rig: detect_leg_rig(model),
             participation: std::cell::Cell::new(None),
+            written: Vec::new(),
         });
         player.set_name("WowAnimationPlayer");
         player.bind_mut().write_poses();
@@ -1296,14 +1300,37 @@ impl WowAnimationPlayer {
             return;
         };
         let poses = animation.sampled_poses();
+        // Foot IK rewrites these bones after the pose pass, so the skeleton no longer
+        // holds what was written to them.
+        let solved = self.leg_rig.map(|rig| {
+            [
+                rig.pelvis,
+                rig.legs[0].upper,
+                rig.legs[0].lower,
+                rig.legs[1].upper,
+                rig.legs[1].lower,
+            ]
+        });
         for (index, pose) in poses.iter().enumerate() {
-            skeleton.set_bone_pose_position(index as i32, pose.position);
-            skeleton.set_bone_pose_rotation(index as i32, pose.rotation);
-            skeleton.set_bone_pose_scale(index as i32, pose.scale);
+            let bone = index as i32;
+            let last = self
+                .written
+                .get(index)
+                .filter(|_| !solved.is_some_and(|bones| bones.contains(&index)));
+            if last.is_none_or(|last| last.position != pose.position) {
+                skeleton.set_bone_pose_position(bone, pose.position);
+            }
+            if last.is_none_or(|last| last.rotation != pose.rotation) {
+                skeleton.set_bone_pose_rotation(bone, pose.rotation);
+            }
+            if last.is_none_or(|last| last.scale != pose.scale) {
+                skeleton.set_bone_pose_scale(bone, pose.scale);
+            }
         }
         if let Some(billboards) = &self.billboards {
             billboards.apply(&poses, skeleton);
         }
+        self.written = poses;
         self.apply_sequence_bounds();
     }
 
