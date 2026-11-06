@@ -10,6 +10,9 @@ rust-version = "1.95"
 ui-toolkit-macros = { path = "../../ui-toolkit-macros" }
 
 [patch.crates-io]
+# is_main_thread reads a thread-local thread id instead of cloning the thread handle on
+# every engine call; see vendor/README.md.
+godot-ffi = { path = "../vendor/godot-ffi" }
 ktx2-rw = { path = "../vendor/ktx2-rw" }
 taffy = { path = "../vendor/taffy" }
 # Provision client UDP queues for real catalog/replication bursts.

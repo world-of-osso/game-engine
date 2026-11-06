@@ -63,7 +63,7 @@ M2/skin, WMO, ADT/WDT parsers live in the public `world-of-osso/wow-formats` wor
 - `cd ../game-server && ./run-dev.sh` — Auto-restart server on code changes (for testing `--screen inworld`)
 - Game server uses **UDP** (lightyear/netcode) — check with `ss -ulnp | grep 5000`, NOT `ss -tlnp`
 - Dev profile: `[profile.dev] debug = 1, split-debuginfo = "unpacked"`; `godot/Cargo.toml` adds `opt-level = 2` for dependencies and the parser/network/extension crates (unoptimized they stall the main thread).
-- Patched crates `taffy` (godot) and `ktx2-rw` (godot, tools) live in `vendor/`; provenance and retirement conditions in `vendor/README.md`.
+- Patched crates `taffy`, `godot-ffi` (godot) and `ktx2-rw` (godot, tools) live in `vendor/`; provenance and retirement conditions in `vendor/README.md`.
 - Textures loaded from `data/textures/{fdid}.blp` (named by FileDataID)
 - **NEVER download files to /tmp/** — always save to `data/` for persistence. /tmp is ephemeral.
 

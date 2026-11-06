@@ -1,8 +1,9 @@
 # Patched crates
 
-Copied from `world-of-osso/bevy-patches` at fork commit
-`ad6dd31447a48082bcdcc783f4a4951c9d47e4ba`. No sibling checkout is required.
-Only `ktx2-rw` and `taffy` are patched; Bevy dependencies remain registry crates.
+`ktx2-rw` and `taffy` are copied from `world-of-osso/bevy-patches` at fork commit
+`ad6dd31447a48082bcdcc783f4a4951c9d47e4ba`; `godot-ffi` is the crates.io 0.5.5 package.
+No sibling checkout is required. Only these three are patched; Bevy dependencies remain
+registry crates.
 Sources, examples, tests, authorship and license declarations are retained.
 Neither imported package contained separate LICENSE files.
 
@@ -47,3 +48,17 @@ Standalone crate tests can run with `cargo test --manifest-path
 vendor/taffy/Cargo.toml --test rounding_gaps` (through `agent-run` for agents).
 Godot tests use `scripts/engine-build.py`; its source snapshot includes `vendor/`,
 including taffy's compile-time README input.
+
+## godot-ffi (MPL-2.0)
+
+The crates.io `godot-ffi` 0.5.5 package (gdext commit
+`e7b3a4a7dc9678a5502dc8432c258c702ff89429`), with its normalized `Cargo.toml`, `build.rs`
+and `src/`. One change, in `src/lib.rs` `is_main_thread`: the calling thread's id comes
+from a thread-local instead of `std::thread::current().id()`. With the default balanced
+safeguards every engine call checks the main thread; `std::thread::current()` clones and
+drops the thread handle (two atomic operations) each time: 4.4% of the main thread's CPU
+in Stormwind in a release profile (`docs/wiki/investigations/godot-stormwind-fps.md`). The comparison with
+`main_thread_id()` is unchanged, so `discover_main_thread` still moves the main thread.
+
+Retire the patch when a godot-rust release no longer calls `std::thread::current()` in
+`is_main_thread`, or when `std::thread::current_id` is stable and used there.
