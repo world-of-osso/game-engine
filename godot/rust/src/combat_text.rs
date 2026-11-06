@@ -1,9 +1,10 @@
 //! Retail world text: the numbers and words over a unit (docs/specs/floating-combat-text.md).
 //!
-//! The decompiled Wrath client (`wowdecomp15890` `WorldText.cpp`, `Unit_C.cpp`,
-//! `PlayerName.cpp`) is the only local source for the renderer; the Retail CVar defaults
-//! (`wow-ui-sim/src/cvars.yaml`) supply the modern numbers, and each item's proof level is
-//! recorded in the spec.
+//! Sources, newest first: the decompiled Retail 12.1.5.70688 engine (style array at
+//! 0x144868b78, 19 records of 40 bytes, relayed 2026-11-06), the decompiled Wrath client
+//! (`wowdecomp15890` `WorldText.cpp`, `Unit_C.cpp`, `PlayerName.cpp`) for the parts Retail
+//! shares, and the Retail CVar defaults (`wow-ui-sim/src/cvars.yaml`). Each item's proof level
+//! is recorded in docs/specs/floating-combat-text.md.
 //!
 //! Retail CVars, `_v2` defaults: `WorldTextStartPosRandomness_v2 = 1.0` and
 //! `WorldTextRandomZMin_v2 = 0.8` / `WorldTextRandomZMax_v2 = 1.5` randomise where each number
@@ -23,17 +24,16 @@ const START_POS_RANDOMNESS: f32 = 1.0;
 /// `WorldTextRandomZMin_v2` / `WorldTextRandomZMax_v2`, in units.
 const RANDOM_Z_MIN: f32 = 0.8;
 const RANDOM_Z_MAX: f32 = 1.5;
-/// `WorldTextRampDuration_v2`, seconds.
-const RAMP_SECS: f32 = 1.0;
-/// `WorldTextRampPow_v2` / `WorldTextRampPowCrit_v2`.
-const RAMP_POW: f32 = 1.9;
-const RAMP_POW_CRIT: f32 = 8.0;
-/// Extra size at spawn, decaying over the ramp. No source states this constant; 15890's
-/// crit height curve peaks at 2.0× the settled height (`s_critHeightCurve`,
-/// `WorldText.cpp:37-42`), which bounds this at 1.0.
-const RAMP_POP: f32 = 0.5;
+/// The pop-and-settle curve Retail shares with 15890 (`s_critHeightCurve`,
+/// `WorldText.cpp:37-42`): from 10 % of the settled height at spawn, to 200 % at 10 % of the
+/// lifetime, back to 100 % at 20 %, then settled.
+const POP_FROM: f32 = 0.1;
+const POP_PEAK: f32 = 2.0;
+const POP_RISE_END: f32 = 0.1;
+const POP_SETTLE_END: f32 = 0.2;
 
-/// Colours from 15890 `s_worldTextTypes[]` (`WorldText.cpp:44-56`) and the pet colours
+/// Colours from the Retail 12.1.5 style array (indices 0-9, 15, 18 white; 13, 14, 16 green;
+/// 17 orange; 12 gold) and the pet colours
 /// `s_petMeleeDamageColor` / `s_petSpellDamageColor` (`Unit_C.cpp:411-417`). 15890 has no
 /// per-school colour: the `spellColor` argument only chooses the pet colour
 /// (`Unit_C.cpp:17737-17773`).
@@ -53,36 +53,75 @@ pub(crate) struct Style {
     pub fade_out_start: f32,
     /// Lifetime, seconds.
     pub duration: f32,
+    /// Settled height relative to a normal hit (`+0x1c` of a Retail style record): the
+    /// avoidance words are 0.6.
+    pub scale: f32,
+    /// The 3-segment pop a crit (and an absorbed amount) plays.
+    pub pops: bool,
 }
 
-/// 15890 type 0 (`WorldText.cpp:46`): damage.
-const HIT_STYLE: Style = Style {
+/// Retail style 3: spell damage (`+0x18` flags off, `+0x1c` scale 1).
+const SPELL_DAMAGE: Style = Style {
     ascend: 2.0,
     fade_in: 0.15,
     fade_out_start: 0.76,
     duration: 1.5,
+    scale: 1.0,
+    pops: false,
 };
-/// 15890 type 2 (`WorldText.cpp:48`): damage crit.
-const CRIT_STYLE: Style = Style {
+/// Retail style 4: melee damage. Same look as spell damage; Retail keeps them apart.
+const MELEE_DAMAGE: Style = Style {
+    ascend: 2.0,
+    fade_in: 0.15,
+    fade_out_start: 0.76,
+    duration: 1.5,
+    scale: 1.0,
+    pops: false,
+};
+/// Retail style 2: melee crit.
+const MELEE_CRIT: Style = Style {
     ascend: 0.0,
     fade_in: 0.15,
     fade_out_start: 1.0,
     duration: 1.5,
+    scale: 1.5,
+    pops: true,
 };
-/// 15890 type 3 (`WorldText.cpp:49`): Miss, Dodge, Parry, Block, Evade, Immune, Deflect,
-/// Reflect.
+/// Retail style 8: spell crit.
+const SPELL_CRIT: Style = Style {
+    ascend: 0.0,
+    fade_in: 0.15,
+    fade_out_start: 1.0,
+    duration: 1.5,
+    scale: 1.5,
+    pops: true,
+};
+/// Retail style 9: every avoidance word, at 60 % of a normal hit's height.
 const WORD_STYLE: Style = Style {
     ascend: 2.0,
     fade_in: 0.15,
     fade_out_start: 1.0,
     duration: 1.5,
+    scale: 0.6,
+    pops: false,
 };
-/// 15890 type 6 (`WorldText.cpp:52`): heal.
+/// Retail style 13: heal.
 const HEAL_STYLE: Style = Style {
     ascend: 2.0,
     fade_in: 0.15,
     fade_out_start: 0.76,
     duration: 1.5,
+    scale: 1.0,
+    pops: false,
+};
+/// Retail style 14: heal crit.
+const HEAL_CRIT: Style = Style {
+    ascend: 0.0,
+    fade_in: 0.15,
+    fade_out_start: 1.0,
+    duration: 1.5,
+    scale: 1.5,
+    pops: true,
 };
 
 /// Who caused the event, from the local player's view. 15890 draws text only for the active
@@ -111,6 +150,9 @@ pub(crate) struct FloatText {
     pub text: String,
     pub color: [f32; 3],
     pub crit: bool,
+    /// A spell crit, not a melee one: only a spell crit replaces another
+    /// (Retail 12.1.5 slot rule, relayed 2026-11-06).
+    pub spell_crit: bool,
     pub style: Style,
 }
 
@@ -120,6 +162,9 @@ pub(crate) struct FloatText {
 /// active player's heals); periodic lines draw like direct ones (`WorldText.cpp` has no
 /// distinction, the CVar gate is `floatingCombatTextCombatLogPeriodicSpells_v2`).
 pub(crate) fn text_for(event: &CombatLogEvent, attacker: Attacker) -> Option<FloatText> {
+    // Retail keeps melee and spell damage on separate styles (`1 melee damage`, `0 spell
+    // damage`); a swing carries no spell, an ability does.
+    let spell = event.spell_id.is_some();
     match event.kind {
         CombatLogKind::Damage if event.amount > 0 => Some(FloatText {
             // Retail appends no punctuation to a crit (`Unit_C.cpp:17775`); this engine's
@@ -131,20 +176,28 @@ pub(crate) fn text_for(event: &CombatLogEvent, attacker: Attacker) -> Option<Flo
             },
             color: attacker.color(),
             crit: event.crit,
-            style: if event.crit { CRIT_STYLE } else { HIT_STYLE },
+            spell_crit: event.crit && spell,
+            style: match (event.crit, spell) {
+                (true, true) => SPELL_CRIT,
+                (true, false) => MELEE_CRIT,
+                (false, true) => SPELL_DAMAGE,
+                (false, false) => MELEE_DAMAGE,
+            },
         }),
         CombatLogKind::Heal if event.amount > 0 && attacker == Attacker::Player => {
             Some(FloatText {
                 text: format!("+{}", event.amount),
                 color: HEAL_GREEN,
                 crit: event.crit,
-                style: if event.crit { CRIT_STYLE } else { HEAL_STYLE },
+                spell_crit: event.crit,
+                style: if event.crit { HEAL_CRIT } else { HEAL_STYLE },
             })
         }
         CombatLogKind::Miss(kind) => Some(FloatText {
             text: miss_word(kind).to_owned(),
             color: attacker.color(),
             crit: false,
+            spell_crit: false,
             style: WORD_STYLE,
         }),
         _ => None,
@@ -168,6 +221,24 @@ fn miss_word(kind: MissKind) -> &'static str {
     }
 }
 
+/// Retail 12.1.5 scales world text inversely with camera distance (relayed 2026-11-06). The
+/// operands of the two calls that produce the constant factor are not decoded yet, so the
+/// anchor is calibrated: a target at [`DISTANCE_ANCHOR_YARDS`] gets the size this engine drew
+/// before the law existed. Retirement: replace the anchor with the decoded operands of
+/// 0x141e67100 / 0x1401f45a0.
+pub(crate) const DISTANCE_ANCHOR_YARDS: f32 = 10.0;
+/// Retail's draw path clamps the text to a constant 7 px floor; read here as a fraction of
+/// the anchored size, which keeps the text readable at long range.
+const FAR_SIZE_FLOOR: f32 = 0.2;
+/// The camera never gets closer than this, so 1/d stays finite.
+const NEAREST_YARDS: f32 = 1.0;
+
+/// Size multiplier for a text `distance` yards from the camera.
+pub(crate) fn distance_scale(distance: f32) -> f32 {
+    let distance = distance.max(NEAREST_YARDS);
+    (DISTANCE_ANCHOR_YARDS / distance).max(FAR_SIZE_FLOOR)
+}
+
 /// R2 low-discrepancy sequence (plastic number): consecutive spawns land far apart in
 /// both axes, so numbers spawned together never share a start.
 const R2: [f32; 2] = [0.754_877_7, 0.569_840_3];
@@ -180,11 +251,22 @@ pub(crate) fn start_offset(index: u32, camera_right: Vector3, unit: f32) -> Vect
     (side + Vector3::UP * ((RANDOM_Z_MAX - RANDOM_Z_MIN) * v)) * unit
 }
 
-/// Size multiplier `age` seconds after spawn: pops larger, then ramps down to 1.
-pub(crate) fn ramp_scale(age: f32, crit: bool) -> f32 {
-    let remaining = (1.0 - age / RAMP_SECS).clamp(0.0, 1.0);
-    let pow = if crit { RAMP_POW_CRIT } else { RAMP_POW };
-    1.0 + RAMP_POP * remaining.powf(pow)
+/// Height multiplier `age` seconds after spawn. A crit (and an absorbed amount) starts at
+/// 10 % of its height, overshoots to 200 % at a tenth of the lifetime and settles at 100 % a
+/// fifth of the way through; every other style keeps its height
+/// (`CalculateTextHeight`, `WorldText.cpp:255-286`, shared with Retail 12.1.5).
+pub(crate) fn height_scale(age: f32, style: Style) -> f32 {
+    if !style.pops {
+        return 1.0;
+    }
+    let t = (age / style.duration).clamp(0.0, 1.0);
+    if t < POP_RISE_END {
+        POP_FROM + (POP_PEAK - POP_FROM) * (t / POP_RISE_END)
+    } else if t < POP_SETTLE_END {
+        POP_PEAK + (1.0 - POP_PEAK) * ((t - POP_RISE_END) / (POP_SETTLE_END - POP_RISE_END))
+    } else {
+        1.0
+    }
 }
 
 /// Alpha of a text `age` seconds after spawn: fade in over `fade_in`, hold, then fade out
@@ -233,7 +315,7 @@ mod tests {
             let text = text_for(&hit, Attacker::Player).expect("damage draws");
             assert_eq!(text.text, "1234");
             assert_eq!(text.color, WHITE);
-            assert_eq!(text.style, HIT_STYLE);
+            assert_eq!(text.style, SPELL_DAMAGE);
             assert!(!text.crit);
         }
     }
@@ -244,10 +326,37 @@ mod tests {
         crit.crit = true;
         let text = text_for(&crit, Attacker::Player).expect("crit draws");
         assert_eq!(text.text, "99!");
-        assert_eq!(text.style, CRIT_STYLE);
-        assert!(text.crit);
+        assert_eq!(text.style, SPELL_CRIT);
+        assert!(text.crit && text.spell_crit);
         assert_eq!(text.style.ascend, 0.0);
-        assert!(text.style.fade_out_start > HIT_STYLE.fade_out_start);
+        assert!(text.style.scale > SPELL_DAMAGE.scale);
+        assert!(text.style.fade_out_start > SPELL_DAMAGE.fade_out_start);
+    }
+
+    #[test]
+    fn a_swing_crit_is_melee_and_only_a_spell_crit_replaces() {
+        let mut swing = event(CombatLogKind::Damage, 99);
+        swing.crit = true;
+        swing.spell_id = None;
+        let text = text_for(&swing, Attacker::Player).expect("crit draws");
+        assert_eq!(text.style, MELEE_CRIT);
+        assert!(text.crit && !text.spell_crit);
+
+        let mut ability = event(CombatLogKind::Damage, 99);
+        ability.crit = true;
+        assert!(
+            text_for(&ability, Attacker::Player)
+                .expect("crit draws")
+                .spell_crit
+        );
+
+        let plain_swing = event(CombatLogKind::Damage, 10);
+        let mut plain_swing = plain_swing;
+        plain_swing.spell_id = None;
+        assert_eq!(
+            text_for(&plain_swing, Attacker::Player).map(|text| text.style),
+            Some(MELEE_DAMAGE)
+        );
     }
 
     #[test]
@@ -270,7 +379,8 @@ mod tests {
         let text = text_for(&heal, Attacker::Player).expect("heal draws");
         assert_eq!(text.text, "+700");
         assert_eq!(text.color, HEAL_GREEN);
-        assert_eq!(text.style, CRIT_STYLE);
+        assert_eq!(text.style, HEAL_CRIT);
+        assert!(text.spell_crit, "a heal crit may replace another heal crit");
 
         let mut plain = event(CombatLogKind::Heal, 700);
         plain.crit = false;
@@ -305,6 +415,7 @@ mod tests {
             assert_eq!(text.text, word);
             assert_eq!(text.color, WHITE);
             assert_eq!(text.style, WORD_STYLE);
+            assert_eq!(text.style.scale, 0.6, "{word} is 60% of a hit");
         }
     }
 
@@ -341,13 +452,33 @@ mod tests {
 
     #[test]
     fn fade_in_holds_then_fades_out() {
-        assert_eq!(fade_alpha(0.0, HIT_STYLE), 0.0);
-        assert!((fade_alpha(0.075, HIT_STYLE) - 0.5).abs() < 1e-6);
-        assert_eq!(fade_alpha(0.2, HIT_STYLE), 1.0);
-        assert_eq!(fade_alpha(HIT_STYLE.fade_out_start, HIT_STYLE), 1.0);
+        assert_eq!(fade_alpha(0.0, SPELL_DAMAGE), 0.0);
+        assert!((fade_alpha(0.075, SPELL_DAMAGE) - 0.5).abs() < 1e-6);
+        assert_eq!(fade_alpha(0.2, SPELL_DAMAGE), 1.0);
+        assert_eq!(fade_alpha(SPELL_DAMAGE.fade_out_start, SPELL_DAMAGE), 1.0);
         // 760 ms -> 1500 ms: half way is 1130 ms.
-        assert!((fade_alpha(1.13, HIT_STYLE) - 0.5).abs() < 1e-3);
-        assert_eq!(fade_alpha(HIT_STYLE.duration, HIT_STYLE), 0.0);
+        assert!((fade_alpha(1.13, SPELL_DAMAGE) - 0.5).abs() < 1e-3);
+        assert_eq!(fade_alpha(SPELL_DAMAGE.duration, SPELL_DAMAGE), 0.0);
+    }
+
+    #[test]
+    fn text_shrinks_with_distance_and_stops_at_the_far_floor() {
+        // Verified Retail 12.1.5: the size falls as 1/d. The anchor is calibrated, so a
+        // 10-yard target keeps the size this engine drew before the law existed.
+        assert_eq!(distance_scale(DISTANCE_ANCHOR_YARDS), 1.0);
+        assert!((distance_scale(5.0) - 2.0).abs() < 1e-6);
+        assert!((distance_scale(20.0) - 0.5).abs() < 1e-6);
+        assert!(distance_scale(40.0) < distance_scale(20.0));
+        assert_eq!(
+            distance_scale(1000.0),
+            FAR_SIZE_FLOOR,
+            "the far floor holds"
+        );
+        assert_eq!(
+            distance_scale(0.0),
+            DISTANCE_ANCHOR_YARDS / NEAREST_YARDS,
+            "a camera at the text does not divide by zero"
+        );
     }
 
     #[test]
@@ -380,12 +511,18 @@ mod tests {
     }
 
     #[test]
-    fn crits_pop_and_settle_faster_than_hits() {
-        assert_eq!(ramp_scale(0.0, true), 1.0 + RAMP_POP);
-        assert_eq!(ramp_scale(0.0, false), 1.0 + RAMP_POP);
-        assert!(ramp_scale(0.3, true) < ramp_scale(0.3, false));
-        assert!(ramp_scale(0.3, true) < 1.03);
-        assert_eq!(ramp_scale(RAMP_SECS, false), 1.0);
-        assert_eq!(ramp_scale(2.0, true), 1.0);
+    fn a_crit_starts_small_overshoots_then_settles_while_a_hit_holds() {
+        let duration = SPELL_CRIT.duration;
+        assert!((height_scale(0.0, SPELL_CRIT) - 0.1).abs() < 1e-6);
+        assert!((height_scale(0.1 * duration, SPELL_CRIT) - 2.0).abs() < 1e-6);
+        assert!((height_scale(0.15 * duration, SPELL_CRIT) - 1.5).abs() < 1e-5);
+        assert!((height_scale(0.2 * duration, SPELL_CRIT) - 1.0).abs() < 1e-6);
+        assert_eq!(height_scale(duration, SPELL_CRIT), 1.0);
+        // Every non-crit style keeps its height for the whole lifetime.
+        for style in [SPELL_DAMAGE, MELEE_DAMAGE, WORD_STYLE, HEAL_STYLE] {
+            for tenth in 0..=10 {
+                assert_eq!(height_scale(0.15 * tenth as f32, style), 1.0);
+            }
+        }
     }
 }

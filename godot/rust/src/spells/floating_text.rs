@@ -26,11 +26,12 @@ pub(super) struct FloatingText {
     age: f32,
     origin: Vector3,
     style: Style,
-    crit: bool,
+    /// A spell crit may replace this unit's previous spell crit.
+    spell_crit: bool,
 }
 
 impl FloatingText {
-    fn advance(&mut self, delta: f32) -> bool {
+    fn advance(&mut self, delta: f32, eye: Option<Vector3>) -> bool {
         self.age += delta;
         if !self.node.is_instance_valid() {
             return false;
@@ -42,8 +43,14 @@ impl FloatingText {
         let t = self.age / self.style.duration;
         self.node
             .set_position(self.origin + Vector3::new(0.0, self.style.ascend * t, 0.0));
-        self.node
-            .set_pixel_size(FLOAT_TEXT_PIXEL * combat_text::ramp_scale(self.age, self.crit));
+        let distance = eye.map_or(combat_text::DISTANCE_ANCHOR_YARDS, |eye| {
+            eye.distance_to(self.origin)
+        });
+        self.node.set_pixel_size(
+            FLOAT_TEXT_PIXEL
+                * combat_text::height_scale(self.age, self.style)
+                * combat_text::distance_scale(distance),
+        );
         let mut color = self.node.get_modulate();
         color.a = combat_text::fade_alpha(self.age, self.style);
         self.node.set_modulate(color);
@@ -51,17 +58,18 @@ impl FloatingText {
     }
 }
 
-/// Floating combat text size: 64, × 1.5 for a crit and × 0.75 for a glancing blow
-/// (`WorldText.cpp:44-56` for the crit ratio; `CombatFeedback_OnCombatEvent`,
-/// CombatFeedback.lua:39-42, for the glancing size).
-pub(super) fn combat_text_size(event: &CombatLogEvent) -> i32 {
+/// Settled font size: 64 at the style's own scale (0.6 for the avoidance words), × 1.5 for a
+/// crit and × 0.75 for a glancing blow (`WorldText.cpp:44-56` for the crit ratio;
+/// `CombatFeedback_OnCombatEvent`, CombatFeedback.lua:39-42, for the glancing size). A crit
+/// then pops over its lifetime through [`combat_text::height_scale`].
+pub(super) fn combat_text_size(event: &CombatLogEvent, style: Style) -> i32 {
+    let mut size = FLOAT_TEXT_FONT_SIZE as f32 * style.scale;
     if event.crit {
-        FLOAT_TEXT_FONT_SIZE * 3 / 2
+        size *= 1.5;
     } else if event.glancing {
-        FLOAT_TEXT_FONT_SIZE * 3 / 4
-    } else {
-        FLOAT_TEXT_FONT_SIZE
+        size *= 0.75;
     }
+    size.round() as i32
 }
 
 /// The fixture's scripted events, one per `index % SCRIPT.len()`: a plain hit, a crit, a
@@ -147,7 +155,7 @@ fn spawn_combat_label(event: &CombatLogEvent, text: &combat_text::FloatText) -> 
     if let Some(font) = world_font() {
         label.set_font(&font);
     }
-    label.set_font_size(combat_text_size(event));
+    label.set_font_size(combat_text_size(event, text.style));
     label.set_outline_size(8);
     // Constant on-screen size, as 15890 draws world text in a screen-space ortho projection
     // at a fixed NDC height (`WorldText.cpp:234-253`).
@@ -164,7 +172,10 @@ impl GameClient {
         for (event, attacker) in events {
             self.spawn_combat_text(&event, attacker, camera);
         }
-        self.spells.floating.retain_mut(|text| text.advance(delta));
+        let eye = camera.map(|camera| camera.origin);
+        self.spells
+            .floating
+            .retain_mut(|text| text.advance(delta, eye));
     }
 
     fn combat_text_camera(&self) -> Option<Transform3D> {
@@ -255,15 +266,17 @@ impl GameClient {
         let Some(text) = combat_text::text_for(event, attacker) else {
             return self.spells.floating.len() as i64;
         };
-        if !self.take_combat_text_slot(unit_id, text.crit) {
-            return self.spells.floating.len() as i64;
-        }
+        self.take_combat_text_slot(unit_id, text.spell_crit);
         let mut label = spawn_combat_label(event, &text);
         // Under the client root: unit nodes carry model scale. Each number starts at
         // its own offset in the camera plane so simultaneous ones do not stack.
         let origin = self.next_combat_text_origin(anchor, camera);
         label.set_position(origin);
-        label.set_pixel_size(FLOAT_TEXT_PIXEL * combat_text::ramp_scale(0.0, text.crit));
+        label.set_pixel_size(
+            FLOAT_TEXT_PIXEL
+                * combat_text::height_scale(0.0, text.style)
+                * combat_text::distance_scale(camera.origin.distance_to(origin)),
+        );
         self.base_mut().add_child(&label);
         self.spells.floating.push(FloatingText {
             node: label,
@@ -271,7 +284,7 @@ impl GameClient {
             age: 0.0,
             origin,
             style: text.style,
-            crit: text.crit,
+            spell_crit: text.spell_crit,
         });
         self.spells.floating.len() as i64
     }
@@ -291,42 +304,49 @@ impl GameClient {
         let iterations = iterations.clamp(1, 100_000);
         let started = std::time::Instant::now();
         for _ in 0..iterations {
-            self.spells.floating.retain_mut(|text| text.advance(0.0));
+            self.spells
+                .floating
+                .retain_mut(|text| text.advance(0.0, None));
         }
         started.elapsed().as_secs_f64() * 1_000_000.0 / f64::from(iterations)
     }
 
-    /// Reserve one of the unit's few world-text slots: a new crit replaces the unit's existing
-    /// crit, everything else needs a free slot (`PlayerName.cpp:711-746`).
-    fn take_combat_text_slot(&mut self, unit: u64, crit: bool) -> bool {
-        let live = self
+    /// Reserve one of the unit's four world-text slots (Retail 12.1.5): a spell crit replaces
+    /// the unit's existing spell crit; otherwise the first free slot is used, and when all
+    /// four are taken the last one is evicted.
+    fn take_combat_text_slot(&mut self, unit: u64, spell_crit: bool) {
+        let slots: Vec<usize> = self
             .spells
             .floating
             .iter()
-            .filter(|text| text.unit == unit)
-            .count();
-        if crit {
-            let existing = self
-                .spells
-                .floating
+            .enumerate()
+            .filter(|(_, text)| text.unit == unit)
+            .map(|(index, _)| index)
+            .collect();
+        let replaced = if spell_crit {
+            slots
                 .iter()
-                .position(|text| text.unit == unit && text.crit);
-            if let Some(index) = existing {
-                let mut replaced = self.spells.floating.remove(index);
-                replaced.node.clone().queue_free();
-                return true;
-            }
+                .rev()
+                .copied()
+                .find(|index| self.spells.floating[*index].spell_crit)
+        } else {
+            None
+        };
+        let evicted = replaced
+            .or_else(|| (slots.len() >= SLOTS_PER_UNIT).then_some(slots[SLOTS_PER_UNIT - 1]));
+        if let Some(index) = evicted {
+            let mut text = self.spells.floating.remove(index);
+            text.node.clone().queue_free();
         }
-        live < SLOTS_PER_UNIT
     }
 
     fn next_combat_text_origin(&mut self, anchor: Vector3, camera: Transform3D) -> Vector3 {
-        // A fixed-size label is `font_size * pixel_size` world units tall per unit of
-        // camera distance; the spread unit is 1.5 normal text heights at its depth.
+        // The spread unit is 1.5 normal text heights at the target's depth; Retail scales the
+        // text inversely with distance, so the world spread shrinks with it.
         let spread = FLOAT_TEXT_SPREAD_HEIGHTS
             * FLOAT_TEXT_FONT_SIZE as f32
             * FLOAT_TEXT_PIXEL
-            * camera.origin.distance_to(anchor);
+            * combat_text::distance_scale(camera.origin.distance_to(anchor));
         let origin = anchor
             + combat_text::start_offset(self.spells.floats_spawned, camera.basis.col_a(), spread);
         self.spells.floats_spawned = self.spells.floats_spawned.wrapping_add(1);

@@ -109,14 +109,13 @@ func capture_limit() -> void:
 	var after: Image = await capture("limit", before)
 	report_text(after, before)
 
+## Non-crit styles, so no slot is replaced: 13 units hold four each.
+const SPREAD_STYLES := [HIT, HEAL, PERIODIC, PET_MELEE]
+
 ## Fifty numbers over thirteen units: the perf scene, and the density the slot rule allows.
 func capture_spread() -> void:
 	var before: Image = await grab()
-	for index in 50:
-		var unit := 3000 + index / 4
-		var column := float(index / 4)
-		var at := anchor(Vector3(-3.6 + 0.6 * column, 0.0, 0.9 * (index % 4)))
-		client.preview_combat_text(index, unit, at)
+	spawn_fifty()
 	var live: int = client.spells_state().combat_text
 	print("SPREAD live=%d" % live)
 	check(live == 50, "fifty simultaneous numbers over thirteen units")
@@ -124,12 +123,15 @@ func capture_spread() -> void:
 	report_text(after, before)
 	measure_cost()
 
-func measure_perf() -> void:
+func spawn_fifty() -> void:
 	for index in 50:
 		var unit := 3000 + index / 4
 		var column := float(index / 4)
 		var at := anchor(Vector3(-3.6 + 0.6 * column, 0.0, 0.9 * (index % 4)))
-		client.preview_combat_text(index, unit, at)
+		client.preview_combat_text(SPREAD_STYLES[index % 4], unit, at)
+
+func measure_perf() -> void:
+	spawn_fifty()
 	check(client.spells_state().combat_text == 50, "fifty live numbers to measure")
 	measure_cost()
 

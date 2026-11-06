@@ -400,7 +400,13 @@ mod tests {
             glancing: true,
             ..hit.clone()
         };
-        assert_eq!([&hit, &crit, &glancing].map(combat_text_size), [64, 96, 48]);
+        let style = crate::combat_text::text_for(&hit, crate::combat_text::Attacker::Player)
+            .expect("a hit draws")
+            .style;
+        assert_eq!(
+            [&hit, &crit, &glancing].map(|event| combat_text_size(event, style)),
+            [64, 96, 48]
+        );
     }
 
     fn spell(id: u32, available_at: Option<u32>) -> SpellbookSpell {
