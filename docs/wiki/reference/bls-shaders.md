@@ -58,17 +58,17 @@ textbook, and the function returns the 64-bit sum of the two fmix64 outputs.
 
 `scripts/bls_effect_hash.py` implements it. Evidence status:
 
-- Verified: `"M2Effect 21"` (11 bytes, so no 16-byte block) reproduces decompilation's value
-  exactly, `low32 0xfeb758e6`, `full64 0x022770dbfeb758e6`. That validates the tail, length xor,
-  cross-adds, fmix64 and the sum.
-- Not verified: the two 25-byte `"Vertex ..."` names. No variant tried (addend placement, k1/k2
-  and h1/h2 rotations, block order, c1/c2 swap — 512 combinations) reproduces their stated
-  values, so the block body is still open.
-- The keys do not carry the names: none of the 7,553 permutation keys in the 331 GXSH bundles of
-  the local shader cluster (2,976,000-2,982,000) contains any stated candidate value, in any
-  4- or 8-byte window, and no hash of the names over seeds 0-64 plus four common seeds, both
-  constants and lower/NUL variants matches either. The 16-byte opaque key is therefore not an
-  effect-name hash.
+- **Confirmed** with decompilation: seed 0 and this implementation are correct. All three names
+  reproduce on both sides (`"M2Effect 21"` `low32 0xfeb758e6`, `full64 0x022770dbfeb758e6`;
+  `"Vertex 52(2), Pixel 34(8)"` `0x72063a208947ba84`; `"Vertex 52(2), Pixel 35(7)"`
+  `0xbee80f7e5d747f0d`). The earlier mismatch was their block ordering, not the hash; the tail,
+  length xor, cross-adds, fmix64 and the sum were already proven by the 11-byte name.
+- **Falsified**: the bundle permutation keys are not effect-name hashes. None of the 7,553
+  permutation keys in the 331 GXSH bundles of the local shader cluster (2,976,000-2,982,000)
+  contains any of the confirmed values in any 4- or 8-byte window, and neither does any hash of
+  the names over seeds 0-64 plus four common seeds, both constants and lower/NUL variants.
+  Either the key is a program or permutation identity, or the Model2 family lies outside the
+  scanned range.
 
 ## Liquid findings (verified 2026-11-05)
 
