@@ -16,10 +16,10 @@ extends SceneTree
 ## the same breakdown the Windows 120 FPS receipt reports as `top_systems_ms`.
 ## Each segment prints `BENCH_MARK <segment> start|end` (for an external profiler) and
 ## `BENCH_SEGMENT {json}`: wall-clock frame interval percentiles, per-frame means of the
-## client's own process time and the viewport's render CPU time, and the means of Godot's
-## TIME_PROCESS/TIME_PHYSICS_PROCESS monitors (each the longest step of the last second),
-## the viewport's GPU render time, and the main thread's on-CPU time per frame
-## (/proc/thread-self/schedstat), so a frame splits into main-thread work and waiting.
+## client's own process time, Godot's TIME_PROCESS/TIME_PHYSICS_PROCESS monitors (each the
+## longest step of the last second) and the main thread's on-CPU time
+## (/proc/thread-self/schedstat), so a frame splits into main-thread work and waiting; the
+## viewport's render CPU/GPU time and draw calls are read once, for the segment's last frame.
 ## Reports only; frame-time budgets are not asserted (they depend on host load).
 
 const PASSWORD := "fbtest"
@@ -41,10 +41,6 @@ var intervals: Array[float] = []
 var client_ms: Array[float] = []
 var process_ms: Array[float] = []
 var physics_ms: Array[float] = []
-var render_ms: Array[float] = []
-var draw_calls: Array[float] = []
-var shadow_draw_calls: Array[float] = []
-var gpu_ms: Array[float] = []
 var main_cpu_ms: Array[float] = []
 var last_cpu_ns := 0
 var systems_ms := {}
@@ -62,12 +58,6 @@ func _process(_delta: float) -> bool:
 		client_ms.append(client.process_ms())
 		process_ms.append(Performance.get_monitor(Performance.TIME_PROCESS) * 1000.0)
 		physics_ms.append(Performance.get_monitor(Performance.TIME_PHYSICS_PROCESS) * 1000.0)
-		render_ms.append(RenderingServer.viewport_get_measured_render_time_cpu(root.get_viewport_rid())
-			+ RenderingServer.get_frame_setup_time_cpu())
-		draw_calls.append(Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME))
-		shadow_draw_calls.append(root.get_render_info(Viewport.RENDER_INFO_TYPE_SHADOW,
-			Viewport.RENDER_INFO_DRAW_CALLS_IN_FRAME))
-		gpu_ms.append(RenderingServer.viewport_get_measured_render_time_gpu(root.get_viewport_rid()))
 		main_cpu_ms.append((cpu_ns - last_cpu_ns) / 1e6)
 		if recording_systems:
 			var steps: Dictionary = client.frame_stats().systems_ms
@@ -171,7 +161,7 @@ func measure(segment: String, seconds: float, step: Callable, with_systems := fa
 	finish(segment, {})
 
 func begin(segment: String, with_systems := false) -> void:
-	for samples in [intervals, client_ms, process_ms, physics_ms, render_ms, draw_calls, shadow_draw_calls, gpu_ms, main_cpu_ms]:
+	for samples in [intervals, client_ms, process_ms, physics_ms, main_cpu_ms]:
 		samples.clear()
 	systems_ms.clear()
 	recording_systems = with_systems
@@ -190,10 +180,17 @@ func finish(segment: String, extra: Dictionary) -> void:
 		"p99_ms": percentile(sorted, 0.99), "max_ms": sorted.back() if not sorted.is_empty() else 0.0,
 		"mean_ms": mean(intervals), "client_process_ms": mean(client_ms),
 		"godot_process_max_1s_ms": mean(process_ms), "physics_max_1s_ms": mean(physics_ms),
-		"render_cpu_ms": mean(render_ms), "draw_calls": mean(draw_calls),
-		"shadow_draw_calls": mean(shadow_draw_calls), "load": load_average(),
-		"render_gpu_ms": mean(gpu_ms), "main_thread_cpu_ms": mean(main_cpu_ms),
+		"load": load_average(), "main_thread_cpu_ms": mean(main_cpu_ms),
 	}
+	# Render-server reads synchronize with the render thread; one read of the last
+	# frame per segment keeps them out of the measured frames.
+	var viewport := root.get_viewport_rid()
+	report["render_cpu_ms"] = RenderingServer.viewport_get_measured_render_time_cpu(viewport) \
+		+ RenderingServer.get_frame_setup_time_cpu()
+	report["render_gpu_ms"] = RenderingServer.viewport_get_measured_render_time_gpu(viewport)
+	report["draw_calls"] = Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME)
+	report["shadow_draw_calls"] = root.get_render_info(Viewport.RENDER_INFO_TYPE_SHADOW,
+		Viewport.RENDER_INFO_DRAW_CALLS_IN_FRAME)
 	if recording_systems:
 		report["systems_ms_median"] = per_system(systems_ms, 0.5)
 		report["systems_ms_p95"] = per_system(systems_ms, 0.95)
