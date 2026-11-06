@@ -57,9 +57,13 @@ Every bullet states its proof level:
       is carried but unused.
 - [x] Only the local player's heals float over a healed unit (**verified 15890**
       `Unit_C.cpp:21221`, inside `if (isPlayer)`).
-- [ ] Incoming healing and damage on the local player belong to the screen-anchored self
-      combat text, not world text (**retail Lua** `CombatText.lua`, `CombatTextConstants.lua`;
-      **ours**: not implemented — see Known gaps).
+- [x] Incoming healing and damage on the local player belong to the screen-anchored self
+      combat text, not world text (**retail Lua** `CombatText.lua`, `CombatTextConstants.lua`),
+      and that frame is off by default: `enableFloatingCombatText` is `0` and is what loads
+      `Blizzard_CombatText` (**retail Lua** `Combat/Overrides` `CreateFloatingCombatTextSetting`,
+      `Combat.lua:43`; **retail CVar** `0`). The engine has no self frame **and** no CVar store,
+      so it matches Retail's default state; the frame becomes necessary only together with that
+      switch (Known gaps).
 
 ### Colour
 
@@ -240,8 +244,10 @@ The engine has no CVar store; the defaults are compile-time constants.
 
 ## Known gaps (current cycle)
 
-- [ ] The self combat text frame (`Blizzard_CombatText`): incoming damage/healing on the player,
-      auras, honor, reputation, XP, threat, combo points and PvP rank icons.
+- [ ] The self combat text frame (`Blizzard_CombatText`) and its `enableFloatingCombatText`
+      switch: incoming damage/healing on the player, auras, honor, reputation, XP, threat,
+      combo points and PvP rank icons. Retail ships it off, so this waits for the CVar store
+      rather than for the frame alone.
 - [ ] `floatingCombatTextCombatDamageDirectionalOffset_v2` hit-direction offset.
 - [ ] `WorldTextGravity_v2`, `WorldTextMinAlpha_v2` and `WorldTextMinSize` formulas, and the
       decoded operands of the distance constant.
