@@ -521,6 +521,8 @@ pub(crate) struct TerrainObjects {
     spawned_wmos: BTreeSet<u32>,
     wmo_doodads: HashMap<u32, WmoDoodads>,
     doodads: Vec<CulledDoodad>,
+    /// Indices of the doodads with particle emitters or ribbons, in `doodads` order.
+    emitting_doodads: Vec<usize>,
     scenery_index: SceneryIndex,
     wmos: Vec<CulledWmo>,
     outdoor_windows: Option<Vec<Vec<HalfSpace>>>,
@@ -580,6 +582,7 @@ impl TerrainObjects {
             spawned_wmos: BTreeSet::new(),
             wmo_doodads: HashMap::new(),
             doodads: Vec::new(),
+            emitting_doodads: Vec::new(),
             scenery_index: SceneryIndex::default(),
             wmos: Vec::new(),
             outdoor_windows: None,
@@ -1287,6 +1290,9 @@ impl TerrainObjects {
         }
         let animated = doodad.bones.is_some() || doodad.materials.is_some();
         self.scenery_index.push(doodad.scenery, animated);
+        if doodad.particles.is_some() || doodad.ribbons.is_some() {
+            self.emitting_doodads.push(self.doodads.len());
+        }
         self.doodads.push(doodad);
     }
 
@@ -1550,10 +1556,8 @@ impl TerrainObjects {
         let started = Instant::now();
         pools.begin_frame();
         let mut updated = 0;
-        for doodad in &mut self.doodads {
-            if doodad.particles.is_none() && doodad.ribbons.is_none() {
-                continue;
-            }
+        for &index in &self.emitting_doodads {
+            let doodad = &mut self.doodads[index];
             let visible = doodad.opacity > 0.0 && doodad.scenery.box_in_frustum(frustum);
             if let Some(placed) = &mut doodad.particles {
                 if visible {
@@ -1636,6 +1640,7 @@ impl TerrainObjects {
         self.spawned_wmos.clear();
         self.wmo_doodads.clear();
         self.doodads.clear();
+        self.emitting_doodads.clear();
         self.scenery_index = SceneryIndex::default();
         self.wmos.clear();
         self.progress = TileProgress::default();
