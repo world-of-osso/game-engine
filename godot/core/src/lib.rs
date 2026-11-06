@@ -53,8 +53,6 @@ mod creature_display_data_tests;
 #[path = "game/creature_health_scaling_data.rs"]
 pub mod creature_health_scaling_data;
 pub mod creature_text_sounds;
-#[path = "dispel_data.rs"]
-pub mod dispel_data;
 #[path = "csv_util.rs"]
 pub mod csv_util;
 #[path = "rendering/character/customization_cache.rs"]
@@ -68,6 +66,8 @@ pub mod db2_cache;
 pub mod db2_source;
 #[cfg(test)]
 mod db2_test_support;
+#[path = "dispel_data.rs"]
+pub mod dispel_data;
 pub mod elastic_tree;
 #[path = "sound/footstep_data.rs"]
 pub mod footstep_data;
