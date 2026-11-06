@@ -173,6 +173,10 @@ impl GameClient {
     pub(super) fn sync_wild_battle_ui_visibility(&mut self) {
         let active = self.account.session.screen == SessionScreen::InWorld
             && self.wild_pet_battle.view.state.is_some();
+        // Outside a battle the pass only restores the layers a battle hid.
+        if !active && self.wild_pet_battle.hidden_layers.is_empty() {
+            return;
+        }
         let battle_ui = self.wild_pet_battle.ui.as_ref().map(Gd::instance_id);
         let menu_ui = self.game_menu_ui.as_ref().map(Gd::instance_id);
         let children = self.base().get_children();
