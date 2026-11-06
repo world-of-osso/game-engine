@@ -255,6 +255,27 @@ At the indoor pose, one private server ran four 300-frame Forever samples in bef
 
 An active equipment check used Prynne's replicated main-hand model 148554, selecting its authored animation 144 in the fixture because the idle track disables emission. One of two equipped ribbon nodes was visible. After dynamic buffer updates replaced per-frame surface rebuilds and unchanged material writes, two 180-frame samples measured 0.0199 and 0.0978 ms/frame world-ribbon thread CPU, including 0.0096 and 0.0448 ms/frame for all ribbon uploads. These are separate runs at a second location, not a controlled before/after claim. The surrounding world reported 96 missing asset receipts; they do not establish a clean scene. Fixture and logs: `data/diagnostics/m2-ribbons-world-2026-11-01/`; Forever capture: `/syncthing/AgentShared/2026-11-01/m2-ribbons-world/npc-prynne.png`.
 
+## Culling and foot IK regression (2026-11-06)
+
+The 120 FPS gate failed on a quiet Windows desktop on 2026-11-06: 91 FPS median (10.93 ms) at the indoor pose, against 140–151 FPS on 2026-10-31. The per-step receipt named two steps: Culling 4.34 ms (1.548 ms on 10-31) and Foot IK 2.12 ms (the system did not exist on 10-31). Both are CPU-side, so the relative signal was measured on a Linux release library (`/proc/<pid>/maps` checked per run) with the same pose, Forever skin and 1920x1080, in paired A/B runs whose host load is recorded.
+
+The Culling regression is `d5f97ee2a` ("Reject remote units outside portal visibility from the camera, keeping their shadows", 2026-11-01, not an ancestor of the 10-31 qualification commit). It added `WorldUnits::cull_outdoor`, which reads `unit_world_box` for every unit every frame; `mesh_bounds` walks the model's mesh children through the Godot API, which cost 6.90 ms of the 10.37 ms Culling step for 53 units. Admission flips were rare (0.22–0.28 per frame), so the box read itself, not the shadow refresh, was the cost. The fix reads the merged model bounds when the visual (and its mount) is attached, and again after a sheath change reparents the model's equipment meshes, then places the cached model-space box with the current transform.
+
+The Foot IK cost is `605a63d49`/`ff5df7b97` (2026-11-05, foot IK plus ground draping, also absent from the 10-31 commit). It solved every unit within 45 yd each frame, including units whose animation LOD had frozen their pose, and each solve scanned every spawned doodad (16,691 in Stormwind) for the visible surface under a foot. The fix skips a unit whose animation did not write its pose this frame (the skeleton still holds the previous solve), indexes doodads by the 8-yard column cells their bounds cover, and reuses the collision floor the surface query already read instead of reading it again for the snapshot.
+
+| Pose, Linux release, same client | Run | Load 1 min | Client process ms | Culling ms | Foot IK ms |
+|---|---|---:|---:|---:|---:|
+| master `fdf8fefa6` | a1 | 66.0 | 26.74 | 10.70 | 6.26 |
+| master `fdf8fefa6` | a2 | 63.9 | 17.11 | 7.17 | 3.65 |
+| culling + foot IK fix | b1 | 129.9 | 15.46 | 4.27 | 0.47 |
+| culling + foot IK fix | b2 | 35.8 | 7.04 | 1.92 | 0.25 |
+
+Each value is the median of a 25 s idle segment at the pose. Normalised by the client's own process time (the load proxy), Culling fell from 0.400/0.419 to 0.276/0.273 ms per client-ms and Foot IK from 0.234/0.213 to 0.030/0.036. With the fix a profiled idle segment (`b3`, client 7.57 ms) puts Culling at 1.94 ms: particles 1.15, doodads 0.48, and terrain, units and WMO below the 0.3 ms print threshold. Those two components match the pre-regression breakdown above, so the remaining Culling cost is not a further regression.
+
+No visual change: the scenery receipt records every spawned placement's in-tree visibility and each mesh's visibility and shadow mode. Master and the fixed build at this pose matched **16,691 of 16,691 placements, 0 mismatched**; two runs of one build alone differed by 32 and 5 placements, so that is below the run-to-run floor. Screenshots cannot resolve the difference across client starts: identical builds landed in two different world-light states (57.9% of pixels differed in one same-build pair, 13.1% in the cross-build pair). For foot IK the offline `foot_ik_ground_drape.gd` fixture still puts both feet at gaps 0.000 on the stair tread, and its rug and step probes still find render surfaces 0.021 and 0.577 yd above the collision floor.
+
+Evidence: `data/diagnostics/fps-regressions-2026-11-06/culling/` (`summary.json`, `a*.{log,png,receipt.json,maps}`, `b*.{log,png,receipt.json,maps}`, `compare.py`, `run-client.sh`), the foot IK fixture captures in `data/diagnostics/fps-regressions-2026-11-06/foot-ik/`, and the 960 px Forever captures in `/syncthing/AgentShared/2026-11-06/fps-regressions/`. The Windows re-measurement of the gate is the lead's.
+
 ## Sources
 
 - `src/rendering/camera/culling.rs`: the original doodad, WMO and portal culling. Its 200/2,000/400 yd distances cite no source (commit `f475000f`), so they were not used.
