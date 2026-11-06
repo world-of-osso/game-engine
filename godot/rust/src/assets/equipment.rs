@@ -244,6 +244,12 @@ impl EquipmentContext<'_> {
         let cached = load_model_files(&resolver, self.data_root, definition.fdid)?;
         let parsed = &cached.model;
         let bound = definition.bind_to_character;
+        // Retail clears a bound collection's base parts and shows only its slot's
+        // `AttachmentGeosetGroup` parts (decomp `R-item-geoset-variant-selection`);
+        // a model whose file has none of them draws nothing, so it is never bound.
+        if bound && draws_no_visible_mesh(definition, parsed) {
+            return Ok(());
+        }
         let mut parent = self.parent_for(definition.slot, authored_path, bound)?;
         let path = GString::from(cached.path.to_string_lossy().as_ref());
         cache_model_textures(&resolver, self.data_root, &[0; 3], parsed)?;
@@ -431,6 +437,19 @@ fn unbound_replaceable_types(
     Ok(unbound)
 }
 
+/// Whether a bound model's selected geosets leave no mesh to draw. Its particles and
+/// ribbons are not geoset-selected, so a model with one keeps its attachment.
+fn draws_no_visible_mesh(definition: &RuntimeModelAppearance, model: &m2::Model) -> bool {
+    !model.submeshes.is_empty()
+        && !model.submeshes.iter().any(|submesh| {
+            definition
+                .geosets
+                .shows(definition.slot, submesh.mesh_part_id)
+        })
+        && model.particle_emitters.is_empty()
+        && model.ribbon_emitters.is_empty()
+}
+
 /// A skin binding `model`'s bones to the matching character skeleton joints.
 fn bound_skin(
     character: &Gd<Node3D>,
@@ -533,6 +552,165 @@ mod tests {
             name_crc: 0,
             pivot: [0.0; 3],
         }
+    }
+
+    /// Dornogal display 121978 (Blood Elf female, Extra 157640) authors a wrist
+    /// display 685376 (models 143141/143445, the left/right shoulder pair). Both are
+    /// one rigid root whose bone name CRC has no character joint, and their only
+    /// submesh is part 0. The hands display of the same outfit claims wrist group 23
+    /// (part 2301) first, so the wrist model is not drawn.
+    #[test]
+    fn dornogal_display_121978_wrist_collection_draws_nothing() {
+        let data = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data");
+        let gear = crate::npc_gear_data::NpcGearData::load(&data.join("db2/active")).unwrap();
+        let armor = gear.display_armor(121978).unwrap();
+        let catalog = game_engine_core::outfit_data::OutfitData::load(&data);
+        for baked in [false, true] {
+            let resolved = if baked {
+                crate::equipment_appearance_data::load_baked_equipment_appearance(
+                    &armor, &catalog, 10, 1,
+                )
+            } else {
+                crate::equipment_appearance_data::resolve_equipment_appearance(
+                    &armor, &catalog, 10, 1,
+                )
+            }
+            .unwrap();
+            let hands = resolved
+                .runtime_models
+                .iter()
+                .find(|model| model.slot == EquipmentSlot::Hands)
+                .expect("hands collection");
+            assert_eq!(hands.fdid, 1606002);
+            assert_eq!(
+                hands.geosets,
+                crate::equipment_appearance_data::ItemGeosets::Collection(vec![401, 2301])
+            );
+            assert!(
+                !resolved
+                    .runtime_models
+                    .iter()
+                    .any(|model| model.slot == EquipmentSlot::Wrist),
+                "the hands collection already owns wrist group 23"
+            );
+        }
+    }
+
+    /// Resolved alone, the same wrist display keeps its bound model, but retail's
+    /// collection selector leaves no mesh for it (its only part is 0, not 2301).
+    #[test]
+    fn dornogal_wrist_display_685376_selects_no_mesh() {
+        let data = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data");
+        let catalog = game_engine_core::outfit_data::OutfitData::load(&data);
+        let armor = shared::components::EquipmentAppearance {
+            entries: vec![shared::components::EquippedAppearanceEntry {
+                slot: shared::components::EquipmentVisualSlot::Wrist,
+                item_id: None,
+                definition_source: None,
+                display_info_id: Some(685376),
+                inventory_type: 0,
+                hidden: false,
+            }],
+        };
+        let resolved =
+            crate::equipment_appearance_data::resolve_equipment_appearance(&armor, &catalog, 10, 1)
+                .unwrap();
+        let wrist: Vec<_> = resolved
+            .runtime_models
+            .iter()
+            .filter(|model| model.slot == EquipmentSlot::Wrist)
+            .collect();
+        // Both model columns name resource 16345; without a shoulder side both
+        // resolve to its first file, and the second collection loses group 23.
+        assert_eq!(wrist.len(), 1);
+        for definition in wrist {
+            assert_eq!(definition.fdid, 143141);
+            assert!(definition.bind_to_character);
+            let item = load_definition_model_for(&data, definition.product, definition.fdid);
+            assert_eq!(
+                item.model
+                    .submeshes
+                    .iter()
+                    .map(|submesh| submesh.mesh_part_id)
+                    .collect::<Vec<_>>(),
+                vec![0]
+            );
+            assert!(
+                draws_no_visible_mesh(definition, &item.model),
+                "FDID {}: retail draws no selected part",
+                definition.fdid
+            );
+            // The bind this model would need has no matching character bone.
+            let character = load_definition_model_for(&data, AssetProduct::Retail, 1100258);
+            assert!(
+                map_equipment_bones(&character.model.bones, &item.model.bones)
+                    .unwrap_err()
+                    .contains("no character joint")
+            );
+        }
+    }
+
+    /// Dornogal Earthen displays 117276/117271 sample item batch types 2 and 3; no
+    /// display declares a type 3 material, so retail binds white there.
+    #[test]
+    fn dornogal_earthen_displays_bind_retail_item_batch_textures() {
+        let data = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data");
+        let gear = crate::npc_gear_data::NpcGearData::load(&data.join("db2/active")).unwrap();
+        let catalog = game_engine_core::outfit_data::OutfitData::load(&data);
+        for (display_id, race, sex, item_models) in [
+            (117276, 85, 1, [5172262, 5172294, 5172295, 5686564]),
+            (117271, 85, 0, [5172261, 5172294, 5172295, 5686565]),
+        ] {
+            let armor = gear.display_armor(display_id).unwrap();
+            let resolved = crate::equipment_appearance_data::resolve_equipment_appearance(
+                &armor, &catalog, race, sex,
+            )
+            .unwrap();
+            for fdid in item_models {
+                assert!(
+                    resolved
+                        .runtime_models
+                        .iter()
+                        .any(|model| model.fdid == fdid),
+                    "display {display_id} keeps item model {fdid}"
+                );
+            }
+            let mut unbound = std::collections::BTreeSet::new();
+            for model in &resolved.runtime_models {
+                let item = load_definition_model_for(&data, model.product, model.fdid);
+                assert!(!item.model.batches.is_empty());
+                for unit in &item.model.batches {
+                    for (kind, fdid) in item_batch_texture_fdids(model, &item.model, unit).unwrap()
+                    {
+                        match fdid {
+                            Some(fdid) => assert_ne!(fdid, 0, "display {display_id}"),
+                            None => {
+                                assert_ne!(
+                                    kind, 0,
+                                    "display {display_id} model {}: unresolved hardcoded texture",
+                                    model.fdid
+                                );
+                                unbound.insert(kind);
+                            }
+                        }
+                    }
+                }
+            }
+            assert_eq!(
+                unbound,
+                std::collections::BTreeSet::from([3]),
+                "display {display_id}: only the undeclared type 3 binds white"
+            );
+        }
+    }
+
+    fn load_definition_model_for(
+        data: &Path,
+        product: AssetProduct,
+        fdid: u32,
+    ) -> Arc<crate::assets::creature::CachedModel> {
+        let resolver = authored_model_resolver(data, product, fdid).unwrap();
+        load_model_files(&resolver, data, fdid).unwrap()
     }
 
     #[test]
