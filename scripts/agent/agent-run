@@ -40,8 +40,12 @@ if [ -n "$runs_cargo" ] && [ -x "$capacity" ]; then
     until verdict=$(CAPACITY_ID="$capacity_id" "$capacity") && echo "$verdict" >&2 \
         && [[ $verdict == *'| ADD:'* ]]; do :; done
 fi
+# The merge train's gate holds everyone's landings; its slice carries CPUWeight=500 so it
+# outranks agent builds. Keep its own processes at normal niceness to match.
+nice=10
+[ "$name" = merge-train ] && nice=0
 exec systemd-run --user --scope --quiet --collect \
     --slice="agents-${name}.slice" \
     --unit="agent-${name}-$$-${RANDOM}" \
-    --nice=10 \
+    --nice="$nice" \
     -- ionice -c 3 "$@"
