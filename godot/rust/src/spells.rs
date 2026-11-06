@@ -84,6 +84,8 @@ pub(crate) struct SpellsHud {
     floating: Vec<FloatingText>,
     /// Numbers floated so far, indexing each one's start offset.
     floats_spawned: u32,
+    /// Offline capture holds the live texts at their age instead of advancing them.
+    combat_text_hold: bool,
     /// Spell ids sent, oldest first, for automation.
     sent: Vec<u32>,
     held_cast_bindings: game_engine_core::spell_binding_holds::SpellBindingHolds,
@@ -115,6 +117,7 @@ impl Default for SpellsHud {
             combat_seen: 0,
             floating: Vec::new(),
             floats_spawned: 0,
+            combat_text_hold: false,
             sent: Vec::new(),
             held_cast_bindings: Default::default(),
             errors: Vec::new(),
@@ -170,9 +173,12 @@ impl SpellsHud {
         {
             ui.free();
         }
-        for text in self.floating.drain(..) {
-            if text.node.is_instance_valid() {
-                text.node.free();
+        // An offline capture holds its texts across the not-in-world close.
+        if !self.combat_text_hold {
+            for text in self.floating.drain(..) {
+                if text.node.is_instance_valid() {
+                    text.node.free();
+                }
             }
         }
         self.held_cast_bindings.clear();
@@ -400,7 +406,18 @@ mod tests {
             glancing: true,
             ..hit.clone()
         };
-        assert_eq!([&hit, &crit, &glancing].map(combat_text_size), [64, 96, 48]);
+        let size = |event: &CombatLogEvent| {
+            let text = crate::combat_text::text_for(event, crate::combat_text::Attacker::Player)
+                .expect("a hit draws");
+            combat_text_size(event, text.style)
+        };
+        // A crit carries `WorldTextCritScreenY_v2 / WorldTextScreenY_v2` (1.833x) over a hit.
+        let crit_size = (64.0 * crate::combat_text::CRIT_SCALE).round() as i32;
+        assert_eq!(
+            [size(&hit), size(&crit), size(&glancing)],
+            [64, crit_size, 48]
+        );
+        assert_eq!(crit_size, 117);
     }
 
     fn spell(id: u32, available_at: Option<u32>) -> SpellbookSpell {

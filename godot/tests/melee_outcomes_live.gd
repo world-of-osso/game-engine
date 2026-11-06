@@ -8,7 +8,8 @@ extends SceneTree
 ## "Hit { critical: true }", swooshes the crit kit 236 (WeaponSwingSounds2 Medium crit),
 ## lands an impact kit no plain hit used (WeaponImpactSounds `CritImpactSoundID`; 53249
 ## on the flesh worg), and its
-## floating combat text reads "<amount>!" at 1.5x the plain size.
+## floating combat text reads "<amount>!" at the Retail crit height ratio (WorldTextCritScreenY_v2
+## / WorldTextScreenY_v2 = 0.0275 / 0.015) above the plain size.
 
 const PASSWORD := "fbtest"
 ## Center distance the fixture accepts (the server swings within 5 yd).
@@ -33,6 +34,8 @@ const MOB_DEATH := 11910
 ## The widest $CSS → $CAH gap of the attack clips (HumanMale HD Attack2H 133 ms). Sounds
 ## start on frame boundaries, so a measured gap may also span two of the longest frames.
 const LAND_GAP := 0.133
+## WorldTextCritScreenY_v2 / WorldTextScreenY_v2: a crit draws this much taller than a hit.
+const CRIT_HEIGHT_RATIO := 0.0275 / 0.015
 
 var client: Node
 var character := ""
@@ -129,8 +132,9 @@ func run_test() -> void:
 		return
 	for size in crit_texts.values():
 		for plain in plain_sizes.keys():
-			if size * 2 != plain * 3:
-				fail("Crit text size %d is not 1.5x the plain %d" % [size, plain])
+			if absf(float(size) / float(plain) - CRIT_HEIGHT_RATIO) > 0.02:
+				fail("Crit text size %d is not %.3fx the plain %d" % [
+					size, CRIT_HEIGHT_RATIO, plain])
 				return
 	if not check_landing():
 		return
