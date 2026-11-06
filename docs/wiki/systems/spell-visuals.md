@@ -407,6 +407,42 @@ Consequences, all measured in the offline preview:
   re-erupt. Our server sends no repeated area-trigger updates, so one burst per trigger is
   the correct client behaviour (decompilation: engine-3d/AT-PASS-CADENCE-AND-DISCS.md).
 
+## Square ground quads: what is ruled out (2026-11-05)
+
+Death and Decay's and Consecration's ground art renders with straight edges. Six hypotheses were
+measured against the offline preview and all are ruled out; record them so nobody repeats them.
+
+1. **The visible art is not the disc mesh.** Hiding the two 4-vertex quads of Death and Decay's
+   model 1522961 drops the effect from 202,185 px to 217 px against a same-frame no-effect frame.
+   `Batch0`, the 42-vertex disc with the radial texture 167013, contributes almost nothing.
+2. **The quads' textures are flat in alpha.** Ring profiles from the texture centre to its corner
+   (luminance/alpha): 1603902 1/76 ... 2/91, 1522978 20/101 ... 37/148, 1601200 54/161 ... 29/73,
+   1620780 51/82 ... 90/168, and Consecration's 1248078 is opaque everywhere (163/164 ... 134/157).
+   The only clean radial falloff, 167013 (255/255 ... 67/54), is on the disc batches.
+3. **The third texture is not a mask these batches use.** It is radial (1603903 peaks at 167 alpha
+   in ring 4 and is 0 at the corners; 1612964 is a ring; 1248079 is centre-bright; 1387801 is
+   centre-bright), but `Model::texture_unit_lookup` is empty for all four models, every batch's
+   `texture_coord_index` is 0, vertex combiner 2 assigns coordinates to two slots only, and pixel
+   combiner 8 reads two textures. Sampling it anyway made things worse: at `uv3` (a constant texel)
+   Death and Decay fell to 65,872 px spread off the disc, at `uv1` to 5,012 px off the ground.
+4. **The authored coordinates are already the decal mapping.** The quads are 45-degree diamonds in
+   model space (vertices (0, 3.92), (-3.92, 0), (3.92, 0), (0, -3.92), kit yaw 0) and their UV1
+   spans -0.0009..1.0009 along the diamond's diagonals. Projecting axis-aligned bounds onto [0, 1]
+   turns the texture 45 degrees and grows the footprint: Death and Decay 135,062 -> 200,683 px,
+   Flamestrike 183,948 -> 429,896 px, Consecration 391,836 -> 335,974 px.
+5. **The client has no radius, falloff or edge-fade term** (decompilation, VERIFIED NEGATIVE), so
+   nothing clips a quad to a circle outside the shader.
+6. **The projected-texture pass's ramp alone is not a disc.** A preview-only decal over the batch's
+   box with `ShadowAddCallback`'s procedural ramp (alpha 0->1 over t 0..2, flat to 10, 1->0 by 12,
+   along the texture's 64-texel axis) produces a one-dimensional band, not a circle: Death and Decay
+   65,725 px with 32% of the change in the box corners at 9 s. The circular shape can only come from
+   the terrain triangles that pass draws and their own shadow-map coordinates, which are not
+   derivable from the M2 or from the client image.
+
+Conclusion: the quad geometry, its coordinates, its textures and the client's state are all
+accounted for, and none of them clips the art. What remains is the projected pass's terrain draw,
+whose texture coordinates are not recoverable without the `.bls` shader bytecode.
+
 ## Gaps
 
 - The action layer is full-body when standing and upper-body when moving (SpineLow subtree). `AnimKitSegment` conditions, per-segment bone sets and priorities, and `AnimKit` blend times are not applied.

@@ -175,6 +175,35 @@ use game_engine_ui_model::{
 use godot::classes::{Engine as GodotEngine, INode3D, Node3D, ProjectSettings, Time};
 use godot::prelude::*;
 
+/// `DrawBatchProj` grows the model region's box by two yards on the vertical axis.
+const PROJECTED_BLOB_RISE: f32 = 2.0;
+
+/// `ShadowAddCallback`'s ramp, as a 64x8 white texture whose alpha follows the 64-texel axis.
+fn projected_blob_texture() -> Result<Gd<godot::classes::ImageTexture>, String> {
+    const WIDTH: u32 = 64;
+    const HEIGHT: u32 = 8;
+    let mut pixels = vec![0u8; (WIDTH * HEIGHT * 4) as usize];
+    for x in 0..WIDTH {
+        let t = x as f32 / (WIDTH - 1) as f32 * 12.0;
+        let alpha = if t < 2.0 {
+            t * 0.5
+        } else if t < 10.0 {
+            1.0
+        } else {
+            ((12.0 - t) * 0.5).max(0.0)
+        };
+        let alpha = (alpha * 255.0) as u8;
+        for y in 0..HEIGHT {
+            let index = ((y * WIDTH + x) * 4) as usize;
+            pixels[index] = 255;
+            pixels[index + 1] = 255;
+            pixels[index + 2] = 255;
+            pixels[index + 3] = alpha;
+        }
+    }
+    crate::assets::material::texture_from_rgba(&pixels, WIDTH, HEIGHT)
+}
+
 /// Observe projection removal; despawn has no surviving replica snapshot.
 fn log_replication_removal(server_id: u64, snapshot: Option<game_engine_network::replica::Unit>) {
     godot_print!(
@@ -975,6 +1004,53 @@ impl GameClient {
     #[func]
     fn preview_clear_kits(&mut self) {
         self.clear_preview_kits();
+    }
+
+    /// Diagnostic only: replace each area-trigger batch mesh with the client's projected blob, a
+    /// decal over the batch's box using the procedural ramp `ShadowAddCallback` builds (alpha rises
+    /// over t 0..2, flat to 10, falls to 0 by 12, sampled along the texture's 64-texel axis).
+    #[func]
+    fn preview_area_trigger_blob(&mut self, enable: bool) {
+        for anchor in self.spell_effects.area_trigger_nodes() {
+            for mesh in anchor
+                .find_children_ex("*")
+                .type_("MeshInstance3D")
+                .owned(false)
+                .recursive(true)
+                .done()
+                .iter_shared()
+            {
+                let Ok(mut mesh) = mesh.try_cast::<godot::classes::MeshInstance3D>() else {
+                    continue;
+                };
+                if !enable {
+                    mesh.set_visible(true);
+                    continue;
+                }
+                let Ok(blob) = projected_blob_texture() else {
+                    return;
+                };
+                let mut decal = godot::classes::Decal::new_alloc();
+                let local = mesh.get_aabb();
+                let aabb = godot::builtin::Aabb::new(
+                    local.position - Vector3::new(0.0, PROJECTED_BLOB_RISE, 0.0),
+                    local.size + Vector3::new(0.0, PROJECTED_BLOB_RISE * 2.0, 0.0),
+                );
+                let centre = mesh.get_global_transform() * aabb.center();
+                let scale = mesh.get_global_transform().basis.get_scale();
+                decal.set_name(&format!("{}Blob", mesh.get_name()));
+                decal.set_size(aabb.size * scale);
+                decal.set_global_position(centre);
+                decal.set_texture(godot::classes::decal::DecalTexture::EMISSION, &blob);
+                decal.set_emission_energy(1.0);
+                decal.set_upper_fade(0.0);
+                decal.set_lower_fade(0.0);
+                mesh.set_visible(false);
+                if let Some(mut parent) = mesh.get_parent() {
+                    parent.add_child(&decal);
+                }
+            }
+        }
     }
 
     /// Offline fixture: hide or show the mesh batches of the previewed spell kits whose name

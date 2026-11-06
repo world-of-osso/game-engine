@@ -552,6 +552,8 @@ func capture_trigger(spell: int, prefix: String, shots: Array) -> void:
 		if hide != "":
 			for name in hide.split(","):
 				client.preview_hide_batches(name.strip_edges(), true)
+		if OS.get_environment("CAPTURE_BLOB") != "":
+			client.preview_area_trigger_blob(true)
 		if OS.get_environment("CAPTURE_MATERIALS") != "":
 			print("MATERIALS-%s %s" % [shot[1], JSON.stringify(client.preview_kit_materials())])
 		var extent := effect_extent()
