@@ -671,6 +671,63 @@ mod tests {
         }
     }
 
+    /// The 2959 hillside pond drew black because every zone slot of the Forever `LightData`
+    /// rows leaves the four water columns at zero. The map's fixed record slot authors
+    /// `0x001E303E` (close) and `0x00001317` (far), so the uniforms must no longer bind zero.
+    #[test]
+    fn forever_water_colours_come_from_the_authored_fixed_row() {
+        let data_root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
+        let catalog = LightingCatalog::read(&data_root).unwrap();
+        let sample = catalog
+            .sample(2959, [-800.0, 100.0, 266.7], 1440.0)
+            .unwrap();
+        let water = sample.water;
+        for (colour, shallow_alpha) in [(water.river_close, 0.5), (water.ocean_close, 0.75)] {
+            assert_eq!(colour[3], shallow_alpha, "shallow alpha: {colour:?}");
+            let [red, green, blue] = [colour[0], colour[1], colour[2]];
+            assert!(
+                (red - 30.0 / 255.0).abs() < 1e-3
+                    && (green - 48.0 / 255.0).abs() < 1e-3
+                    && (blue - 62.0 / 255.0).abs() < 1e-3,
+                "authored 0x001E303E, bound {colour:?}"
+            );
+        }
+        for colour in [water.river_far, water.ocean_far] {
+            assert_eq!(colour[3], 1.0, "deep alpha: {colour:?}");
+            assert_eq!(colour[0], 0.0, "authored 0x00001317: {colour:?}");
+            assert!(
+                (colour[1] - 19.0 / 255.0).abs() < 1e-3 && (colour[2] - 23.0 / 255.0).abs() < 1e-3,
+                "authored 0x00001317, bound {colour:?}"
+            );
+        }
+    }
+
+    /// Retail authors water colour on the zone rows, so the fixed row must not repaint it:
+    /// every channel stays what the zone sample chose.
+    #[test]
+    fn retail_water_keeps_the_zone_colour() {
+        let data_root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
+        let catalog = LightingCatalog::read(&data_root).unwrap();
+        let sample = catalog.sample(0, [-8830.0, 500.0, 630.0], 1440.0).unwrap();
+        let sky = sample.sky;
+        let water = sample.water;
+        for (bound, zone) in [
+            (water.river_close, sky.river_close_color),
+            (water.river_far, sky.river_far_color),
+            (water.ocean_close, sky.ocean_close_color),
+            (water.ocean_far, sky.ocean_far_color),
+        ] {
+            let authored = linear_to_authored_rgb(zone);
+            assert!(
+                bound[..3]
+                    .iter()
+                    .zip(authored)
+                    .all(|(got, want)| (got - want).abs() < 1e-3),
+                "zone {authored:?} bound {bound:?}"
+            );
+        }
+    }
+
     /// Cultists' Quay at noon: LightParams 12 fog, replaced by the cave's MFOG record 0
     /// deep inside (legacy fog from 74.6 yd at density 1.5, the cave colour everywhere, no
     /// sun fog), and half of each 12.5 yd from a portal.
