@@ -21,13 +21,15 @@ extends SceneTree
 ## client's own process time, Godot's TIME_PROCESS/TIME_PHYSICS_PROCESS monitors (each the
 ## longest step of the last second) and the main thread's on-CPU time
 ## (/proc/thread-self/schedstat), so a frame splits into main-thread work and waiting; the
-## viewport's render CPU/GPU time and draw calls are read once, for the segment's last frame.
+## viewport's render CPU/GPU time and draw calls are read once, for the segment's last frame;
+## `threads` is the main and render threads' CPU and wait per frame (thread_cpu_split.gd).
 ## Reports only; frame-time budgets are not asserted (they depend on host load).
 
 const PASSWORD := "fbtest"
 const Readiness = preload("res://tests/world_entry_readiness.gd")
 const CharacterSelectReveal = preload("res://tests/character_select_reveal.gd")
 const SceneryReceipt = preload("res://tests/scenery_visibility_receipt.gd")
+const ThreadCpuSplit = preload("res://tests/thread_cpu_split.gd")
 const PITCH := -0.35
 const DISTANCE := 15.0
 ## Noon in the half-minutes the world light samples.
@@ -49,6 +51,7 @@ var systems_ms := {}
 ## Per frame of a systems segment: [interval ms, client ms, main-thread CPU ms, steps].
 var system_frames: Array = []
 var recording_systems := false
+var thread_split := ThreadCpuSplit.new()
 
 func _initialize() -> void:
 	call_deferred("run_test")
@@ -136,7 +139,7 @@ func run_test() -> void:
 	await measure("orbit", segment_s, func(t: float):
 		client.set_camera_orbit(yaw + TAU * t / segment_s, PITCH, DISTANCE))
 	client.set_camera_orbit(yaw, PITCH, DISTANCE)
-	begin("walk")
+	await begin("walk")
 	var started := Time.get_ticks_msec()
 	var legs := 0
 	var travelled := 0.0
@@ -149,7 +152,7 @@ func run_test() -> void:
 		push_key(key, false)
 		travelled += from.distance_to(Vector2(player.position.x, player.position.z))
 		legs += 1
-	finish("walk", {"legs": legs, "travelled_yd": travelled})
+	await finish("walk", {"legs": legs, "travelled_yd": travelled})
 	if travelled < legs * walk_s * RUN_SPEED * 0.5:
 		fail("Walk covered %.1f yd in %d legs; the character is blocked" % [travelled, legs])
 		return
@@ -158,12 +161,12 @@ func run_test() -> void:
 	quit(0)
 
 func measure(segment: String, seconds: float, step: Callable, with_systems := false) -> void:
-	begin(segment, with_systems)
+	await begin(segment, with_systems)
 	var started := Time.get_ticks_msec()
 	while Time.get_ticks_msec() - started < seconds * 1000.0:
 		step.call((Time.get_ticks_msec() - started) / 1000.0)
 		await process_frame
-	finish(segment, {})
+	await finish(segment, {})
 
 func begin(segment: String, with_systems := false) -> void:
 	for samples in [intervals, client_ms, process_ms, physics_ms, main_cpu_ms]:
@@ -171,6 +174,7 @@ func begin(segment: String, with_systems := false) -> void:
 	systems_ms.clear()
 	system_frames.clear()
 	recording_systems = with_systems
+	await thread_split.start(self)
 	print("BENCH_MARK %s start" % segment)
 	recording = true
 	last_usec = 0
@@ -178,6 +182,7 @@ func begin(segment: String, with_systems := false) -> void:
 func finish(segment: String, extra: Dictionary) -> void:
 	recording = false
 	print("BENCH_MARK %s end" % segment)
+	var threads := await thread_split.finish(self)
 	var sorted := intervals.duplicate()
 	sorted.sort()
 	var report := {
@@ -201,6 +206,7 @@ func finish(segment: String, extra: Dictionary) -> void:
 		report["systems_ms_median"] = per_system(systems_ms, 0.5)
 		report["systems_ms_p95"] = per_system(systems_ms, 0.95)
 		report["worst_frames"] = worst_frames(10, 5)
+	report["threads"] = threads
 	report.merge(extra)
 	print("BENCH_SEGMENT ", JSON.stringify(report))
 

@@ -83,6 +83,63 @@ fn thread_cpu_time() -> Option<Duration> {
     Some(Duration::new(seconds, nanoseconds))
 }
 
+/// The calling thread's CPU time in milliseconds, so benchmarks can split a frame
+/// into a thread's work and its waiting on Linux and Windows.
+#[cfg(any(target_os = "linux", windows))]
+pub(crate) fn thread_cpu_ms() -> Option<f64> {
+    thread_cpu_time().map(|time| time.as_secs_f64() * 1000.0)
+}
+
+#[cfg(not(any(target_os = "linux", windows)))]
+pub(crate) fn thread_cpu_ms() -> Option<f64> {
+    None
+}
+
+/// Kernel plus user time of the calling thread. Windows charges it per scheduler tick
+/// (about 15.6 ms), so read it over many frames rather than per frame.
+#[cfg(windows)]
+fn thread_cpu_time() -> Option<Duration> {
+    use std::ffi::c_void;
+    #[repr(C)]
+    #[derive(Default)]
+    struct FileTime {
+        low: u32,
+        high: u32,
+    }
+    #[link(name = "kernel32")]
+    unsafe extern "system" {
+        fn GetCurrentThread() -> *mut c_void;
+        fn GetThreadTimes(
+            thread: *mut c_void,
+            creation: *mut FileTime,
+            exit: *mut FileTime,
+            kernel: *mut FileTime,
+            user: *mut FileTime,
+        ) -> i32;
+    }
+    let mut creation = FileTime::default();
+    let mut exit = FileTime::default();
+    let mut kernel = FileTime::default();
+    let mut user = FileTime::default();
+    // SAFETY: the pseudo handle names the calling thread and all four outputs are
+    // valid writable FILETIMEs.
+    let ok = unsafe {
+        GetThreadTimes(
+            GetCurrentThread(),
+            &mut creation,
+            &mut exit,
+            &mut kernel,
+            &mut user,
+        )
+    };
+    if ok == 0 {
+        godot::prelude::godot_error!("Thread CPU times: {}", std::io::Error::last_os_error());
+        return None;
+    }
+    let ticks = |time: &FileTime| (u64::from(time.high) << 32) | u64::from(time.low);
+    Some(Duration::from_nanos((ticks(&kernel) + ticks(&user)) * 100))
+}
+
 #[cfg(target_os = "linux")]
 impl Drop for CpuNodeSpan {
     fn drop(&mut self) {

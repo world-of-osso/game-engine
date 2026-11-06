@@ -1420,6 +1420,13 @@ impl GameClient {
         self.game_objects.benchmark_live_queries(&space, feet)
     }
 
+    /// The calling thread's CPU time in milliseconds, or -1 where it cannot be read.
+    /// Benchmarks also call it on the render thread through `call_on_render_thread`.
+    #[func]
+    fn thread_cpu_ms() -> f64 {
+        profile::thread_cpu_ms().unwrap_or(-1.0)
+    }
+
     /// Main-thread time of the last `process`, in milliseconds.
     #[func]
     fn process_ms(&self) -> f64 {
