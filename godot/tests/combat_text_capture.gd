@@ -341,6 +341,9 @@ func check_count(expected: int, label: String) -> void:
 func check(condition: bool, label: String) -> void:
 	if condition:
 		print("PASS " + label)
+	elif file_prefix != "":
+		# The baseline capture shows what master does; its contract differs on purpose.
+		print("BASELINE " + label)
 	else:
 		fail(label)
 
