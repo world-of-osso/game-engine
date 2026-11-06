@@ -650,8 +650,10 @@ mod tests {
         }
     }
 
-    /// Dornogal Earthen displays 117276/117271 sample item batch types 2 and 3; no
-    /// display declares a type 3 material, so retail binds white there.
+    /// Dornogal Earthen displays 117276/117271 item models sample types 2 and 3.
+    /// Type 2 resolves from ItemDisplayInfoModelMatRes; the undeclared type 3 is
+    /// sampled only by batches on parts 402/2202, which the slot's collection
+    /// selector hides (retail clears those parts too). Every drawn batch resolves.
     #[test]
     fn dornogal_earthen_displays_bind_retail_item_batch_textures() {
         let data = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data");
@@ -675,32 +677,27 @@ mod tests {
                     "display {display_id} keeps item model {fdid}"
                 );
             }
-            let mut unbound = std::collections::BTreeSet::new();
             for model in &resolved.runtime_models {
                 let item = load_definition_model_for(&data, model.product, model.fdid);
                 assert!(!item.model.batches.is_empty());
+                let allowed = |part| model.geosets.shows(model.slot, part);
+                let unbound = unbound_replaceable_types(model, &item.model, allowed).unwrap();
+                assert!(
+                    unbound.is_empty(),
+                    "display {display_id} model {}: undeclared types {unbound:?}",
+                    model.fdid
+                );
                 for unit in &item.model.batches {
-                    for (kind, fdid) in item_batch_texture_fdids(model, &item.model, unit).unwrap()
-                    {
-                        match fdid {
-                            Some(fdid) => assert_ne!(fdid, 0, "display {display_id}"),
-                            None => {
-                                assert_ne!(
-                                    kind, 0,
-                                    "display {display_id} model {}: unresolved hardcoded texture",
-                                    model.fdid
-                                );
-                                unbound.insert(kind);
-                            }
+                    let part = item.model.submeshes[usize::from(unit.submesh_index)].mesh_part_id;
+                    let fdids = item_batch_texture_fdids(model, &item.model, unit).unwrap();
+                    for (kind, fdid) in fdids {
+                        if fdid.is_none() {
+                            assert_ne!(kind, 0, "display {display_id}: hardcoded type 0");
+                            assert!(!allowed(part), "a shown batch keeps a missing texture");
                         }
                     }
                 }
             }
-            assert_eq!(
-                unbound,
-                std::collections::BTreeSet::from([3]),
-                "display {display_id}: only the undeclared type 3 binds white"
-            );
         }
     }
 
