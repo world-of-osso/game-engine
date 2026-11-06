@@ -8,7 +8,11 @@ use crate::asset::m2_texture;
 use crate::m2::{Model, TextureUnit};
 
 /// M2ShaderTable: (pixel shader, vertex shader) of `shader_id & 0x7FFF` when 0x8000 is set.
-const SHADER_TABLE: [(u8, u8); 36] = [
+/// Retail's explicit-id table (`0x144852a70`, 37 entries x 8 bytes in 12.1.5.70688): low dword
+/// is the pixel-table index, high dword the vertex index. Decoded from the client image
+/// (`work/engine-3d/M2-SHADERID-TABLES.md`); the WebWowViewerCpp copy this replaced had the
+/// vertex index one too high for every entry from 8 up, and no trailing `(0, 0)`.
+const SHADER_TABLE: [(u8, u8); 37] = [
     (12, 3),
     (13, 3),
     (14, 3),
@@ -28,23 +32,24 @@ const SHADER_TABLE: [(u8, u8); 36] = [
     (24, 3),
     (25, 6),
     (26, 0),
-    (33, 9),
-    (27, 11),
-    (6, 12),
+    (33, 8),
+    (27, 10),
+    (6, 11),
     (28, 2),
     (29, 7),
-    (25, 11),
-    (33, 13),
-    (30, 14),
+    (25, 10),
+    (33, 12),
+    (30, 13),
     (31, 2),
-    (32, 14),
+    (32, 13),
     (34, 7),
+    (35, 14),
     (35, 15),
-    (35, 16),
     (0, 0),
-    (7, 12),
-    (1, 9),
-    (36, 12),
+    (7, 11),
+    (1, 8),
+    (36, 11),
+    (0, 0),
 ];
 
 /// Vertex shader that takes its second texture matrix from slot 2 (Diffuse_T1_Env_T2).
