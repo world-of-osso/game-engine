@@ -1114,6 +1114,10 @@ impl GameClient {
                 .and_then(|value| value.try_to::<i64>().ok())
                 .unwrap_or(0);
             let debuff = u8::try_from(debuff.max(0)).unwrap_or(0);
+            let entity = member
+                .get("entity")
+                .and_then(|value| value.try_to::<i64>().ok())
+                .and_then(|entity| u64::try_from(entity).ok());
             preview.push(healer_ground_ring::PreviewRingMember {
                 name,
                 health_fraction,
@@ -1127,6 +1131,7 @@ impl GameClient {
                     .get("offline")
                     .and_then(|value| value.try_to::<bool>().ok())
                     .unwrap_or(false),
+                entity,
             });
         }
         let known: Vec<u32> = known
@@ -1142,6 +1147,19 @@ impl GameClient {
     #[func]
     fn preview_healer_ring_enabled(&mut self, enabled: bool) {
         self.set_preview_ring_enabled(enabled);
+    }
+
+    /// Offline fixture: pause and resume the rings without freeing their nodes.
+    #[func]
+    fn preview_healer_ring_suspend(&mut self, suspended: bool) {
+        self.suspend_preview_rings(suspended);
+    }
+
+    /// Offline fixture: the ring target under a viewport point.
+    #[func]
+    fn preview_healer_ring_pick_at(&self, at: Vector2) -> i64 {
+        self.preview_ring_pick_at(at)
+            .map_or(-1, |target| target as i64)
     }
 
     /// Offline fixture: the rings, dispel rings and chevrons currently drawn.

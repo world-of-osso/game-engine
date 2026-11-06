@@ -24,8 +24,9 @@ pub const DISPEL_INNER_RADIUS: f32 = 1.19;
 pub const DISPEL_OUTER_RADIUS: f32 = 1.33;
 /// Dispel-ring pulse, cycles per second.
 pub const DISPEL_PULSE_HZ: f32 = 1.3;
-/// Angular stations the draped mesh samples; one station is 360/72 = 5 degrees.
-pub const ARC_STATIONS: usize = 72;
+/// Angular stations the draped mesh samples; one station is 360/48 = 7.5 degrees.
+/// The arc ends interpolate between stations, so the health step stays smooth.
+pub const ARC_STATIONS: usize = 48;
 /// Lift above the sampled visible surface, in yards, to keep the ring off z-fighting.
 pub const RING_LIFT: f32 = 0.02;
 /// Screen-edge chevron inset from the viewport edge, in pixels.
@@ -259,18 +260,19 @@ pub fn chevron_placement(
     })
 }
 
-/// The nearest ring the ground ray `origin + dir * t` crosses between its inner and
-/// outer radii. `rings` hold `(center, inner, outer)`; returns the member index and `t`.
+/// The nearest drawn ring the ground ray `origin + dir * t` crosses. `rings` hold
+/// `(center, inner, outer, arc_start)`: the point must lie in the annulus and, clockwise
+/// from 12 o'clock, at or past the arc's start so the empty gap is not clickable.
 pub fn ring_ray_hit(
     origin: [f32; 3],
     dir: [f32; 3],
-    rings: &[([f32; 3], f32, f32)],
+    rings: &[([f32; 3], f32, f32, f32)],
 ) -> Option<(usize, f32)> {
     if dir[1].abs() < 1e-6 {
         return None;
     }
     let mut best: Option<(usize, f32)> = None;
-    for (index, (center, inner, outer)) in rings.iter().enumerate() {
+    for (index, (center, inner, outer, arc_start)) in rings.iter().enumerate() {
         let plane = center[1] + RING_LIFT;
         let t = (plane - origin[1]) / dir[1];
         if t <= 0.0 {
@@ -280,6 +282,10 @@ pub fn ring_ray_hit(
         let z = origin[2] + dir[2] * t - center[2];
         let distance = (x * x + z * z).sqrt();
         if distance < *inner || distance > *outer {
+            continue;
+        }
+        let angle = x.atan2(-z).rem_euclid(TAU);
+        if angle + 1e-4 < *arc_start {
             continue;
         }
         if best.is_none_or(|(_, nearest)| t < nearest) {
@@ -536,13 +542,19 @@ mod tests {
     }
 
     #[test]
-    fn ring_ray_hits_only_the_annulus_band() {
+    fn ring_ray_hits_only_the_drawn_annulus() {
+        const ARC_START: f32 = 0.25 * TAU;
         let origin = [0.0, 10.0, 0.0];
         let down = [0.0, -1.0, 0.0];
-        let rings = [([0.0, 0.0, 0.0], HEALTH_INNER_RADIUS, HEALTH_OUTER_RADIUS)];
+        let rings = [(
+            [0.0, 0.0, 0.0],
+            HEALTH_INNER_RADIUS,
+            HEALTH_OUTER_RADIUS,
+            ARC_START,
+        )];
         // Center is inside the hole.
         assert_eq!(ring_ray_hit(origin, down, &rings), None);
-        // The middle of the band hits.
+        // The drawn quarter of the band hits.
         let hit = ring_ray_hit([0.97, 10.0, 0.0], down, &rings).unwrap();
         assert_eq!(hit.0, 0);
         assert!((hit.1 - (10.0 - RING_LIFT)).abs() < 1e-4);
@@ -550,6 +562,12 @@ mod tests {
         assert_eq!(ring_ray_hit([1.5, 10.0, 0.0], down, &rings), None);
         // A ray pointing up never reaches the ground.
         assert_eq!(ring_ray_hit(origin, [0.0, 1.0, 0.0], &rings), None);
+        // The empty clockwise gap is not clickable: 45 degrees is before the start.
+        let gap = [0.97 * (TAU / 8.0).sin(), 10.0, -0.97 * (TAU / 8.0).cos()];
+        assert_eq!(ring_ray_hit(gap, down, &rings), None);
+        // Just inside the drawn arc still hits.
+        let drawn = [0.97 * (TAU / 3.0).sin(), 10.0, -0.97 * (TAU / 3.0).cos()];
+        assert!(ring_ray_hit(drawn, down, &rings).is_some());
     }
 
     #[test]
@@ -558,7 +576,7 @@ mod tests {
         let stations = arc_stations(start, end);
         assert!((stations.first().unwrap() - start).abs() < 1e-6);
         assert!((stations.last().unwrap() - end).abs() < 1e-6);
-        // 36 interior stations of 5 degrees plus both ends.
+        // 24 interior stations of 7.5 degrees plus both ends.
         assert_eq!(stations.len(), ARC_STATIONS / 2 + 1);
         assert!((stations[1] - (start + TAU / ARC_STATIONS as f32)).abs() < 1e-4);
         assert_eq!(arc_stations(0.0, TAU).len(), ARC_STATIONS + 1);

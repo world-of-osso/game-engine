@@ -31,8 +31,9 @@ use crate::terrain::streaming::StreamedTerrain;
 
 /// The member's ground position may drift this far before the ring re-drapes.
 const REDRAPE_DISTANCE: f32 = 0.35;
-/// A visible ring also re-drapes this often, so late-spawned carpets and treads join it.
-const REDRAPE_INTERVAL: f32 = 1.0;
+/// A ring re-drapes once more this soon after its first drape, so terrain and carpets
+/// that arrive with the surrounding tile join it; after that only movement re-drapes it.
+const REDRAPE_SETTLE_SECS: f32 = 2.0;
 /// Angular stations of the thin dispel ring.
 const DISPEL_STATIONS: usize = 36;
 /// Reused chevron nodes; a party has at most five members.
@@ -65,6 +66,7 @@ pub(crate) struct PreviewRingMember {
     pub debuff_types: Vec<u8>,
     pub dead: bool,
     pub offline: bool,
+    pub entity: Option<u64>,
 }
 
 /// One member as the ring renderer sees it.
@@ -92,6 +94,8 @@ struct MemberRing {
     anchor: Vector3,
     draped_at: Vector2,
     draped_for: f32,
+    /// Drapes since the ring appeared: the first, the settle refresh, then movement.
+    drapes: u32,
     built_arc: Option<(f32, [f32; 3])>,
     built_dis: Option<DispelSchool>,
     drawn: Option<RingDraw>,
@@ -99,6 +103,13 @@ struct MemberRing {
     /// World-space bounds of the last built health mesh, for capture proof.
     mesh_bounds: Option<(f32, f32)>,
     mesh_vertices: usize,
+    /// Last applied presentation, so a still ring makes no Godot calls.
+    applied_alpha: f32,
+    applied_color: [f32; 3],
+    shown: bool,
+    dispel_shown: bool,
+    node_at: Vector3,
+    applied_dispel_alpha: f32,
 }
 
 pub(crate) struct HealerGroundRings {
@@ -111,10 +122,20 @@ pub(crate) struct HealerGroundRings {
     last_scope: RingScope,
     last_schools: DispelSchools,
     last_spec: Option<u32>,
-    /// Pick rings of the last frame: `(center, inner, outer, target)`.
-    pick: Vec<([f32; 3], f32, f32, u64)>,
+    /// Pick rings of the last frame: `(center, inner, outer, arc_start, target)`.
+    pick: Vec<([f32; 3], f32, f32, f32, u64)>,
     /// Chevron placements of the last frame, for the fixture snapshot.
     chevron_state: HashMap<String, [f32; 3]>,
+    /// Every member source of the last frame and its draw, including hidden ones.
+    last_members: Vec<(String, Option<RingDraw>)>,
+    /// Ground columns sampled by drapes, and the feature's own frame cost.
+    drape_samples: u64,
+    update_us: f64,
+    update_frames: u64,
+    /// Fixture-only pause that keeps the nodes and their draped heights.
+    suspended: bool,
+    /// Chevrons re-project at 10 Hz; the edge arrow does not need every frame.
+    chevrons_at: f32,
 }
 
 impl Default for HealerGroundRings {
@@ -131,6 +152,12 @@ impl Default for HealerGroundRings {
             last_spec: None,
             pick: Vec::new(),
             chevron_state: HashMap::new(),
+            last_members: Vec::new(),
+            drape_samples: 0,
+            update_us: 0.0,
+            update_frames: 0,
+            suspended: false,
+            chevrons_at: f32::MIN,
         }
     }
 }
@@ -141,6 +168,8 @@ struct DrapeContext<'a> {
     objects: &'a mut TerrainObjects,
     space: Option<Gd<PhysicsDirectSpaceState3D>>,
     frame: u64,
+    /// Columns sampled this frame, accumulated into the fixture snapshot.
+    samples: u64,
 }
 
 impl HealerGroundRings {
@@ -287,6 +316,19 @@ impl GameClient {
     }
 
     pub(super) fn update_healer_ground_rings(&mut self, delta: f32) {
+        let started = std::time::Instant::now();
+        self.update_healer_ground_rings_inner(delta);
+        if !self.healer_rings.suspended {
+            self.healer_rings.update_us += started.elapsed().as_secs_f64() * 1.0e6;
+            self.healer_rings.update_frames += 1;
+        }
+    }
+
+    fn update_healer_ground_rings_inner(&mut self, delta: f32) {
+        if self.healer_rings.suspended {
+            self.healer_rings.hide_all();
+            return;
+        }
         // The feature is idle outside the world unless a fixture injected a party.
         let preview = self.healer_rings.preview.is_some();
         if !preview && self.account.session.screen != game_engine_session::SessionScreen::InWorld {
@@ -310,7 +352,7 @@ impl GameClient {
                         debuff_types: member.debuff_types.clone(),
                         dead: member.dead,
                         offline: member.offline,
-                        target: None,
+                        target: member.entity,
                     })
                     .collect::<Vec<_>>(),
                 true,
@@ -348,6 +390,16 @@ impl GameClient {
             })
             .collect();
         let draws = ring_draws(&members, scope, schools, options.colorblind_ramp);
+        self.healer_rings.last_members = sources
+            .iter()
+            .enumerate()
+            .map(|(index, source)| {
+                (
+                    source.name.clone(),
+                    draws.iter().find(|draw| draw.index == index).copied(),
+                )
+            })
+            .collect();
 
         let space = self
             .world
@@ -361,6 +413,7 @@ impl GameClient {
             objects: &mut self.world_objects,
             space,
             frame: self.frame_id,
+            samples: 0,
         };
         self.healer_rings.elapsed += delta;
         self.healer_rings.last_scope = scope;
@@ -396,19 +449,36 @@ impl GameClient {
                 .entry(name.clone())
                 .or_insert_with(|| spawn_member_ring(&mut parent, &name));
             sync_member(member, source, draw, &mut context, elapsed);
-            if member.mesh.is_visible() || member.dispel_mesh.is_visible() {
+            let center = [source.position.x, member.anchor.y, source.position.z];
+            let target = source.target.unwrap_or(u64::MAX);
+            if draw.alpha > 0.0 && member.shown {
                 self.healer_rings.pick.push((
-                    [source.position.x, member.anchor.y, source.position.z],
+                    center,
                     HEALTH_INNER_RADIUS,
                     HEALTH_OUTER_RADIUS,
-                    source.target.unwrap_or(u64::MAX),
+                    draw.arc_start,
+                    target,
+                ));
+            }
+            if draw.dispel.is_some() && member.dispel_shown {
+                self.healer_rings.pick.push((
+                    center,
+                    DISPEL_INNER_RADIUS,
+                    DISPEL_OUTER_RADIUS,
+                    0.0,
+                    target,
                 ));
             }
         }
 
-        let viewport = self.base().get_viewport();
-        self.healer_rings
-            .update_chevrons(&mut parent, &draws, &sources, viewport.as_ref());
+        self.healer_rings.drape_samples += context.samples;
+        let elapsed = self.healer_rings.elapsed;
+        if elapsed - self.healer_rings.chevrons_at >= 0.1 {
+            self.healer_rings.chevrons_at = elapsed;
+            let viewport = self.base().get_viewport();
+            self.healer_rings
+                .update_chevrons(&mut parent, &draws, &sources, viewport.as_ref());
+        }
     }
 
     /// The party ring under the pointer, for click-to-target.
@@ -417,11 +487,11 @@ impl GameClient {
         camera: &Gd<Camera3D>,
         pointer: Vector2,
     ) -> Option<u64> {
-        let rings: Vec<([f32; 3], f32, f32)> = self
+        let rings: Vec<([f32; 3], f32, f32, f32)> = self
             .healer_rings
             .pick
             .iter()
-            .map(|(center, inner, outer, _)| (*center, *inner, *outer))
+            .map(|(center, inner, outer, arc_start, _)| (*center, *inner, *outer, *arc_start))
             .collect();
         let origin = camera.project_ray_origin(pointer);
         let direction = camera.project_ray_normal(pointer);
@@ -430,7 +500,7 @@ impl GameClient {
             [direction.x, direction.y, direction.z],
             &rings,
         )?;
-        let target = self.healer_rings.pick[index].3;
+        let target = self.healer_rings.pick[index].4;
         (target != u64::MAX).then_some(target)
     }
 
@@ -448,9 +518,25 @@ impl GameClient {
         });
     }
 
+    /// Offline fixture: the ring target under a viewport point, using the production
+    /// camera ray and annulus test.
+    pub(super) fn preview_ring_pick_at(&self, at: Vector2) -> Option<u64> {
+        let viewport = self.base().get_viewport()?;
+        let camera = viewport.get_camera_3d()?;
+        self.healer_ring_under_pointer(&camera, at)
+    }
+
     /// Offline fixture: turn the feature off for the no-ring frame.
     pub(super) fn set_preview_ring_enabled(&mut self, enabled: bool) {
         self.client_options.hud.healer_ground_rings.enabled = enabled;
+    }
+
+    /// Offline fixture: pause and resume the rings without freeing their nodes.
+    pub(super) fn suspend_preview_rings(&mut self, suspended: bool) {
+        self.healer_rings.suspended = suspended;
+        if suspended {
+            self.healer_rings.hide_all();
+        }
     }
 
     /// Offline fixture: the rings the feature currently draws, for assertions.
@@ -468,25 +554,66 @@ impl GameClient {
         );
         state.set("dispel_schools", i64::from(rings.last_schools.bits()));
         state.set("scope", format!("{:?}", rings.last_scope));
+        state.set("drape_samples", rings.drape_samples as i64);
+        state.set("update_frames", rings.update_frames as i64);
+        state.set(
+            "update_us_mean",
+            if rings.update_frames == 0 {
+                0.0
+            } else {
+                rings.update_us / rings.update_frames as f64
+            },
+        );
         let mut members = VarArray::new();
-        for (name, member) in &rings.members {
+        for (name, draw) in &rings.last_members {
+            let node = rings.members.get(name);
             let mut entry = VarDictionary::new();
             entry.set("name", name.as_str());
-            if let Some(draw) = member.drawn {
+            if let Some(draw) = draw {
                 entry.set("alpha", draw.alpha);
                 entry.set("arc_start_deg", draw.arc_start.to_degrees());
                 entry.set("arc_end_deg", draw.arc_end.to_degrees());
                 entry.set("color", draw.color.as_slice());
                 entry.set("dispel", draw.dispel.map_or("", DispelSchool::name));
+                entry.set(
+                    "dispel_visible",
+                    node.is_some_and(|member| member.dispel_mesh.is_visible()),
+                );
+            } else {
+                entry.set("alpha", 0.0);
+                entry.set("dispel", "");
+                entry.set("dispel_visible", false);
             }
-            entry.set("ring_visible", member.mesh.is_visible());
-            entry.set("dispel_visible", member.dispel_mesh.is_visible());
-            entry.set("mesh_vertices", member.mesh_vertices as i64);
-            if let Some((low, high)) = member.mesh_bounds {
+            entry.set(
+                "ring_visible",
+                node.is_some_and(|member| member.mesh.is_visible()),
+            );
+            entry.set(
+                "mesh_vertices",
+                node.map_or(0, |member| member.mesh_vertices) as i64,
+            );
+            if let Some((low, high)) = node.and_then(|member| member.mesh_bounds) {
                 entry.set("mesh_min_y", low);
                 entry.set("mesh_max_y", high);
             }
-            entry.set("anchor", member.anchor);
+            if let Some(member) = node {
+                entry.set("anchor", member.anchor);
+                entry.set("node_global", member.node.get_global_position());
+                entry.set("mesh_global", member.mesh.get_global_position());
+                entry.set("mesh_aabb", member.mesh.get_aabb());
+                entry.set(
+                    "mesh_surfaces",
+                    member
+                        .mesh
+                        .get_mesh()
+                        .map_or(0, |mesh| mesh.get_surface_count()) as i64,
+                );
+                let albedo = member.material.get_albedo();
+                entry.set(
+                    "albedo",
+                    [albedo.r, albedo.g, albedo.b, albedo.a].as_slice(),
+                );
+            }
             if let Some(&[x, y, angle]) = rings.chevron_state.get(name) {
                 let mut chevron = VarDictionary::new();
                 chevron.set("x", x);
@@ -497,6 +624,17 @@ impl GameClient {
             members.push(&entry.to_variant());
         }
         state.set("members", &members);
+        let mut pick = VarArray::new();
+        for (center, inner, outer, arc_start, target) in &rings.pick {
+            let mut entry = VarDictionary::new();
+            entry.set("center", Vector3::new(center[0], center[1], center[2]));
+            entry.set("inner", *inner);
+            entry.set("outer", *outer);
+            entry.set("arc_start", *arc_start);
+            entry.set("target", *target as i64);
+            pick.push(&entry.to_variant());
+        }
+        state.set("pick", &pick);
         state
     }
 }
@@ -506,6 +644,8 @@ impl HealerGroundRings {
         for member in self.members.values_mut() {
             member.mesh.set_visible(false);
             member.dispel_mesh.set_visible(false);
+            member.shown = false;
+            member.dispel_shown = false;
             member.drawn = None;
         }
         for chevron in &mut self.chevrons {
@@ -513,6 +653,7 @@ impl HealerGroundRings {
         }
         self.pick.clear();
         self.chevron_state.clear();
+        self.last_members.clear();
     }
 
     fn update_chevrons(
@@ -586,7 +727,6 @@ fn ring_material() -> Gd<StandardMaterial3D> {
     let mut material = StandardMaterial3D::new_gd();
     material.set_shading_mode(base_material_3d::ShadingMode::UNSHADED);
     material.set_transparency(base_material_3d::Transparency::ALPHA);
-    material.set_flag(base_material_3d::Flags::ALBEDO_FROM_VERTEX_COLOR, true);
     material.set_cull_mode(base_material_3d::CullMode::DISABLED);
     material.set_render_priority(RING_RENDER_PRIORITY);
     material
@@ -619,12 +759,19 @@ fn spawn_member_ring(parent: &mut Gd<Node3D>, name: &str) -> MemberRing {
         anchor: Vector3::ZERO,
         draped_at: Vector2::new(f32::MAX, f32::MAX),
         draped_for: f32::MIN,
+        drapes: 0,
         built_arc: None,
         built_dis: None,
         drawn: None,
         target: None,
         mesh_bounds: None,
         mesh_vertices: 0,
+        applied_alpha: f32::NAN,
+        applied_color: [f32::NAN; 3],
+        shown: false,
+        dispel_shown: false,
+        node_at: Vector3::ZERO,
+        applied_dispel_alpha: f32::NAN,
     }
 }
 
@@ -694,7 +841,7 @@ fn drape_ring(
             position.y,
         )
         .unwrap_or(anchor);
-        heights.push([inner_y - anchor, outer_y - anchor]);
+        heights.push([inner_y - anchor + RING_LIFT, outer_y - anchor + RING_LIFT]);
     }
     (
         Vector3::new(position.x, anchor + RING_LIFT, position.z),
@@ -717,10 +864,10 @@ fn sync_member(
         .draped_at
         .distance_to(Vector2::new(position.x, position.z));
     let health_visible = draw.alpha > 0.0;
-    let needs_drape = member.heights.is_none()
-        || moved > REDRAPE_DISTANCE
-        || elapsed - member.draped_for >= REDRAPE_INTERVAL;
+    let settle_refresh = member.drapes == 1 && elapsed - member.draped_for >= REDRAPE_SETTLE_SECS;
+    let needs_drape = member.heights.is_none() || moved > REDRAPE_DISTANCE || settle_refresh;
     if needs_drape {
+        context.samples += (2 * ARC_STATIONS) as u64;
         let (anchor, heights) = drape_ring(
             context,
             position,
@@ -732,6 +879,7 @@ fn sync_member(
         member.heights = Some(heights);
         member.built_arc = None;
         if draw.dispel.is_some() || member.dispel_heights.is_none() {
+            context.samples += (2 * DISPEL_STATIONS) as u64;
             let (_, heights) = drape_ring(
                 context,
                 position,
@@ -744,19 +892,22 @@ fn sync_member(
         }
         member.draped_at = Vector2::new(position.x, position.z);
         member.draped_for = elapsed;
+        member.drapes += 1;
     }
     if health_visible {
         update_health_mesh(member, draw);
     }
-    member
-        .mesh
-        .set_visible(health_visible && member.heights.is_some());
+    let shown = health_visible && member.heights.is_some();
+    if member.shown != shown {
+        member.mesh.set_visible(shown);
+        member.shown = shown;
+    }
     update_dispel_ring(member, draw, elapsed);
     member.drawn = Some(*draw);
-    if member.node.is_instance_valid() {
-        member
-            .node
-            .set_position(Vector3::new(position.x, member.anchor.y, position.z));
+    let at = Vector3::new(position.x, member.anchor.y, position.z);
+    if member.node_at != at {
+        member.node.set_position(at);
+        member.node_at = at;
     }
 }
 
@@ -785,9 +936,16 @@ fn update_health_mesh(member: &mut MemberRing, draw: &RingDraw) {
                 .zip(draw.color.iter())
                 .any(|(left, right)| (left - right).abs() > 0.01)
     });
-    member
-        .material
-        .set_albedo(Color::from_rgba(1.0, 1.0, 1.0, draw.alpha));
+    if member.applied_color != draw.color || member.applied_alpha != draw.alpha {
+        member.material.set_albedo(Color::from_rgba(
+            draw.color[0],
+            draw.color[1],
+            draw.color[2],
+            draw.alpha,
+        ));
+        member.applied_alpha = draw.alpha;
+        member.applied_color = draw.color;
+    }
     if !rebuilt {
         return;
     }
@@ -804,13 +962,11 @@ fn update_health_mesh(member: &mut MemberRing, draw: &RingDraw) {
     for station in 0..angles.len().saturating_sub(1) {
         let inner = (station * 2) as i32;
         let outer = inner + 1;
-        indices.extend([inner, outer, outer + 1, inner, outer + 1, inner + 2]);
+        indices.extend([inner, outer, inner + 2, inner, outer + 1, inner + 2]);
     }
-    let color = Color::from_rgb(draw.color[0], draw.color[1], draw.color[2]);
-    let colors = vec![color; vertices.len()];
     let normals = vec![Vector3::UP; vertices.len()];
     let mut mesh = ArrayMesh::new_gd();
-    add_surface(&mut mesh, &vertices, &normals, &colors, &indices);
+    add_surface(&mut mesh, &vertices, &normals, &indices);
     member.mesh.set_mesh(&mesh);
     member.built_arc = Some((draw.arc_start, draw.color));
     member.mesh_vertices = vertices.len();
@@ -825,7 +981,10 @@ fn update_health_mesh(member: &mut MemberRing, draw: &RingDraw) {
 
 fn update_dispel_ring(member: &mut MemberRing, draw: &RingDraw, elapsed: f32) {
     let Some(school) = draw.dispel else {
-        member.dispel_mesh.set_visible(false);
+        if member.dispel_shown {
+            member.dispel_mesh.set_visible(false);
+            member.dispel_shown = false;
+        }
         member.built_dis = None;
         return;
     };
@@ -851,29 +1010,32 @@ fn update_dispel_ring(member: &mut MemberRing, draw: &RingDraw, elapsed: f32) {
             let next_outer = next_inner + 1;
             indices.extend([inner, outer, next_outer, inner, next_outer, next_inner]);
         }
-        let white = Color::from_rgb(1.0, 1.0, 1.0);
-        let colors = vec![white; vertices.len()];
         let normals = vec![Vector3::UP; vertices.len()];
         let mut mesh = ArrayMesh::new_gd();
-        add_surface(&mut mesh, &vertices, &normals, &colors, &indices);
+        add_surface(&mut mesh, &vertices, &normals, &indices);
         member.dispel_mesh.set_mesh(&mesh);
         member.built_dis = Some(school);
     }
     let tint = dispel_color(school);
-    member.dispel_material.set_albedo(Color::from_rgba(
-        tint[0],
-        tint[1],
-        tint[2],
-        dispel_pulse(elapsed),
-    ));
-    member.dispel_mesh.set_visible(true);
+    // Quantized to 32 steps: the pulse is identical to the eye and the material only
+    // changes a few times per second.
+    let alpha = (dispel_pulse(elapsed) * 32.0).round() / 32.0;
+    if member.applied_dispel_alpha != alpha {
+        member
+            .dispel_material
+            .set_albedo(Color::from_rgba(tint[0], tint[1], tint[2], alpha));
+        member.applied_dispel_alpha = alpha;
+    }
+    if !member.dispel_shown {
+        member.dispel_mesh.set_visible(true);
+        member.dispel_shown = true;
+    }
 }
 
 fn add_surface(
     mesh: &mut Gd<ArrayMesh>,
     vertices: &[Vector3],
     normals: &[Vector3],
-    colors: &[Color],
     indices: &[i32],
 ) {
     let mut arrays = VarArray::new();
@@ -885,10 +1047,6 @@ fn add_surface(
     arrays.set(
         mesh::ArrayType::NORMAL.ord() as usize,
         &PackedVector3Array::from(normals).to_variant(),
-    );
-    arrays.set(
-        mesh::ArrayType::COLOR.ord() as usize,
-        &PackedColorArray::from(colors).to_variant(),
     );
     arrays.set(
         mesh::ArrayType::INDEX.ord() as usize,
