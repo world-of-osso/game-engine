@@ -201,8 +201,9 @@ The engine has no CVar store; the defaults are compile-time constants.
 
 ### Performance
 
-- [x] Fifty simultaneous numbers cost no more than 0.1 ms/frame of CPU in the release library
-      (**ours**, measured; see Tests).
+- [x] Fifty simultaneous numbers cost no more than 0.1 ms/frame in the release library:
+      18.8-19.0 µs per frame over 13 units, three 2000-iteration samples
+      (`preview_combat_text_cost`, release `libgame_engine_godot.so`, 2026-11-06).
 
 ## How it works
 
@@ -227,8 +228,14 @@ The engine has no CVar store; the defaults are compile-time constants.
   crit pop curve, avoidance word scale, colours, zero amounts, periodic, fade, distance law,
   start spread.
 - `godot/rust/src/spells.rs` — settled sizes (64 / 96 / 48).
-- `godot/tests/combat_text_capture.gd` — Forever capture fixture: style set, four-slot rule,
-  fifty-number frame and cost, each with a no-text same-frame diff.
+- `godot/tests/combat_text_capture.gd` — Forever capture fixture, offline in Stormwind:
+  `set` (nine texts over three units, every style), `limit` (four slots, crit replacement,
+  fifth-text eviction), `spread` (fifty over thirteen units) and `perf` (the frame cost). Each
+  capture saves a 960×540 JPEG plus the same frame without text. Evidence:
+  `/syncthing/AgentShared/2026-11-06/combat-text/{set,limit,spread}.jpg` with
+  `-notext.jpg` partners; 2026-11-06 the `set` frame drew 12 872 white, 12 979 green,
+  436 orange and 370 yellow text pixels, `limit` 2 012 / 926 / 1 169 / 39, `spread`
+  12 118 / 4 551 / 22 313 / 90.
 - `godot/tests/melee_outcomes_live.gd` — live crit text is 1.5× the plain size (Forever).
 
 ## Known gaps (current cycle)
