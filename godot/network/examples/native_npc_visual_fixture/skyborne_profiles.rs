@@ -67,6 +67,19 @@ fn spawn_authored_npcs(app: &mut App, existing: Entity) {
         .entity_mut(ventaari)
         .insert(fixture_position("azeroth", 7.0));
     println!("FIXTURE SKYBORNE_SPAWNED 136968 139694");
+    if std::env::var_os("SKYBORNE_DORNOGAL").is_some() {
+        for (display, name, x) in [
+            (117276, "Dornogal Earthen Female", 9.0),
+            (117271, "Dornogal Earthen Male", 11.0),
+            (121978, "Dornogal Blood Elf", 13.0),
+        ] {
+            let npc = spawn_named_npc(app, display, name);
+            app.world_mut()
+                .entity_mut(npc)
+                .insert(fixture_position("azeroth", x));
+        }
+        println!("FIXTURE DORNOGAL_SPAWNED 117276 117271 121978");
+    }
 }
 
 pub(super) fn run(
@@ -114,6 +127,16 @@ fn read_skyborne_completion(lines: &Receiver<String>) -> Result<bool, String> {
     for line in lines.try_iter() {
         if line.contains("SCRIPT ERROR") {
             return Err(format!("Native Skyborne script: {line}"));
+        }
+        if [
+            "has no character joint",
+            "unresolved textures",
+            "missing textures",
+        ]
+        .iter()
+        .any(|error| line.contains(error))
+        {
+            return Err(format!("Native Skyborne equipment error: {line}"));
         }
         completed |= line.trim() == "FIXTURE SKYBORNE_DONE";
     }

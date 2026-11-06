@@ -48,12 +48,35 @@ func run_test() -> void:
 	print("FIXTURE VENTAARI_MESHES count=", meshes.size())
 	for mesh in meshes:
 		print("FIXTURE MESH ", visual.get_path_to(mesh), " visible=", mesh.is_visible_in_tree())
-	if not await capture_authored_visual(visual):
+	if not await capture_authored_visual(visual, "ventaari-139694"):
 		return
+	if not OS.get_environment("SKYBORNE_DORNOGAL").is_empty():
+		for entry in [
+			["Dornogal Earthen Female", "earthen-117276"],
+			["Dornogal Earthen Male", "earthen-117271"],
+			["Dornogal Blood Elf", "bloodelf-121978"],
+		]:
+			var extra := await await_npc_visual(client, entry[0])
+			if extra == null:
+				return
+			var extra_meshes := extra.find_children("Batch*", "MeshInstance3D", true, false)
+			print("FIXTURE ", entry[1], "_MESHES count=", extra_meshes.size())
+			if not await capture_authored_visual(extra, entry[1]):
+				return
 	print("FIXTURE SKYBORNE_DONE")
 	quit(0)
 
-func capture_authored_visual(visual: Node3D) -> bool:
+func await_npc_visual(client, npc_name: String) -> Node3D:
+	var deadline := Time.get_ticks_msec() + WORLD_LOAD_WAIT_MS
+	while Time.get_ticks_msec() < deadline:
+		var visual := client.get_node_or_null("WorldUnits/" + npc_name + "/NpcVisualRoot") as Node3D
+		if visual != null and not visual.find_children("Batch*", "MeshInstance3D", true, false).is_empty():
+			return visual
+		await process_frame
+	fail(npc_name + " authored NPC visual was not allocated")
+	return null
+
+func capture_authored_visual(visual: Node3D, prefix: String) -> bool:
 	var output := OS.get_environment("SKYBORNE_NPC_SCREENSHOTS")
 	if output.is_empty() or not output.is_absolute_path():
 		fail("SKYBORNE_NPC_SCREENSHOTS must be an absolute output directory")
@@ -78,7 +101,7 @@ func capture_authored_visual(visual: Node3D) -> bool:
 		for frame in 8:
 			await process_frame
 		await RenderingServer.frame_post_draw
-		var path := output.path_join("ventaari-139694-" + view + ".png")
+		var path := output.path_join(prefix + "-" + view + ".png")
 		var image := viewport.get_texture().get_image()
 		if not capture_has_visible_pixels(image):
 			fail("NPC capture has no visible body: " + path)
@@ -88,6 +111,7 @@ func capture_authored_visual(visual: Node3D) -> bool:
 			fail("Cannot save " + path + ": " + str(result))
 			return false
 		print("FIXTURE SCREENSHOT ", path)
+	viewport.queue_free()
 	return true
 
 func capture_has_visible_pixels(image: Image) -> bool:
