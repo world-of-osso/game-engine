@@ -14,6 +14,7 @@ use game_engine_core::{
     retail_fog::{FogResult, FogUniforms, blend_wmo_fog, fog_uniforms, wmo_fog},
     retail_light_data::RetailLightData,
     sky_cubemap_data::{self, sky_dome_profile},
+    world_time,
 };
 use godot::{
     classes::{
@@ -201,7 +202,10 @@ pub(crate) struct WorldLighting {
     planets: Option<planets::Planets>,
     fog_cone: Option<fog_cone::FogCone>,
     previous: Option<LightValues>,
-    cube: Option<Gd<Cubemap>>,
+    /// The map, position, lit time and WMO fog `previous` was sampled for.
+    sampled: Option<(u32, Vector3, f32, Option<WmoFogBlend>)>,
+    /// The sky cubemap and the dome stops it was built from.
+    cube: Option<(Gd<Cubemap>, SkyStops)>,
 }
 
 /// Render priorities of the sky models, in WebWowViewerCpp's sky-view draw order (dome,
@@ -228,6 +232,11 @@ impl WorldLighting {
         minutes: f32,
         wmo_fog: Option<&WmoFogBlend>,
     ) -> Result<Option<TerrainLight>, String> {
+        let minutes = world_time::light_half_minutes(minutes);
+        let inputs = Some((map_id, position, minutes, wmo_fog.copied()));
+        if self.previous.is_some() && self.sampled == inputs {
+            return Ok(None);
+        }
         let sample = catalog.sample(map_id, [position.x, -position.z, position.y], minutes)?;
         let sky = &sample.sky;
         let stops = [
@@ -251,17 +260,21 @@ impl WorldLighting {
             sample.planets.clone(),
         );
         if self.previous.as_ref() == Some(&values) {
+            self.sampled = inputs;
             return Ok(None);
         }
         let direction = Vector3::from_array(sample.retail.sun_direction);
+        // Moving through WMO fog changes the light every frame but not the sky colours.
         let cube = match self.cube.as_mut() {
-            Some(cube) => {
+            Some((cube, built)) if *built == stops => cube.clone(),
+            Some((cube, built)) => {
                 update_cubemap(cube, stops)?;
+                *built = stops;
                 cube.clone()
             }
             None => {
                 let cube = create_cubemap(stops)?;
-                self.cube = Some(cube.clone());
+                self.cube = Some((cube.clone(), stops));
                 cube
             }
         };
@@ -287,6 +300,7 @@ impl WorldLighting {
             .expect("attached sun")
             .look_at_from_position(Vector3::ZERO, direction);
         self.previous = Some(values);
+        self.sampled = inputs;
         Ok(Some(light))
     }
 
@@ -485,6 +499,7 @@ impl WorldLighting {
             root.free();
         }
         self.previous = None;
+        self.sampled = None;
     }
 }
 
