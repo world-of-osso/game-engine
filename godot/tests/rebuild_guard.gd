@@ -3,7 +3,8 @@
 ## reallocations, and Godot's own allocation counters. A steady frame (static camera and
 ## world, live clock) must rebuild nothing beyond `ALLOWLIST`; `violations` names each
 ## category over budget with its first call site. Used by frame_benchmark.gd's
-## `rebuilds_per_frame`, the Windows receipt harness and rebuild_guard_live.gd.
+## `rebuilds_per_frame`, the Windows receipt harness and rebuild_guard_live.gd; builds
+## without `RebuildCounters` report `rebuild_guard_error` instead.
 extends RefCounted
 
 ## Seconds per lit-time step: core world_time LIGHT_STEP_HALF_MINUTES (1/32 half-minute)
@@ -44,6 +45,9 @@ const MONITORS := {
 	"nodes": Performance.OBJECT_NODE_COUNT,
 }
 
+## The extension class, looked up at run time so older builds still load this script.
+const COUNTERS := "RebuildCounters"
+
 var _tree: SceneTree
 var _frame := 0
 var _usec := 0
@@ -58,9 +62,11 @@ func start(tree: SceneTree) -> void:
 	_godot = _godot_counters()
 	_atlas = _shadow_atlas()
 	_atlas_changes = 0
+	if not ClassDB.class_exists(COUNTERS):
+		return
 	if not tree.process_frame.is_connected(_sample_shadow_atlas):
 		tree.process_frame.connect(_sample_shadow_atlas)
-	RebuildCounters.take()
+	ClassDB.class_call_static(COUNTERS, "take")
 
 ## `rebuilds_per_frame` (category means), `rebuild_sites` (first call site of each
 ## counted category), `world_events` (unit visuals that entered the scene: a window with
@@ -68,7 +74,9 @@ func start(tree: SceneTree) -> void:
 ## per frame; the memory and object values are net changes, Godot exposes no gross count
 ## except `objects_created`).
 func finish() -> Dictionary:
-	var taken: Dictionary = RebuildCounters.take()
+	if not ClassDB.class_exists(COUNTERS):
+		return {"rebuild_guard_error": COUNTERS + " is missing in this build"}
+	var taken: Dictionary = ClassDB.class_call_static(COUNTERS, "take")
 	_tree.process_frame.disconnect(_sample_shadow_atlas)
 	var frames := maxi(Engine.get_process_frames() - _frame, 1)
 	var counts: Dictionary = taken.counts

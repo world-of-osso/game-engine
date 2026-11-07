@@ -40,6 +40,9 @@ func run_test() -> void:
 		rebuild_guard.start(self)
 		await create_timer(segment_s).timeout
 		report = rebuild_guard.finish()
+		if report.has("rebuild_guard_error"):
+			fail(report.rebuild_guard_error)
+			return
 		var state: Dictionary = client.account_state()
 		report["window"] = window
 		report["position"] = state.local_player_position
