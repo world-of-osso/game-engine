@@ -137,16 +137,15 @@ pub(crate) fn compile_pipeline(pipeline: Pipeline) -> Result<(), String> {
     Ok(())
 }
 
-/// The batch's material and the binding its animation samples.
+/// The material of `batch`, which binds `binding`.
 pub(super) fn load_material(
-    model: &m2::Model,
     tracks: &MaterialTracks,
     batch: &ResolvedBatch,
-    skin_texture_fdids: &[u32],
+    binding: &BatchBinding,
     path: &GString,
     missing: &mut PackedInt32Array,
     replacements: Option<&HashMap<u32, Gd<ImageTexture>>>,
-) -> Result<(Gd<ShaderMaterial>, BatchBinding), String> {
+) -> Result<Gd<ShaderMaterial>, String> {
     let _material = crate::profile::span(|| "phase.material.m2".to_owned());
     let texture_dir = Path::new(
         &ProjectSettings::singleton()
@@ -157,11 +156,6 @@ pub(super) fn load_material(
     .and_then(Path::parent)
     .ok_or("Model path has no asset root")?
     .join("textures");
-    let unit = model
-        .batches
-        .get(batch.source_unit_index)
-        .ok_or("Resolved batch has no skin batch")?;
-    let binding = m2_material::batch_binding(model, unit, skin_texture_fdids)?;
     let pipeline = Pipeline::of(batch)?;
     let (shader, fade) = batch_shaders(pipeline)?;
     let span = crate::profile::span(|| "material.set_shader".to_owned());
@@ -212,10 +206,10 @@ pub(super) fn load_material(
     material.set_shader_parameter("gx_blend", &i32::from(pipeline.gx_blend).to_variant());
     apply_sample(
         &mut material,
-        &m2_material::sample_material(tracks, &binding, m2_material::MaterialTime::default()),
+        &m2_material::sample_material(tracks, binding, m2_material::MaterialTime::default()),
         None,
     );
-    Ok((material, binding))
+    Ok(material)
 }
 
 /// Sets the animated inputs of a batch material at one time that differ from `applied`,

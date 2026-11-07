@@ -130,11 +130,14 @@ impl WowMaterialAnimation {
         tracks: MaterialTracks,
         batches: impl Iterator<Item = (Gd<ShaderMaterial>, BatchBinding)>,
     ) -> Option<Gd<Self>> {
+        // Batches with equal merge keys share one material: sample it once.
+        let mut seen = std::collections::HashSet::new();
         let materials: Vec<_> = batches
-            .filter(|(_, binding)| {
-                binding.color.is_some()
+            .filter(|(material, binding)| {
+                (binding.color.is_some()
                     || binding.texture_weights.iter().any(Option::is_some)
-                    || binding.texture_transforms.iter().any(Option::is_some)
+                    || binding.texture_transforms.iter().any(Option::is_some))
+                    && seen.insert(material.instance_id())
             })
             .map(|(material, binding)| AnimatedMaterial {
                 material,
