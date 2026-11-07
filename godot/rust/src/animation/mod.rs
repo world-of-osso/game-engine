@@ -926,7 +926,13 @@ impl INode for WowAnimationPlayer {
 
     fn process(&mut self, delta: f64) {
         let _timing = crate::profile::node_span("WowAnimationPlayer.process");
-        self.feed_velocity_change(delta);
+        // A pose that is not sampled cannot show the sway, and the frozen interval must
+        // not count as motion when sampling resumes: the tracker restarts instead.
+        if self.sampling {
+            self.feed_velocity_change(delta);
+        } else {
+            self.velocity.reset();
+        }
         self.advance_time_ms(delta * 1000.0);
     }
 }

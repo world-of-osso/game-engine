@@ -10,13 +10,24 @@
 const FULL_RATE_MAX_YARDS: f32 = 30.0;
 /// Models farther than this from the camera stop sampling even when on screen.
 const FROZEN_MIN_YARDS: f32 = 60.0;
+/// Sampling stride for each distance band past [`FULL_RATE_MAX_YARDS`], in yards: a model
+/// more than this far away samples one frame in that many. Twelve poses a second at 54 yd
+/// is where a 1.9 yd body is ~47 px tall at 1080p and a stride of six is under a pixel of
+/// pose lag per sampled frame.
+///
+/// INFERRED: the retail client keeps a per-instance animation LOD level and the
+/// `animFrameSkipLOD` rule ("animations will skip frames at distance"), but its distances
+/// and its default level are unknown. These bands are the retune points; retire them once
+/// the retail thresholds are located.
+const STRIDE_BANDS_YARDS: [(f32, u64); 4] = [(30.0, 2), (38.0, 3), (46.0, 4), (54.0, 6)];
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum AnimationLod {
     /// Sample every frame.
     Full,
-    /// Sample every other frame, staggered by owner so half the models sample each frame.
-    Half,
+    /// Sample one frame in `stride`, staggered by owner so the models of a band spread
+    /// their samples across the frames instead of landing on the same one.
+    Strided(u64),
     /// Do not sample; bones keep their last pose.
     Frozen,
 }
@@ -25,18 +36,36 @@ impl AnimationLod {
     /// `visible`: whether the model was on screen last frame.
     pub fn new(camera_distance: f32, visible: bool) -> Self {
         if !visible || camera_distance > FROZEN_MIN_YARDS {
-            Self::Frozen
-        } else if camera_distance > FULL_RATE_MAX_YARDS {
-            Self::Half
-        } else {
+            return Self::Frozen;
+        }
+        // The farthest band the distance crosses decides the stride, so the bands need not
+        // be listed in order for the result to be the slowest one that applies.
+        let stride = STRIDE_BANDS_YARDS
+            .iter()
+            .filter(|(max_yards, _)| camera_distance > *max_yards)
+            .map(|(_, stride)| *stride)
+            .max()
+            .unwrap_or(1);
+        if stride == 1 {
             Self::Full
+        } else {
+            Self::Strided(stride)
+        }
+    }
+
+    /// Frames in which one pose is sampled.
+    pub fn stride(self) -> u64 {
+        match self {
+            Self::Full => 1,
+            Self::Strided(stride) => stride,
+            Self::Frozen => 0,
         }
     }
 
     pub fn samples_frame(self, frame: u64, owner: u64) -> bool {
         match self {
             Self::Full => true,
-            Self::Half => frame.wrapping_add(owner) % 2 == 0,
+            Self::Strided(stride) => frame.wrapping_add(owner) % stride == 0,
             Self::Frozen => false,
         }
     }
@@ -76,16 +105,22 @@ const MAX_ADVANCE_STEP_MS: f64 = 60_000.0;
 
 #[cfg(test)]
 mod tests {
-    use super::AnimationLod::{self, Frozen, Full, Half};
+    use super::AnimationLod::{self, Frozen, Full, Strided};
     use super::DeferredClock;
 
     #[test]
-    fn thresholds_follow_the_original_client() {
+    fn thresholds_follow_the_stride_bands() {
         for (distance, visible, expected) in [
             (0.0, true, Full),
             (30.0, true, Full),
-            (30.01, true, Half),
-            (60.0, true, Half),
+            (30.01, true, Strided(2)),
+            (38.0, true, Strided(2)),
+            (38.01, true, Strided(3)),
+            (46.0, true, Strided(3)),
+            (46.01, true, Strided(4)),
+            (54.0, true, Strided(4)),
+            (54.01, true, Strided(6)),
+            (60.0, true, Strided(6)),
             (60.01, true, Frozen),
             (5.0, false, Frozen),
             (45.0, false, Frozen),
@@ -99,15 +134,24 @@ mod tests {
     }
 
     #[test]
-    fn half_rate_alternates_frames_and_staggers_units() {
-        let sampled = |owner| {
-            (0..6)
-                .filter(|frame| Half.samples_frame(*frame, owner))
+    fn a_strided_band_samples_one_frame_in_its_stride_and_staggers_units() {
+        let sampled = |lod: AnimationLod, owner| {
+            (0..12)
+                .filter(|frame| lod.samples_frame(*frame, owner))
                 .count()
         };
-        assert_eq!(sampled(7), 3);
-        assert_ne!(Half.samples_frame(10, 7), Half.samples_frame(11, 7));
-        assert_ne!(Half.samples_frame(10, 7), Half.samples_frame(10, 8));
+        // Twelve frames: two samples at stride 6, four at stride 3, six at stride 2.
+        assert_eq!(sampled(Strided(2), 7), 6);
+        assert_eq!(sampled(Strided(3), 7), 4);
+        assert_eq!(sampled(Strided(6), 7), 2);
+        assert_ne!(
+            Strided(2).samples_frame(10, 7),
+            Strided(2).samples_frame(11, 7)
+        );
+        assert_ne!(
+            Strided(2).samples_frame(10, 7),
+            Strided(2).samples_frame(10, 8)
+        );
         assert!((0..4).all(|frame| Full.samples_frame(frame, 3)));
         assert!((0..4).all(|frame| !Frozen.samples_frame(frame, 3)));
     }
@@ -116,7 +160,13 @@ mod tests {
     fn deferred_clock_resumes_at_the_every_frame_time() {
         let mut clock = DeferredClock::default();
         let mut advanced = 0.0;
-        let schedule = [(Full, 4), (Half, 6), (Frozen, 30), (Half, 3), (Full, 2)];
+        let schedule = [
+            (Full, 4),
+            (Strided(2), 6),
+            (Frozen, 30),
+            (Strided(2), 3),
+            (Full, 2),
+        ];
         let mut frame = 0u64;
         for (lod, frames) in schedule {
             for _ in 0..frames {
