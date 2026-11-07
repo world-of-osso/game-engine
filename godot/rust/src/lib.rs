@@ -1180,8 +1180,27 @@ impl GameClient {
                 entry.set("base_size", size("base_texture").as_slice());
                 entry.set("second_size", size("second_texture").as_slice());
                 entry.set("third_size", size("third_texture").as_slice());
+                // The file each slot actually binds, so the slot -> FDID chain is proven.
+                let asset = |name: &str| {
+                    material
+                        .get_shader_parameter(name)
+                        .try_to::<Gd<godot::classes::Texture2D>>()
+                        .ok()
+                        .and_then(|texture| {
+                            texture.get_meta("asset_path").try_to::<GString>().ok()
+                        })
+                        .map(|path| path.to_string())
+                        .unwrap_or_default()
+                };
+                entry.set("base_asset", asset("base_texture"));
+                entry.set("second_asset", asset("second_texture"));
+                entry.set("third_asset", asset("third_texture"));
                 entry.set("transparency", number("transparency"));
-                entry.set("texture_weight_0", number("texture_weights"));
+                let weights = material
+                    .get_shader_parameter("texture_weights")
+                    .try_to::<godot::builtin::Vector3>()
+                    .unwrap_or_default();
+                entry.set("texture_weights", [weights.x, weights.y, weights.z].as_slice());
                 let color = material
                     .get_shader_parameter("mesh_color")
                     .try_to::<godot::builtin::Vector3>()
