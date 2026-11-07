@@ -252,9 +252,16 @@ impl TerrainMaterials {
             bounds: Vec::new(),
             next: 0,
         });
+        let gathered = build.next == parsed.root.chunks.len();
         let Some(build) = self.build_tile_chunks(tile, build, parsed, tex, deadline)? else {
             return Ok(None);
         };
+        // The tile's GPU build is several milliseconds in one step: it opens a frame's
+        // budget instead of running past the deadline the gathering already used.
+        if !gathered {
+            self.building = Some(build);
+            return Ok(None);
+        }
         self.spawn_tile(tile, parsed, build).map(Some)
     }
 
