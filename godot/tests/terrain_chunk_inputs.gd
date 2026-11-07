@@ -1,8 +1,8 @@
 extends RefCounted
-# One terrain chunk at tile index (0, 0), packed into terrain.gdshader's per-tile inputs the
-# way rust/src/terrain/tile_material.rs packs them. Inputs keep the per-chunk names: config,
-# layer_params_N, animation_params_N, ground_N, height_N, alpha_packed. A mesh without UV2
-# reads chunk (0, 0).
+# One terrain chunk's inputs, packed into terrain.gdshader's per-tile inputs the way
+# rust/src/terrain/tile_material.rs packs them, for every chunk of the tile: a fixture mesh
+# draws them whatever its UV2 (the chunk index). Inputs keep the per-chunk names: config,
+# layer_params_N, animation_params_N, ground_N, height_N, alpha_packed.
 
 const CHUNKS_PER_SIDE := 16
 const DATA_ROWS := 11
@@ -61,13 +61,15 @@ func apply(material: ShaderMaterial) -> void:
 	rows.append(height_refs)
 	for row in rows.size():
 		var value: Vector4 = rows[row]
-		data.set_pixel(0, row, Color(value.x, value.y, value.z, value.w))
+		data.fill_rect(Rect2i(0, row, CHUNKS_PER_SIDE * CHUNKS_PER_SIDE, 1), Color(value.x, value.y, value.z, value.w))
 	material.set_shader_parameter("chunk_data", ImageTexture.create_from_image(data))
 	var atlas := Image.create(CHUNKS_PER_SIDE * ALPHA_SIZE, CHUNKS_PER_SIDE * ALPHA_SIZE, false, Image.FORMAT_RGBA8)
 	if alpha != null:
 		var chunk := alpha.duplicate() as Image
 		chunk.resize(ALPHA_SIZE, ALPHA_SIZE, Image.INTERPOLATE_NEAREST)
-		atlas.blit_rect(chunk, Rect2i(0, 0, ALPHA_SIZE, ALPHA_SIZE), Vector2i.ZERO)
+		for index in CHUNKS_PER_SIDE * CHUNKS_PER_SIDE:
+			var cell := Vector2i(index % CHUNKS_PER_SIDE, index / CHUNKS_PER_SIDE) * ALPHA_SIZE
+			atlas.blit_rect(chunk, Rect2i(0, 0, ALPHA_SIZE, ALPHA_SIZE), cell)
 	material.set_shader_parameter("alpha_atlas", ImageTexture.create_from_image(atlas))
 	material.set_shader_parameter("chunk_hidden", ImageTexture.create_from_image(Image.create(CHUNKS_PER_SIDE, CHUNKS_PER_SIDE, false, Image.FORMAT_R8)))
 
