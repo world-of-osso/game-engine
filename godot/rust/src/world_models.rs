@@ -605,7 +605,12 @@ impl WorldModels {
         previous_player: Option<&Gd<Node3D>>,
     ) -> Result<Gd<Node3D>, String> {
         let catalogs = &self.catalogs;
+        let body = parts.model();
         let mut model = build_player_model(&catalogs.data_root, parts)?;
+        if let Err(error) = merge_shown_batches(&model, &body) {
+            model.free();
+            return Err(error);
+        }
         model.set_name("PlayerModel");
         // Its weapons are placed for the sheath state by the sync that follows the attach.
         if let Some(previous) = previous_player
@@ -638,6 +643,10 @@ impl WorldModels {
         if !missing.is_empty() {
             godot_warn!("Creature display {display_id} missing texture FDIDs: {missing:?}");
         }
+        if let Err(error) = merge_shown_batches(&model, &parts.model) {
+            model.free();
+            return Err(error);
+        }
         model.set_name("NpcModel");
         let scale = if display.scale_milli == 0 {
             1.0
@@ -656,6 +665,19 @@ impl WorldModels {
         visual.add_child(&model);
         Ok(visual)
     }
+}
+
+/// A world unit's geosets are settled once its model is built: its opaque batches that
+/// bind identical materials draw as one (`batch_merge`).
+fn merge_shown_batches(
+    model: &Gd<Node3D>,
+    parsed: &crate::assets::creature::CachedModel,
+) -> Result<(), String> {
+    crate::assets::batch_merge::merge_shown_batches(
+        model,
+        &parsed.model,
+        &parsed.path.to_string_lossy(),
+    )
 }
 
 /// Where each of a creature's virtual item models goes under `sheath`.

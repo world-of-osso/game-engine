@@ -251,6 +251,11 @@ pub(crate) struct PlayerParts {
 }
 
 impl PlayerParts {
+    /// The parsed body model the parts build.
+    pub(crate) fn model(&self) -> Arc<CachedModel> {
+        self.model.clone()
+    }
+
     pub(crate) fn into_textures(self) -> DecodedTextures {
         self.textures
     }
