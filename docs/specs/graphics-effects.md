@@ -12,6 +12,7 @@ Independent graphics controls use the existing `options_settings.ron` graphics s
 - [x] Load configuration at startup; do not introduce another configuration file or CLI flags. Native SSAO is restart-required.
 - [x] Disabled particles omit emitter/simulation, Hanabi processing/render registration, and weather particle effects while preserving character animation, weather state, fog, lighting, and other scene systems.
 - [x] Disabled glow, AA, and contact shading remove their corresponding camera effects. Changing one control must not enable another.
+- [x] Persist `anisotropicFiltering` (1, 2, 4, 8 or 16 samples) and apply it to the 3D viewport and every world texture sampler (M2, WMO, terrain ground layers, liquids, ground detail, water). Default 16: Retail `textureFilteringMode` defaults to 5 and indexes an anisotropy ladder 1/1/2/4/8/16 (12.1.5.70688; callback and ladder proved from the client image, the final sampler-descriptor field INFERRED, decomp `SAMPLER-AND-PROJECTED-NOTES.md`). Retirement: drop the option if the decomp proves Retail scales anisotropy per texture descriptor instead, or when the client stops using Godot's viewport anisotropic level.
 - [x] Preserve unrelated saved options and normal scene-stage isolation.
 
 ## Native Godot SSAO mapping

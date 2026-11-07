@@ -40,6 +40,24 @@ const fn default_ground_effect_draping_enabled() -> bool {
     true
 }
 
+/// Retail `textureFilteringMode` 5, the Retail default: 16x anisotropy.
+pub const DEFAULT_ANISOTROPIC_FILTERING: u8 = 16;
+
+const fn default_anisotropic_filtering() -> u8 {
+    DEFAULT_ANISOTROPIC_FILTERING
+}
+
+/// The sampler anisotropy the option asks for, snapped to the ladder Godot accepts.
+pub fn anisotropic_filtering_level(value: u8) -> u8 {
+    match value {
+        0..=1 => 1,
+        2..=3 => 2,
+        4..=7 => 4,
+        8..=15 => 8,
+        _ => 16,
+    }
+}
+
 const fn default_particle_effects_enabled() -> bool {
     true
 }
@@ -216,6 +234,22 @@ pub struct GraphicsOptionsFile {
         rename = "groundEffectDrapingEnabled"
     )]
     pub ground_effect_draping_enabled: bool,
+    /// Anisotropic filtering for every world texture sampler: 1, 2, 4, 8 or 16 samples.
+    ///
+    /// Retail `textureFilteringMode` (12.1.5.70688) indexes an anisotropy ladder
+    /// 1/1/2/4/8/16 for its values 0..5 and defaults to 5, so Retail samples 16x. The
+    /// callback and the ladder are proved from the client image; that the final value
+    /// reaches the sampler descriptor is inferred (decomp `SAMPLER-AND-PROJECTED-NOTES.md`,
+    /// INFERRED). Retail exposes it as the anisotropic filtering graphics setting.
+    ///
+    /// Retirement: remove this option if the decomp proves Retail scales anisotropy per
+    /// texture descriptor rather than through one sampler level (the option must then
+    /// follow that mapping), or when the client stops using Godot's viewport anisotropy.
+    #[serde(
+        default = "default_anisotropic_filtering",
+        rename = "anisotropicFiltering"
+    )]
+    pub anisotropic_filtering: u8,
 }
 
 impl Default for GraphicsOptionsFile {
@@ -234,6 +268,7 @@ impl Default for GraphicsOptionsFile {
             bloom_enabled: default_bloom_enabled(),
             bloom_intensity: default_bloom_intensity(),
             ground_effect_draping_enabled: default_ground_effect_draping_enabled(),
+            anisotropic_filtering: default_anisotropic_filtering(),
         }
     }
 }
@@ -399,6 +434,7 @@ impl GraphicsOptionsFile {
             .frame_rate_limit
             .clamp(MIN_FRAME_RATE_LIMIT, MAX_FRAME_RATE_LIMIT);
         self.bloom_intensity = self.bloom_intensity.clamp(0.0, 1.0);
+        self.anisotropic_filtering = anisotropic_filtering_level(self.anisotropic_filtering);
         self
     }
     pub fn validate(&self) -> Result<(), String> {
