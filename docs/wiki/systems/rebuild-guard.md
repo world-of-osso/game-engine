@@ -44,7 +44,10 @@ three). The steady window fails when a category exceeds its `ALLOWLIST` budget:
 
 - `shader_broadcast`: 1 per frame (`liquid_animation_time_ms`, uv_animation.rs) plus 32
   per lit-time step (bind_scene's light, fog and water globals);
-- `environment`: 1 per lit-time step (0.9375 s at the realm's real-time speed).
+- `environment`: 1 per lit-time step (0.9375 s at the realm's real-time speed);
+- `sky_cubemap`: 1 per lit-time step (the reflection cube is rewritten only when a light
+  application changes the dome's colour stops). `tests/rebuild_guard_budget.gd` checks
+  these budgets with the 210e7fed1 receipt's counts.
 
 Run it at both receipt poses (indoor -8785.9 820.7 97.65 yaw 0, outdoor -8855 645 97
 yaw 180°) with `BENCH_SCRIPT=rebuild_guard_live.gd`-style launches of the frame benchmark
