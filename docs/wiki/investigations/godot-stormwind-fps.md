@@ -341,6 +341,69 @@ shadow 327 -> 937. The 10-31 Windows receipt, taken before `4cd7bc671`, had 3822
 and a 6.7 ms p50. With the fix, the water merge changes no canal pixel (SSIM 0.99997;
 the only differences are animated particles).
 
+## Foot IK query cuts (2026-11-07)
+
+The 120 FPS outdoor receipt for `8d0bea36d` puts Foot IK at 0.885 ms/frame at the Trade
+District pose (0.310 indoors). Temporary counters in the client (removed before shipping)
+measured what that step actually does at the pose on a Linux release library:
+
+| Measure | Value at the pose |
+|---|---|
+| units in the 45 yd range | 6-8 per frame (100 iterated for the distance test) |
+| feet, and so ground queries | 2 per unit, 13-17 per frame |
+| `visible_surface` per foot | ~505 WMO group-boxes tested, ~6 doodad candidates, 0 cache hits |
+| `collision_floor` per foot | ~100 WMO collision entries, ~183 M2 `LosTile` BVH queries, 1 physics ray |
+| per-foot cost | collision floor ~55 µs, visible surface ~58 µs (contended host) |
+
+The fix keeps the solve identical and removes work a foot does not need:
+
+- **Still-foot reuse.** Each foot keeps the ground it last sampled, with the foot position
+  and a ground epoch (parsed-terrain epoch, drawn-doodad/WMO epoch, game-object collision
+  epoch; a transport deck moves without a replicated change, so its presence forces a
+  query every frame). A foot that has not moved more than 1 mm horizontally and whose
+  epoch holds reuses its sample. `foot_ik::reuses_ground` owns this rule and is unit
+  tested.
+- **Distance stride (INFERRED, not retail-verified).** Ground queries run every frame
+  inside 12 yd, every other frame inside 25 yd, every third frame beyond, per unit, so
+  distant units do not all query on one frame. The retail client names no foot IK in the
+  surveyed images while it does have a per-instance animation LOD and `animFrameSkipLOD`
+  ("animations will skip frames at distance"), so the distance cadence is retail-consistent
+  rather than retail-proven; `FOOT_IK_NEAR_QUERY_RANGE`/`FOOT_IK_MID_QUERY_RANGE` in
+  `world.rs` are the retune points and the comment carries the retirement condition. The
+  solve, blend and pelvis offset still run every frame, so a reused sample never pops.
+- **Indexed WMO groups.** Drawn WMO groups are bucketed by the 8-yard cells their bounds
+  cover, like doodads, instead of scanning every spawned group box per column query
+  (~505 -> ~32 tests per foot at this pose).
+- **No game-object ray when nothing can answer it.** The broadphase of the game-object
+  floor ray costs more than the terrain lookups, so it is skipped while no spawned object
+  has collision enabled on that layer.
+
+Paired Linux release A/B at the pose (idle, 20 s systems segment, host load recorded; the
+host was shared, so wall-clock medians are normalised by the client's own process time):
+
+| Build | Load 1 min | Client process ms | Foot IK ms | Foot IK / client ms |
+|---|---:|---:|---:|---:|
+| master `895f9899d` | 110.8 | 15.16 | 3.364 | 0.222 |
+| branch | 68.6 | 9.85 | 1.007 | 0.102 |
+| master `895f9899d` | 42.3 | 7.20 | 1.690 | 0.235 |
+| branch | 52.1 | 5.22 | 0.542 | 0.104 |
+
+The share of client time in Foot IK falls from 0.22-0.24 to 0.10-0.10, about 2.3x. The
+absolute millisecond figures are not comparable across rows because the host load moved;
+the ratio is the load-independent part. `perf stat instructions:u` per frame was attempted
+and discarded: the counters attached to the Godot thread covered windows of 10-450 ms
+instead of the 15-20 s segment, so the per-frame counts were unusable.
+
+Visual proof uses the offline `foot_ik_ground_drape.gd` fixture, whose captures are
+deterministic (paused character, frozen clock): master and the branch produce
+**pixel-identical** stand-before, stand-after and empty-stairs frames (0 differing pixels
+of 921,600). Live screenshots cannot separate builds here, as before: two runs of one build
+differed by 84k-169k pixels, more than the 158k of a cross-build pair.
+
+Evidence: `/syncthing/AgentShared/2026-11-06/fps-foot-ik/`
+(`stairs-stand-{before,after}-{master,branch}.jpg`, `stairs-empty-master.jpg`),
+`data/diagnostics/fps-120-close-2026-11-06/foot-ik/`. Windows re-measurement is the lead's.
+
 ## Sources
 
 - `src/rendering/camera/culling.rs`: the original doodad, WMO and portal culling. Its 200/2,000/400 yd distances cite no source (commit `f475000f`), so they were not used.

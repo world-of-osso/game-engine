@@ -269,6 +269,21 @@ pub fn root_offset(deltas: [Option<f32>; 2], step: f32) -> f32 {
     lowest.clamp(-step, step)
 }
 
+/// How far a foot may drift, in yards, and still reuse the ground under it.
+///
+/// A foot that moved less than this sits over the same surface: an idle sway moves it by
+/// millimetres, while a walking foot covers a hand's width per frame. Retire this tolerance
+/// if a ground sample is ever reused across a tread edge that shows.
+pub const STILL_GROUND_TOLERANCE: f32 = 0.001;
+
+/// Whether a foot may reuse the ground sampled at `sampled` instead of querying again: it
+/// did not move horizontally further than [`STILL_GROUND_TOLERANCE`], so it stands over
+/// the same surface.
+pub fn reuses_ground(sampled: (f32, f32), foot: (f32, f32)) -> bool {
+    (foot.0 - sampled.0).abs() <= STILL_GROUND_TOLERANCE
+        && (foot.1 - sampled.1).abs() <= STILL_GROUND_TOLERANCE
+}
+
 /// Whether a foot belongs to the supported (stance) half of the animation cycle.
 /// `min` is the lower of the two animated feet; a foot lifted above it by `lift` is
 /// swinging and is left alone.
@@ -484,5 +499,17 @@ mod tests {
         assert!(is_stance(0.1, 0.1, 0.12));
         assert!(is_stance(0.2, 0.1, 0.12));
         assert!(!is_stance(0.35, 0.1, 0.12));
+    }
+
+    /// An idle foot sways by millimetres and keeps the ground it found; a walking foot
+    /// covers more than the tolerance in one frame and asks again.
+    #[test]
+    fn only_a_foot_that_barely_moved_reuses_its_ground() {
+        let sampled = (-8564.0, -778.0);
+        assert!(reuses_ground(sampled, (sampled.0 + 0.0004, sampled.1 - 0.0003)));
+        assert!(reuses_ground(sampled, sampled));
+        // 0.7 yd/s at 120 FPS is ~0.006 yd; a run is ~0.058 yd.
+        assert!(!reuses_ground(sampled, (sampled.0 + 0.006, sampled.1)));
+        assert!(!reuses_ground(sampled, (sampled.0, sampled.1 + 0.058)));
     }
 }

@@ -806,12 +806,23 @@ impl crate::GameClient {
             },
         };
         let collision_floor = |feet: Vec3| ground.collision_floor(feet);
+        // Everything a foot's ground is read from: the parsed terrain, the drawn doodads and
+        // WMOs, and the colliding game objects. A transport deck moves without a replicated
+        // change, so its presence makes every frame a new epoch.
+        let ground_epoch = if self.game_objects.has_transport() {
+            frame
+        } else {
+            self.terrain.data_epoch()
+                ^ self.world_objects.surface_epoch().rotate_left(21)
+                ^ self.game_objects.collision_epoch().rotate_left(42)
+        };
         self.world.update_foot_ik(
             frame,
             delta,
             camera,
             enabled,
             FOOT_IK_RANGE,
+            ground_epoch,
             &self.terrain,
             &mut self.world_objects,
             &collision_floor,

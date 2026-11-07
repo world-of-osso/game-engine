@@ -1665,6 +1665,7 @@ impl WorldUnits {
         camera: Vec3,
         local_enabled: bool,
         range: f32,
+        ground_epoch: u64,
         terrain: &crate::terrain::streaming::StreamedTerrain,
         surfaces: &mut crate::terrain::objects::TerrainObjects,
         collision_floor: &dyn Fn(Vec3) -> Option<f32>,
@@ -1742,6 +1743,7 @@ impl WorldUnits {
                 enabled,
                 delta,
                 query_ground,
+                ground_epoch,
                 &floor_at,
                 &mut surface_at,
             );
