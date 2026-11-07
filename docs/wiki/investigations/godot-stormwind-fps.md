@@ -384,13 +384,16 @@ host was shared, so wall-clock medians are normalised by the client's own proces
 | Build | Load 1 min | Client process ms | Foot IK ms | Foot IK / client ms |
 |---|---:|---:|---:|---:|
 | master `895f9899d` | 110.8 | 15.16 | 3.364 | 0.222 |
-| branch | 68.6 | 9.85 | 1.007 | 0.102 |
+| query stride + WMO index + GO ray skip | 68.6 | 9.85 | 1.007 | 0.102 |
 | master `895f9899d` | 42.3 | 7.20 | 1.690 | 0.235 |
-| branch | 52.1 | 5.22 | 0.542 | 0.104 |
+| query stride + WMO index + GO ray skip | 52.1 | 5.22 | 0.542 | 0.104 |
+| master `895f9899d` | 36.4 | 5.80 | 1.563 | 0.269 |
+| plus still-foot reuse | 45.4 | 4.20 | 0.351 | 0.084 |
 
-The share of client time in Foot IK falls from 0.22-0.24 to 0.10-0.10, about 2.3x. The
-absolute millisecond figures are not comparable across rows because the host load moved;
-the ratio is the load-independent part. `perf stat instructions:u` per frame was attempted
+The last pair was taken back to back at similar host load: Foot IK falls 1.563 -> 0.351 ms
+(4.5x), and its share of a client frame 0.269 -> 0.084 (3.2x). The earlier rows separate the
+two stages; their absolute millisecond figures are not comparable across rows because the
+host load moved, so the share of client time is the load-independent part. `perf stat instructions:u` per frame was attempted
 and discarded: the counters attached to the Godot thread covered windows of 10-450 ms
 instead of the 15-20 s segment, so the per-frame counts were unusable.
 
