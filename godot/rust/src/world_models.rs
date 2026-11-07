@@ -44,6 +44,8 @@ pub(crate) fn bind_visual_light(visual: &Gd<Node3D>, light: Option<&TerrainLight
         .type_("MeshInstance3D")
         .owned(false)
         .done();
+    // Batches of one model with equal merge keys share their material: bind it once.
+    let mut bound = std::collections::HashSet::new();
     for node in meshes.iter_shared() {
         let mesh = node.cast::<MeshInstance3D>();
         if mesh.get_name().to_string().starts_with("M2RibbonStrip") {
@@ -54,6 +56,9 @@ pub(crate) fn bind_visual_light(visual: &Gd<Node3D>, light: Option<&TerrainLight
             .get_active_material(0)
             .expect("M2 or WMO batch has an authored material")
             .cast::<ShaderMaterial>();
+        if !bound.insert(material.instance_id()) {
+            continue;
+        }
         match light {
             Some(light) => light.bind_model(&mut material),
             None => TerrainLight::clear_model(&mut material),

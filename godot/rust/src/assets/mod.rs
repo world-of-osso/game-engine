@@ -544,6 +544,7 @@ pub(super) fn build_model_filtered_with_textures(
     .collect();
     let tracks = game_engine_core::m2_material::MaterialTracks::of(model);
     let mut batches = Vec::new();
+    let mut shared = Vec::new();
     for (batch_index, batch) in resolved.iter().enumerate() {
         if let Some(loaded) = load_batch(
             model,
@@ -552,6 +553,7 @@ pub(super) fn build_model_filtered_with_textures(
             skin_texture_fdids,
             path,
             &mut missing,
+            &mut shared,
             appearance,
             textures,
         )? {
@@ -669,6 +671,16 @@ struct LoadedBatch {
     merge: Option<batch_merge::MergeKey>,
 }
 
+/// A material one model build already made for a merge key, and the texture files its
+/// load reported missing. Batches with equal keys bind identical, identically animated
+/// materials (`batch_merge::MergeKey`), so they share one: a creature's sections built
+/// one each (~120 for a Stormwind guard), most freed again by the merge.
+struct SharedMaterial {
+    key: batch_merge::MergeKey,
+    material: Gd<ShaderMaterial>,
+    missing: Vec<i32>,
+}
+
 fn load_batch(
     model: &m2::Model,
     tracks: &game_engine_core::m2_material::MaterialTracks,
@@ -676,6 +688,7 @@ fn load_batch(
     skin_texture_fdids: &[u32],
     path: &GString,
     missing: &mut PackedInt32Array,
+    shared: &mut Vec<SharedMaterial>,
     appearance: Option<&appearance::PreparedAppearance>,
     textures: Option<&HashMap<u32, Gd<godot::classes::ImageTexture>>>,
 ) -> Result<Option<LoadedBatch>, String> {
@@ -685,6 +698,11 @@ fn load_batch(
             batch.source_unit_index
         )
     })?;
+    let unit = model
+        .batches
+        .get(batch.source_unit_index)
+        .ok_or("Resolved batch has no skin batch")?;
+    let binding = game_engine_core::m2_material::batch_binding(model, unit, skin_texture_fdids)?;
     let visible = appearance.is_none_or(|appearance| {
         let visible = !appearance.hidden_geoset_ids.contains(&batch.mesh_part_id)
             && game_engine_core::npc_appearance_selection_data::npc_geoset_visible(
@@ -700,16 +718,36 @@ fn load_batch(
     });
     check_required_replacement(batch, appearance)?;
     let missing_before = missing.len();
-    let _span = crate::profile::span(|| format!("model.load_material {}", batch.submesh_index));
-    let (material, binding) = material::load_material(
-        model,
-        tracks,
-        batch,
-        skin_texture_fdids,
-        path,
-        missing,
-        textures.or_else(|| appearance.map(|appearance| &appearance.textures)),
-    )?;
+    let merge = batch_merge::MergeKey::of(batch, &binding);
+    let material = match merge
+        .as_ref()
+        .and_then(|key| shared.iter().find(|known| known.key == *key))
+    {
+        Some(known) => {
+            missing.extend(known.missing.iter().copied());
+            known.material.clone()
+        }
+        None => {
+            let _span =
+                crate::profile::span(|| format!("model.load_material {}", batch.submesh_index));
+            let material = material::load_material(
+                tracks,
+                batch,
+                &binding,
+                path,
+                missing,
+                textures.or_else(|| appearance.map(|appearance| &appearance.textures)),
+            )?;
+            if let Some(key) = &merge {
+                shared.push(SharedMaterial {
+                    key: key.clone(),
+                    material: material.clone(),
+                    missing: missing.as_slice()[missing_before..].to_vec(),
+                });
+            }
+            material
+        }
+    };
     let active = match appearance.and_then(|appearance| {
         appearance
             .inactive_npc_texture_types
@@ -738,7 +776,6 @@ fn load_batch(
         return Ok(None);
     }
     let mesh = shared_batch_mesh(model, batch.submesh_index, path)?;
-    let merge = batch_merge::MergeKey::of(batch, &binding);
     Ok(Some(LoadedBatch {
         mesh,
         material,
