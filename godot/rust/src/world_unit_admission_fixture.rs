@@ -5,7 +5,8 @@ use crate::wmo::portals::HalfSpace;
 use glam::Vec3;
 use godot::{
     classes::{
-        BoxMesh, MeshInstance3D, ProjectSettings, geometry_instance_3d::ShadowCastingSetting,
+        BoxMesh, MeshInstance3D, ProjectSettings, ShaderMaterial,
+        geometry_instance_3d::ShadowCastingSetting,
     },
     prelude::*,
 };
@@ -59,7 +60,7 @@ impl UnitAdmissionFixture {
     }
 
     /// A new `NpcVisualRoot/NpcModel` whose 1×2×1 box batches `On`, `DoubleSided` and
-    /// `Off` cast shadows as named.
+    /// `Off` cast shadows as named, each with its own `ShaderMaterial`.
     #[func]
     fn replace_visual(&mut self, index: i64) {
         let unit = self
@@ -84,6 +85,7 @@ impl UnitAdmissionFixture {
             batch.set_name(name);
             batch.set_mesh(&mesh);
             batch.set_cast_shadows_setting(shadows);
+            batch.set_material_override(&ShaderMaterial::new_gd());
             model.add_child(&batch);
         }
         visual.add_child(&model);

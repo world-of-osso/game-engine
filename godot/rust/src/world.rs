@@ -79,10 +79,13 @@ struct UnitNode {
     /// `visual`'s model and its merged mesh bounds, read when the visual is attached:
     /// walking the model's mesh children costs more than the whole cull that reads it.
     model_bounds: Option<ModelBounds>,
-    /// Whether portal visibility admitted the unit to the camera, and whether it stood
-    /// within the unit shadow radius, when its subtree was last refreshed; `None` once
-    /// new geometry needs them applied.
-    admission: Option<(bool, bool)>,
+    /// Whether portal visibility admitted the unit to the camera, and its shadow fade
+    /// step, when its subtree was last refreshed; `None` once new geometry needs them
+    /// applied.
+    admission: Option<(bool, u8)>,
+    /// The shadow fade step every material of the subtree holds, `SHADOW_FADE_UNKNOWN`
+    /// once geometry added after a fade holds another.
+    shadow_fade: u8,
     /// Visual request still loading and the sheath state its virtual items are placed
     /// for; `visual` shows the previous appearance until it arrives.
     loading: Option<(u64, SheathState)>,
@@ -182,6 +185,15 @@ impl LodTarget {
 }
 
 impl UnitNode {
+    /// New geometry under the unit: admission and a held shadow fade must be applied
+    /// again, and its fresh materials draw the whole shadow.
+    fn geometry_changed(&mut self) {
+        self.admission = None;
+        if self.shadow_fade != SHADOW_FADE_STEPS {
+            self.shadow_fade = SHADOW_FADE_UNKNOWN;
+        }
+    }
+
     /// Frees the current visual and shows `visual` (already in the tree) instead.
     fn replace_visual(&mut self, visual: Option<Gd<Node3D>>) {
         if let Some(previous) = self.visual.take() {
@@ -205,7 +217,7 @@ impl UnitNode {
             LodTarget::of(model, bounds.bounds)
         });
         self.visual = visual;
-        self.admission = None;
+        self.geometry_changed();
     }
 }
 
@@ -395,6 +407,7 @@ fn spawn_unit(
         lod_target: None,
         model_bounds: None,
         admission: None,
+        shadow_fade: SHADOW_FADE_STEPS,
         loading: None,
         visual_player_model: None,
         death_applied: false,
@@ -1494,7 +1507,7 @@ impl WorldUnits {
                         unit.node.add_child(&model);
                         mount.bounds = model_bounds_of(&model);
                         mount.node = Some(model);
-                        unit.admission = None;
+                        unit.geometry_changed();
                         mount::seat_rider(unit);
                     }
                     Err(error) => {
@@ -1838,9 +1851,9 @@ impl WorldUnits {
 
     /// Rejects remote units outside portal visibility from the camera while keeping
     /// their shadows: the outdoor admission of terrain and doodads applied to each
-    /// unit's model and mount boxes. Drawn remote units whose box centre is farther than
-    /// `shadow_radius` from `camera` cast no shadow. The local player is always admitted
-    /// and casts.
+    /// unit's model and mount boxes. A remote unit's shadow fades out over the last
+    /// `SHADOW_FADE_BAND` of `shadow_radius` from `camera` (retail `entityShadowFadeScale`),
+    /// and a drawn one beyond it casts none. The local player is always admitted and casts.
     pub fn cull_outdoor(
         &mut self,
         windows: Option<&[Vec<HalfSpace>]>,
@@ -1855,17 +1868,28 @@ impl WorldUnits {
                 || world_box.is_none_or(|(min, max)| {
                     crate::terrain::scenery::outdoor_box_admitted(min, max, windows, interiors)
                 });
-            let in_shadow_range = local
-                || world_box.is_none_or(|(min, max)| {
-                    ((min + max) * 0.5).distance_squared(camera) <= shadow_radius * shadow_radius
-                });
-            if unit.admission == Some((admitted, in_shadow_range)) {
+            let fade = match world_box {
+                Some((min, max)) if !local => {
+                    shadow_fade_step(((min + max) * 0.5).distance(camera), shadow_radius)
+                }
+                _ => SHADOW_FADE_STEPS,
+            };
+            if unit.admission == Some((admitted, fade)) {
                 continue;
             }
             let mut node = unit.node.clone().upcast::<godot::classes::Node>();
-            crate::animation::set_unit_admission(&mut node, admitted, in_shadow_range);
-            crate::animation::refresh_unit_shadows(&node);
-            unit.admission = Some((admitted, in_shadow_range));
+            if fade != unit.shadow_fade {
+                set_shadow_fade(&node, f32::from(fade) / f32::from(SHADOW_FADE_STEPS));
+                unit.shadow_fade = fade;
+            }
+            let in_shadow_range = fade > 0;
+            if unit.admission.is_none_or(|(was_admitted, was_fade)| {
+                (was_admitted, was_fade > 0) != (admitted, in_shadow_range)
+            }) {
+                crate::animation::set_unit_admission(&mut node, admitted, in_shadow_range);
+                crate::animation::refresh_unit_shadows(&node);
+            }
+            unit.admission = Some((admitted, fade));
         }
     }
 
@@ -2149,6 +2173,53 @@ const UNIT_BOX_MARGIN: f32 = 1.0;
 
 /// World box of a unit's model and its mount's model, grown by `UNIT_BOX_MARGIN`;
 /// `None` while it shows neither.
+/// Share of the unit shadow radius over which a unit's shadow fades out.
+const SHADOW_FADE_BAND: f32 = 0.1;
+/// Steps a fading shadow is quantized to: each step change rewrites the unit's materials.
+const SHADOW_FADE_STEPS: u8 = 8;
+const SHADOW_FADE_UNKNOWN: u8 = u8::MAX;
+
+/// The steps of its shadow a unit at `distance` from the camera draws: all of them up to
+/// the fade band, at least one inside it, none at or beyond `radius`.
+fn shadow_fade_step(distance: f32, radius: f32) -> u8 {
+    let start = radius * (1.0 - SHADOW_FADE_BAND);
+    if distance <= start {
+        SHADOW_FADE_STEPS
+    } else if distance >= radius {
+        0
+    } else {
+        let share = (radius - distance) / (radius - start);
+        (share * f32::from(SHADOW_FADE_STEPS)).ceil() as u8
+    }
+}
+
+/// Sets the M2 shader's `shadow_fade` on every distinct batch material under `node`.
+fn set_shadow_fade(node: &Gd<godot::classes::Node>, share: f32) {
+    let mut materials = std::collections::HashSet::new();
+    for mesh in node
+        .find_children_ex("*")
+        .type_("MeshInstance3D")
+        .owned(false)
+        .done()
+        .iter_shared()
+    {
+        let Some(mut material) = mesh
+            .cast::<godot::classes::MeshInstance3D>()
+            .get_active_material(0)
+            .and_then(|material| material.try_cast::<godot::classes::ShaderMaterial>().ok())
+        else {
+            continue;
+        };
+        if materials.insert(material.instance_id()) {
+            material.set_shader_parameter("shadow_fade", &share.to_variant());
+        }
+    }
+    crate::rebuild_guard::count(
+        crate::rebuild_guard::Rebuild::MaterialRebind,
+        materials.len() as u64,
+    );
+}
+
 fn unit_world_box(unit: &UnitNode) -> Option<(Vec3, Vec3)> {
     let mount = unit.mount.as_ref().and_then(|mount| mount.bounds.as_ref());
     [unit.model_bounds.as_ref(), mount]
