@@ -9,6 +9,11 @@ pub const COLLISION_OFFSET: f32 = 0.3;
 pub const COLLISION_RECOVERY_SPEED: f32 = 5.0;
 const TERRAIN_COLLISION_STEPS: usize = 24;
 const TERRAIN_COLLISION_CLEARANCE: f32 = 0.2;
+/// A smoothed zoom or follow step this close to its goal lands on it. A lerp alone never
+/// arrives: with frame times varying, its last steps round to neighbouring floats (one
+/// float step is ~1 mm at Stormwind coordinates), so an idle camera never stops moving and
+/// every camera-keyed cache (light, fog, portal cull) misses each frame.
+const SETTLE_DISTANCE: f32 = 0.01;
 
 /// Camera's last followed player point and adopted movement epoch.
 #[derive(Default)]
@@ -137,7 +142,7 @@ pub fn follow_camera(
     mut ground_at: impl FnMut(Vec3) -> Option<f32>,
 ) -> CameraPose {
     let zoom_t = (cam.zoom_speed * dt).min(1.0);
-    cam.distance = cam.distance.lerp(cam.target_distance, zoom_t);
+    cam.distance = settle(cam.distance, cam.target_distance, zoom_t);
     let follow_t = (cam.follow_speed * dt).min(1.0);
     let eye_target = target_translation + Vec3::Y * EYE_HEIGHT;
     let rotation = Quat::from_euler(EulerRot::YXZ, cam.yaw, cam.pitch, 0.0);
@@ -154,9 +159,22 @@ pub fn follow_camera(
     if let Some(ground) = ground_at(pos) {
         pos.y = pos.y.max(ground + 0.5);
     }
+    let position = if current_position.distance(pos) < SETTLE_DISTANCE {
+        pos
+    } else {
+        current_position.lerp(pos, follow_t)
+    };
     CameraPose {
-        position: current_position.lerp(pos, follow_t),
+        position,
         eye_target,
+    }
+}
+
+fn settle(current: f32, goal: f32, t: f32) -> f32 {
+    if (goal - current).abs() < SETTLE_DISTANCE {
+        goal
+    } else {
+        current.lerp(goal, t)
     }
 }
 
@@ -179,5 +197,41 @@ pub fn keep_in_sight(
             eye_target + direction * collision_adjusted_distance(distance, Some(hit))
         }
         _ => camera,
+    }
+}
+
+#[cfg(test)]
+mod steady_tests {
+    use super::*;
+
+    /// Frames of the follow step for an idle player, as `rust/src/camera.rs` `follow_pose` runs
+    /// it, around `dt`; returns the distinct camera positions of the last 500 frames.
+    fn idle_positions(dt: f32, wall: Option<f32>) -> usize {
+        let mut cam = CameraState {
+            pitch: -0.35,
+            ..CameraState::default()
+        };
+        let target = Vec3::new(-8785.9, 97.64041, -820.7);
+        let mut position = target + Vec3::new(0.0, 6.0, 14.0);
+        let mut seen = Vec::new();
+        for frame in 0..4000 {
+            // Frame times vary by a few percent, as measured frames do.
+            let dt = dt * [1.0, 1.04, 0.97, 1.02, 0.99][frame % 5];
+            let pose = follow_camera(&mut cam, position, target, dt, None, |_, _| wall, |_| None);
+            position = keep_in_sight(pose.eye_target, pose.position, |_, _| wall);
+            if frame >= 3500 && !seen.contains(&position) {
+                seen.push(position);
+            }
+        }
+        seen.len()
+    }
+
+    #[test]
+    fn idle_camera_settles_at_varying_frame_times() {
+        for dt in [1.0 / 30.0, 1.0 / 144.0, 1.0 / 250.0] {
+            for wall in [None, Some(6.0)] {
+                assert_eq!(idle_positions(dt, wall), 1, "dt {dt}, wall {wall:?}");
+            }
+        }
     }
 }

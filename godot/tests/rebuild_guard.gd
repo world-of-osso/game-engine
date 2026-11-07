@@ -22,6 +22,9 @@ const ALLOWLIST := {
 	"shader_broadcast": {"per_frame": 1, "per_light_step": 32},
 	# One light application per lit-time step.
 	"environment": {"per_light_step": 1},
+	# WorldLighting::sync rewrites the sky reflection cubemap only when that application
+	# changes the dome's colour stops (rust/src/lighting/mod.rs update_cubemap).
+	"sky_cubemap": {"per_light_step": 1},
 }
 ## Godot reallocates a shadow atlas only when its size or a quadrant subdivision is set
 ## (servers/rendering/renderer_rd/storage_rd/light_storage.cpp shadow_atlas_set_size,
