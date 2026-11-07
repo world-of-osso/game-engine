@@ -177,7 +177,12 @@ impl GuildTabardFixture {
         stage.set_name("CharacterSelectStage");
         self.base_mut().add_child(&stage);
         self.character_stage = Some(stage);
-        self.character_select = Some(CharacterPreview::new(data));
+        self.character_select = Some(CharacterPreview::new(
+            data,
+            game_engine_core::graphics_quality_data::GraphicsQuality::default()
+                .preset()
+                .shadow_cascades,
+        ));
         Ok(())
     }
     fn mount_roster_ui(&mut self, data: &std::path::Path) -> Result<(), String> {

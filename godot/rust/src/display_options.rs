@@ -6,7 +6,7 @@ use game_engine_core::client_options_data::{
 };
 use godot::classes::{
     CanvasLayer, ColorRect, DisplayServer, Engine, Node, PackedScene, ProjectSettings,
-    ResourceLoader, Shader, Viewport,
+    RenderingServer, ResourceLoader, Shader, Viewport,
     control::{LayoutPreset, MouseFilter},
     display_server::VSyncMode,
     viewport::{AnisotropicFiltering, Msaa},
@@ -14,6 +14,8 @@ use godot::classes::{
 use godot::prelude::*;
 
 const DEPTH_PREPASS_SETTING: &str = "rendering/driver/depth_prepass/enable";
+const DIRECTIONAL_SHADOW_SIZE: &str = "rendering/lights_and_shadows/directional_shadow/size";
+const DIRECTIONAL_SHADOW_16_BITS: &str = "rendering/lights_and_shadows/directional_shadow/16_bits";
 
 /// Godot Main::setup2 invokes Servers extensions before constructing RenderingServer.
 /// Never call this from Options: opaque depth pipelines cache this startup choice.
@@ -39,6 +41,7 @@ pub(crate) fn apply_graphics_display_options(
     update_bloom(viewport, graphics);
     update_anti_alias(viewport, graphics);
     update_anisotropic_filtering(viewport, graphics);
+    update_directional_shadow_size(graphics);
     update_world_effects(viewport);
 
     let vsync_mode = if graphics.vsync_enabled {
@@ -90,6 +93,23 @@ fn spawn_world_effects_controller(viewport: &mut Gd<Viewport>) -> Gd<Node> {
     controller.set_name(WORLD_EFFECTS_CONTROLLER_NAME);
     viewport.add_child(&controller);
     controller
+}
+
+/// Resizes the sun's shadow atlas to the quality preset's when it differs. Godot sizes it
+/// from the project setting at startup and reallocates it on every resize, so the setting
+/// is kept equal to the atlas and an unchanged preset does nothing.
+fn update_directional_shadow_size(graphics: &GraphicsOptionsFile) {
+    let size = i32::try_from(graphics.graphics_quality.preset().shadow_map_size)
+        .expect("shadow map size fits i32");
+    let mut settings = ProjectSettings::singleton();
+    if settings.get_setting(DIRECTIONAL_SHADOW_SIZE).to::<i32>() == size {
+        return;
+    }
+    let use_16_bits = settings
+        .get_setting(DIRECTIONAL_SHADOW_16_BITS)
+        .to::<bool>();
+    RenderingServer::singleton().directional_shadow_atlas_set_size(size, use_16_bits);
+    settings.set_setting(DIRECTIONAL_SHADOW_SIZE, &size.to_variant());
 }
 
 fn update_anisotropic_filtering(viewport: &mut Gd<Viewport>, graphics: &GraphicsOptionsFile) {

@@ -195,3 +195,17 @@ fn anisotropic_filtering_defaults_to_retail_16x_and_snaps_to_the_ladder() {
     let restored: ClientOptionsFile = ron::de::from_str(&saved).unwrap();
     assert_eq!(restored.graphics.anisotropic_filtering, 4);
 }
+
+#[test]
+fn graphics_quality_defaults_to_high_and_round_trips() {
+    use crate::graphics_quality_data::GraphicsQuality;
+    // A file saved before presets existed keeps the client's pre-preset settings.
+    let old: ClientOptionsFile = ron::de::from_str("(graphics:(renderScale:0.75,))").unwrap();
+    assert_eq!(old.graphics.graphics_quality, GraphicsQuality::High);
+    let mut file = ClientOptionsFile::default();
+    file.graphics.graphics_quality = GraphicsQuality::Low;
+    let saved = ron::ser::to_string(&file).unwrap();
+    assert!(saved.contains("graphicsQuality:Low"), "{saved}");
+    let restored: ClientOptionsFile = ron::de::from_str(&saved).unwrap();
+    assert_eq!(restored.graphics.graphics_quality, GraphicsQuality::Low);
+}

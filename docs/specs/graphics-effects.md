@@ -13,6 +13,7 @@ Independent graphics controls use the existing `options_settings.ron` graphics s
 - [x] Disabled particles omit emitter/simulation, Hanabi processing/render registration, and weather particle effects while preserving character animation, weather state, fog, lighting, and other scene systems.
 - [x] Disabled glow, AA, and contact shading remove their corresponding camera effects. Changing one control must not enable another.
 - [x] Persist `anisotropicFiltering` (1, 2, 4, 8 or 16 samples) and apply it to the 3D viewport and every world texture sampler (M2, WMO, terrain ground layers, liquids, ground detail, water). Default 16: Retail `textureFilteringMode` defaults to 5 and indexes an anisotropy ladder 1/1/2/4/8/16 (12.1.5.70688; callback and ladder proved from the client image, the final sampler-descriptor field INFERRED, decomp `SAMPLER-AND-PROJECTED-NOTES.md`). Retirement: drop the option if the decomp proves Retail scales anisotropy per texture descriptor instead, or when the client stops using Godot's viewport anisotropic level.
+- [x] Persist `graphicsQuality` (`Low`, `Medium`, `High`; default `High`) and read the world camera far plane, WDL horizon range, sun shadow splits (world and character-select campsite) and directional shadow atlas size from its row (`godot/core/src/graphics_quality_data.rs`). `High` is the client's settings before presets (far 1000, horizon 3108, 2 splits, atlas 4096) and must render unchanged. `Medium`/`Low` scale `High` by retail block 2/block 0 over block 11 (decoded blocks VERIFIED, the ratio mapping INFERRED). The row applies when the client starts; no Options control exists yet.
 - [x] Preserve unrelated saved options and normal scene-stage isolation.
 
 ## Native Godot SSAO mapping
@@ -40,6 +41,7 @@ Independent graphics controls use the existing `options_settings.ron` graphics s
 
 ## Tests asserting this spec
 
+- `godot/core/src/graphics_quality_data.rs` (rows), `godot/core/src/client_options_data_tests.rs::graphics_quality_defaults_to_high_and_round_trips` (persistence).
 - `src/game/state/client_options_tests.rs`
 - `tests/unit/camera_post_process_tests.rs`
 - `src/rendering/particles/tests.rs` — startup registration and deferred emitter behavior.

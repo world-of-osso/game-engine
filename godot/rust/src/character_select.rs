@@ -177,6 +177,7 @@ pub(crate) fn prepare_character_parts(
 
 pub(crate) struct CharacterPreview {
     data_root: PathBuf,
+    shadow_cascades: u8,
     /// Race/sex presentations, loaded from client start.
     customization: BackgroundLoad<Result<CustomizationDb, String>>,
     outfits: BackgroundLoad<Result<(), String>>,
@@ -187,11 +188,13 @@ pub(crate) struct CharacterPreview {
 }
 
 impl CharacterPreview {
-    pub fn new(data_root: PathBuf) -> Self {
+    /// `shadow_cascades`: the graphics quality preset's sun shadow splits.
+    pub fn new(data_root: PathBuf, shadow_cascades: u8) -> Self {
         let catalog_root = data_root.clone();
         let outfit_root = data_root.clone();
         Self {
             data_root,
+            shadow_cascades,
             customization: BackgroundLoad::start("customization-catalog", move || {
                 load_customization_db(&catalog_root)
             }),
@@ -334,7 +337,8 @@ impl CharacterPreview {
     }
 
     fn load_scene(&self, parent: &mut Gd<Node3D>) -> Result<Preview, String> {
-        let background = Background::load(self.data_root.clone(), self.scene_id)?;
+        let background =
+            Background::load(self.data_root.clone(), self.scene_id, self.shadow_cascades)?;
         let mut root = Node3D::new_alloc();
         root.set_name("CharacterSelectScene");
         parent.add_child(&root);

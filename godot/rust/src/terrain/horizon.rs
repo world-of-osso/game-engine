@@ -20,15 +20,14 @@ use crate::{
 };
 
 const SHADER_PATH: &str = "res://shaders/horizon.gdshader";
-/// `farclip` 777 × `horizonFarclipScale` 4 (solarityclient cvar definitions, client
-/// 791170's horizon far plane).
-const HORIZON_RANGE: f32 = 777.0 * 4.0;
 /// Half a tile's diagonal.
 const TILE_RADIUS: f32 = 533.333_3 * std::f32::consts::FRAC_1_SQRT_2;
 
 type Tile = (u32, u32);
 
 pub(crate) struct WorldHorizon {
+    /// Distance from the camera within which tiles draw, in yards.
+    range: f32,
     assets: NativeTerrainAssets,
     /// The map the tiles were read for.
     map: Option<String>,
@@ -40,8 +39,10 @@ pub(crate) struct WorldHorizon {
 }
 
 impl WorldHorizon {
-    pub fn new(data_root: PathBuf) -> Self {
+    /// `range`: the graphics quality preset's horizon range, in yards.
+    pub fn new(data_root: PathBuf, range: f32) -> Self {
         Self {
+            range,
             assets: NativeTerrainAssets::new(data_root),
             map: None,
             tiles: Vec::new(),
@@ -77,7 +78,7 @@ impl WorldHorizon {
         for index in 0..self.tiles.len() {
             let tile = &self.tiles[index];
             let shown = !terrain.parsed_tiles.contains_key(&tile.tile)
-                && tile_centre(tile.tile).distance_to(eye) <= HORIZON_RANGE + TILE_RADIUS;
+                && tile_centre(tile.tile).distance_to(eye) <= self.range + TILE_RADIUS;
             match (shown, self.nodes.get_mut(&tile.tile)) {
                 (true, None) => {
                     let node = self.spawn(index);
@@ -161,9 +162,9 @@ impl WorldHorizon {
         instance.set_mesh(&array_mesh);
         instance.set_surface_override_material(0, self.material.as_ref().expect("prepared"));
         instance.set_cast_shadows_setting(ShadowCastingSetting::OFF);
-        // The camera's far plane (1000 yd) is nearer than the horizon: keep Godot's frustum
-        // culling from dropping tiles the shader draws at the far depth anyway.
-        instance.set_extra_cull_margin(HORIZON_RANGE + TILE_RADIUS);
+        // The camera's far plane is nearer than the horizon: keep Godot's frustum culling
+        // from dropping tiles the shader draws at the far depth anyway.
+        instance.set_extra_cull_margin(self.range + TILE_RADIUS);
         self.root.as_mut().expect("prepared").add_child(&instance);
         instance
     }

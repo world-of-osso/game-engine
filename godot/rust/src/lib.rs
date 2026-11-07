@@ -450,6 +450,7 @@ impl INode3D for GameClient {
             data_root.clone(),
         );
         let graphics = &client_options.graphics;
+        let quality = graphics.graphics_quality.preset();
         let mut world = world::WorldUnits::new(data_root.clone());
         let mut game_objects = game_objects::GameObjects::new(data_root.clone());
         if graphics.particle_effects_enabled {
@@ -472,7 +473,10 @@ impl INode3D for GameClient {
             data_root: data_root.clone(),
             asset_startup,
             startup_events: Vec::new(),
-            character_preview: character_select::CharacterPreview::new(data_root.clone()),
+            character_preview: character_select::CharacterPreview::new(
+                data_root.clone(),
+                quality.shadow_cascades,
+            ),
             campsite: CampsiteState::default(),
             campsites: {
                 let data_root = data_root.clone();
@@ -518,13 +522,13 @@ impl INode3D for GameClient {
             terrain_materials: terrain::material::TerrainMaterials::default(),
             world_objects,
             ground_detail: terrain::ground_detail::GroundDetail::new(data_root.clone()),
-            horizon: terrain::horizon::WorldHorizon::new(data_root.clone()),
+            horizon: terrain::horizon::WorldHorizon::new(data_root.clone(), quality.horizon_range),
             global_wmo: wmo::global::GlobalWmoScene::new(data_root.clone()),
             wmo_collision: wmo::collision::WmoCollisionBodies::default(),
-            world_lighting: lighting::WorldLighting::default(),
+            world_lighting: lighting::WorldLighting::new(quality.shadow_cascades),
             world_map_id: None,
             line_of_sight: line_of_sight::LineOfSight::new(&data_root),
-            world_camera: camera::WorldCamera::default(),
+            world_camera: camera::WorldCamera::new(quality.far_clip),
             area_trigger_visuals: area_trigger_visuals::AreaTriggerVisuals::default(),
             physical_input: input::PhysicalInput::default(),
             client_options,

@@ -75,6 +75,7 @@ pub mod footstep_data;
 mod footstep_data_tests;
 #[path = "geoset_visibility_data.rs"]
 pub mod geoset_visibility_data;
+pub mod graphics_quality_data;
 pub mod ground_detail;
 #[path = "sound/ground_effect_data.rs"]
 pub mod ground_effect_data;

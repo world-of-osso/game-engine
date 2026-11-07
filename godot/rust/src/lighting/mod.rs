@@ -211,6 +211,8 @@ impl TerrainLight {
 
 #[derive(Default)]
 pub(crate) struct WorldLighting {
+    /// The graphics quality preset's sun shadow splits: 0 (no shadows), 1, 2 or 4.
+    shadow_cascades: u8,
     root: Option<Gd<Node3D>>,
     sun: Option<Gd<DirectionalLight3D>>,
     environment: Option<Gd<Environment>>,
@@ -240,6 +242,13 @@ pub(super) const FOG_CONE_PRIORITY: i32 = -1;
 const SKY_DOME_SHADER: &str = "res://shaders/sky_dome.gdshader";
 
 impl WorldLighting {
+    pub fn new(shadow_cascades: u8) -> Self {
+        Self {
+            shadow_cascades,
+            ..Self::default()
+        }
+    }
+
     /// Samples the authored light at `position`; `wmo_fog` is the MFOG fog of the WMO
     /// interior the camera is in.
     pub fn sync(
@@ -483,10 +492,12 @@ impl WorldLighting {
         root.add_child(&environment_node);
         let mut sun = DirectionalLight3D::new_alloc();
         sun.set_name("Sun");
-        sun.set_shadow(true);
-        // Two cascades, as the retail client writes `shadowNumCascades 2` for shadow
-        // quality Medium (`graphicsShadowQuality 2`, `_retail_/WTF/Config.wtf`).
-        sun.set_shadow_mode(directional_light_3d::ShadowMode::PARALLEL_2_SPLITS);
+        sun.set_shadow(self.shadow_cascades > 0);
+        sun.set_shadow_mode(match self.shadow_cascades {
+            0 | 1 => directional_light_3d::ShadowMode::ORTHOGONAL,
+            2 => directional_light_3d::ShadowMode::PARALLEL_2_SPLITS,
+            _ => directional_light_3d::ShadowMode::PARALLEL_4_SPLITS,
+        });
         root.add_child(&sun);
         self.sun = Some(sun);
         self.environment = Some(environment);
