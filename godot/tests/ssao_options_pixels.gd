@@ -1,4 +1,5 @@
 extends "res://tests/ssao_options.gd"
+const TerrainChunkInputs := preload("res://tests/terrain_chunk_inputs.gd")
 ## Pinned Godot 4.7.2, owned Weston ss30, Forward+ Dozen Vulkan, Dummy audio.
 ## VK_DRIVER_FILES=/opt/game-engine/mesa-dzn/share/vulkan/icd.d/dzn_icd.x86_64.json
 ## LD_LIBRARY_PATH=/usr/lib/wsl/lib; --display-driver wayland --rendering-driver vulkan
@@ -103,7 +104,8 @@ func add_geometry() -> void:
 		material.shader = shader
 	var image := Image.create(1, 1, false, Image.FORMAT_RGBA8)
 	image.fill(Color(0.6, 0.6, 0.6, 1.0))
-	material.set_shader_parameter("ground_0", ImageTexture.create_from_image(image))
+	var chunk := TerrainChunkInputs.new()
+	chunk.set_input(material, "ground_0", ImageTexture.create_from_image(image))
 	material.set_shader_parameter("ambient", Vector3.ONE * 0.6)
 	material.set_shader_parameter("horizon_ambient", Vector3.ONE * 0.6)
 	material.set_shader_parameter("ground_ambient", Vector3.ONE * 0.6)

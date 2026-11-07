@@ -1,4 +1,5 @@
 extends SceneTree
+const TerrainChunkInputs := preload("res://tests/terrain_chunk_inputs.gd")
 
 const SHADER_PATH := "res://shaders/terrain.gdshader"
 const SIZE := 64
@@ -7,6 +8,7 @@ const TOLERANCE := 0.015
 var viewport: SubViewport
 var material: ShaderMaterial
 var terrain_instance: MeshInstance3D
+var chunk := TerrainChunkInputs.new()
 
 func _initialize() -> void:
 	call_deferred("_run")
@@ -94,19 +96,19 @@ func fixture_scene() -> void:
 	terrain_instance = instance
 
 func set_base_inputs() -> void:
-	material.set_shader_parameter("config", Vector4(4.0, 0.0, 1.0, 0.0))
+	chunk.set_input(material, "config", Vector4(4.0, 0.0, 1.0, 0.0))
 	material.set_shader_parameter("animation_time", 0.0)
-	material.set_shader_parameter("layer_params_0", Vector4(1.0, 0.0, 0.0, 1.0))
-	material.set_shader_parameter("layer_params_1", Vector4(1.0, 0.0, 0.0, 1.0))
-	material.set_shader_parameter("layer_params_2", Vector4(1.0, 0.0, 0.0, 1.0))
-	material.set_shader_parameter("layer_params_3", Vector4(1.0, 0.0, 0.0, 1.0))
+	chunk.set_input(material, "layer_params_0", Vector4(1.0, 0.0, 0.0, 1.0))
+	chunk.set_input(material, "layer_params_1", Vector4(1.0, 0.0, 0.0, 1.0))
+	chunk.set_input(material, "layer_params_2", Vector4(1.0, 0.0, 0.0, 1.0))
+	chunk.set_input(material, "layer_params_3", Vector4(1.0, 0.0, 0.0, 1.0))
 	for index in 4:
-		material.set_shader_parameter("animation_params_%d" % index, Vector4.ZERO)
-		material.set_shader_parameter("height_%d" % index, solid_texture(Color(0.0, 0.0, 0.0, 0.5)))
+		chunk.set_input(material, "animation_params_%d" % index, Vector4.ZERO)
+		chunk.set_input(material, "height_%d" % index, solid_texture(Color(0.0, 0.0, 0.0, 0.5)))
 	var ground := [Color(0.2, 0.1, 0.05, 0.0), Color(0.6, 0.2, 0.1, 0.0), Color(0.1, 0.7, 0.3, 0.0), Color(0.9, 0.8, 0.2, 0.0)]
 	for index in 4:
-		material.set_shader_parameter("ground_%d" % index, solid_texture(ground[index]))
-	material.set_shader_parameter("alpha_packed", solid_texture(Color(0.25, 0.5, 0.125, 1.0)))
+		chunk.set_input(material, "ground_%d" % index, solid_texture(ground[index]))
+	chunk.set_input(material, "alpha_packed", solid_texture(Color(0.25, 0.5, 0.125, 1.0)))
 	material.set_shader_parameter("ambient", Vector3.ONE)
 	material.set_shader_parameter("horizon_ambient", Vector3.ONE)
 	material.set_shader_parameter("ground_ambient", Vector3.ONE)
@@ -149,15 +151,15 @@ func _run() -> void:
 	var layered: Color = ground[0] * (0.75 * 0.5 * 0.875) + ground[1] * (0.25 * 0.5 * 0.875) + ground[2] * (0.5 * 0.875) + ground[3] * 0.125
 	if not await assert_pixel("layered MCAL and MCCV", layered * tint * 1.1):
 		return
-	material.set_shader_parameter("config", Vector4(4.0, 1.0, 1.0, 0.0))
+	chunk.set_input(material, "config", Vector4(4.0, 1.0, 1.0, 0.0))
 	var weighted: Color = ground[0] * 0.125 + ground[1] * 0.25 + ground[2] * 0.5 + ground[3] * 0.125
 	if not await assert_pixel("weighted MCAL", weighted * tint * 1.1):
 		return
-	material.set_shader_parameter("config", Vector4(4.0, 2.0, 1.0, 0.0))
-	material.set_shader_parameter("height_0", solid_texture(Color(0.0, 0.0, 0.0, 0.8)))
-	material.set_shader_parameter("height_1", solid_texture(Color(0.0, 0.0, 0.0, 0.2)))
-	material.set_shader_parameter("height_2", solid_texture(Color(0.0, 0.0, 0.0, 0.4)))
-	material.set_shader_parameter("height_3", solid_texture(Color(0.0, 0.0, 0.0, 0.9)))
+	chunk.set_input(material, "config", Vector4(4.0, 2.0, 1.0, 0.0))
+	chunk.set_input(material, "height_0", solid_texture(Color(0.0, 0.0, 0.0, 0.8)))
+	chunk.set_input(material, "height_1", solid_texture(Color(0.0, 0.0, 0.0, 0.2)))
+	chunk.set_input(material, "height_2", solid_texture(Color(0.0, 0.0, 0.0, 0.4)))
+	chunk.set_input(material, "height_3", solid_texture(Color(0.0, 0.0, 0.0, 0.9)))
 	var height_weights := Vector4(0.125 * 0.8, 0.25 * 0.2, 0.5 * 0.4, 0.125 * 0.9)
 	var max_height := maxf(maxf(height_weights.x, height_weights.y), maxf(height_weights.z, height_weights.w))
 	var kept := Vector4(
@@ -170,8 +172,8 @@ func _run() -> void:
 	if not await assert_pixel("height-weighted MCAL", normalized * tint * 1.1):
 		return
 	# Nonlinear gamma conversion must be applied to the complete authored ambient + direct + specular sum.
-	material.set_shader_parameter("config", Vector4(1.0, 0.0, 1.0, 0.0))
-	material.set_shader_parameter("ground_0", solid_texture(Color(0.25, 0.25, 0.25, 0.5)))
+	chunk.set_input(material, "config", Vector4(1.0, 0.0, 1.0, 0.0))
+	chunk.set_input(material, "ground_0", solid_texture(Color(0.25, 0.25, 0.25, 0.5)))
 	material.set_shader_parameter("ambient", Vector3(0.25, 0.25, 0.25))
 	material.set_shader_parameter("horizon_ambient", Vector3(0.25, 0.25, 0.25))
 	material.set_shader_parameter("ground_ambient", Vector3(0.25, 0.25, 0.25))
@@ -183,10 +185,10 @@ func _run() -> void:
 	material.set_shader_parameter("ambient", Vector3.ONE)
 	material.set_shader_parameter("horizon_ambient", Vector3.ONE)
 	material.set_shader_parameter("ground_ambient", Vector3.ONE)
-	material.set_shader_parameter("layer_params_0", Vector4(1.0, 0.0, 0.0, 1.5))
+	chunk.set_input(material, "layer_params_0", Vector4(1.0, 0.0, 0.0, 1.5))
 	if not await assert_pixel("layer overbright", Color(0.25 * tint * 1.5 * 1.1, 0.25 * tint * 1.5 * 1.1, 0.25 * tint * 1.5 * 1.1)):
 		return
-	material.set_shader_parameter("layer_params_0", Vector4(1.0, 0.0, 0.0, 1.0))
+	chunk.set_input(material, "layer_params_0", Vector4(1.0, 0.0, 0.0, 1.0))
 	set_vertex_color(Color(1.0, 1.0, 1.0))
 	var full_mccv := 0.25 * 255.0 / 127.0 * 1.1
 	if not await assert_pixel("MCCV byte255 retains multiplier above one", Color(full_mccv, full_mccv, full_mccv)):
@@ -214,8 +216,8 @@ func _run() -> void:
 		return
 	RenderingServer.global_shader_parameter_set("fog_range", Vector2(1.0, 100.0))
 	material.set_shader_parameter("fog_mode", 0)
-	material.set_shader_parameter("ground_0", striped_texture())
-	material.set_shader_parameter("animation_params_0", Vector4(0.5, 0.0, 0.0, 0.0))
+	chunk.set_input(material, "ground_0", striped_texture())
+	chunk.set_input(material, "animation_params_0", Vector4(0.5, 0.0, 0.0, 0.0))
 	material.set_shader_parameter("animation_time", 0.0)
 	if not await assert_pixel("animated UV start", Color(0.2 * tint * 1.1, 0.2 * tint * 1.1, 0.2 * tint * 1.1)):
 		return
@@ -223,12 +225,12 @@ func _run() -> void:
 	if not await assert_pixel("animated UV offset", Color(0.8 * tint * 1.1, 0.8 * tint * 1.1, 0.8 * tint * 1.1)):
 		return
 	material.set_shader_parameter("animation_time", 0.0)
-	material.set_shader_parameter("animation_params_0", Vector4.ZERO)
-	material.set_shader_parameter("config", Vector4(1.0, 0.0, 3.0, 0.0))
+	chunk.set_input(material, "animation_params_0", Vector4.ZERO)
+	chunk.set_input(material, "config", Vector4(1.0, 0.0, 3.0, 0.0))
 	if not await assert_pixel("UV repeat", Color(0.8 * tint * 1.1, 0.8 * tint * 1.1, 0.8 * tint * 1.1)):
 		return
-	material.set_shader_parameter("config", Vector4(1.0, 0.0, 1.0, 0.0))
-	material.set_shader_parameter("ground_0", solid_texture(Color(0.25, 0.25, 0.25, 0.0)))
+	chunk.set_input(material, "config", Vector4(1.0, 0.0, 1.0, 0.0))
+	chunk.set_input(material, "ground_0", solid_texture(Color(0.25, 0.25, 0.25, 0.0)))
 	material.set_shader_parameter("ambient", Vector3.ZERO)
 	material.set_shader_parameter("horizon_ambient", Vector3.ZERO)
 	material.set_shader_parameter("ground_ambient", Vector3.ZERO)
@@ -239,7 +241,7 @@ func _run() -> void:
 	material.set_shader_parameter("horizon_ambient", Vector3.ONE)
 	material.set_shader_parameter("ground_ambient", Vector3.ONE)
 	material.set_shader_parameter("direct", Vector3.ZERO)
-	material.set_shader_parameter("animation_params_0", Vector4(0.0, 0.0, 1.0, 0.0))
+	chunk.set_input(material, "animation_params_0", Vector4(0.0, 0.0, 1.0, 0.0))
 	material.set_shader_parameter("environment_map", constant_float_cubemap(Color(0.8, 0.8, 0.8)))
 	var camera := viewport.get_camera_3d()
 	camera.look_at_from_position(Vector3(0.0, 0.4, 2.0), Vector3.ZERO)

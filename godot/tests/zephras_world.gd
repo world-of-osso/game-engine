@@ -89,10 +89,10 @@ func run_test() -> void:
 		if image == null or image.is_empty() or image.save_png(OUTPUT) != OK:
 			fail("Cannot capture rendered map")
 			return
-		var meshes := tile.find_children("Chunk*", "MeshInstance3D", true, false)
+		var meshes := tile.find_children("Chunk*", "StaticBody3D", false, false)
 		print("ZEPHRAS_PROOF chunks=%d doodad_nodes=%d wmo_nodes=%d height=%s terrain=%s objects=%s screenshot=%s lighting=production-forever" % [meshes.size(), doodads.size(), wmos.size(), height, state.terrain, state.world_objects, OUTPUT])
 		if meshes.size() < 256:
-			fail("Expected 256 terrain meshes")
+			fail("Expected 256 terrain chunks")
 			return
 		camera.position = COAST + Vector3(110.0, 120.0, 110.0)
 		camera.look_at(COAST)

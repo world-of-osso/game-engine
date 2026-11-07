@@ -1,4 +1,5 @@
 extends SceneTree
+const TerrainChunkInputs := preload("res://tests/terrain_chunk_inputs.gd")
 ## Same geometry/settings on Dozen and Lavapipe, with authored and standard lighting.
 
 const FLAT := Rect2i(1100, 550, 100, 100)
@@ -45,7 +46,8 @@ func run_probe() -> void:
 			terrain.shader = load("res://shaders/terrain.gdshader")
 			var image := Image.create(1, 1, false, Image.FORMAT_RGBA8)
 			image.fill(Color(0.6, 0.6, 0.6, 1.0))
-			terrain.set_shader_parameter("ground_0", ImageTexture.create_from_image(image))
+			var chunk := TerrainChunkInputs.new()
+			chunk.set_input(terrain, "ground_0", ImageTexture.create_from_image(image))
 			for parameter in ["ambient", "horizon_ambient", "ground_ambient"]:
 				terrain.set_shader_parameter(parameter, Vector3.ONE * 0.6)
 			material = terrain
