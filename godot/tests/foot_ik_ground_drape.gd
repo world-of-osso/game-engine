@@ -26,6 +26,14 @@ const DECAY_VISUAL := 173378
 const DECAY_KIT := 230208
 const DECAY_SPELL := 43265
 
+# CAPTURE_POINT=x,y,z moves the trigger captures to another open spot (default FLAT_GROUND).
+func capture_point() -> Vector3:
+	var text := OS.get_environment("CAPTURE_POINT")
+	if text == "":
+		return FLAT_GROUND
+	var parts: PackedStringArray = text.split(",")
+	return Vector3(parts[0].to_float(), parts[1].to_float(), parts[2].to_float())
+
 var client: Node3D
 var camera: Camera3D
 var closed := false
@@ -69,6 +77,8 @@ func run() -> void:
 		await capture_fps()
 	elif case == "dnd_fps":
 		await capture_dnd_fps()
+	elif case == "probe_grid":
+		await capture_probe_grid()
 	else:
 		fail("unknown CAPTURE_CASE " + case)
 
@@ -184,6 +194,9 @@ func capture(name: String, with_ui: bool) -> Image:
 	if error != OK:
 		fail("cannot save " + path)
 		return null
+	print("VIEWPORT size=%s image=%dx%d scaling_3d_mode=%d scale=%.3f msaa=%d" % [root.size,
+		image.get_width(), image.get_height(), root.scaling_3d_mode, root.scaling_3d_scale,
+		root.msaa_3d])
 	print("CAPTURE skin=%s case=%s ui=%s file=%s" % [client.account_state().ui_skin,
 		OS.get_environment("CAPTURE_CASE"), with_ui, path])
 	return image
@@ -388,6 +401,13 @@ func sample_frames(count: int) -> Array:
 	var wall_ms := float(Time.get_ticks_usec() - started) / float(count) / 1000.0
 	return [wall_ms, process / float(count)]
 
+# The meshes the replayed area trigger spawned (its anchors are named AreaTrigger*).
+func trigger_meshes() -> int:
+	var count := 0
+	for anchor in root.find_children("AreaTrigger*", "", true, false):
+		count += anchor.find_children("*", "MeshInstance3D", true, false).size()
+	return count
+
 # The meshes the previewed kit has spawned under its anchors.
 func kit_meshes() -> int:
 	var count := 0
@@ -510,14 +530,39 @@ func capture_life() -> void:
 
 # The oblique eye the trigger captures use, or a straight-down one under
 # CAPTURE_CAMERA=topdown: the same effect state seen face-on instead of at a grazing angle.
+# CAPTURE_TOP_HEIGHT sets the height in yards (default 18, which frames the whole disc).
 func trigger_eye(point: Vector3) -> Vector3:
 	if OS.get_environment("CAPTURE_CAMERA") == "topdown":
-		return point + Vector3(0.001, 18.0, 0.0)
+		var height := OS.get_environment("CAPTURE_TOP_HEIGHT")
+		return point + Vector3(0.001, height.to_float() if height != "" else 18.0, 0.0)
 	return point + Vector3(3.6, 3.6, 4.8)
+
+# Prints the collision floor, drawn surface and terrain height on a grid, to choose a
+# ground spot for the trigger captures. CAPTURE_PROBE=centre_x,centre_z[,spacing,steps].
+func capture_probe_grid() -> void:
+	var spec := OS.get_environment("CAPTURE_PROBE")
+	if spec == "":
+		fail("CAPTURE_PROBE is required")
+		return
+	var parts: PackedStringArray = spec.split(",")
+	var centre := Vector3(parts[0].to_float(), 96.9, parts[1].to_float())
+	var spacing := parts[2].to_float() if parts.size() > 2 else 10.0
+	var steps := parts[3].to_int() if parts.size() > 3 else 2
+	if not await load_world(centre):
+		return
+	if not await wait_objects():
+		return
+	for row in range(-steps, steps + 1):
+		for column in range(-steps, steps + 1):
+			var x := centre.x + float(column) * spacing
+			var z := centre.z + float(row) * spacing
+			print("PROBEGRID %.1f %.1f %s" % [x, z,
+				JSON.stringify(client.preview_probe_surface(x, z, centre.y))])
+	finish()
 
 # Ten fixed-pose windows of the drawn Death and Decay disc, for the filtering frame cost.
 func capture_dnd_fps() -> void:
-	var point := FLAT_GROUND
+	var point := capture_point()
 	if not await load_world(point):
 		return
 	client.preview_set_focus(point)
@@ -529,9 +574,9 @@ func capture_dnd_fps() -> void:
 	while Time.get_ticks_msec() < started + 60000:
 		await process_frame
 		client.preview_area_trigger(DECAY_SPELL, point, 8.0, 10.0, 0)
-		if kit_meshes() > 0:
+		if trigger_meshes() > 0:
 			break
-	if kit_meshes() == 0:
+	if trigger_meshes() == 0:
 		fail("dnd_fps: the kit never spawned")
 		return
 	await wait_ms(800)
@@ -539,13 +584,13 @@ func capture_dnd_fps() -> void:
 	var windows := []
 	for round in 10:
 		windows.append(await sample_frames(120))
-	print("FPS dnd meshes=%d %s" % [kit_meshes(), JSON.stringify(windows)])
+	print("FPS dnd meshes=%d %s" % [trigger_meshes(), JSON.stringify(windows)])
 	finish()
 
 # Area-trigger ground visuals: replay the trigger's kits like a server update does and
 # capture the effect while it is up.
 func capture_trigger(spell: int, prefix: String, shots: Array) -> void:
-	var point := FLAT_GROUND
+	var point := capture_point()
 	var tag := prefix
 	if OS.get_environment("CAPTURE_CAMERA") == "topdown":
 		tag = prefix + "-topdown"
@@ -554,6 +599,14 @@ func capture_trigger(spell: int, prefix: String, shots: Array) -> void:
 	client.preview_set_focus(point)
 	if not await wait_objects():
 		return
+	# Anchor the effect on the ground it lies on, at whatever spot CAPTURE_POINT names: the
+	# visible surface when the point is on a drawn floor, else the collision floor.
+	var raw: Dictionary = client.preview_probe_surface(point.x, point.z, point.y)
+	if raw.is_empty():
+		fail("no collision floor at the capture point")
+		return
+	point.y = raw.surface if raw.get("surface") != null else raw.floor
+	print("PROBE-%s %s" % [tag, JSON.stringify(raw)])
 	await wait_ms(1200)
 	place_camera(trigger_eye(point), point)
 	await capture("area-trigger-%s-none" % tag, false)
@@ -599,11 +652,32 @@ func capture_trigger(spell: int, prefix: String, shots: Array) -> void:
 			print("MATERIALS-%s %s" % [shot[1], JSON.stringify(client.preview_kit_materials())])
 		var extent := effect_extent()
 		print("EXTENT-%s-%s %s" % [tag, shot[1], JSON.stringify(extent)])
+		print("NODES-%s-%s %s" % [tag, shot[1], JSON.stringify(trigger_node_kinds())])
+		print("PARTICLES-%s-%s %s" % [tag, shot[1], JSON.stringify(particle_nodes())])
 		print("KITCLOCK-%s-%s %s" % [tag, shot[1], JSON.stringify(client.spell_visuals_state().clock)])
 		await capture("area-trigger-%s-%s" % [tag, shot[1]], false)
 		if closed:
 			return
 	finish()
+
+# Particle nodes in the client, with their instance counts: proves whether the kit's
+# emitter model drew anything.
+func particle_nodes() -> Dictionary:
+	var found := {}
+	for node in client.find_children("*", "MultiMeshInstance3D", true, false):
+		var pool := node as MultiMeshInstance3D
+		found[str(pool.name)] = [pool.multimesh.instance_count if pool.multimesh else 0,
+			pool.visible]
+	return found
+
+# Node classes the replayed area trigger holds: proves which of the kit's models drew.
+func trigger_node_kinds() -> Dictionary:
+	var kinds := {}
+	for anchor in root.find_children("AreaTrigger*", "", true, false):
+		for node in anchor.find_children("*", "", true, false):
+			var kind := node.get_class()
+			kinds[kind] = int(kinds.get(kind, 0)) + 1
+	return kinds
 
 # World-space bounds of every mesh a replayed area trigger drew, in yards.
 func effect_extent() -> Dictionary:
