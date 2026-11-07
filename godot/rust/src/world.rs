@@ -1877,18 +1877,12 @@ impl WorldUnits {
             if unit.admission == Some((admitted, fade)) {
                 continue;
             }
-            let mut node = unit.node.clone().upcast::<godot::classes::Node>();
-            if fade != unit.shadow_fade {
-                set_shadow_fade(&node, f32::from(fade) / f32::from(SHADOW_FADE_STEPS));
-                unit.shadow_fade = fade;
-            }
-            let in_shadow_range = fade > 0;
-            if unit.admission.is_none_or(|(was_admitted, was_fade)| {
-                (was_admitted, was_fade > 0) != (admitted, in_shadow_range)
-            }) {
-                crate::animation::set_unit_admission(&mut node, admitted, in_shadow_range);
-                crate::animation::refresh_unit_shadows(&node);
-            }
+            apply_unit_admission(
+                &unit.node.clone().upcast(),
+                (admitted, fade),
+                unit.admission,
+                &mut unit.shadow_fade,
+            );
             unit.admission = Some((admitted, fade));
         }
     }
@@ -2176,12 +2170,12 @@ const UNIT_BOX_MARGIN: f32 = 1.0;
 /// Share of the unit shadow radius over which a unit's shadow fades out.
 const SHADOW_FADE_BAND: f32 = 0.1;
 /// Steps a fading shadow is quantized to: each step change rewrites the unit's materials.
-const SHADOW_FADE_STEPS: u8 = 8;
-const SHADOW_FADE_UNKNOWN: u8 = u8::MAX;
+pub(crate) const SHADOW_FADE_STEPS: u8 = 8;
+pub(crate) const SHADOW_FADE_UNKNOWN: u8 = u8::MAX;
 
 /// The steps of its shadow a unit at `distance` from the camera draws: all of them up to
 /// the fade band, at least one inside it, none at or beyond `radius`.
-fn shadow_fade_step(distance: f32, radius: f32) -> u8 {
+pub(crate) fn shadow_fade_step(distance: f32, radius: f32) -> u8 {
     let start = radius * (1.0 - SHADOW_FADE_BAND);
     if distance <= start {
         SHADOW_FADE_STEPS
@@ -2190,6 +2184,28 @@ fn shadow_fade_step(distance: f32, radius: f32) -> u8 {
     } else {
         let share = (radius - distance) / (radius - start);
         (share * f32::from(SHADOW_FADE_STEPS)).ceil() as u8
+    }
+}
+
+/// Applies camera admission and shadow fade step `admission` to the unit subtree `node`,
+/// whose last applied pair was `applied` and whose materials hold fade step `held`.
+pub(crate) fn apply_unit_admission(
+    node: &Gd<godot::classes::Node>,
+    (admitted, fade): (bool, u8),
+    applied: Option<(bool, u8)>,
+    held: &mut u8,
+) {
+    if fade != *held {
+        set_shadow_fade(node, f32::from(fade) / f32::from(SHADOW_FADE_STEPS));
+        *held = fade;
+    }
+    let in_shadow_range = fade > 0;
+    if applied.is_none_or(|(was_admitted, was_fade)| {
+        (was_admitted, was_fade > 0) != (admitted, in_shadow_range)
+    }) {
+        let mut node = node.clone();
+        crate::animation::set_unit_admission(&mut node, admitted, in_shadow_range);
+        crate::animation::refresh_unit_shadows(&node);
     }
 }
 

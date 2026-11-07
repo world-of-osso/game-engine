@@ -1343,6 +1343,13 @@ impl GameClient {
         self.preview_ring_state()
     }
 
+    /// Offline fixture: the unit shadow radius from `camera` applied to the preview
+    /// characters.
+    #[func]
+    fn preview_unit_shadow_radius(&mut self, camera: Vector3, radius: f64) {
+        self.preview_apply_unit_shadow_radius(camera, radius as f32);
+    }
+
     /// Offline fixture: hold or resume a preview character's animation.
     #[func]
     fn preview_pause_character(&mut self, index: i64, paused: bool) -> GString {
