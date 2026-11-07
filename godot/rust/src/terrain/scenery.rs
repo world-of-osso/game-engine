@@ -258,11 +258,13 @@ mod tests {
 
     #[test]
     fn drawn_doodads_animate_at_the_shared_lod_rate() {
-        use crate::animation::lod::AnimationLod::{Frozen, Full, Half};
+        use crate::animation::lod::AnimationLod::{Frozen, Full, Strided};
         let lod = |center: Vec3| tree_at(center).animation_lod(Vec3::ZERO, &view());
         assert_eq!(lod(Vec3::new(0.0, 0.0, -30.0)), Full);
-        assert_eq!(lod(Vec3::new(0.0, 0.0, -30.5)), Half);
-        assert_eq!(lod(Vec3::new(0.0, 0.0, -60.0)), Half);
+        assert_eq!(lod(Vec3::new(0.0, 0.0, -30.5)), Strided(2));
+        assert_eq!(lod(Vec3::new(0.0, 0.0, -40.0)), Strided(3));
+        assert_eq!(lod(Vec3::new(0.0, 0.0, -48.0)), Strided(4));
+        assert_eq!(lod(Vec3::new(0.0, 0.0, -60.0)), Strided(6));
         assert_eq!(lod(Vec3::new(0.0, 0.0, -60.5)), Frozen);
         // Behind the camera, and beside it outside the field of view: off screen.
         assert_eq!(lod(Vec3::new(0.0, 0.0, 10.0)), Frozen);
