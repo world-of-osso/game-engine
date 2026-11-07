@@ -92,16 +92,15 @@ func run_test() -> void:
 	fixture.cull(true, INTERIOR_MIN, INTERIOR_MAX, PackedVector4Array(), Vector3(-30, 0, 0), 20.0)
 	expect(OUTSIDE, [ON, DOUBLE, OFF], "unit once the camera nears it")
 	expect(INSIDE, [OFF, OFF, OFF], "unit once the camera leaves it")
-	# The last 10% of the radius fades: from x = 11 the windowed unit stands 19 yd away,
-	# halfway through the 18..20 band, and keeps casting half its shadow texels.
+	# The shader fades the radius's last tenth: a unit 19 yd away in the 18..20 band still
+	# casts, and every unit batch is marked for the fade.
 	fixture.cull(true, INTERIOR_MIN, INTERIOR_MAX, PackedVector4Array(), Vector3(11, 0, 0), 20.0)
 	expect(WINDOWED, [ON, DOUBLE, OFF], "unit inside the shadow fade band")
-	check(shadow_fade(WINDOWED) == 0.5, "fade band unit draws %s of its shadow, expected 0.5" % shadow_fade(WINDOWED))
-	check(shadow_fade(INSIDE) == 1.0, "unit before the fade band draws its whole shadow")
+	for unit in 4:
+		check(shadow_fade_marked(unit), "unit %d batches marked for the shadow fade" % unit)
 	fixture.cull(true, INTERIOR_MIN, INTERIOR_MAX, PackedVector4Array(), Vector3.ZERO, INF)
 	for unit in 4:
 		expect(unit, [ON, DOUBLE, OFF], "unlimited shadow radius")
-	check(shadow_fade(WINDOWED) == 1.0, "unit back within the radius draws its whole shadow")
 
 	if failures.is_empty():
 		print("PASS unit_outdoor_admission")
@@ -109,8 +108,8 @@ func run_test() -> void:
 	await process_frame
 	quit(0 if failures.is_empty() else 1)
 
-func shadow_fade(unit: int) -> float:
-	return (batch_of(unit, "On").get_active_material(0) as ShaderMaterial).get_shader_parameter("shadow_fade")
+func shadow_fade_marked(unit: int) -> bool:
+	return (batch_of(unit, "On").get_active_material(0) as ShaderMaterial).get_shader_parameter("unit_shadow_fade") == true
 
 func batch_of(unit: int, batch: String) -> MeshInstance3D:
 	return fixture.get_node("WorldUnits/Unit%d/NpcVisualRoot/NpcModel/%s" % [unit, batch]) as MeshInstance3D

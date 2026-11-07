@@ -114,14 +114,14 @@ impl GameClient {
     pub(crate) fn preview_apply_unit_shadow_radius(&mut self, camera: Vector3, radius: f32) {
         for character in &self.preview_characters {
             let distance = character.node.get_global_position().distance_to(camera);
-            let mut held = crate::world::SHADOW_FADE_UNKNOWN;
             crate::world::apply_unit_admission(
                 &character.node.clone().upcast(),
-                (true, crate::world::shadow_fade_step(distance, radius)),
+                (true, distance < radius),
                 None,
-                &mut held,
             );
         }
+        self.world
+            .set_shadow_view(glam::Vec3::new(camera.x, camera.y, camera.z), radius);
     }
 
     /// Plays `clip` on preview character `index` at `time_ms`, for stance and stride poses.

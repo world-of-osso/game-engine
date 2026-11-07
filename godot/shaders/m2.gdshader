@@ -30,9 +30,11 @@ uniform vec3 mesh_color = vec3(1.0);
 uniform float transparency = 1.0;
 uniform int render_flags = 0;
 uniform int gx_blend = 0;
-// The share of a unit's shadow drawn while the unit crosses the fade band before the
-// unit shadow radius (world.rs WorldUnits::cull_outdoor); 1 draws all of it.
-uniform float shadow_fade = 1.0;
+// A unit batch: its shadow fades out over the last tenth of the unit shadow radius
+// from the world camera (world.rs WorldUnits::cull_outdoor stops casting past it).
+uniform bool unit_shadow_fade = false;
+global uniform vec3 unit_shadow_camera;
+global uniform float unit_shadow_radius;
 
 #include "res://shaders/scene_light.gdshaderinc"
 #include "res://shaders/retail_fog.gdshaderinc"
@@ -138,8 +140,12 @@ void fragment() {
 	}
 	// A fading unit drops a dithered share of its shadow-map texels. Only the
 	// directional shadow pass projects orthographically; the world camera is perspective.
-	if (shadow_fade < 1.0 && PROJECTION_MATRIX[3][3] == 1.0 && bayer4(FRAGCOORD.xy) >= shadow_fade) {
-		discard;
+	if (unit_shadow_fade && PROJECTION_MATRIX[3][3] == 1.0) {
+		float distance_to_camera = distance(NODE_POSITION_WORLD, unit_shadow_camera);
+		float share = clamp((unit_shadow_radius - distance_to_camera) / (0.1 * unit_shadow_radius), 0.0, 1.0);
+		if (bayer4(FRAGCOORD.xy) >= share) {
+			discard;
+		}
 	}
 	// Godot flips the normal of back faces; the reference shades both sides with it.
 	vec3 normal = normalize(FRONT_FACING ? NORMAL : -NORMAL);

@@ -47,6 +47,14 @@ rendering_device/vsync/swapchain_image_count.windows=4
 
 [shader_globals]
 
+unit_shadow_camera={
+"type": "vec3",
+"value": Vector3(0, 0, 0)
+}
+unit_shadow_radius={
+"type": "float",
+"value": 1e+30
+}
 liquid_animation_time_ms={
 "type": "float",
 "value": 0.0
