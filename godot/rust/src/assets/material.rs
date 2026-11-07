@@ -168,6 +168,7 @@ pub(super) fn load_material(
     }
     // Every slot of a replaceable type takes that type's texture, the second eye slot
     // as much as the first (WebWowViewerCpp getBlpTextureData per texture index).
+    let mut bound_slots = 0;
     for (slot, fdid) in binding.textures.iter().enumerate() {
         let replacement = replacements
             .zip(binding.texture_types.get(slot).filter(|kind| **kind != 0))
@@ -185,6 +186,7 @@ pub(super) fn load_material(
         };
         if let Some(texture) = texture {
             material.set_shader_parameter(TEXTURE_SLOTS[slot], &texture.to_variant());
+            bound_slots = slot + 1;
         }
     }
     material.set_meta(
@@ -202,6 +204,11 @@ pub(super) fn load_material(
         &i32::from(binding.vertex_shader).to_variant(),
     );
     material.set_shader_parameter("texture_wrap", &(binding.texture_wrap as i32).to_variant());
+    // texture_count: the slots that resolved, so a combiner reads only bound samplers.
+    material.set_shader_parameter(
+        "texture_count",
+        &i32::try_from(bound_slots).unwrap_or(0).to_variant(),
+    );
     material.set_shader_parameter("render_flags", &i32::from(batch.render_flags).to_variant());
     material.set_shader_parameter("gx_blend", &i32::from(pipeline.gx_blend).to_variant());
     apply_sample(

@@ -401,6 +401,19 @@ func sample_frames(count: int) -> Array:
 	var wall_ms := float(Time.get_ticks_usec() - started) / float(count) / 1000.0
 	return [wall_ms, process / float(count)]
 
+# The M2 material clock, which drives the effect's global-sequence UV scroll.
+func material_clock_ms() -> float:
+	var clock := root.get_node_or_null("/root/M2MaterialClock")
+	return float(clock.call("elapsed_time_ms")) if clock != null else 0.0
+
+# Waits for the material clock to pass the next whole second and prints it.
+func wait_material_second() -> void:
+	var target := (floorf(material_clock_ms() / 1000.0) + 1.0) * 1000.0
+	var deadline := Time.get_ticks_msec() + 15000
+	while material_clock_ms() < target and Time.get_ticks_msec() < deadline:
+		await process_frame
+	print("MCLOCK %.0f" % material_clock_ms())
+
 # The meshes the replayed area trigger spawned (its anchors are named AreaTrigger*).
 func trigger_meshes() -> int:
 	var count := 0
@@ -641,6 +654,9 @@ func capture_trigger(spell: int, prefix: String, shots: Array) -> void:
 		pulse += 1
 		# The one-shot fades in over its first 600 ms; capture at its steady frame.
 		await wait_ms(800)
+		# The kit's material clock keeps running while the animation is paused, so wait for
+		# it to reach a whole second: two runs then capture the same UV scroll.
+		await wait_material_second()
 		# A/B: CAPTURE_HIDE lists batch names to hide (e.g. "Batch1,Batch2").
 		var hide := OS.get_environment("CAPTURE_HIDE")
 		if hide != "":
