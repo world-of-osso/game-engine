@@ -202,7 +202,8 @@ pub(crate) struct WorldLighting {
     planets: Option<planets::Planets>,
     fog_cone: Option<fog_cone::FogCone>,
     previous: Option<LightValues>,
-    cube: Option<Gd<Cubemap>>,
+    /// The sky cubemap and the dome stops it was built from.
+    cube: Option<(Gd<Cubemap>, SkyStops)>,
 }
 
 /// Render priorities of the sky models, in WebWowViewerCpp's sky-view draw order (dome,
@@ -256,14 +257,17 @@ impl WorldLighting {
             return Ok(None);
         }
         let direction = Vector3::from_array(sample.retail.sun_direction);
+        // Moving through WMO fog changes the light every frame but not the sky colours.
         let cube = match self.cube.as_mut() {
-            Some(cube) => {
+            Some((cube, built)) if *built == stops => cube.clone(),
+            Some((cube, built)) => {
                 update_cubemap(cube, stops)?;
+                *built = stops;
                 cube.clone()
             }
             None => {
                 let cube = create_cubemap(stops)?;
-                self.cube = Some(cube.clone());
+                self.cube = Some((cube.clone(), stops));
                 cube
             }
         };
