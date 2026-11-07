@@ -506,7 +506,10 @@ mod tests {
     #[test]
     fn only_a_foot_that_barely_moved_reuses_its_ground() {
         let sampled = (-8564.0, -778.0);
-        assert!(reuses_ground(sampled, (sampled.0 + 0.0004, sampled.1 - 0.0003)));
+        assert!(reuses_ground(
+            sampled,
+            (sampled.0 + 0.0004, sampled.1 - 0.0003)
+        ));
         assert!(reuses_ground(sampled, sampled));
         // 0.7 yd/s at 120 FPS is ~0.006 yd; a run is ~0.058 yd.
         assert!(!reuses_ground(sampled, (sampled.0 + 0.006, sampled.1)));

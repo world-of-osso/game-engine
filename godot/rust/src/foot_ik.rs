@@ -136,16 +136,16 @@ impl FootIkState {
             let moved = state
                 .sample
                 .is_some_and(|sample| !reuses_ground((sample.x, sample.z), (foot.x, foot.z)));
-            let reuse =
-                state.sampled && state.epoch == ground_epoch && !(moved && query_ground);
+            let reuse = state.sampled && state.epoch == ground_epoch && !(moved && query_ground);
             if !reuse {
-                state.sample = surface_target(foot.x, foot.z, ankle, floor_at, surface_at)
-                    .map(|(target, floor)| FootGround {
+                state.sample = surface_target(foot.x, foot.z, ankle, floor_at, surface_at).map(
+                    |(target, floor)| FootGround {
                         x: foot.x,
                         z: foot.z,
                         target,
                         floor,
-                    });
+                    },
+                );
                 state.sampled = true;
                 state.epoch = ground_epoch;
             }
