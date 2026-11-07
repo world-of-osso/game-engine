@@ -2202,7 +2202,9 @@ mod tests {
     #[test]
     fn npc_animation_lod_samples_in_the_frustum_and_freezes_outside_or_far() {
         assert_eq!(lod_at(Vec3::new(0.0, 0.0, -10.0)), AnimationLod::Full);
-        assert_eq!(lod_at(Vec3::new(0.0, 0.0, -45.0)), AnimationLod::Half);
+        assert_eq!(lod_at(Vec3::new(0.0, 0.0, -35.0)), AnimationLod::Strided(2));
+        assert_eq!(lod_at(Vec3::new(0.0, 0.0, -45.0)), AnimationLod::Strided(3));
+        assert_eq!(lod_at(Vec3::new(0.0, 0.0, -57.0)), AnimationLod::Strided(6));
         assert_eq!(lod_at(Vec3::new(0.0, 0.0, -70.0)), AnimationLod::Frozen);
         assert_eq!(lod_at(Vec3::new(0.0, 0.0, 10.0)), AnimationLod::Frozen);
         assert_eq!(lod_at(Vec3::new(13.0, 0.0, -10.0)), AnimationLod::Frozen);

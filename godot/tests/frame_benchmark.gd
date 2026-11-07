@@ -51,6 +51,9 @@ var physics_ms: Array[float] = []
 var main_cpu_ms: Array[float] = []
 var last_cpu_ns := 0
 var systems_ms := {}
+## Node callbacks (`nodes_ms`), which run outside the client steps: animation players,
+## material animation and M2 lights. The Windows receipt reports the same rows.
+var nodes_ms := {}
 ## Per frame of a systems segment: [interval ms, client ms, main-thread CPU ms, steps].
 var system_frames: Array = []
 var recording_systems := false
@@ -71,12 +74,16 @@ func _process(_delta: float) -> bool:
 		physics_ms.append(Performance.get_monitor(Performance.TIME_PHYSICS_PROCESS) * 1000.0)
 		main_cpu_ms.append((cpu_ns - last_cpu_ns) / 1e6)
 		if recording_systems:
-			var steps: Dictionary = client.frame_stats().systems_ms
-			for name in steps:
+			var stats: Dictionary = client.frame_stats()
+			for name in stats.systems_ms:
 				if not systems_ms.has(name):
 					systems_ms[name] = [] as Array[float]
-				systems_ms[name].append(steps[name])
-			system_frames.append([intervals.back(), client_ms.back(), main_cpu_ms.back(), steps])
+				systems_ms[name].append(stats.systems_ms[name])
+			for name in stats.nodes_ms:
+				if not nodes_ms.has(name):
+					nodes_ms[name] = [] as Array[float]
+				nodes_ms[name].append(stats.nodes_ms[name])
+			system_frames.append([intervals.back(), client_ms.back(), main_cpu_ms.back(), stats.systems_ms])
 	last_usec = now
 	last_cpu_ns = cpu_ns
 	return false
@@ -176,6 +183,7 @@ func begin(segment: String, with_systems := false) -> void:
 	for samples in [intervals, client_ms, process_ms, physics_ms, main_cpu_ms]:
 		samples.clear()
 	systems_ms.clear()
+	nodes_ms.clear()
 	system_frames.clear()
 	recording_systems = with_systems
 	await thread_split.start(self)
@@ -211,6 +219,8 @@ func finish(segment: String, extra: Dictionary) -> void:
 	if recording_systems:
 		report["systems_ms_median"] = per_system(systems_ms, 0.5)
 		report["systems_ms_p95"] = per_system(systems_ms, 0.95)
+		report["nodes_ms_median"] = per_system(nodes_ms, 0.5)
+		report["nodes_ms_p95"] = per_system(nodes_ms, 0.95)
 		report["worst_frames"] = worst_frames(10, 5)
 	report["threads"] = threads
 	report.merge(rebuilds)
