@@ -22,9 +22,11 @@ pub(crate) const REF_UNTEXTURED: f32 = -2.0;
 const CLASS_STRIDE: u32 = 4096;
 /// `terrain.gdshader` binds `layers_0..3`.
 const MAX_SIZE_CLASSES: usize = 4;
-/// A new size class first holds this many bytes of layers (16 at 256x256 RGBA8): spare
-/// layers repeat image 0, so a fixed layer count would pad a lone 1024x1024 texture by 60 MiB.
-const INITIAL_ARRAY_BYTES: usize = 16 * 256 * 256 * 4;
+/// A new size class first holds `INITIAL_LAYERS`, fewer when they exceed
+/// `INITIAL_ARRAY_BYTES`: spare layers repeat image 0, so 16 would pad a lone 1024x1024
+/// texture by 60 MiB.
+const INITIAL_LAYERS: usize = 16;
+const INITIAL_ARRAY_BYTES: usize = INITIAL_LAYERS * 256 * 256 * 4;
 pub(crate) const CHUNKS_PER_SIDE: usize = 16;
 const DATA_ROWS: usize = 11;
 const ALPHA_SIZE: usize = 64;
@@ -129,10 +131,10 @@ impl SizeClass {
     }
 }
 
-/// Layer capacity of a size class's next array: double, from `INITIAL_ARRAY_BYTES`.
+/// Layer capacity of a size class's next array: double the current one.
 fn grown_capacity(capacity: usize, (width, height): (u32, u32)) -> usize {
     let layer_bytes = width as usize * height as usize * 4;
-    (capacity * 2).max((INITIAL_ARRAY_BYTES / layer_bytes).max(1))
+    (capacity * 2).max((INITIAL_ARRAY_BYTES / layer_bytes).clamp(1, INITIAL_LAYERS))
 }
 
 /// One chunk's `terrain.gdshader` inputs: chunk_data rows and its alpha map.
@@ -383,6 +385,7 @@ mod tests {
 
     #[test]
     fn array_capacity_starts_by_bytes_and_doubles() {
+        assert_eq!(grown_capacity(0, (16, 16)), 16);
         assert_eq!(grown_capacity(0, (256, 256)), 16);
         assert_eq!(grown_capacity(0, (512, 512)), 4);
         assert_eq!(grown_capacity(0, (1024, 1024)), 1);
