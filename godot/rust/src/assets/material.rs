@@ -165,7 +165,7 @@ pub(super) fn load_material(
     let pipeline = Pipeline::of(batch)?;
     let (shader, fade) = batch_shaders(pipeline)?;
     let span = crate::profile::span(|| "material.set_shader".to_owned());
-    let mut material = ShaderMaterial::new_gd();
+    let mut material = crate::rebuild_guard::new_shader_material();
     material.set_shader(&shader);
     drop(span);
     let _span = crate::profile::span(|| "material.parameters".to_owned());
@@ -489,7 +489,7 @@ fn shared_fade_material(
         cache
             .entry(shared.instance_id())
             .or_insert_with(|| {
-                let mut copy = ShaderMaterial::new_gd();
+                let mut copy = crate::rebuild_guard::new_shader_material();
                 copy.set_shader(fade);
                 copy.set_render_priority(shared.get_render_priority());
                 if let Some(next) = shared.get_next_pass() {

@@ -22,7 +22,9 @@ extends SceneTree
 ## longest step of the last second) and the main thread's on-CPU time
 ## (/proc/thread-self/schedstat), so a frame splits into main-thread work and waiting; the
 ## viewport's render CPU/GPU time and draw calls are read once, for the segment's last frame;
-## `threads` is the main and render threads' CPU and wait per frame (thread_cpu_split.gd).
+## `threads` is the main and render threads' CPU and wait per frame (thread_cpu_split.gd);
+## `rebuilds_per_frame`, `rebuild_sites` and `godot_per_frame` are the segment's expensive
+## rebuilds and Godot allocation counts (rebuild_guard.gd).
 ## Reports only; frame-time budgets are not asserted (they depend on host load).
 
 const PASSWORD := "fbtest"
@@ -30,6 +32,7 @@ const Readiness = preload("res://tests/world_entry_readiness.gd")
 const CharacterSelectReveal = preload("res://tests/character_select_reveal.gd")
 const SceneryReceipt = preload("res://tests/scenery_visibility_receipt.gd")
 const ThreadCpuSplit = preload("res://tests/thread_cpu_split.gd")
+const RebuildGuard = preload("res://tests/rebuild_guard.gd")
 const PITCH := -0.35
 const DISTANCE := 15.0
 ## Noon in the half-minutes the world light samples.
@@ -52,6 +55,7 @@ var systems_ms := {}
 var system_frames: Array = []
 var recording_systems := false
 var thread_split := ThreadCpuSplit.new()
+var rebuild_guard := RebuildGuard.new()
 
 func _initialize() -> void:
 	call_deferred("run_test")
@@ -175,12 +179,14 @@ func begin(segment: String, with_systems := false) -> void:
 	system_frames.clear()
 	recording_systems = with_systems
 	await thread_split.start(self)
+	rebuild_guard.start(self)
 	print("BENCH_MARK %s start" % segment)
 	recording = true
 	last_usec = 0
 
 func finish(segment: String, extra: Dictionary) -> void:
 	recording = false
+	var rebuilds := rebuild_guard.finish()
 	print("BENCH_MARK %s end" % segment)
 	var threads := await thread_split.finish(self)
 	var sorted := intervals.duplicate()
@@ -207,6 +213,7 @@ func finish(segment: String, extra: Dictionary) -> void:
 		report["systems_ms_p95"] = per_system(systems_ms, 0.95)
 		report["worst_frames"] = worst_frames(10, 5)
 	report["threads"] = threads
+	report.merge(rebuilds)
 	report.merge(extra)
 	print("BENCH_SEGMENT ", JSON.stringify(report))
 

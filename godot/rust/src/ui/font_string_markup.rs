@@ -1,4 +1,5 @@
 //! FontString display runs; the registry keeps the original authored source text.
+use crate::rebuild_guard::ThemeOverrides;
 use std::borrow::Cow;
 
 use godot::classes::{Control, RichTextLabel, StyleBoxEmpty, text_server::AutowrapMode};
@@ -111,11 +112,11 @@ impl UiProjection {
         rect: &LayoutRect,
     ) -> Result<(), String> {
         let (font, metrics) = self.resolve_font_string(data, frame, 0)?;
-        node.add_theme_font_override("normal_font", &font);
-        node.add_theme_font_size_override("normal_font_size", data.font_size as i32);
-        node.add_theme_color_override("default_color", color(data.color));
-        node.add_theme_constant_override("line_separation", metrics.spacing_ui as i32);
-        node.add_theme_constant_override("paragraph_separation", 0);
+        node.change_theme_font_override("normal_font", &font);
+        node.change_theme_font_size_override("normal_font_size", data.font_size as i32);
+        node.change_theme_color_override("default_color", color(data.color));
+        node.change_theme_constant_override("line_separation", metrics.spacing_ui as i32);
+        node.change_theme_constant_override("paragraph_separation", 0);
         configure_rich_layout(node, data, frame, rect);
         let shadow = data.shadow_color.map(|color| (color, data.shadow_offset));
         let mut control = node.clone().upcast::<Control>();
@@ -151,9 +152,9 @@ fn configure_rich_layout(
         rect.height
     };
     node.set_custom_maximum_size(Vector2::new(width, height));
-    let empty = StyleBoxEmpty::new_gd();
-    node.add_theme_stylebox_override("normal", &empty);
-    node.add_theme_stylebox_override("focus", &empty);
+    let empty = crate::rebuild_guard::new_style_box::<StyleBoxEmpty>();
+    node.change_theme_stylebox_override("normal", &empty);
+    node.change_theme_stylebox_override("focus", &empty);
 }
 
 fn paint_runs(node: &mut Gd<RichTextLabel>, runs: &[TextRun]) {

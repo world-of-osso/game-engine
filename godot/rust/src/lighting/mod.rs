@@ -43,7 +43,9 @@ type LightValues = (
 
 static MATERIAL_LIGHT_WRITES: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 
+#[track_caller]
 fn count_material_light_writes(count: u64) {
+    crate::rebuild_guard::count(crate::rebuild_guard::Rebuild::MaterialRebind, count);
     MATERIAL_LIGHT_WRITES.fetch_add(count, std::sync::atomic::Ordering::Relaxed);
 }
 
@@ -76,6 +78,7 @@ impl TerrainLight {
         })
     }
 
+    #[track_caller]
     pub fn bind(&self, material: &mut Gd<ShaderMaterial>) {
         self.bind_model(material);
         material.set_shader_parameter("environment_map", &self.cube.to_variant());
@@ -95,7 +98,11 @@ impl TerrainLight {
             ("scene_direct", self.retail.direct),
             ("scene_sun_direction", self.retail.sun_direction),
         ] {
-            server.global_shader_parameter_set(name, &Vector3::from_array(value).to_variant());
+            crate::rebuild_guard::set_global_shader_parameter(
+                &mut server,
+                name,
+                &Vector3::from_array(value).to_variant(),
+            );
         }
         bind_fog(&mut server, &self.fog);
         for (name, value) in [
@@ -104,7 +111,11 @@ impl TerrainLight {
             ("ocean_close", self.water.ocean_close),
             ("ocean_far", self.water.ocean_far),
         ] {
-            server.global_shader_parameter_set(name, &Vector4::from_array(value).to_variant());
+            crate::rebuild_guard::set_global_shader_parameter(
+                &mut server,
+                name,
+                &Vector4::from_array(value).to_variant(),
+            );
         }
         for (name, value) in [
             ("specular_color", self.water.specular),
@@ -118,7 +129,11 @@ impl TerrainLight {
                 ],
             ),
         ] {
-            server.global_shader_parameter_set(name, &Vector3::from_array(value).to_variant());
+            crate::rebuild_guard::set_global_shader_parameter(
+                &mut server,
+                name,
+                &Vector3::from_array(value).to_variant(),
+            );
         }
     }
 
@@ -163,6 +178,7 @@ impl TerrainLight {
     }
 
     /// Lights `material` with the scene light and fog of `bind_scene`.
+    #[track_caller]
     pub fn bind_model(&self, material: &mut Gd<ShaderMaterial>) {
         material.set_shader_parameter("scene_light", &true.to_variant());
         count_material_light_writes(1);
@@ -170,6 +186,7 @@ impl TerrainLight {
     }
 
     /// Only the scene fog (`retail_fog.gdshaderinc`), for unlit materials such as particles.
+    #[track_caller]
     pub fn bind_scene_fog(&self, material: &mut Gd<ShaderMaterial>) {
         material.set_shader_parameter("fog_mode", &1i32.to_variant());
         material.set_shader_parameter("fog_opacity", &1.0f32.to_variant());
@@ -177,11 +194,13 @@ impl TerrainLight {
     }
 
     /// The model light plus the retail water scene inputs of `water.gdshader`.
+    #[track_caller]
     pub fn bind_water(&self, material: &mut Gd<ShaderMaterial>) {
         self.bind_model(material);
     }
 
     /// Back to the material's own light, without fog.
+    #[track_caller]
     pub fn clear_model(material: &mut Gd<ShaderMaterial>) {
         for name in ["scene_light", "fog_mode", "fog_opacity"] {
             material.set_shader_parameter(name, &Variant::nil());
@@ -263,6 +282,7 @@ impl WorldLighting {
             self.sampled = inputs;
             return Ok(None);
         }
+        crate::rebuild_guard::count(crate::rebuild_guard::Rebuild::Environment, 1);
         let direction = Vector3::from_array(sample.retail.sun_direction);
         // Moving through WMO fog changes the light every frame but not the sky colours.
         let cube = match self.cube.as_mut() {
@@ -508,7 +528,7 @@ fn sky_dome_material() -> Result<Gd<ShaderMaterial>, String> {
         .load(SKY_DOME_SHADER)
         .and_then(|resource| resource.try_cast::<Shader>().ok())
         .ok_or_else(|| format!("Sky dome shader {SKY_DOME_SHADER} failed to load"))?;
-    let mut material = ShaderMaterial::new_gd();
+    let mut material = crate::rebuild_guard::new_shader_material();
     material.set_shader(&shader);
     let points: PackedVector2Array = sky_dome_profile()
         .iter()
@@ -572,7 +592,7 @@ pub(crate) fn apply_wmo_fog(fog: &FogResult, wmo: Option<&WmoFogBlend>) -> FogRe
 /// Sets one `retail_fog.gdshaderinc` global uniform and hands it to the particle
 /// compositor, which cannot read global uniforms at runtime.
 pub(crate) fn set_scene_fog(server: &mut Gd<RenderingServer>, name: &str, value: &Variant) {
-    server.global_shader_parameter_set(name, value);
+    crate::rebuild_guard::set_global_shader_parameter(server, name, value);
     crate::particle_composite::record_fog(name, value);
 }
 
@@ -620,6 +640,7 @@ fn bind_fog(server: &mut Gd<RenderingServer>, fog: &FogUniforms) {
 }
 
 fn update_cubemap(cube: &mut Gd<Cubemap>, stops: SkyStops) -> Result<(), String> {
+    crate::rebuild_guard::count(crate::rebuild_guard::Rebuild::SkyCubemap, 1);
     let pixels = sky_cubemap_data::build_sky_cubemap(&stops);
     let size = sky_cubemap_data::ENV_MAP_SIZE as i32;
     let face_bytes = size as usize * size as usize * 8;
@@ -638,6 +659,7 @@ fn update_cubemap(cube: &mut Gd<Cubemap>, stops: SkyStops) -> Result<(), String>
 }
 
 fn create_cubemap(stops: SkyStops) -> Result<Gd<Cubemap>, String> {
+    crate::rebuild_guard::count(crate::rebuild_guard::Rebuild::SkyCubemap, 1);
     let pixels = sky_cubemap_data::build_sky_cubemap(&stops);
     let size = sky_cubemap_data::ENV_MAP_SIZE as i32;
     let face_bytes = size as usize * size as usize * 8;

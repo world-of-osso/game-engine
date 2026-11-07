@@ -208,7 +208,7 @@ impl WaterMaterials {
     fn create_surface(&mut self, native: &NativeLiquidMaterial) -> Result<LiquidSurface, String> {
         let shader = self.shader(native.params.shader)?;
         let span = crate::profile::span(|| "water.set_shader".to_owned());
-        let mut material = ShaderMaterial::new_gd();
+        let mut material = crate::rebuild_guard::new_shader_material();
         material.set_shader(&shader);
         drop(span);
         let _span = crate::profile::span(|| "water.textures".to_owned());
@@ -601,7 +601,7 @@ fn build_mesh(geometry: adt::WaterGeometry, depth_curve: Option<[f32; 4]>) -> Gd
     ] {
         arrays.set(kind.ord() as usize, &value);
     }
-    let mut mesh = ArrayMesh::new_gd();
+    let mut mesh = crate::rebuild_guard::new_array_mesh();
     mesh.add_surface_from_arrays(mesh::PrimitiveType::TRIANGLES, &arrays);
     mesh
 }

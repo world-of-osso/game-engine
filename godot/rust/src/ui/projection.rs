@@ -1,3 +1,4 @@
+use crate::rebuild_guard::ThemeOverrides;
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
@@ -74,7 +75,7 @@ fn apply_atlas_sampling(
     );
     let mut shader = godot::classes::Shader::new_gd();
     shader.set_code(ATLAS_TILE_SHADER);
-    let mut material = godot::classes::ShaderMaterial::new_gd();
+    let mut material = crate::rebuild_guard::new_shader_material();
     material.set_shader(&shader);
     material.set_shader_parameter("region", &region.to_variant());
     material.set_shader_parameter("repeats", &repeats.to_variant());
@@ -407,6 +408,7 @@ impl UiProjection {
                         parent.remove_child(&node);
                     }
                     node.queue_free();
+                    crate::rebuild_guard::count(crate::rebuild_guard::Rebuild::UiTree, 1);
                 }
             }
         }
@@ -420,6 +422,7 @@ impl UiProjection {
                 .cloned()
                 .unwrap_or_else(|| self.root.clone());
             if self.replace_font_string_node(frame, registry, &parent)? {
+                crate::rebuild_guard::count(crate::rebuild_guard::Rebuild::UiTree, 1);
                 created.set(created.get() + 1);
             }
             if !self.nodes.contains_key(&frame.id) {
@@ -569,6 +572,9 @@ impl UiProjection {
     }
 
     fn create_node(&self, frame: &Frame, registry: &FrameRegistry) -> Result<Gd<Control>, String> {
+        crate::rebuild_guard::count_detail(crate::rebuild_guard::Rebuild::UiTree, 1, || {
+            frame.name.clone()
+        });
         let unresolved_panel = frame.panel_style.is_some() && frame.nine_slice.is_none();
         if frame.backdrop.is_some() || unresolved_panel {
             return Err(format!(
@@ -881,6 +887,9 @@ impl UiProjection {
         visual: &FrameVisual,
         registry: &FrameRegistry,
     ) -> Result<bool, String> {
+        crate::rebuild_guard::count_detail(crate::rebuild_guard::Rebuild::UiTree, 1, || {
+            Some(node.get_path().to_string())
+        });
         let mut loading = false;
         let mut container = node.get_node_as::<Control>(PARTS_NODE);
         for mut child in container.get_children().iter_shared() {
@@ -950,7 +959,7 @@ impl UiProjection {
             // the sampled arrow image. A grey vertex tint would leave its hue intact.
             let mut shader = godot::classes::Shader::new_gd();
             shader.set_code("shader_type canvas_item; void fragment() { COLOR.rgb = vec3(dot(COLOR.rgb, vec3(0.299, 0.587, 0.114))); }");
-            let mut material = godot::classes::ShaderMaterial::new_gd();
+            let mut material = crate::rebuild_guard::new_shader_material();
             material.set_shader(&shader);
             rect.set_material(&material);
         }
@@ -975,10 +984,10 @@ impl UiProjection {
         label.set_horizontal_alignment(horizontal(text.justify_h));
         label.set_vertical_alignment(vertical(text.justify_v));
         if let Some(font) = self.font(text.font) {
-            label.add_theme_font_override("font", &font);
+            label.change_theme_font_override("font", &font);
         }
-        label.add_theme_font_size_override("font_size", text.font_size as i32);
-        label.add_theme_color_override("font_color", color(text.color));
+        label.change_theme_font_size_override("font_size", text.font_size as i32);
+        label.change_theme_color_override("font_color", color(text.color));
         let mut control = label.clone().upcast::<Control>();
         apply_text_effects(&mut control, text.outline, text.shadow);
         Ok(())
@@ -996,17 +1005,17 @@ impl UiProjection {
             update_single_line_edit(node.clone().cast::<LineEdit>(), data);
             // Godot's default minimum (4 × 'M') widens narrow edits past their authored
             // rect (copper 48 → 51.3); Retail EditBoxes take only their XML width.
-            node.add_theme_constant_override("minimum_character_width", 0);
+            node.change_theme_constant_override("minimum_character_width", 0);
         }
         if let Some(font) = self.font(data.font) {
-            node.add_theme_font_override("font", &font);
+            node.change_theme_font_override("font", &font);
         }
-        node.add_theme_font_size_override("font_size", data.font_size as i32);
-        node.add_theme_color_override("font_color", color(data.text_color));
+        node.change_theme_font_size_override("font_size", data.font_size as i32);
+        node.change_theme_color_override("font_color", color(data.text_color));
         // Original caret: 2px, drawn in the edit text color.
-        node.add_theme_color_override("caret_color", color(data.text_color));
-        node.add_theme_constant_override("caret_width", 2);
-        let mut style = StyleBoxEmpty::new_gd();
+        node.change_theme_color_override("caret_color", color(data.text_color));
+        node.change_theme_constant_override("caret_width", 2);
+        let mut style = crate::rebuild_guard::new_style_box::<StyleBoxEmpty>();
         for (side, inset) in [
             (godot::builtin::Side::LEFT, data.text_insets[0]),
             (godot::builtin::Side::RIGHT, data.text_insets[1]),
@@ -1018,7 +1027,7 @@ impl UiProjection {
         // LineEdit::get_minimum_size takes max(normal, read_only) even while
         // editable. Leaving read_only themed inflated the journal's20px box to23px.
         for state in ["normal", "focus", "read_only"] {
-            node.add_theme_stylebox_override(state, &style);
+            node.change_theme_stylebox_override(state, &style);
         }
         // Apply authored bounds after the font/border theme, not the default theme's minimum.
         // Labels use the same ordering; otherwise small copper inputs retain their creation size.
@@ -1081,10 +1090,10 @@ impl UiProjection {
             shadow: data.shadow_color.map(|color| (color, data.shadow_offset)),
         };
         self.style_label(&mut node, &text)?;
-        node.add_theme_font_override("font", &font);
+        node.change_theme_font_override("font", &font);
         // FONT_POSITIVE_SPACING_GAP_TRUNCATION: integer native theme loses fractional
         // positive gaps; toolkit intrinsic allocation remains exact. Current census:0.
-        node.add_theme_constant_override("line_spacing", metrics.spacing_ui as i32);
+        node.change_theme_constant_override("line_spacing", metrics.spacing_ui as i32);
         // A fixed FontString whose height holds no second line stays on one line and cuts
         // the rest with an ellipsis, as WoW does: Retail's 32×10 action button `HotKey`
         // (`ActionButtonTemplate.xml:85-91`) draws "Middle Mouse" on one truncated line
@@ -1142,7 +1151,7 @@ mod spacing_tests;
 fn flat_button() -> Gd<Button> {
     let mut button = RegistryButton::new_alloc().upcast::<Button>();
     button.set_focus_mode(godot::classes::control::FocusMode::NONE);
-    let empty = StyleBoxEmpty::new_gd();
+    let empty = crate::rebuild_guard::new_style_box::<StyleBoxEmpty>();
     for state in [
         "normal",
         "hover",
@@ -1151,7 +1160,7 @@ fn flat_button() -> Gd<Button> {
         "focus",
         "hover_pressed",
     ] {
-        button.add_theme_stylebox_override(state, &empty);
+        button.change_theme_stylebox_override(state, &empty);
     }
     button
 }
@@ -1192,13 +1201,13 @@ fn apply_text_effects(
         Outline::Outline => 2,
         Outline::ThickOutline => 4,
     };
-    node.add_theme_constant_override("outline_size", outline);
-    node.add_theme_color_override("font_outline_color", Color::from_rgba(0.0, 0.0, 0.0, 1.0));
+    node.change_theme_constant_override("outline_size", outline);
+    node.change_theme_color_override("font_outline_color", Color::from_rgba(0.0, 0.0, 0.0, 1.0));
     // FontString shadows use x right, y up; Godot's y is down.
     let (shadow_color, [x, y]) = shadow.unwrap_or(([0.0; 4], [0.0, 0.0]));
-    node.add_theme_color_override("font_shadow_color", color(shadow_color));
-    node.add_theme_constant_override("shadow_offset_x", x.round() as i32);
-    node.add_theme_constant_override("shadow_offset_y", (-y).round() as i32);
+    node.change_theme_color_override("font_shadow_color", color(shadow_color));
+    node.change_theme_constant_override("shadow_offset_x", x.round() as i32);
+    node.change_theme_constant_override("shadow_offset_y", (-y).round() as i32);
 }
 
 fn color([r, g, b, a]: [f32; 4]) -> Color {

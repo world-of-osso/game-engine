@@ -69,6 +69,7 @@ fn geometry_material(authored: &Gd<ShaderMaterial>) -> Result<Gd<ShaderMaterial>
     } else {
         return Err("particle geometry material is not an M2 model shader".into());
     };
+    crate::rebuild_guard::count(crate::rebuild_guard::Rebuild::ShaderMaterial, 1);
     let mut material = authored.duplicate_resource();
     material.set_shader(&shared_shader(&source));
     Ok(material)

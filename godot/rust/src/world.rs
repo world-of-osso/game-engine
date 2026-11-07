@@ -638,6 +638,7 @@ fn attach_unit_visual(
     light: Option<&TerrainLight>,
     particles: Option<&mut ParticlePools>,
 ) {
+    crate::rebuild_guard::world_event();
     let ribbon_models = loaded
         .as_ref()
         .ok()
