@@ -932,7 +932,8 @@ impl UiProjection {
             label.set_name("Text");
             label.set_mouse_filter(godot::classes::control::MouseFilter::IGNORE);
             label.set_anchors_preset(godot::classes::control::LayoutPreset::FULL_RECT);
-            self.style_label(&mut label, text)?;
+            let font = self.font(text.font);
+            self.style_label(&mut label, text, font.as_ref());
             container.add_child(&label);
             label.set_size(node.get_size());
         }
@@ -979,18 +980,24 @@ impl UiProjection {
         Ok((rect.upcast(), matches!(art, Art::Loading)))
     }
 
-    fn style_label(&mut self, label: &mut Gd<Label>, text: &TextPart) -> Result<(), String> {
+    /// `font` is the label's resolved font: one font override per update, so an
+    /// unchanged label sets no theme override.
+    fn style_label(
+        &mut self,
+        label: &mut Gd<Label>,
+        text: &TextPart,
+        font: Option<&Gd<godot::classes::FontFile>>,
+    ) {
         label.set_text(&text.content);
         label.set_horizontal_alignment(horizontal(text.justify_h));
         label.set_vertical_alignment(vertical(text.justify_v));
-        if let Some(font) = self.font(text.font) {
-            label.change_theme_font_override("font", &font);
+        if let Some(font) = font {
+            label.change_theme_font_override("font", font);
         }
         label.change_theme_font_size_override("font_size", text.font_size as i32);
         label.change_theme_color_override("font_color", color(text.color));
         let mut control = label.clone().upcast::<Control>();
         apply_text_effects(&mut control, text.outline, text.shadow);
-        Ok(())
     }
 
     fn update_editbox(
@@ -1089,8 +1096,7 @@ impl UiProjection {
             outline: data.outline,
             shadow: data.shadow_color.map(|color| (color, data.shadow_offset)),
         };
-        self.style_label(&mut node, &text)?;
-        node.change_theme_font_override("font", &font);
+        self.style_label(&mut node, &text, Some(&font));
         // FONT_POSITIVE_SPACING_GAP_TRUNCATION: integer native theme loses fractional
         // positive gaps; toolkit intrinsic allocation remains exact. Current census:0.
         node.change_theme_constant_override("line_spacing", metrics.spacing_ui as i32);
