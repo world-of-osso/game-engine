@@ -202,6 +202,8 @@ pub(crate) struct WorldLighting {
     planets: Option<planets::Planets>,
     fog_cone: Option<fog_cone::FogCone>,
     previous: Option<LightValues>,
+    /// The map, position, lit time and WMO fog `previous` was sampled for.
+    sampled: Option<(u32, Vector3, f32, Option<WmoFogBlend>)>,
     /// The sky cubemap and the dome stops it was built from.
     cube: Option<(Gd<Cubemap>, SkyStops)>,
 }
@@ -231,6 +233,10 @@ impl WorldLighting {
         wmo_fog: Option<&WmoFogBlend>,
     ) -> Result<Option<TerrainLight>, String> {
         let minutes = world_time::light_half_minutes(minutes);
+        let inputs = Some((map_id, position, minutes, wmo_fog.copied()));
+        if self.previous.is_some() && self.sampled == inputs {
+            return Ok(None);
+        }
         let sample = catalog.sample(map_id, [position.x, -position.z, position.y], minutes)?;
         let sky = &sample.sky;
         let stops = [
@@ -254,6 +260,7 @@ impl WorldLighting {
             sample.planets.clone(),
         );
         if self.previous.as_ref() == Some(&values) {
+            self.sampled = inputs;
             return Ok(None);
         }
         let direction = Vector3::from_array(sample.retail.sun_direction);
@@ -293,6 +300,7 @@ impl WorldLighting {
             .expect("attached sun")
             .look_at_from_position(Vector3::ZERO, direction);
         self.previous = Some(values);
+        self.sampled = inputs;
         Ok(Some(light))
     }
 
@@ -491,6 +499,7 @@ impl WorldLighting {
             root.free();
         }
         self.previous = None;
+        self.sampled = None;
     }
 }
 
