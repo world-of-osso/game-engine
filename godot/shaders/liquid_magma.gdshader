@@ -7,10 +7,10 @@ render_mode unshaded, cull_disabled, fog_disabled;
 
 // LiquidTypeXTexture slots 1-3, the level-0 slot 0 layer, and the 16-slice noise blob
 // (FDID 768431) as a 128x2048 atlas.
-uniform sampler2D texture_0 : repeat_enable, filter_linear_mipmap;
-uniform sampler2D texture_1 : repeat_enable, filter_linear_mipmap;
-uniform sampler2D texture_2 : repeat_enable, filter_linear_mipmap;
-uniform sampler2D texture_3 : repeat_enable, filter_linear_mipmap;
+uniform sampler2D texture_0 : repeat_enable, filter_linear_mipmap_anisotropic;
+uniform sampler2D texture_1 : repeat_enable, filter_linear_mipmap_anisotropic;
+uniform sampler2D texture_2 : repeat_enable, filter_linear_mipmap_anisotropic;
+uniform sampler2D texture_3 : repeat_enable, filter_linear_mipmap_anisotropic;
 uniform sampler2D noise_volume : repeat_enable, filter_linear;
 
 // E5: detail 0 is the Magma definition (one layer, one transform); detail 1..4 share

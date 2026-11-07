@@ -36,6 +36,9 @@ renderer/rendering_method="forward_plus"
 ; Saved SSAO enables this once in GDExtension Servers init, before RenderingServer.
 driver/depth_prepass/enable=false
 textures/default_filters/use_nearest_mipmap_filter=false
+; Retail textureFilteringMode default 5 = 16x anisotropy (12.1.5.70688); the saved
+; graphics option anisotropicFiltering overrides this per viewport at startup.
+textures/default_filters/anisotropic_filtering_level=4
 ; Windows windowed/borderless: DWM composition stalls a present for one vblank; a third
 ; frame in flight and a fourth swap chain image absorb it (docs/wiki/investigations/
 ; godot-vulkan-present-thread.md, "Windows DWM present wait"). Exclusive fullscreen needs neither.

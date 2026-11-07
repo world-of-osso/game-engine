@@ -9,10 +9,10 @@ render_mode fog_disabled, specular_disabled, cull_back, blend_mix;
 // specular-after-light of m2shader_text.slang, and calcLight (commonLightFunctions.slang).
 // Textures hold authored bytes and are sampled unconverted, as the reference's UNORM
 // textures are; every colour below is authored (gamma) space until blend_output.
-uniform sampler2D base_texture : filter_linear_mipmap, repeat_enable;
-uniform sampler2D second_texture : filter_linear_mipmap, repeat_enable;
-uniform sampler2D third_texture : filter_linear_mipmap, repeat_enable;
-uniform sampler2D fourth_texture : filter_linear_mipmap, repeat_enable;
+uniform sampler2D base_texture : filter_linear_mipmap_anisotropic, repeat_enable;
+uniform sampler2D second_texture : filter_linear_mipmap_anisotropic, repeat_enable;
+uniform sampler2D third_texture : filter_linear_mipmap_anisotropic, repeat_enable;
+uniform sampler2D fourth_texture : filter_linear_mipmap_anisotropic, repeat_enable;
 // M2Texture flags of texture slot n at bits 2n (wrap U) and 2n + 1 (wrap V); an axis
 // without its flag clamps to the edge.
 uniform int texture_wrap = 255;

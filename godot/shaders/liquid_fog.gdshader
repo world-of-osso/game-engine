@@ -6,7 +6,7 @@ render_mode unshaded, cull_disabled, blend_mix, depth_draw_never, fog_disabled;
 // Maths runs in WoW world space (z up) and in authored colour; the result is converted to linear.
 
 // LiquidTypeXTexture slot 0 (the fog density texture, reference uTexture0).
-uniform sampler2D texture_0 : repeat_enable, filter_linear_mipmap;
+uniform sampler2D texture_0 : repeat_enable, filter_linear_mipmap_anisotropic;
 uniform sampler2D depth_texture : hint_depth_texture, filter_nearest, repeat_disable;
 
 // Shared material clock in milliseconds (the reference scene time).

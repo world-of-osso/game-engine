@@ -16,14 +16,14 @@ uniform vec4 animation_params_2;
 uniform vec4 animation_params_3;
 uniform float animation_time;
 
-uniform sampler2D ground_0 : source_color, repeat_enable;
-uniform sampler2D ground_1 : source_color, repeat_enable;
-uniform sampler2D ground_2 : source_color, repeat_enable;
-uniform sampler2D ground_3 : source_color, repeat_enable;
-uniform sampler2D height_0 : repeat_enable;
-uniform sampler2D height_1 : repeat_enable;
-uniform sampler2D height_2 : repeat_enable;
-uniform sampler2D height_3 : repeat_enable;
+uniform sampler2D ground_0 : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
+uniform sampler2D ground_1 : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
+uniform sampler2D ground_2 : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
+uniform sampler2D ground_3 : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
+uniform sampler2D height_0 : filter_linear_mipmap_anisotropic, repeat_enable;
+uniform sampler2D height_1 : filter_linear_mipmap_anisotropic, repeat_enable;
+uniform sampler2D height_2 : filter_linear_mipmap_anisotropic, repeat_enable;
+uniform sampler2D height_3 : filter_linear_mipmap_anisotropic, repeat_enable;
 // MCAL is packed linearly; sampling must never apply sRGB decoding.
 uniform sampler2D alpha_packed : filter_linear, repeat_disable;
 uniform samplerCube environment_map : source_color;
