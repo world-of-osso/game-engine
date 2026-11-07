@@ -1,0 +1,101 @@
+//! The graphics quality presets: one row of distance and shadow settings per level, read
+//! by the consumers that used to hold them as constants. Retail keeps the same layer as
+//! data (Part A §1.2 of the retail-optimisation mapping: 14 blocks of `{name, int32}`
+//! CVar pairs), and its preset writes CVars rather than scaling them.
+//!
+//! `High`, the default, is this client's settings before presets existed. The lower rows
+//! scale each `High` value by the ratio of two retail rows: block 11 (`shadowMode` 2,
+//! `shadowNumCascades` 2, the cascade count `High` already used) to block 2 (`Medium`)
+//! or block 0 (`Low`). The retail values are VERIFIED (decoded blocks); applying their
+//! ratios to this client's own distances is INFERRED.
+
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub enum GraphicsQuality {
+    Low,
+    Medium,
+    #[default]
+    High,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct QualityPreset {
+    /// World camera far plane, in yards.
+    pub far_clip: f32,
+    /// Distance from the camera within which WDL horizon tiles draw, in yards.
+    pub horizon_range: f32,
+    /// Directional shadow splits; 0 casts no sun shadows.
+    pub shadow_cascades: u8,
+    /// Directional shadow atlas size, in texels.
+    pub shadow_map_size: u32,
+}
+
+/// Retail block 11 `farClip` and `horizonStart`, the anchor of the `High` row.
+const RETAIL_ANCHOR: (f32, f32) = (6000.0, 1400.0);
+
+const HIGH: QualityPreset = QualityPreset {
+    // Bevy's perspective far plane, kept by the Godot port (godot/rust/src/camera.rs).
+    far_clip: 1000.0,
+    // `farclip` 777 × `horizonFarclipScale` 4 (solarityclient cvar definitions).
+    horizon_range: 777.0 * 4.0,
+    // Retail writes `shadowNumCascades 2` for shadow quality Medium
+    // (`graphicsShadowQuality 2`, `_retail_/WTF/Config.wtf`).
+    shadow_cascades: 2,
+    // Godot's `directional_shadow/size` default, which the client inherited.
+    shadow_map_size: 4096,
+};
+
+/// `High` with retail's `farClip`/`horizonStart` ratio to its anchor, and the shadow
+/// mode's cascade count and map size (`shadowMode` 0: blob shadows, which this client
+/// does not draw; 1: one band, 1024).
+const fn scaled(far_clip: f32, horizon_start: f32, shadow_cascades: u8) -> QualityPreset {
+    QualityPreset {
+        far_clip: HIGH.far_clip * far_clip / RETAIL_ANCHOR.0,
+        horizon_range: HIGH.horizon_range * horizon_start / RETAIL_ANCHOR.1,
+        shadow_cascades,
+        shadow_map_size: 1024,
+    }
+}
+
+impl GraphicsQuality {
+    pub const fn preset(self) -> QualityPreset {
+        match self {
+            // Retail block 0: farClip 2000, horizonStart 600, shadowMode 0.
+            Self::Low => scaled(2000.0, 600.0, 0),
+            // Retail block 2: farClip 5000, horizonStart 1000, shadowMode 1.
+            Self::Medium => scaled(5000.0, 1000.0, 1),
+            Self::High => HIGH,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn high_row_keeps_the_client_settings() {
+        assert_eq!(
+            GraphicsQuality::default().preset(),
+            QualityPreset {
+                far_clip: 1000.0,
+                horizon_range: 3108.0,
+                shadow_cascades: 2,
+                shadow_map_size: 4096,
+            }
+        );
+    }
+
+    #[test]
+    fn lower_rows_follow_retail_ratios() {
+        let medium = GraphicsQuality::Medium.preset();
+        assert!((medium.far_clip - 833.333).abs() < 1e-2);
+        assert!((medium.horizon_range - 2220.0).abs() < 1e-2);
+        assert_eq!((medium.shadow_cascades, medium.shadow_map_size), (1, 1024));
+        let low = GraphicsQuality::Low.preset();
+        assert!((low.far_clip - 333.333).abs() < 1e-2);
+        assert!((low.horizon_range - 1332.0).abs() < 1e-2);
+        assert_eq!(low.shadow_cascades, 0);
+    }
+}

@@ -1,6 +1,7 @@
 use crate::camera_control_data::{
     DEFAULT_CAMERA_FOV_DEGREES, MAX_CAMERA_FOV_DEGREES, MIN_CAMERA_FOV_DEGREES,
 };
+use crate::graphics_quality_data::GraphicsQuality;
 use crate::input_bindings_data::InputBindingsData;
 use crate::nameplate_style_data::NameplateStyle;
 use crate::realm_preset_data::{RealmPreset, default_realm_preset};
@@ -250,6 +251,9 @@ pub struct GraphicsOptionsFile {
         rename = "anisotropicFiltering"
     )]
     pub anisotropic_filtering: u8,
+    /// The distance and shadow preset row (`graphics_quality_data`).
+    #[serde(default, rename = "graphicsQuality")]
+    pub graphics_quality: GraphicsQuality,
 }
 
 impl Default for GraphicsOptionsFile {
@@ -269,6 +273,7 @@ impl Default for GraphicsOptionsFile {
             bloom_intensity: default_bloom_intensity(),
             ground_effect_draping_enabled: default_ground_effect_draping_enabled(),
             anisotropic_filtering: default_anisotropic_filtering(),
+            graphics_quality: GraphicsQuality::default(),
         }
     }
 }

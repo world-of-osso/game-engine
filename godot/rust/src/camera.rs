@@ -23,21 +23,22 @@ pub(crate) struct WorldCamera {
     node: Option<Gd<Camera3D>>,
     state: CameraState,
     fov_degrees: f32,
+    /// The graphics quality preset's far plane, in yards.
+    far_clip: f32,
     teleport_anchor: game_engine_core::camera_follow_data::TeleportAnchor,
 }
 
-impl Default for WorldCamera {
-    fn default() -> Self {
+impl WorldCamera {
+    pub fn new(far_clip: f32) -> Self {
         Self {
             node: None,
             state: CameraState::default(),
             fov_degrees: DEFAULT_CAMERA_FOV_DEGREES,
+            far_clip,
             teleport_anchor: Default::default(),
         }
     }
-}
 
-impl WorldCamera {
     pub fn configure(&mut self, options: &CameraOptionsFile) {
         self.state.follow_speed = options.follow_speed;
         self.state.zoom_speed = options.zoom_speed;
@@ -137,7 +138,7 @@ impl WorldCamera {
     ) -> Result<(), String> {
         let mut camera = self
             .node
-            .get_or_insert_with(|| spawn_camera(parent))
+            .get_or_insert_with(|| spawn_camera(parent, self.far_clip))
             .clone();
         camera.set_fov(self.fov_degrees);
         let mut space = camera
@@ -216,13 +217,13 @@ pub(crate) fn follow_pose(
     }
 }
 
-fn spawn_camera(parent: &mut Gd<Node3D>) -> Gd<Camera3D> {
+fn spawn_camera(parent: &mut Gd<Node3D>, far_clip: f32) -> Gd<Camera3D> {
     let mut camera = Camera3D::new_alloc();
     camera.set_name("WorldCamera");
     camera.set_fov(DEFAULT_CAMERA_FOV_DEGREES);
-    // Match the original Bevy perspective clipping defaults; FOV is vertical in both engines.
+    // The original Bevy near plane; FOV is vertical in both engines.
     camera.set_near(0.1);
-    camera.set_far(1000.0);
+    camera.set_far(far_clip);
     parent.add_child(&camera);
     camera
 }
