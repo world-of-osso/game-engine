@@ -1181,6 +1181,14 @@ pub struct WorldUnits {
 }
 
 /// Inside this camera distance a unit's feet sample the ground every frame.
+///
+/// INFERRED, not retail-verified: the retail client does not name foot IK anywhere in the
+/// surveyed images, while it does have a per-instance animation LOD and the
+/// `animFrameSkipLOD` ("animations will skip frames at distance") distance rule, so a
+/// distance-cadenced solve is retail-consistent rather than retail-proven. Retune from
+/// measurement: at 1080p a 1.9 yd body is ~180 px at 12 yd and ~47 px at 45 yd, so the
+/// stride below costs a distant foot well under a pixel of ground lag. Retire these two
+/// values once the retail foot IK LOD distances are located in the decomp.
 const FOOT_IK_NEAR_QUERY_RANGE: f32 = 12.0;
 /// Inside this camera distance they sample every other frame; farther, every third.
 const FOOT_IK_MID_QUERY_RANGE: f32 = 25.0;
