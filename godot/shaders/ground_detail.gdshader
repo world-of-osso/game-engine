@@ -3,7 +3,7 @@ shader_type spatial;
 // DetailDoodad.bls): two-sided, depth-writing, alpha-tested at 128.
 render_mode unshaded, cull_disabled, depth_draw_opaque, fog_disabled, shadows_disabled;
 
-uniform sampler2D detail_texture : source_color, filter_linear_mipmap, repeat_enable;
+uniform sampler2D detail_texture : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
 #include "res://shaders/scene_light.gdshaderinc"
 // groundEffectDist: opacity ramps from 1 at 85% of it to 0 at it.
 uniform float detail_distance = 140.0;

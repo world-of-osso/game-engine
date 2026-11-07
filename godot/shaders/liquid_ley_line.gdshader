@@ -8,10 +8,10 @@ render_mode unshaded, cull_disabled, blend_mix, depth_draw_never, fog_disabled;
 
 // forwardLiquidShader_text.slang feeds v10..v13 from uTexture0, uTexture1, uTexture3, uTexture4:
 // two tinted layers, the normal/bump slot and the foam slot.
-uniform sampler2D texture_0 : repeat_enable, filter_linear_mipmap;
-uniform sampler2D texture_1 : repeat_enable, filter_linear_mipmap;
-uniform sampler2D texture_3 : repeat_enable, filter_linear_mipmap;
-uniform sampler2D texture_4 : repeat_enable, filter_linear_mipmap;
+uniform sampler2D texture_0 : repeat_enable, filter_linear_mipmap_anisotropic;
+uniform sampler2D texture_1 : repeat_enable, filter_linear_mipmap_anisotropic;
+uniform sampler2D texture_3 : repeat_enable, filter_linear_mipmap_anisotropic;
+uniform sampler2D texture_4 : repeat_enable, filter_linear_mipmap_anisotropic;
 uniform sampler2D screen_texture : hint_screen_texture, filter_linear, repeat_disable;
 uniform sampler2D depth_texture : hint_depth_texture, filter_nearest, repeat_disable;
 

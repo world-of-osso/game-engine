@@ -8,12 +8,12 @@ render_mode unshaded, cull_disabled, blend_mix, depth_draw_never, fog_disabled;
 
 // LiquidTypeXTexture slots 0-2 (depth-blended layers), 3 (shore overlay), 4 (animated normal
 // map, frame k) and texture_next (reference uTexture6: slot 4 frame k + 1).
-uniform sampler2D texture_0 : repeat_enable, filter_linear_mipmap;
-uniform sampler2D texture_1 : repeat_enable, filter_linear_mipmap;
-uniform sampler2D texture_2 : repeat_enable, filter_linear_mipmap;
-uniform sampler2D texture_3 : repeat_enable, filter_linear_mipmap;
-uniform sampler2D texture_4 : repeat_enable, filter_linear_mipmap;
-uniform sampler2D texture_next : repeat_enable, filter_linear_mipmap;
+uniform sampler2D texture_0 : repeat_enable, filter_linear_mipmap_anisotropic;
+uniform sampler2D texture_1 : repeat_enable, filter_linear_mipmap_anisotropic;
+uniform sampler2D texture_2 : repeat_enable, filter_linear_mipmap_anisotropic;
+uniform sampler2D texture_3 : repeat_enable, filter_linear_mipmap_anisotropic;
+uniform sampler2D texture_4 : repeat_enable, filter_linear_mipmap_anisotropic;
+uniform sampler2D texture_next : repeat_enable, filter_linear_mipmap_anisotropic;
 uniform sampler2D screen_texture : hint_screen_texture, filter_linear, repeat_disable;
 uniform sampler2D depth_texture : hint_depth_texture, filter_nearest, repeat_disable;
 

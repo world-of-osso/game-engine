@@ -7,8 +7,8 @@ render_mode unshaded, cull_disabled, blend_mix, depth_draw_never, fog_disabled;
 // authored colour (sRGB bytes / 255, as the terrain shader); the result is converted to linear.
 
 // LiquidTypeXTexture slot 2 (normal/bump) and slot 3 (foam) of the LiquidType.
-uniform sampler2D texture_2 : repeat_enable, filter_linear_mipmap;
-uniform sampler2D texture_3 : repeat_enable, filter_linear_mipmap;
+uniform sampler2D texture_2 : repeat_enable, filter_linear_mipmap_anisotropic;
+uniform sampler2D texture_3 : repeat_enable, filter_linear_mipmap_anisotropic;
 uniform sampler2D screen_texture : hint_screen_texture, filter_linear, repeat_disable;
 uniform sampler2D depth_texture : hint_depth_texture, filter_nearest, repeat_disable;
 // G10: 1/Float_11 from the LiquidType row, the fade width of the view-depth shore.

@@ -2,13 +2,14 @@
 
 use game_engine_core::client_options_data::{
     AntiAliasMode, GraphicsOptionsFile, MAX_FRAME_RATE_LIMIT, MIN_FRAME_RATE_LIMIT,
+    anisotropic_filtering_level,
 };
 use godot::classes::{
     CanvasLayer, ColorRect, DisplayServer, Engine, Node, PackedScene, ProjectSettings,
     ResourceLoader, Shader, ShaderMaterial, Viewport,
     control::{LayoutPreset, MouseFilter},
     display_server::VSyncMode,
-    viewport::Msaa,
+    viewport::{AnisotropicFiltering, Msaa},
 };
 use godot::prelude::*;
 
@@ -37,6 +38,7 @@ pub(crate) fn apply_graphics_display_options(
     update_rcas_layer(viewport, scale);
     update_bloom(viewport, graphics);
     update_anti_alias(viewport, graphics);
+    update_anisotropic_filtering(viewport, graphics);
     update_world_effects(viewport);
 
     let vsync_mode = if graphics.vsync_enabled {
@@ -88,6 +90,18 @@ fn spawn_world_effects_controller(viewport: &mut Gd<Viewport>) -> Gd<Node> {
     controller.set_name(WORLD_EFFECTS_CONTROLLER_NAME);
     viewport.add_child(&controller);
     controller
+}
+
+fn update_anisotropic_filtering(viewport: &mut Gd<Viewport>, graphics: &GraphicsOptionsFile) {
+    // Retail textureFilteringMode default 5 = 16x; the option stores the multiplier.
+    let level = match anisotropic_filtering_level(graphics.anisotropic_filtering) {
+        1 => AnisotropicFiltering::DISABLED,
+        2 => AnisotropicFiltering::ANISOTROPY_2X,
+        4 => AnisotropicFiltering::ANISOTROPY_4X,
+        8 => AnisotropicFiltering::ANISOTROPY_8X,
+        _ => AnisotropicFiltering::ANISOTROPY_16X,
+    };
+    viewport.set_anisotropic_filtering_level(level);
 }
 
 fn update_anti_alias(viewport: &mut Gd<Viewport>, graphics: &GraphicsOptionsFile) {

@@ -8,7 +8,7 @@ render_mode unshaded, cull_disabled, blend_mix, depth_draw_never, fog_disabled;
 // the result is converted to linear.
 
 // LiquidTypeXTexture slot 2 (normal/bump), the reference's uTexture2.
-uniform sampler2D texture_2 : repeat_enable, filter_linear_mipmap;
+uniform sampler2D texture_2 : repeat_enable, filter_linear_mipmap_anisotropic;
 uniform sampler2D screen_texture : hint_screen_texture, filter_linear, repeat_disable;
 uniform sampler2D depth_texture : hint_depth_texture, filter_nearest, repeat_disable;
 

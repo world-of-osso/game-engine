@@ -4,15 +4,15 @@ render_mode fog_disabled, specular_disabled, cull_back, blend_mix;
 #include "res://shaders/m2_point_light.gdshaderinc"
 
 // WebWowViewerCpp WMOMaterialTemplate.textures[0..9] (`wmoObject.cpp` getMaterialInstance).
-uniform sampler2D base_texture : source_color, repeat_enable;
-uniform sampler2D second_texture : source_color, repeat_enable;
-uniform sampler2D third_texture : source_color, repeat_enable;
-uniform sampler2D texture_4 : source_color, repeat_enable;
-uniform sampler2D texture_5 : source_color, repeat_enable;
-uniform sampler2D texture_6 : source_color, repeat_enable;
-uniform sampler2D texture_7 : source_color, repeat_enable;
-uniform sampler2D texture_8 : source_color, repeat_enable;
-uniform sampler2D texture_9 : source_color, repeat_enable;
+uniform sampler2D base_texture : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
+uniform sampler2D second_texture : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
+uniform sampler2D third_texture : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
+uniform sampler2D texture_4 : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
+uniform sampler2D texture_5 : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
+uniform sampler2D texture_6 : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
+uniform sampler2D texture_7 : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
+uniform sampler2D texture_8 : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
+uniform sampler2D texture_9 : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
 uniform vec4 base_color : source_color = vec4(1.0);
 // StandardMaterial emissive arrives in linear space.
 uniform vec3 emissive;

@@ -168,3 +168,30 @@ fn healer_ground_rings_default_on_for_healers_and_clamp_the_raid_count() {
         MAX_RAID_LOWEST
     );
 }
+
+#[test]
+fn anisotropic_filtering_defaults_to_retail_16x_and_snaps_to_the_ladder() {
+    use crate::client_options_data::{DEFAULT_ANISOTROPIC_FILTERING, anisotropic_filtering_level};
+    // Retail textureFilteringMode default 5 in the 1/1/2/4/8/16 ladder.
+    let file = ClientOptionsFile::default();
+    assert_eq!(file.graphics.anisotropic_filtering, 16);
+    assert_eq!(DEFAULT_ANISOTROPIC_FILTERING, 16);
+    // A file saved before the option existed reads the Retail default.
+    let old: ClientOptionsFile = ron::de::from_str("(graphics:(renderScale:0.75,))").unwrap();
+    assert_eq!(old.graphics.anisotropic_filtering, 16);
+    assert_eq!(old.graphics.render_scale, 0.75);
+    // Requests between rungs snap to the supported sampler counts.
+    let snapped: Vec<u8> = [0, 1, 2, 3, 4, 5, 7, 8, 12, 16, 32]
+        .into_iter()
+        .map(anisotropic_filtering_level)
+        .collect();
+    assert_eq!(snapped, [1, 1, 2, 2, 4, 4, 4, 8, 8, 16, 16]);
+    let mut file = ClientOptionsFile::default();
+    file.graphics.anisotropic_filtering = 12;
+    assert_eq!(file.clamped().graphics.anisotropic_filtering, 8);
+    // The stored value survives a save/load round trip.
+    file.graphics.anisotropic_filtering = 4;
+    let saved = ron::ser::to_string(&file).unwrap();
+    let restored: ClientOptionsFile = ron::de::from_str(&saved).unwrap();
+    assert_eq!(restored.graphics.anisotropic_filtering, 4);
+}

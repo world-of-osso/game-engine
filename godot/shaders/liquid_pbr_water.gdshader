@@ -9,12 +9,12 @@ render_mode unshaded, cull_disabled, blend_mix, depth_draw_never, fog_disabled;
 // from the uber without a published permutation is marked ADAPTED.
 
 // LiquidTypeXTexture row order (EF1): foam high, mid, low, rim, depth, river.
-uniform sampler2D foam_high : repeat_enable, filter_linear_mipmap;
-uniform sampler2D foam_mid : repeat_enable, filter_linear_mipmap;
-uniform sampler2D foam_low : repeat_enable, filter_linear_mipmap;
-uniform sampler2D foam_rim : repeat_enable, filter_linear_mipmap;
-uniform sampler2D foam_depth : repeat_enable, filter_linear_mipmap;
-uniform sampler2D foam_river : repeat_enable, filter_linear_mipmap;
+uniform sampler2D foam_high : repeat_enable, filter_linear_mipmap_anisotropic;
+uniform sampler2D foam_mid : repeat_enable, filter_linear_mipmap_anisotropic;
+uniform sampler2D foam_low : repeat_enable, filter_linear_mipmap_anisotropic;
+uniform sampler2D foam_rim : repeat_enable, filter_linear_mipmap_anisotropic;
+uniform sampler2D foam_depth : repeat_enable, filter_linear_mipmap_anisotropic;
+uniform sampler2D foam_river : repeat_enable, filter_linear_mipmap_anisotropic;
 uniform sampler2D screen_texture : hint_screen_texture, filter_linear, repeat_disable;
 
 // RF3: Forever's PBRWater shading pass binds no scene depth, and Float_11 is not a fade

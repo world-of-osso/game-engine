@@ -1186,9 +1186,7 @@ impl GameClient {
                         .get_shader_parameter(name)
                         .try_to::<Gd<godot::classes::Texture2D>>()
                         .ok()
-                        .and_then(|texture| {
-                            texture.get_meta("asset_path").try_to::<GString>().ok()
-                        })
+                        .and_then(|texture| texture.get_meta("asset_path").try_to::<GString>().ok())
                         .map(|path| path.to_string())
                         .unwrap_or_default()
                 };
@@ -1200,7 +1198,10 @@ impl GameClient {
                     .get_shader_parameter("texture_weights")
                     .try_to::<godot::builtin::Vector3>()
                     .unwrap_or_default();
-                entry.set("texture_weights", [weights.x, weights.y, weights.z].as_slice());
+                entry.set(
+                    "texture_weights",
+                    [weights.x, weights.y, weights.z].as_slice(),
+                );
                 let color = material
                     .get_shader_parameter("mesh_color")
                     .try_to::<godot::builtin::Vector3>()

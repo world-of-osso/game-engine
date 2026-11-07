@@ -8,13 +8,13 @@ render_mode unshaded, cull_disabled, fog_disabled;
 
 // LiquidTypeXTexture slots 0-5 (uTexture0..5) and the next frame of the animated normal
 // slot 5 (uTexture6, LiquidFel.cpp resolveAnimatedTextures).
-uniform sampler2D texture_0 : repeat_enable, filter_linear_mipmap;
-uniform sampler2D texture_1 : repeat_enable, filter_linear_mipmap;
-uniform sampler2D texture_2 : repeat_enable, filter_linear_mipmap;
-uniform sampler2D texture_3 : repeat_enable, filter_linear_mipmap;
-uniform sampler2D texture_4 : repeat_enable, filter_linear_mipmap;
-uniform sampler2D texture_5 : repeat_enable, filter_linear_mipmap;
-uniform sampler2D texture_next : repeat_enable, filter_linear_mipmap;
+uniform sampler2D texture_0 : repeat_enable, filter_linear_mipmap_anisotropic;
+uniform sampler2D texture_1 : repeat_enable, filter_linear_mipmap_anisotropic;
+uniform sampler2D texture_2 : repeat_enable, filter_linear_mipmap_anisotropic;
+uniform sampler2D texture_3 : repeat_enable, filter_linear_mipmap_anisotropic;
+uniform sampler2D texture_4 : repeat_enable, filter_linear_mipmap_anisotropic;
+uniform sampler2D texture_5 : repeat_enable, filter_linear_mipmap_anisotropic;
+uniform sampler2D texture_next : repeat_enable, filter_linear_mipmap_anisotropic;
 // Retail70688 depth-prepass study: the shore's depth input is colour target 0 of the world
 // depth prepass, holding the view-space Z of the opaque surface behind each pixel, sampled
 // at the pixel's own screen position. Godot's linearised depth texture is the same quantity.
