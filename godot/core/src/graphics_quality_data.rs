@@ -4,9 +4,10 @@
 //! CVar pairs), and its preset writes CVars rather than scaling them.
 //!
 //! `High`, the default, is this client's distances and splits before presets existed,
-//! with retail's unit shadow radius. The lower rows scale each `High` distance by the
-//! ratio of two retail rows: block 11 (`shadowMode` 2, `shadowNumCascades` 2, the cascade
-//! count `High` already used) to block 2 (`Medium`) or block 0 (`Low`). The retail values are VERIFIED (decoded blocks); applying their
+//! with retail's largest shadow atlas and its unit shadow radius. The lower rows scale
+//! each `High` distance by the ratio of two retail rows: block 11 (`shadowMode` 2,
+//! `shadowNumCascades` 2, the cascade count `High` already used) to block 2 (`Medium`)
+//! or block 0 (`Low`). The retail values are VERIFIED (decoded blocks); applying their
 //! ratios to this client's own distances is INFERRED.
 
 use serde::{Deserialize, Serialize};
@@ -44,8 +45,9 @@ const HIGH: QualityPreset = QualityPreset {
     // Retail writes `shadowNumCascades 2` for shadow quality Medium
     // (`graphicsShadowQuality 2`, `_retail_/WTF/Config.wtf`).
     shadow_cascades: 2,
-    // Godot's `directional_shadow/size` default, which the client inherited.
-    shadow_map_size: 4096,
+    // Retail `shadowTextureSize` 2048 at shadowMode 3-4, its largest validated size
+    // (Part A §2.1; Godot's default, which the client inherited, is 4096).
+    shadow_map_size: 2048,
     // Retail `entityShadowFadeScale` default 50 (Part A §10.1, VERIFIED); that it is a
     // radius in yards is INFERRED, its consumer was not located.
     unit_shadow_radius: 50.0,
@@ -95,7 +97,7 @@ mod tests {
                 far_clip: 1000.0,
                 horizon_range: 3108.0,
                 shadow_cascades: 2,
-                shadow_map_size: 4096,
+                shadow_map_size: 2048,
                 unit_shadow_radius: 50.0,
             }
         );
