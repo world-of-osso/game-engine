@@ -464,7 +464,7 @@ fn build_mesh(batch: &wmo::WmoMeshBatch, streams: &RetailWmoStreams) -> Gd<Array
     let _mesh = crate::profile::span(|| "phase.mesh_build.wmo_main".to_owned());
     let mut arrays = wmo_mesh_arrays(batch);
     let flags = bind_retail_streams(&mut arrays, streams);
-    let mut mesh = ArrayMesh::new_gd();
+    let mut mesh = crate::rebuild_guard::new_array_mesh();
     mesh.add_surface_from_arrays_ex(mesh::PrimitiveType::TRIANGLES, &arrays)
         .flags(flags)
         .done();
@@ -599,7 +599,7 @@ fn build_batch_material(
     let _material = crate::profile::span(|| "phase.material.wmo".to_owned());
     let authored = batch.material;
     let span = crate::profile::span(|| "wmo.set_shader".to_owned());
-    let mut material = ShaderMaterial::new_gd();
+    let mut material = crate::rebuild_guard::new_shader_material();
     material.set_shader(&material_shader(source, WmoShaderKey::of(authored))?);
     drop(span);
     let slots = pixel_shader_texture_slots(batch.shader.pixel);

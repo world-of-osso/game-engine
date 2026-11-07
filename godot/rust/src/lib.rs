@@ -104,6 +104,7 @@ mod quests;
 mod raid_info;
 mod raid_targets;
 mod rainfire;
+mod rebuild_guard;
 mod render_surface;
 mod replicated;
 mod reputation_status_bar;

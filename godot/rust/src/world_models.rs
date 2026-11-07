@@ -37,6 +37,7 @@ use crate::{
     outfit_data::OutfitData,
 };
 
+#[track_caller]
 pub(crate) fn bind_visual_light(visual: &Gd<Node3D>, light: Option<&TerrainLight>) {
     let meshes = visual
         .find_children_ex("*")

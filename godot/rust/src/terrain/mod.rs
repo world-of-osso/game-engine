@@ -202,7 +202,7 @@ fn build_mesh(geometry: Geometry, colors: &[[f32; 4]; 145]) -> Gd<ArrayMesh> {
     );
     arrays.set(mesh::ArrayType::TEX_UV.ord() as usize, &uvs.to_variant());
     arrays.set(mesh::ArrayType::INDEX.ord() as usize, &indices.to_variant());
-    let mut mesh = ArrayMesh::new_gd();
+    let mut mesh = crate::rebuild_guard::new_array_mesh();
     mesh.add_surface_from_arrays(mesh::PrimitiveType::TRIANGLES, &arrays);
     mesh
 }

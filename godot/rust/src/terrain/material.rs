@@ -324,7 +324,7 @@ impl TerrainMaterials {
         let _material = crate::profile::span(|| "phase.material.terrain".to_owned());
         let inputs = ChunkMaterialInputs::new(parsed, layers)?;
         let span = crate::profile::span(|| "terrain.set_shader".to_owned());
-        let mut material = ShaderMaterial::new_gd();
+        let mut material = crate::rebuild_guard::new_shader_material();
         material.set_shader(shader);
         drop(span);
         material.set_shader_parameter("config", &vector4(inputs.config).to_variant());

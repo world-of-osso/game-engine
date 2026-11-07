@@ -49,8 +49,11 @@ impl WowMaterialClock {
         }
         self.elapsed_ms += delta_ms;
         let liquid_time = self.liquid_time_ms();
-        RenderingServer::singleton()
-            .global_shader_parameter_set("liquid_animation_time_ms", &liquid_time.to_variant());
+        crate::rebuild_guard::set_global_shader_parameter(
+            &mut RenderingServer::singleton(),
+            "liquid_animation_time_ms",
+            &liquid_time.to_variant(),
+        );
         true
     }
 }

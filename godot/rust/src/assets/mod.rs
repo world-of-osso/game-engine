@@ -839,7 +839,7 @@ fn streams_mesh(streams: &m2::SubmeshArrays) -> Gd<ArrayMesh> {
         mesh::ArrayType::INDEX.ord() as usize,
         &local_indices.to_variant(),
     );
-    let mut mesh = ArrayMesh::new_gd();
+    let mut mesh = crate::rebuild_guard::new_array_mesh();
     mesh.add_surface_from_arrays(mesh::PrimitiveType::TRIANGLES, &arrays);
     mesh
 }
