@@ -28,6 +28,9 @@ uniform vec3 texture_weights = vec3(1.0);
 uniform vec3 mesh_color = vec3(1.0);
 // meshOpacity: colour alpha times texture weight 0 (unless the batch skips it).
 uniform float transparency = 1.0;
+// texture_count: how many texture slots the batch resolved, which decides whether its third
+// slot takes part in the combiner.
+uniform int texture_count = 1;
 uniform int render_flags = 0;
 uniform int gx_blend = 0;
 // A unit batch: its shadow fades out over the last tenth of the unit shadow radius
@@ -194,7 +197,13 @@ void fragment() {
 		case 5: diffuse *= tex2.rgb; break; // Opaque_Opaque
 		case 6: diffuse *= tex2.rgb; discard_alpha = tex.a * tex2.a; can_discard = true; break; // Mod_Mod
 		case 7: diffuse *= tex2.rgb * 2.0; discard_alpha = tex.a * tex2.a * 2.0; can_discard = true; break; // Mod_Mod2x
-		case 8: discard_alpha = tex.a + tex2.a; can_discard = true; specular = tex2.rgb; break; // Mod_Add
+		case 8: { // Mod_Add: a third slot masks the whole stage, coverage and additive layer.
+			float mask = texture_count > 2 ? sample_slot(third_texture, UV, 2).a : 1.0;
+			discard_alpha = (tex.a + tex2.a) * mask;
+			can_discard = true;
+			specular = tex2.rgb * mask;
+			break;
+		}
 		case 9: diffuse *= tex2.rgb * 2.0; discard_alpha = tex.a; can_discard = true; break; // Mod_Mod2xNA
 		case 10: discard_alpha = tex.a; can_discard = true; specular = tex2.rgb; break; // Mod_AddNA
 		case 11: diffuse *= tex2.rgb; discard_alpha = tex.a; can_discard = true; break; // Mod_Opaque

@@ -236,3 +236,85 @@ fn disc_batches_report_texture_alpha_and_wrap() {
         drop(tracks);
     }
 }
+
+/// Coverage of a masked Mod_Add batch over the quad's texture space: the third slot is the
+/// round footprint the ground effects draw through, so the quad's own square corners must stay
+/// uncovered while the interior keeps a light, partial coverage.
+#[test]
+fn three_texture_add_batches_mask_their_quad_into_a_disc() {
+    let mut masked = 0;
+    let mut interiors: Vec<f32> = Vec::new();
+    for fdid in [1522961u32, 1248077, 1387770, 1387771] {
+        let model = model(fdid);
+        let resolved =
+            m2::resolve_render_batches(&model, &[], true, |fdid| Some(format!("/x/{fdid}.blp")))
+                .unwrap();
+        for batch in resolved {
+            let binding =
+                batch_binding(&model, &model.batches[batch.source_unit_index], &[]).unwrap();
+            if binding.pixel_shader != 8 || binding.textures.len() != 3 {
+                continue;
+            }
+            let mask = binding.textures[2].and_then(sample_alpha);
+            let coverage_at = |u: f32, v: f32| match &mask {
+                Some(mask) => mask(u, v),
+                None => 1.0,
+            };
+            let corners = [
+                coverage_at(0.0, 0.0),
+                coverage_at(1.0, 0.0),
+                coverage_at(0.0, 1.0),
+                coverage_at(1.0, 1.0),
+            ];
+            let interior = coverage_at(0.65, 0.5);
+            let ring = coverage_at(0.86, 0.5);
+            println!(
+                "MASK {fdid} unit {} corners {corners:?} interior {interior:.2} ring {ring:.2}",
+                batch.source_unit_index
+            );
+            assert!(
+                mask.is_some(),
+                "{fdid} unit {}: the masked batch's third texture is not local",
+                batch.source_unit_index
+            );
+            for corner in corners {
+                assert!(
+                    corner <= 0.08,
+                    "{fdid} unit {}: corner mask alpha {corner:.2} leaves the quad's square corner drawn",
+                    batch.source_unit_index
+                );
+            }
+            assert!(
+                interior <= 0.6,
+                "{fdid} unit {}: interior coverage {interior:.2} is not a see-through layer",
+                batch.source_unit_index
+            );
+            assert!(
+                ring > interior,
+                "{fdid} unit {}: the mask peak {ring:.2} is not on the rim band (interior {interior:.2})",
+                batch.source_unit_index
+            );
+            interiors.push(interior);
+            masked += 1;
+        }
+    }
+    assert!(
+        masked >= 2,
+        "only {masked} three-texture Mod_Add batch was checked"
+    );
+    assert!(
+        interiors.iter().any(|coverage| *coverage > 0.02),
+        "no masked batch keeps any interior coverage, so the disc's inside would be clean"
+    );
+}
+
+/// Alpha lookup over a texture's texel grid, by normalised texture coordinate.
+fn sample_alpha(fdid: u32) -> Option<Box<dyn Fn(f32, f32) -> f32>> {
+    let image = texture(fdid)?;
+    let (width, height) = (image.width as usize, image.height as usize);
+    Some(Box::new(move |u: f32, v: f32| {
+        let x = ((u.rem_euclid(1.0) * width as f32) as usize).min(width - 1);
+        let y = ((v.rem_euclid(1.0) * height as f32) as usize).min(height - 1);
+        f32::from(image.pixels[(y * width + x) * 4 + 3]) / 255.0
+    }))
+}
