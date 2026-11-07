@@ -109,6 +109,21 @@ impl GameClient {
         Ok(self.preview_characters.len() - 1)
     }
 
+    /// Fades and cuts the preview characters' shadows by their distance from `camera`, as
+    /// `WorldUnits::cull_outdoor` does for drawn remote units within `radius`.
+    pub(crate) fn preview_apply_unit_shadow_radius(&mut self, camera: Vector3, radius: f32) {
+        for character in &self.preview_characters {
+            let distance = character.node.get_global_position().distance_to(camera);
+            crate::world::apply_unit_admission(
+                &character.node.clone().upcast(),
+                (true, distance < radius),
+                None,
+            );
+        }
+        self.world
+            .set_shadow_view(glam::Vec3::new(camera.x, camera.y, camera.z), radius);
+    }
+
     /// Plays `clip` on preview character `index` at `time_ms`, for stance and stride poses.
     pub(crate) fn preview_play_clip(
         &mut self,

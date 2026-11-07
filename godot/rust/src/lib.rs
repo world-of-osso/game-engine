@@ -1343,6 +1343,13 @@ impl GameClient {
         self.preview_ring_state()
     }
 
+    /// Offline fixture: the unit shadow radius from `camera` applied to the preview
+    /// characters.
+    #[func]
+    fn preview_unit_shadow_radius(&mut self, camera: Vector3, radius: f64) {
+        self.preview_apply_unit_shadow_radius(camera, radius as f32);
+    }
+
     /// Offline fixture: hold or resume a preview character's animation.
     #[func]
     fn preview_pause_character(&mut self, index: i64, paused: bool) -> GString {
@@ -3501,7 +3508,18 @@ impl GameClient {
             self.terrain_materials.cull_outdoor(windows, interiors);
             drop(span);
             let span = profile::span(|| "cull.units_outdoor".to_owned());
-            self.world.cull_outdoor(windows, interiors);
+            let shadow_radius = self
+                .client_options
+                .graphics
+                .graphics_quality
+                .preset()
+                .unit_shadow_radius;
+            self.world.cull_outdoor(
+                windows,
+                interiors,
+                glam::Vec3::new(camera.x, camera.y, camera.z),
+                shadow_radius,
+            );
             drop(span);
             let span = profile::span(|| "cull.doodads".to_owned());
             self.world_objects
