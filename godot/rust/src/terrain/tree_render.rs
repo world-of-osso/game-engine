@@ -133,7 +133,7 @@ fn build_weighted_mesh(
     if source.get_surface_count() == 0 {
         return Err("mesh has no surfaces".into());
     }
-    let mut weighted = ArrayMesh::new_gd();
+    let mut weighted = crate::rebuild_guard::new_array_mesh();
     weighted.set_blend_shape_mode(source.get_blend_shape_mode());
     weighted.set_lightmap_size_hint(source.get_lightmap_size_hint());
     for index in 0..source.get_blend_shape_count() {

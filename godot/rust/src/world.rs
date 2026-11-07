@@ -638,6 +638,7 @@ fn attach_unit_visual(
     light: Option<&TerrainLight>,
     particles: Option<&mut ParticlePools>,
 ) {
+    crate::rebuild_guard::world_event();
     let ribbon_models = loaded
         .as_ref()
         .ok()
@@ -1180,6 +1181,19 @@ pub struct WorldUnits {
     particles: Option<ParticlePools>,
 }
 
+/// Inside this camera distance a unit's feet sample the ground every frame.
+///
+/// INFERRED, not retail-verified: the retail client does not name foot IK anywhere in the
+/// surveyed images, while it does have a per-instance animation LOD and the
+/// `animFrameSkipLOD` ("animations will skip frames at distance") distance rule, so a
+/// distance-cadenced solve is retail-consistent rather than retail-proven. Retune from
+/// measurement: at 1080p a 1.9 yd body is ~180 px at 12 yd and ~47 px at 45 yd, so the
+/// stride below costs a distant foot well under a pixel of ground lag. Retire these two
+/// values once the retail foot IK LOD distances are located in the decomp.
+const FOOT_IK_NEAR_QUERY_RANGE: f32 = 12.0;
+/// Inside this camera distance they sample every other frame; farther, every third.
+const FOOT_IK_MID_QUERY_RANGE: f32 = 25.0;
+
 impl WorldUnits {
     pub fn new(data_root: PathBuf) -> Self {
         Self {
@@ -1625,6 +1639,21 @@ impl WorldUnits {
     /// frame after animation time advances, so the jump start, loop and landing play out
     /// as the local player's do; unchanged flags neither restart a clip nor its crossfade.
     /// A model missing a clip is a client failure; the other players still animate.
+    /// Frames between foot IK ground queries at camera distance `distance`.
+    ///
+    /// Near units ask every frame. A foot 20 yd away covers a couple of pixels, so its
+    /// ground is resampled every other frame and a far one every third; the solve and the
+    /// blend still run every frame, so the pose never pops.
+    fn foot_ik_query_stride(distance: f32) -> u64 {
+        if distance <= FOOT_IK_NEAR_QUERY_RANGE {
+            1
+        } else if distance <= FOOT_IK_MID_QUERY_RANGE {
+            2
+        } else {
+            3
+        }
+    }
+
     /// Applies client-side foot IK to every displayed unit in `range` of the camera.
     ///
     /// Only bone poses change; the unit node, its collision capsule and the server position
@@ -1637,15 +1666,23 @@ impl WorldUnits {
         camera: Vec3,
         local_enabled: bool,
         range: f32,
+        ground_epoch: u64,
         terrain: &crate::terrain::streaming::StreamedTerrain,
         surfaces: &mut crate::terrain::objects::TerrainObjects,
         collision_floor: &dyn Fn(Vec3) -> Option<f32>,
     ) {
         for (id, unit) in &mut self.units {
             let position = unit.node.get_global_position();
-            if Vec3::new(position.x, position.y, position.z).distance(camera) > range {
+            let distance = Vec3::new(position.x, position.y, position.z).distance(camera);
+            if distance > range {
                 continue;
             }
+            // Ground queries are the whole cost of the step, and a distant foot is a few
+            // pixels wide: it reuses the surface it last found for a frame or two while
+            // near units still ask every frame. The stride is per unit, so distant units
+            // do not all query on the same frame.
+            let stride = Self::foot_ik_query_stride(distance);
+            let query_ground = stride == 1 || (frame + *id) % stride == 0;
             let Some(mut animation) = unit.animation_player() else {
                 continue;
             };
@@ -1706,6 +1743,8 @@ impl WorldUnits {
                 scale,
                 enabled,
                 delta,
+                query_ground,
+                ground_epoch,
                 &floor_at,
                 &mut surface_at,
             );

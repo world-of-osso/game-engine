@@ -503,7 +503,7 @@ fn draped_mesh(
         ArrayType::INDEX.ord() as usize,
         &PackedInt32Array::from(indices.as_slice()).to_variant(),
     );
-    let mut mesh = godot::classes::ArrayMesh::new_gd();
+    let mut mesh = crate::rebuild_guard::new_array_mesh();
     mesh.add_surface_from_arrays(PrimitiveType::TRIANGLES, &arrays);
     mesh
 }

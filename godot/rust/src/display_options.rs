@@ -6,7 +6,7 @@ use game_engine_core::client_options_data::{
 };
 use godot::classes::{
     CanvasLayer, ColorRect, DisplayServer, Engine, Node, PackedScene, ProjectSettings,
-    ResourceLoader, Shader, ShaderMaterial, Viewport,
+    ResourceLoader, Shader, Viewport,
     control::{LayoutPreset, MouseFilter},
     display_server::VSyncMode,
     viewport::{AnisotropicFiltering, Msaa},
@@ -185,7 +185,7 @@ fn update_rcas_layer(viewport: &mut Gd<Viewport>, scale: f32) {
         .expect("Cannot load native RCAS shader")
         .try_cast::<Shader>()
         .expect("Native RCAS shader has wrong resource type");
-    let mut material = ShaderMaterial::new_gd();
+    let mut material = crate::rebuild_guard::new_shader_material();
     material.set_shader(&shader);
 
     let mut layer = CanvasLayer::new_alloc();

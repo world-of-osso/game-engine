@@ -445,6 +445,7 @@ The Bevy client was retired on 2026-10-02 ([log](log.md#2026-10-02--bevy-client-
 
 ## Systems
 
+- [Rebuild guard](systems/rebuild-guard.md) — per-category counters of sky, environment, material, shader, mesh, theme and UI rebuilds with first call sites; steady-frame invariant test with a cited allowlist.
 - [Healer ground rings](systems/healer-ground-rings.md) — client-only party health
   arcs draped on the visible surface, DB2-derived dispel ring, off-screen chevrons and
   click-to-target; Forever pixel proof and per-frame cost in the offline preview.

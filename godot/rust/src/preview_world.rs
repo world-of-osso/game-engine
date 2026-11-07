@@ -293,6 +293,8 @@ impl GameClient {
                 (rig, skeleton)
             };
             let anchor = character.node.get_global_position();
+            let ground_epoch =
+                self.terrain.data_epoch() ^ self.world_objects.surface_epoch().rotate_left(21);
             let floor_at = |x: f32, z: f32| {
                 self.terrain
                     .height_at(x, z)
@@ -318,6 +320,8 @@ impl GameClient {
                 scale,
                 enabled,
                 delta,
+                true,
+                ground_epoch,
                 &floor_at,
                 &mut surface_at,
             );

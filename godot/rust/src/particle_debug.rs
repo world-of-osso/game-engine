@@ -5,6 +5,7 @@
 //! Controls: left drag orbits, the wheel zooms, Tab / Shift+Tab cycles [`MODELS`],
 //! 1-9 toggle emitters #0-#8, 0 enables every emitter, R restarts the emitters.
 
+use crate::rebuild_guard::ThemeOverrides;
 use std::{path::PathBuf, rc::Rc};
 
 use game_engine_core::{
@@ -537,20 +538,20 @@ impl WowParticleDebug {
     fn attach_overlay(&mut self) {
         let mut layer = CanvasLayer::new_alloc();
         layer.set_name("Overlay");
-        let mut style = StyleBoxFlat::new_gd();
+        let mut style = crate::rebuild_guard::new_style_box::<StyleBoxFlat>();
         style.set_bg_color(Color::from_rgba(0.02, 0.02, 0.02, 0.82));
         style.set_content_margin_all(10.0);
         let mut panel = PanelContainer::new_alloc();
         panel.set_name("EmitterOverlay");
-        panel.add_theme_stylebox_override("panel", &style);
+        panel.change_theme_stylebox_override("panel", &style);
         panel.set_anchors_preset(LayoutPreset::TOP_RIGHT);
         panel.set_offset(Side::LEFT, -532.0);
         panel.set_offset(Side::RIGHT, -12.0);
         panel.set_offset(Side::TOP, 12.0);
         panel.set_mouse_filter(MouseFilter::IGNORE);
         let mut label = Label::new_alloc();
-        label.add_theme_font_size_override("font_size", 15);
-        label.add_theme_color_override("font_color", Color::WHITE);
+        label.change_theme_font_size_override("font_size", 15);
+        label.change_theme_color_override("font_color", Color::WHITE);
         label.set_autowrap_mode(AutowrapMode::WORD_SMART);
         label.set_mouse_filter(MouseFilter::IGNORE);
         panel.add_child(&label);

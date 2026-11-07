@@ -7,6 +7,7 @@
 //! local player, and on the Thick bar the white outlined Friz name at its left with the
 //! health value and percent at its right (the user's reference of 2026-10-04).
 
+use crate::rebuild_guard::ThemeOverrides;
 use std::collections::HashMap;
 use std::path::Path;
 
@@ -788,6 +789,7 @@ impl Nameplates {
         self.plates.retain(|id, plate| {
             let keep = views.contains_key(id);
             if !keep {
+                crate::rebuild_guard::count(crate::rebuild_guard::Rebuild::UiTree, 1);
                 plate.root.clone().free();
             }
             keep
@@ -904,6 +906,7 @@ fn spawn_plate(
     cast_art: &CastArt,
     level_art: Option<&LevelArt>,
 ) -> PlateNodes {
+    crate::rebuild_guard::count(crate::rebuild_guard::Rebuild::UiTree, 1);
     let mut root = Control::new_alloc();
     ignore_mouse(&mut root);
     let texture_rect = || {
@@ -932,10 +935,10 @@ fn spawn_plate(
     let label = || {
         let mut label = Label::new_alloc();
         ignore_mouse(&mut label);
-        label.add_theme_font_override("font", &art.font);
-        label.add_theme_color_override("font_color", Color::WHITE);
-        label.add_theme_color_override("font_outline_color", Color::BLACK);
-        label.add_theme_constant_override("outline_size", TEXT_OUTLINE);
+        label.change_theme_font_override("font", &art.font);
+        label.change_theme_color_override("font_color", Color::WHITE);
+        label.change_theme_color_override("font_outline_color", Color::BLACK);
+        label.change_theme_constant_override("outline_size", TEXT_OUTLINE);
         label
     };
     let mut name = label();
@@ -980,12 +983,12 @@ fn spawn_aura(root: &mut Gd<Control>, font: &Gd<godot::classes::FontFile>) -> Au
     ignore_mouse(&mut icon);
     let mut timer = Label::new_alloc();
     ignore_mouse(&mut timer);
-    timer.add_theme_font_override("font", font);
-    timer.add_theme_font_size_override("font_size", nameplate_auras::TIMER_FONT_SIZE);
-    timer.add_theme_color_override("font_color", Color::WHITE);
-    timer.add_theme_color_override("font_shadow_color", Color::BLACK);
-    timer.add_theme_constant_override("shadow_offset_x", 1);
-    timer.add_theme_constant_override("shadow_offset_y", 1);
+    timer.change_theme_font_override("font", font);
+    timer.change_theme_font_size_override("font_size", nameplate_auras::TIMER_FONT_SIZE);
+    timer.change_theme_color_override("font_color", Color::WHITE);
+    timer.change_theme_color_override("font_shadow_color", Color::BLACK);
+    timer.change_theme_constant_override("shadow_offset_x", 1);
+    timer.change_theme_constant_override("shadow_offset_y", 1);
     root.add_child(&border);
     root.add_child(&icon);
     root.add_child(&timer);
@@ -1137,13 +1140,13 @@ fn apply_plate(
         plate.text_style = Some((font_size, view.name_color));
         plate
             .name
-            .add_theme_font_size_override("font_size", font_size);
+            .change_theme_font_size_override("font_size", font_size);
         plate
             .health
-            .add_theme_font_size_override("font_size", font_size);
+            .change_theme_font_size_override("font_size", font_size);
         plate
             .name
-            .add_theme_color_override("font_color", view.name_color);
+            .change_theme_color_override("font_color", view.name_color);
     }
     let name = text_size(&view.name);
     let inside = match layout.text {

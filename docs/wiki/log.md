@@ -1,3 +1,11 @@
+## Rebuild guard counts per-frame scene and UI rebuilds — 2026-11-07
+
+Counters for sky cubemap, environment, material rebinds, global shader writes, mesh and
+ShaderMaterial creation, theme overrides, UI tree and shadow-atlas changes, with first call
+sites, in every `BENCH_SEGMENT` and a steady-frame invariant test. It fails 8d0bea36d
+outdoors (cubemap and light every frame) and passes master; it also found a double font
+override per FontString update. [[rebuild-guard]]
+
 ## The 2959 hillside pond is legacy material-1 water with zero colour inputs
 ## Healer ground rings drawn on the visible surface
 

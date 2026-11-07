@@ -782,7 +782,7 @@ impl HealerGroundRings {
 /// A shader material for one band. The shader draws the band, its analytic edges and the
 /// arc from uniforms, so a health change never rebuilds geometry.
 fn ring_material(shader: &Gd<Shader>, inner: f32, outer: f32) -> Gd<ShaderMaterial> {
-    let mut material = ShaderMaterial::new_gd();
+    let mut material = crate::rebuild_guard::new_shader_material();
     material.set_shader(shader);
     material.set_shader_parameter("inner_radius", &inner.to_variant());
     material.set_shader_parameter("outer_radius", &outer.to_variant());
@@ -1030,7 +1030,7 @@ fn build_band_mesh(heights: &[[f32; 2]], inner: f32, outer: f32) -> (Gd<ArrayMes
         indices.extend([inner, outer, next_inner, outer, next_outer, next_inner]);
     }
     let normals = vec![Vector3::UP; vertices.len()];
-    let mut mesh = ArrayMesh::new_gd();
+    let mut mesh = crate::rebuild_guard::new_array_mesh();
     add_surface(&mut mesh, &vertices, &normals, &uvs, &indices);
     (mesh, vertices)
 }

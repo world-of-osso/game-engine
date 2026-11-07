@@ -62,7 +62,7 @@ pub(crate) fn particle_material(
     emitter: &ParticleEmitter,
     texture_dir: &Path,
 ) -> Result<Gd<ShaderMaterial>, String> {
-    let mut material = ShaderMaterial::new_gd();
+    let mut material = crate::rebuild_guard::new_shader_material();
     bind_textures(&mut material, emitter, texture_dir)?;
     bind_uniforms(&mut material, emitter)?;
     Ok(material)

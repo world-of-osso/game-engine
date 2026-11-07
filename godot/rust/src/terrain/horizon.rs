@@ -7,7 +7,7 @@ use std::{collections::HashMap, path::PathBuf};
 use game_engine_core::horizon::{HorizonTile, parse_wdl};
 use godot::{
     classes::{
-        ArrayMesh, MeshInstance3D, Node3D, ResourceLoader, Shader, ShaderMaterial,
+        MeshInstance3D, Node3D, ResourceLoader, Shader, ShaderMaterial,
         geometry_instance_3d::ShadowCastingSetting, mesh,
     },
     prelude::*,
@@ -119,7 +119,7 @@ impl WorldHorizon {
                 .ok_or_else(|| format!("Cannot load {SHADER_PATH}"))?
                 .try_cast::<Shader>()
                 .map_err(|_| format!("{SHADER_PATH} is not a Shader"))?;
-            let mut material = ShaderMaterial::new_gd();
+            let mut material = crate::rebuild_guard::new_shader_material();
             material.set_shader(&shader);
             if let Some(light) = &self.light {
                 light.bind_scene_fog(&mut material);
@@ -154,7 +154,7 @@ impl WorldHorizon {
             mesh::ArrayType::INDEX.ord() as usize,
             &PackedInt32Array::from(indices.as_slice()).to_variant(),
         );
-        let mut array_mesh = ArrayMesh::new_gd();
+        let mut array_mesh = crate::rebuild_guard::new_array_mesh();
         array_mesh.add_surface_from_arrays(mesh::PrimitiveType::TRIANGLES, &arrays);
         let mut instance = MeshInstance3D::new_alloc();
         instance.set_name(&format!("Horizon{}_{}", tile.tile.0, tile.tile.1));

@@ -7,7 +7,7 @@
 
 use game_engine_core::foot_ik::{
     LegChain, LegJoints, LegRig, LegSolution, MAX_KNEE_EXTRA_BEND, is_stance, knee_flexion,
-    root_offset, solve_two_bone,
+    reuses_ground, root_offset, solve_two_bone,
 };
 use glam::{Quat, Vec3};
 use godot::{classes::Skeleton3D, prelude::*};
@@ -53,10 +53,27 @@ pub(crate) struct FootSnapshot {
     pub knee_rest: [f32; 2],
 }
 
+/// The ground under one foot as the last full query found it: where the foot was, the
+/// height the foot settles toward and the collision floor it was measured from.
+#[derive(Debug, Clone, Copy, PartialEq)]
+struct FootGround {
+    x: f32,
+    z: f32,
+    target: f32,
+    floor: f32,
+}
+
 #[derive(Default)]
 struct LegState {
     weight: f32,
     ground: Option<f32>,
+    /// The last full ground query, reused while the foot stands on it unchanged.
+    sample: Option<FootGround>,
+    /// Whether `sample` is this pose's result: a foot that found no ground still counts as
+    /// sampled, so it is not asked again while its epoch holds.
+    sampled: bool,
+    /// The ground epoch `sample` was read from.
+    epoch: u64,
 }
 
 impl FootIkState {
@@ -65,6 +82,12 @@ impl FootIkState {
     /// `enabled` is false while airborne, swimming or flying; the solve then fades out and
     /// the authored pose returns without a snap. `floor_at(x, z)` gives the collision floor
     /// and `surface_at(x, z, ceiling, floor)` the highest visible render surface.
+    ///
+    /// `query_ground` false reuses the ground each foot last found instead of asking again:
+    /// a distant unit redraws its solve from the same surface while the queries it would
+    /// spend are not worth a pixel. The solve, the blend and the pelvis offset run
+    /// unchanged, so the pose never pops. A foot also reuses its own sample while it has
+    /// not moved and `ground_epoch` still names the terrain and scenery it was read from.
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn apply(
         &mut self,
@@ -73,6 +96,8 @@ impl FootIkState {
         model_from_world_scale: f32,
         enabled: bool,
         delta: f32,
+        query_ground: bool,
+        ground_epoch: u64,
         floor_at: &dyn Fn(f32, f32) -> Option<f32>,
         surface_at: &mut dyn FnMut(f32, f32, f32, f32) -> Option<f32>,
     ) {
@@ -103,13 +128,32 @@ impl FootIkState {
         for (index, leg) in rig.legs.iter().enumerate() {
             let foot = world_end(&joints[index]);
             let ankle = leg.end_height * model_from_world_scale;
-            let (desired, floor) = match surface_target(foot.x, foot.z, ankle, floor_at, surface_at)
-            {
-                Some((target, floor)) => (Some(target), floor),
+            let state = &mut self.legs[index];
+            // A foot that has not moved over the same world keeps the ground it found,
+            // whether or not the caller would have asked this frame. One that did move
+            // asks only when its distance stride is due, which is what a distant foot
+            // saves; an unsampled foot or a changed world always asks.
+            let moved = state
+                .sample
+                .is_some_and(|sample| !reuses_ground((sample.x, sample.z), (foot.x, foot.z)));
+            let reuse = state.sampled && state.epoch == ground_epoch && !(moved && query_ground);
+            if !reuse {
+                state.sample = surface_target(foot.x, foot.z, ankle, floor_at, surface_at).map(
+                    |(target, floor)| FootGround {
+                        x: foot.x,
+                        z: foot.z,
+                        target,
+                        floor,
+                    },
+                );
+                state.sampled = true;
+                state.epoch = ground_epoch;
+            }
+            let (desired, floor) = match state.sample {
+                Some(sample) => (Some(sample.target), sample.floor),
                 None => (None, f32::NAN),
             };
             floors[index] = floor;
-            let state = &mut self.legs[index];
             let smoothed = match (state.ground, desired) {
                 (Some(previous), Some(next)) => {
                     let next =

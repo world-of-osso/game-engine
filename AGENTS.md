@@ -74,6 +74,7 @@ M2/skin, WMO, ADT/WDT parsers live in the public `world-of-osso/wow-formats` wor
 - Agents build and test through the launcher/helper with the saved default (`native` on agent-server: host cargo, artifacts in `<checkout>/target`, at most 3 concurrent runs via the helper's slots; no build-lock). `--build-host local` uses the bookworm container and is required for `--release` (glibc portability). Do not bypass the helper with direct extension Cargo or recreate bulk target caches unless explicitly asked; lightweight launcher tests are allowed. See `docs/remote-builds.md`.
 - Formatter changes count as your changes.
 - Append-only registries (tooltip sources, sound kits) use slices (`const REGISTRY: &[Entry] = &[...]`); append entries without updating a count. Preserve lookup order.
+- A per-frame code path that touches materials, environment/sky, meshes or UI theme/tree must be change-driven (dirty flag or input hash) and count through `godot/rust/src/rebuild_guard.rs` (`count`, `new_shader_material`, `new_array_mesh`, `set_global_shader_parameter`, `ThemeOverrides`). `godot/tests/rebuild_guard_live.gd` fails a steady idle frame over the allowlist in `godot/tests/rebuild_guard.gd`; add an allowlist entry only with its source cited. See [rebuild guard](docs/wiki/systems/rebuild-guard.md).
 
 ## UI Screens (rsx! + Screen pattern)
 
