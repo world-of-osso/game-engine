@@ -48,8 +48,10 @@ func inspect_holes(client: Node3D, chunk: MeshInstance3D) -> int:
 				if indexed.has(center):
 					continue
 				var point := chunk.to_global(positions[center])
-				if not intersect_surface(client, point).is_empty():
-					fail("Collision sealed an authored terrain hole at %s" % point)
+				# A hole leaves room for WMO floors: only terrain collision may not seal it.
+				var hit := intersect_surface(client, point)
+				if not hit.is_empty() and hit.collider.get_parent() == chunk.get_parent():
+					fail("Terrain collision %s sealed an authored hole at %s" % [hit.collider.name, point])
 					return -1
 				holes += 1
 	return holes
