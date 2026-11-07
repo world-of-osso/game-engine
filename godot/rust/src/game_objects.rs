@@ -69,6 +69,8 @@ fn measure_live_queries(
 struct ObjectNode {
     /// The display its loaded visual shows.
     display_id: u32,
+    /// Whether its authored collision body answers the game-object layer.
+    collision: bool,
     node: Gd<Node3D>,
     animation: Option<GameObjectAnimation>,
     particles: Option<PlacedParticles>,
@@ -79,6 +81,12 @@ pub(crate) struct GameObjects {
     displays: Option<Result<HashMap<u32, u32>, String>>,
     animation_fallbacks: Option<Result<HashMap<u16, u16>, String>>,
     objects: HashMap<u64, ObjectNode>,
+    /// Objects whose authored collision answers the game-object layer. When none does, a
+    /// floor ray on that layer cannot hit and the query is skipped.
+    colliding: usize,
+    /// Bumped whenever a colliding object's placement changes, so a ground sample taken
+    /// before the change is not reused after it.
+    collision_epoch: u64,
     transports: HashMap<u64, crate::transport_motion::TransportView>,
     light: Option<TerrainLight>,
     particles: Option<ParticlePools>,
@@ -184,6 +192,8 @@ impl GameObjects {
             displays: None,
             animation_fallbacks: None,
             objects: HashMap::new(),
+            colliding: 0,
+            collision_epoch: 0,
             transports: HashMap::new(),
             light: None,
             particles: None,
@@ -360,6 +370,7 @@ impl GameObjects {
                 id,
                 ObjectNode {
                     display_id: info.display_id,
+                    collision: false,
                     node,
                     animation: None,
                     particles,
@@ -380,6 +391,14 @@ impl GameObjects {
             0.0,
         ));
         object.node.set_scale(Vector3::ONE * info.scale);
+        self.collision_epoch = self.collision_epoch.wrapping_add(1);
+        if object.collision != collision.0 {
+            object.collision = collision.0;
+            self.colliding = self
+                .colliding
+                .checked_add_signed(if collision.0 { 1 } else { -1 })
+                .expect("game object collision count underflow");
+        }
         apply_object_collision(object, collision.0);
         object
             .node
@@ -591,9 +610,30 @@ impl GameObjects {
         }
         self.light = light;
     }
+
+    /// Whether any spawned object's authored collision answers the game-object layer.
+    pub(crate) fn has_floor_collision(&self) -> bool {
+        self.colliding > 0
+    }
+
+    /// Changes whenever a colliding object's placement can have moved the floor it draws.
+    pub(crate) fn collision_epoch(&self) -> u64 {
+        self.collision_epoch
+    }
+
+    /// Whether a transport is present: its deck moves without a replicated placement
+    /// change, so a floor sample under a foot cannot be reused while one exists.
+    pub(crate) fn has_transport(&self) -> bool {
+        !self.transports.is_empty()
+    }
+
     pub fn remove(&mut self, id: u64) {
         self.transports.remove(&id);
         if let Some(object) = self.objects.remove(&id) {
+            if object.collision {
+                self.colliding -= 1;
+                self.collision_epoch = self.collision_epoch.wrapping_add(1);
+            }
             object.node.free();
         }
     }
@@ -601,6 +641,8 @@ impl GameObjects {
         for (_, object) in self.objects.drain() {
             object.node.free();
         }
+        self.colliding = 0;
+        self.collision_epoch = self.collision_epoch.wrapping_add(1);
         self.transports.clear();
         if let Some(pools) = &mut self.particles {
             pools.reset();

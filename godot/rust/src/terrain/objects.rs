@@ -570,6 +570,14 @@ pub(crate) struct TerrainObjects {
     surface_cells: HashMap<(i32, i32), Vec<u32>>,
     /// Doodads already in `surface_cells`; the vector only grows between resets.
     surface_cells_len: usize,
+    /// Drawn WMO `(placement, group)` pairs by the `(x, z)` cells their world bounds cover,
+    /// so a column query tests the groups over the column instead of every spawned group.
+    surface_wmo_cells: HashMap<(i32, i32), Vec<(u32, u16)>>,
+    /// WMO placements already in `surface_wmo_cells`; the vector only grows between resets.
+    surface_wmo_len: usize,
+    /// Bumped whenever a drawn doodad or WMO is added or the world is reset: a visible
+    /// surface sampled before a bump can be out of date after it.
+    surface_epoch: u64,
 }
 
 impl TerrainObjects {
@@ -623,6 +631,9 @@ impl TerrainObjects {
             surface_columns: HashMap::new(),
             surface_cells: HashMap::new(),
             surface_cells_len: 0,
+            surface_wmo_cells: HashMap::new(),
+            surface_wmo_len: 0,
+            surface_epoch: 0,
         }
     }
 
@@ -658,6 +669,12 @@ impl TerrainObjects {
             .filter(|node| node.has_meta(WMO_MODEL_META))
             .filter_map(|node| node.try_cast::<Node3D>().ok())
             .collect()
+    }
+
+    /// Changes whenever a drawn doodad or WMO, or the whole world, can have changed the
+    /// visible surface over a column.
+    pub fn surface_epoch(&self) -> u64 {
+        self.surface_epoch
     }
 
     /// Highest visible render surface on the column through `(x, z)` inside
@@ -710,21 +727,29 @@ impl TerrainObjects {
                 consider(height);
             }
         }
-        for wmo in &self.wmos {
-            for (group, (min, max)) in &wmo.group_boxes {
-                if !column_meets(x, z, floor, ceiling, *min, *max) {
-                    continue;
-                }
-                let Some(batches) = wmo.groups.get(group) else {
+        self.index_surface_wmo_cells();
+        let groups = self
+            .surface_wmo_cells
+            .get(&(surface_cell(x), surface_cell(z)))
+            .cloned()
+            .unwrap_or_default();
+        for (wmo, group) in groups {
+            let wmo = &self.wmos[wmo as usize];
+            let Some((min, max)) = wmo.group_boxes.get(&group) else {
+                continue;
+            };
+            if !column_meets(x, z, floor, ceiling, *min, *max) {
+                continue;
+            }
+            let Some(batches) = wmo.groups.get(&group) else {
+                continue;
+            };
+            for batch in batches {
+                let Some(surface) = self.render_surface.root_surface(batch) else {
                     continue;
                 };
-                for batch in batches {
-                    let Some(surface) = self.render_surface.root_surface(batch) else {
-                        continue;
-                    };
-                    if let Some(height) = surface.highest_upward_below(x, z, ceiling, floor) {
-                        consider(height);
-                    }
+                if let Some(height) = surface.highest_upward_below(x, z, ceiling, floor) {
+                    consider(height);
                 }
             }
         }
@@ -748,6 +773,27 @@ impl TerrainObjects {
             }
         }
         self.surface_cells_len = self.doodads.len();
+    }
+
+    /// Buckets the WMO groups of placements adopted since the last call by the `(x, z)`
+    /// cells their world bounds cover, so a column query tests only the groups over the
+    /// column. Placements are appended and only cleared by `reset`, and their batch bounds
+    /// are fixed once their nodes are placed, so each group is indexed once.
+    fn index_surface_wmo_cells(&mut self) {
+        for index in self.surface_wmo_len..self.wmos.len() {
+            for (group, (min, max)) in &self.wmos[index].group_boxes {
+                let (min, max, group) = (*min, *max, *group);
+                for x in surface_cell(min.x)..=surface_cell(max.x) {
+                    for z in surface_cell(min.z)..=surface_cell(max.z) {
+                        self.surface_wmo_cells
+                            .entry((x, z))
+                            .or_default()
+                            .push((index as u32, group));
+                    }
+                }
+            }
+        }
+        self.surface_wmo_len = self.wmos.len();
     }
 
     /// Internal queue and loader counters, for offline fixture diagnostics.
@@ -1315,6 +1361,7 @@ impl TerrainObjects {
             self.emitting_doodads.push(self.doodads.len());
         }
         self.doodads.push(doodad);
+        self.surface_epoch = self.surface_epoch.wrapping_add(1);
     }
 
     fn load_placed_doodad(
@@ -1394,6 +1441,7 @@ impl TerrainObjects {
         culled: CulledWmo,
     ) {
         self.wmos.push(culled);
+        self.surface_epoch = self.surface_epoch.wrapping_add(1);
         self.wmo_cull_view = None;
         self.queue_wmo_doodads(wmo, node, doodads, self.wmos.len() - 1);
     }
@@ -1702,6 +1750,9 @@ impl TerrainObjects {
         self.surface_columns.clear();
         self.surface_cells.clear();
         self.surface_cells_len = 0;
+        self.surface_wmo_cells.clear();
+        self.surface_wmo_len = 0;
+        self.surface_epoch = self.surface_epoch.wrapping_add(1);
         self.failures = 0;
         if let Some(pools) = &mut self.particles {
             pools.reset();

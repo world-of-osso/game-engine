@@ -87,6 +87,9 @@ pub(crate) struct StreamedTerrain {
     worker: Option<JoinHandle<()>>,
     terminal_error: Option<String>,
     generation: u64,
+    /// Bumped whenever the parsed terrain or its map WDT changes; ground samples taken
+    /// before a bump are not valid after it.
+    data_epoch: u64,
     map: Option<String>,
     initial_tiles: BTreeSet<(u32, u32)>,
     /// The tile the current map request named, `(tile_y, tile_x)`.
@@ -134,6 +137,7 @@ impl StreamedTerrain {
             worker: Some(worker),
             terminal_error: None,
             generation: 0,
+            data_epoch: 0,
             map: None,
             initial_tiles: BTreeSet::new(),
             primary_tile: None,
@@ -164,6 +168,11 @@ impl StreamedTerrain {
     /// The terrain height at Bevy (x, z); `None` off the parsed tiles and in a terrain hole,
     /// which has no terrain (TrinityCore `GridMap::getHeight` returns `INVALID_HEIGHT` there;
     /// `chunk_geometry` draws no quad).
+    /// Changes whenever the parsed terrain under a foot can have changed.
+    pub fn data_epoch(&self) -> u64 {
+        self.data_epoch
+    }
+
     pub fn height_at(&self, x: f32, z: f32) -> Option<f32> {
         use game_engine_core::terrain_height_data::{
             bevy_to_chunk_coords, located_quad, sample_located_chunk_height,
@@ -365,6 +374,7 @@ impl StreamedTerrain {
             .generation
             .checked_add(1)
             .ok_or("Terrain generation overflow")?;
+        self.data_epoch = self.data_epoch.wrapping_add(1);
         self.map = None;
         self.initial_tiles.clear();
         self.primary_tile = None;
@@ -498,6 +508,7 @@ impl StreamedTerrain {
                 match result {
                     Ok(parsed) => {
                         self.parsed_tiles.insert(tile, parsed);
+                        self.data_epoch = self.data_epoch.wrapping_add(1);
                     }
                     Err(error) => {
                         self.failures.insert(tile, error);
