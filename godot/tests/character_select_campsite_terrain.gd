@@ -1,4 +1,5 @@
 extends SceneTree
+const TerrainChunkInputs := preload("res://tests/terrain_chunk_inputs.gd")
 
 # Real-server campsite switching to scenes whose authored tiles contain MCNK chunks
 # without MCLY texture layers: the session must stay on character select and those
@@ -51,13 +52,14 @@ func terrain_summary(client: Node) -> Dictionary:
 		return summary
 	for tile in terrain.get_children():
 		summary.tiles += 1
-		for chunk in tile.get_children():
-			if not chunk is MeshInstance3D:
-				continue
-			summary.chunks += 1
-			var material = chunk.get_surface_override_material(0)
-			var ground = material.get_shader_parameter("ground_0")
-			if material.get_shader_parameter("config").x == 0.0 and ground is Texture2D and ground.get_width() == 1:
+		var mesh := tile.get_node_or_null("Terrain") as MeshInstance3D
+		var chunks := TerrainChunkInputs.tile_chunks(tile)
+		summary.chunks += chunks.size()
+		if mesh == null:
+			continue
+		var data: Image = mesh.get_surface_override_material(0).get_shader_parameter("chunk_data").get_image()
+		for index in chunks:
+			if TerrainChunkInputs.chunk_row(data, index, 9).x == TerrainChunkInputs.REF_UNTEXTURED:
 				summary.untextured += 1
 	return summary
 

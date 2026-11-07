@@ -1,4 +1,5 @@
 extends "res://tests/world_units_flow.gd"
+const TerrainChunkInputs := preload("res://tests/terrain_chunk_inputs.gd")
 
 func select_second_character(client: Node) -> void:
 	if not client.account_state().has("terrain"):
@@ -71,34 +72,38 @@ func inspect_material_tiles(client: Node, parsed_tiles: Array) -> bool:
 		fail("Parsed terrain has no corresponding native material tiles")
 		return false
 	for tile in root.get_children():
-		var chunks := terrain_chunks(tile)
-		if chunks.is_empty():
-			fail("Material tile has no terrain chunks")
+		var meshes := terrain_chunks(tile)
+		var chunks := TerrainChunkInputs.tile_chunks(tile)
+		if meshes.size() != 1 or chunks.is_empty():
+			fail("Material tile lacks its terrain mesh or chunks: %d meshes, %d chunks" % [meshes.size(), chunks.size()])
 			return false
-		for instance in chunks:
-			var material := instance.get_surface_override_material(0) as ShaderMaterial
-			if material == null or material.shader == null:
-				fail("Terrain chunk lacks native authored shader material")
-				return false
-			var config: Vector4 = material.get_shader_parameter("config")
+		var material := meshes[0].get_surface_override_material(0) as ShaderMaterial
+		if material == null or material.shader == null:
+			fail("Terrain tile lacks native authored shader material")
+			return false
+		var data_texture := material.get_shader_parameter("chunk_data") as Texture2D
+		var alpha := material.get_shader_parameter("alpha_atlas") as Texture2D
+		if data_texture == null or alpha == null or alpha.get_width() != 1024 or alpha.get_height() != 1024:
+			fail("Terrain material lacks chunk data or the 16x16 64x64 MCAL atlas")
+			return false
+		var data := data_texture.get_image()
+		for index in chunks:
+			var config := TerrainChunkInputs.chunk_row(data, index, 0)
 			if config.x < 1 or config.x > 4 or config.z < 8:
-				fail("Terrain material has invalid authored layer count/repeat")
+				fail("Terrain chunk %s has invalid authored layer count/repeat" % index)
 				return false
+			var ground := TerrainChunkInputs.chunk_row(data, index, 9)
 			for slot in range(int(config.x)):
-				var diffuse := material.get_shader_parameter("ground_%d" % slot) as Texture2D
-				if diffuse == null or diffuse.get_width() <= 1 or diffuse.get_height() <= 1:
-					fail("Terrain material lacks decoded authored diffuse")
+				var layers := TerrainChunkInputs.layer_array(material, ground[slot]) if ground[slot] >= 0.0 else null
+				if layers == null or layers.get_width() <= 1 or layers.get_height() <= 1:
+					fail("Terrain chunk %s lacks decoded authored diffuse" % index)
 					return false
-			var alpha := material.get_shader_parameter("alpha_packed") as Texture2D
-			if alpha == null or alpha.get_width() != 64 or alpha.get_height() != 64:
-				fail("Terrain material lacks 64x64 MCAL texture")
-				return false
 	return true
 
-## A tile's terrain chunk meshes; a tile with liquid also holds a Water node first.
+## A tile's terrain mesh: every chunk in one draw, beside its Water node and collision bodies.
 func terrain_chunks(tile: Node) -> Array[MeshInstance3D]:
 	var chunks: Array[MeshInstance3D] = []
 	for child in tile.get_children():
-		if child is MeshInstance3D and child.name.begins_with("Chunk"):
+		if child is MeshInstance3D and child.name == "Terrain":
 			chunks.append(child)
 	return chunks

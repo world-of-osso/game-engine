@@ -15,6 +15,7 @@ mod scenery_index;
 pub(crate) mod state;
 pub(crate) mod streaming;
 mod textures;
+mod tile_material;
 pub(crate) mod tree_contact;
 pub(crate) mod tree_render;
 mod water;

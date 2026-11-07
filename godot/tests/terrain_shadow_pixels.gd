@@ -42,8 +42,8 @@ func _run() -> void:
 	sun.directional_shadow_split_3 = 0.75
 	sun.directional_shadow_max_distance = 5.0
 
-	material.set_shader_parameter("config", Vector4(1.0, 0.0, 1.0, 0.0))
-	material.set_shader_parameter("ground_0", solid_texture(Color(0.25, 0.25, 0.25, 0.5)))
+	chunk.set_input(material, "config", Vector4(1.0, 0.0, 1.0, 0.0))
+	chunk.set_input(material, "ground_0", solid_texture(Color(0.25, 0.25, 0.25, 0.5)))
 	material.set_shader_parameter("ambient", Vector3(0.25, 0.25, 0.25))
 	material.set_shader_parameter("horizon_ambient", Vector3(0.25, 0.25, 0.25))
 	material.set_shader_parameter("ground_ambient", Vector3(0.25, 0.25, 0.25))

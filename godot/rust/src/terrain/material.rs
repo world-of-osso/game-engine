@@ -1,22 +1,27 @@
 //! Native GPU resources from retained split-ADT data; no world-readiness decisions.
 
 use std::{
-    collections::{BTreeMap, BTreeSet, HashMap},
+    collections::{BTreeMap, BTreeSet},
     time::{Duration, Instant},
 };
 
-use game_engine_core::{adt, blp};
+use game_engine_core::adt;
 use godot::{
     classes::{
-        ArrayMesh, CollisionShape3D, ConcavePolygonShape3D, Image, ImageTexture, MeshInstance3D,
-        Node3D, Shader, ShaderMaterial, StaticBody3D, geometry_instance_3d::ShadowCastingSetting,
-        image,
+        CollisionShape3D, ConcavePolygonShape3D, ImageTexture, MeshInstance3D, Node3D, Shader,
+        ShaderMaterial, StaticBody3D,
     },
     prelude::*,
 };
 
 use super::{
-    assets::NativeTerrainTile, streaming::StreamedTerrain, textures::TerrainLayerTextures,
+    assets::NativeTerrainTile,
+    streaming::StreamedTerrain,
+    textures::TerrainLayerTextures,
+    tile_material::{
+        CHUNKS_PER_SIDE, ChunkInputs, LayerArrays, REF_UNTEXTURED, REF_WHITE, TileAssembly,
+        hidden_mask,
+    },
 };
 use crate::{lighting::TerrainLight, wmo::portals::HalfSpace};
 use glam::Vec3;
@@ -27,25 +32,20 @@ type Tile = (u32, u32);
 /// is built each frame.
 const TERRAIN_BUDGET: Duration = Duration::from_millis(8);
 
-type BuiltChunk = (
-    String,
-    Gd<ArrayMesh>,
-    Gd<ShaderMaterial>,
-    Gd<ConcavePolygonShape3D>,
-);
-
-struct TerrainChunkVisibility {
-    mesh: Gd<MeshInstance3D>,
-    min: Vec3,
-    max: Vec3,
-    shadows: ShadowCastingSetting,
-    camera_admitted: bool,
+/// A built tile's camera-rejection mask (`terrain.gdshader` `chunk_hidden`).
+struct TileVisibility {
+    texture: Gd<ImageTexture>,
+    hidden: [u8; CHUNKS_PER_SIDE * CHUNKS_PER_SIDE],
+    /// Mask texel and tile-space bounds of each drawn chunk.
+    chunks: Vec<(usize, Vec3, Vec3)>,
 }
 
-/// A tile whose chunks are being built over several frames.
+/// A tile whose chunks are being gathered over several frames.
 struct TileBuild {
     tile: Tile,
-    chunks: Vec<BuiltChunk>,
+    assembly: TileAssembly,
+    collisions: Vec<(String, Gd<ConcavePolygonShape3D>)>,
+    bounds: Vec<(usize, Vec3, Vec3)>,
     /// Next root chunk to build.
     next: usize,
 }
@@ -59,17 +59,17 @@ pub(crate) struct TerrainMaterials {
     priority: Vec<Tile>,
     /// Tiles whose GPU resources could not be built; never retried until reset.
     failures: BTreeMap<Tile, String>,
-    textures: HashMap<u32, Gd<ImageTexture>>,
-    placeholder: Option<Gd<ImageTexture>>,
+    layers: LayerArrays,
     shader: Option<Gd<Shader>>,
+    /// One per built tile.
     materials: Vec<Gd<ShaderMaterial>>,
-    chunks: Vec<TerrainChunkVisibility>,
+    tiles: Vec<TileVisibility>,
     light: Option<TerrainLight>,
     water: super::water::WaterMaterials,
 }
 
 impl TerrainMaterials {
-    /// Terrain chunk materials and liquid materials built so far.
+    /// Terrain tile materials and liquid materials built so far.
     pub fn material_counts(&self) -> (usize, usize) {
         (self.materials.len(), self.water.material_count())
     }
@@ -86,26 +86,30 @@ impl TerrainMaterials {
         &self.failures
     }
 
-    /// Reject terrain from the camera while keeping its shadow and collision.
+    /// Reject terrain chunks from the camera while keeping their shadow and collision.
     pub fn cull_outdoor(&mut self, windows: Option<&[Vec<HalfSpace>]>, interiors: &[(Vec3, Vec3)]) {
         let Some(root) = &self.root else {
             return;
         };
         let world = super::objects::affine(root.get_global_transform());
-        for chunk in &mut self.chunks {
-            let (min, max) = world_box(world, chunk.min, chunk.max);
-            let admitted = super::scenery::outdoor_box_admitted(min, max, windows, interiors);
-            if admitted == chunk.camera_admitted {
+        for tile in &mut self.tiles {
+            let mut hidden = tile.hidden;
+            for &(texel, min, max) in &tile.chunks {
+                let (min, max) = world_box(world, min, max);
+                let admitted = super::scenery::outdoor_box_admitted(min, max, windows, interiors);
+                hidden[texel] = if admitted { 0 } else { 255 };
+            }
+            if hidden == tile.hidden {
                 continue;
             }
-            if chunk.shadows == ShadowCastingSetting::ON {
-                chunk.mesh.set_cast_shadows_setting(if admitted {
-                    chunk.shadows
-                } else {
-                    ShadowCastingSetting::SHADOWS_ONLY
-                });
+            match hidden_mask(&hidden) {
+                Ok(image) => {
+                    crate::rebuild_guard::count(crate::rebuild_guard::Rebuild::MaterialRebind, 1);
+                    tile.texture.update(&image);
+                    tile.hidden = hidden;
+                }
+                Err(error) => crate::frame_error::report_once(&error),
             }
-            chunk.camera_admitted = admitted;
         }
     }
 
@@ -150,6 +154,13 @@ impl TerrainMaterials {
             root.add_child(&node);
             self.attached.insert(tile);
         }
+        // A layer array grew: every built material still samples the replaced one.
+        if self.layers.take_replaced() {
+            for material in &mut self.materials {
+                crate::rebuild_guard::count(crate::rebuild_guard::Rebuild::MaterialRebind, 1);
+                self.layers.bind(material);
+            }
+        }
         self.water.sample_clock(parent)
     }
 
@@ -192,10 +203,9 @@ impl TerrainMaterials {
         self.building = None;
         self.priority.clear();
         self.failures.clear();
-        self.textures.clear();
-        self.placeholder = None;
+        self.layers = LayerArrays::default();
         self.materials.clear();
-        self.chunks.clear();
+        self.tiles.clear();
         self.light = None;
         self.water = super::water::WaterMaterials::default();
     }
@@ -219,8 +229,8 @@ impl TerrainMaterials {
         Ok(shader)
     }
 
-    /// Build more of `tile`'s chunks until the frame's deadline;
-    /// return the tile node once every chunk is built.
+    /// Gather more of `tile`'s chunks until the frame's deadline;
+    /// return the tile node once every chunk is gathered.
     fn build_tile(
         &mut self,
         tile: Tile,
@@ -235,14 +245,14 @@ impl TerrainMaterials {
                 tex.chunk_layers.len()
             ));
         }
-        let shader = self.shader()?;
-        let build = self.building.take().unwrap_or(TileBuild {
+        let build = self.building.take().unwrap_or_else(|| TileBuild {
             tile,
-            chunks: Vec::new(),
+            assembly: TileAssembly::default(),
+            collisions: Vec::new(),
+            bounds: Vec::new(),
             next: 0,
         });
-        let Some(build) = self.build_tile_chunks(tile, build, parsed, tex, &shader, deadline)?
-        else {
+        let Some(build) = self.build_tile_chunks(tile, build, parsed, tex, deadline)? else {
             return Ok(None);
         };
         self.spawn_tile(tile, parsed, build).map(Some)
@@ -254,7 +264,6 @@ impl TerrainMaterials {
         mut build: TileBuild,
         parsed: &NativeTerrainTile,
         tex: &adt::AdtTexData,
-        shader: &Gd<Shader>,
         deadline: Instant,
     ) -> Result<Option<TileBuild>, String> {
         // Texture chunks are stored by encounter order, not by root chunk coordinates.
@@ -269,14 +278,19 @@ impl TerrainMaterials {
             if geometry.indices.is_empty() {
                 continue;
             }
-            let material = self.build_material(parsed, &layers.layers, shader)?;
-            let collision = collision_from_geometry(&geometry);
-            let mesh = super::build_mesh(geometry, &chunk.vertex_colors);
-            build.chunks.push((
+            let inputs = self.chunk_inputs(parsed, &layers.layers)?;
+            let index = (chunk.index_x, chunk.index_y);
+            build
+                .assembly
+                .add_chunk(index, &geometry, &chunk.vertex_colors, &inputs)?;
+            build.bounds.push((
+                chunk.index_y as usize * CHUNKS_PER_SIDE + chunk.index_x as usize,
+                geometry_min(&geometry),
+                geometry_max(&geometry),
+            ));
+            build.collisions.push((
                 format!("Chunk{}_{}", chunk.index_x, chunk.index_y),
-                mesh,
-                material,
-                collision,
+                collision_from_geometry(&geometry),
             ));
         }
         Ok(Some(build))
@@ -291,109 +305,75 @@ impl TerrainMaterials {
         let span = crate::profile::span(|| "terrain.water".to_owned());
         let water = self.water.build(&parsed.root, &parsed.liquid_materials)?;
         drop(span);
+        let hidden = [0; CHUNKS_PER_SIDE * CHUNKS_PER_SIDE];
+        let mask = ImageTexture::create_from_image(&hidden_mask(&hidden)?)
+            .ok_or("Godot rejected the terrain chunk mask texture")?;
+        let built = if build.assembly.is_empty() {
+            None
+        } else {
+            let shader = self.shader()?;
+            let (mesh, mut material) = build.assembly.build(&shader, &self.layers, &mask)?;
+            if let Some(light) = &self.light {
+                light.bind(&mut material);
+            }
+            Some((mesh, material))
+        };
         // Allocate manual-lifetime nodes only after all fallible resource construction.
         let mut root = Node3D::new_alloc();
         root.set_name(&format!("Tile{}_{}", tile.0, tile.1));
         if let Some(water) = water {
             root.add_child(&water);
         }
-        for (name, mesh, material, collision) in build.chunks {
-            let instance = spawn_chunk(&name, &mesh, &material, &collision);
-            let bounds = mesh.get_aabb();
-            let min = Vec3::from_array(bounds.position.to_array());
-            let max = min + Vec3::from_array(bounds.size.to_array());
-            self.chunks.push(TerrainChunkVisibility {
-                shadows: instance.get_cast_shadows_setting(),
-                mesh: instance.clone(),
-                min,
-                max,
-                camera_admitted: true,
-            });
+        if let Some((mesh, material)) = built {
+            let mut instance = MeshInstance3D::new_alloc();
+            instance.set_name("Terrain");
+            instance.set_mesh(&mesh);
+            instance.set_surface_override_material(0, &material);
             root.add_child(&instance);
             self.materials.push(material);
+            self.tiles.push(TileVisibility {
+                texture: mask,
+                hidden,
+                chunks: build.bounds,
+            });
+        }
+        for (name, collision) in build.collisions {
+            root.add_child(&spawn_collision(&name, &collision));
         }
         Ok(root)
     }
 
-    fn build_material(
+    /// `terrain.gdshader` inputs of one chunk; its layer textures join the shared arrays.
+    fn chunk_inputs(
         &mut self,
         parsed: &NativeTerrainTile,
         layers: &[adt::TextureLayer],
-        shader: &Gd<Shader>,
-    ) -> Result<Gd<ShaderMaterial>, String> {
-        let _material = crate::profile::span(|| "phase.material.terrain".to_owned());
+    ) -> Result<ChunkInputs, String> {
         let inputs = ChunkMaterialInputs::new(parsed, layers)?;
-        let span = crate::profile::span(|| "terrain.set_shader".to_owned());
-        let mut material = crate::rebuild_guard::new_shader_material();
-        material.set_shader(shader);
-        drop(span);
-        material.set_shader_parameter("config", &vector4(inputs.config).to_variant());
-        self.bind_layer_textures(&mut material, &inputs.textures)?;
-        for slot in 0..4 {
-            material.set_shader_parameter(
-                &format!("layer_params_{slot}"),
-                &vector4(inputs.layer_params[slot]).to_variant(),
-            );
-            material.set_shader_parameter(
-                &format!("animation_params_{slot}"),
-                &vector4(inputs.animation[slot]).to_variant(),
-            );
-        }
-        let alpha = texture_from_rgba(64, 64, &inputs.alpha)?;
-        material.set_shader_parameter("alpha_packed", &alpha.to_variant());
-        if let Some(light) = &self.light {
-            light.bind(&mut material);
-        }
-        Ok(material)
-    }
-
-    fn bind_layer_textures(
-        &mut self,
-        material: &mut Gd<ShaderMaterial>,
-        textures: &[&TerrainLayerTextures],
-    ) -> Result<(), String> {
-        if textures.is_empty() {
+        let (mut ground, mut height) = ([REF_WHITE; 4], [REF_WHITE; 4]);
+        if inputs.textures.is_empty() {
             // Original untextured chunk: every ground and height slot samples one gray texel.
-            let placeholder = self.placeholder()?;
-            for slot in 0..4 {
-                material.set_shader_parameter(&format!("ground_{slot}"), &placeholder.to_variant());
-                material.set_shader_parameter(&format!("height_{slot}"), &placeholder.to_variant());
-            }
-            return Ok(());
+            ground = [REF_UNTEXTURED; 4];
+            height = [REF_UNTEXTURED; 4];
         }
-        for (slot, images) in textures.iter().enumerate() {
-            let diffuse = self.texture(images.diffuse_fdid, &images.diffuse)?;
-            material.set_shader_parameter(&format!("ground_{slot}"), &diffuse.to_variant());
-            if let Some(height) = &images.height {
-                let texture = self.texture(height.fdid, &height.image)?;
-                material.set_shader_parameter(&format!("height_{slot}"), &texture.to_variant());
+        for (slot, images) in inputs.textures.iter().enumerate() {
+            ground[slot] = self
+                .layers
+                .reference(images.diffuse_fdid, &images.diffuse)?;
+            if let Some(texture) = &images.height {
+                height[slot] = self.layers.reference(texture.fdid, &texture.image)?;
             }
         }
-        Ok(())
-    }
-
-    fn placeholder(&mut self) -> Result<Gd<ImageTexture>, String> {
-        if let Some(texture) = &self.placeholder {
-            return Ok(texture.clone());
-        }
-        let texture = texture_from_rgba(1, 1, &UNTEXTURED_GROUND_RGBA)?;
-        self.placeholder = Some(texture.clone());
-        Ok(texture)
-    }
-
-    fn texture(&mut self, fdid: u32, pixels: &blp::RgbaImage) -> Result<Gd<ImageTexture>, String> {
-        if let Some(texture) = self.textures.get(&fdid) {
-            return Ok(texture.clone());
-        }
-        let texture = texture_from_rgba(pixels.width, pixels.height, &pixels.pixels)
-            .map_err(|error| format!("Texture FDID {fdid}: {error}"))?;
-        self.textures.insert(fdid, texture.clone());
-        Ok(texture)
+        Ok(ChunkInputs {
+            config: inputs.config,
+            layer_params: inputs.layer_params,
+            animation: inputs.animation,
+            ground,
+            height,
+            alpha: inputs.alpha,
+        })
     }
 }
-
-/// The original renderer's color placeholder for chunks without MCLY layers.
-const UNTEXTURED_GROUND_RGBA: [u8; 4] = [128, 128, 128, 255];
 
 /// Shader inputs for one MCNK chunk, resolved before any Godot resource exists.
 struct ChunkMaterialInputs<'a> {
@@ -477,41 +457,32 @@ fn collision_from_geometry(geometry: &adt::Geometry) -> Gd<ConcavePolygonShape3D
     shape
 }
 
-fn spawn_chunk(
-    name: &str,
-    mesh: &Gd<ArrayMesh>,
-    material: &Gd<ShaderMaterial>,
-    collision: &Gd<ConcavePolygonShape3D>,
-) -> Gd<MeshInstance3D> {
-    let mut instance = MeshInstance3D::new_alloc();
-    instance.set_name(name);
-    instance.set_mesh(mesh);
-    instance.set_surface_override_material(0, material);
+fn spawn_collision(name: &str, collision: &Gd<ConcavePolygonShape3D>) -> Gd<StaticBody3D> {
     let mut body = StaticBody3D::new_alloc();
-    body.set_name("TerrainCollision");
+    body.set_name(name);
     let mut shape = CollisionShape3D::new_alloc();
     shape.set_name("Shape");
     shape.set_shape(collision);
     body.add_child(&shape);
-    instance.add_child(&body);
-    instance
+    body
 }
 
-fn vector4(values: [f32; 4]) -> Vector4 {
-    Vector4::new(values[0], values[1], values[2], values[3])
+fn geometry_min(geometry: &adt::Geometry) -> Vec3 {
+    geometry
+        .positions
+        .iter()
+        .fold(Vec3::splat(f32::INFINITY), |min, p| {
+            min.min(Vec3::from_array(*p))
+        })
 }
 
-fn texture_from_rgba(width: u32, height: u32, pixels: &[u8]) -> Result<Gd<ImageTexture>, String> {
-    let _upload = crate::profile::span(|| "phase.texture_upload.terrain".to_owned());
-    let image = Image::create_from_data(
-        width as i32,
-        height as i32,
-        false,
-        image::Format::RGBA8,
-        &PackedByteArray::from(pixels),
-    )
-    .ok_or_else(|| format!("Godot rejected {width}x{height} terrain image"))?;
-    ImageTexture::create_from_image(&image).ok_or_else(|| "Godot rejected terrain texture".into())
+fn geometry_max(geometry: &adt::Geometry) -> Vec3 {
+    geometry
+        .positions
+        .iter()
+        .fold(Vec3::splat(f32::NEG_INFINITY), |max, p| {
+            max.max(Vec3::from_array(*p))
+        })
 }
 
 #[cfg(test)]
