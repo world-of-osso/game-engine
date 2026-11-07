@@ -1,11 +1,13 @@
 extends SceneTree
 
 # The unit shadow radius on real models, sun, terrain and city, offline: three held
-# player models stand on sunlit cobbles at rising distances from the camera. One frame
-# state is captured with an unlimited radius, a radius that puts the middle model
-# halfway through the fade band (its last tenth), no radius and the unlimited radius
-# again: the near shadow is unchanged, the band one keeps a dithered share and the far
-# one is gone. The High radius (50 yd) cuts by the same path.
+# player models stand on sunlit cobbles before, halfway through and past the fade band
+# (45..50 yd) of the High unit shadow radius. The radius is measured from a reference
+# point 47.5 yd from the middle model on the line through the models (in the game, the
+# world camera); the view stays close enough to see each shadow. One frame state is
+# captured with an unlimited radius, the 50 yd radius, no radius and the unlimited
+# radius again: the near shadow is unchanged, the band one keeps a dithered share and
+# the far one is gone.
 
 var out_dir := OS.get_environment("CAPTURE_DIR") if OS.get_environment("CAPTURE_DIR") != "" \
 		else "/syncthing/AgentShared/2026-11-07/fps-120-close/"
@@ -16,6 +18,8 @@ const EYE := Vector3(-8862.0, 116.4, -659.0)
 const LOOK_AT := Vector3(-8848.16, 96.48, -644.14)
 const SCREEN_POINTS := [Vector2(960, 640), Vector2(980, 540), Vector2(1000, 440)]
 const PLAZA_HEIGHT := 96.4
+const RADIUS := 50.0
+const BAND_MIDDLE := 47.5
 # Noon (half-minutes): the sun reaches the street between the houses.
 const WORLD_MINUTES := 1440.0
 
@@ -63,8 +67,12 @@ func run() -> void:
 			return fail("character: " + error)
 		client.preview_character_clip(index, 0, 0.0)
 		client.preview_pause_character(index, true)
-	var radius_yards := distances[1] / 0.95
-	print("UNIT_SHADOW_FADE feet=%s distances=%s radius=%.2f" % [feet, distances, radius_yards])
+	var along := (feet[0] - feet[2]).normalized()
+	var reference: Vector3 = feet[1] + along * BAND_MIDDLE
+	for index in feet.size():
+		distances[index] = feet[index].distance_to(reference)
+	var radius_yards := RADIUS
+	print("UNIT_SHADOW_FADE feet=%s distances=%s reference=%s" % [feet, distances, reference])
 	if distances[0] >= radius_yards * 0.9 or distances[2] <= radius_yards:
 		return fail("models do not straddle the fade band")
 	error = client.preview_world_lighting(LOOK_AT, EYE)
@@ -74,9 +82,9 @@ func run() -> void:
 	if not await wait_until(objects_idle, 240000):
 		return fail("objects never finished loading")
 	await wait_ms(3000)
-	client.preview_unit_shadow_radius(EYE, INF)
+	client.preview_unit_shadow_radius(reference, INF)
 	var unlimited := await capture("unit-shadow-fade-unlimited")
-	client.preview_unit_shadow_radius(EYE, radius_yards)
+	client.preview_unit_shadow_radius(reference, radius_yards)
 	var radius := await capture("unit-shadow-fade-radius")
 	# Light travels along the sun's -Z: a body point 1 yd up lands this far along the ground.
 	var sun := client.find_child("Sun", true, false) as DirectionalLight3D
@@ -84,9 +92,9 @@ func run() -> void:
 		return fail("no sun")
 	var travel := -sun.global_basis.z
 	var shadow_offset := Vector3(travel.x, 0.0, travel.z) / -travel.y
-	client.preview_unit_shadow_radius(EYE, 0.0)
+	client.preview_unit_shadow_radius(reference, 0.0)
 	var none := await capture("unit-shadow-fade-none")
-	client.preview_unit_shadow_radius(EYE, INF)
+	client.preview_unit_shadow_radius(reference, INF)
 	var restored := await capture("unit-shadow-fade-restored")
 	if closed:
 		return
