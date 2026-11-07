@@ -50,3 +50,39 @@ fn a_submesh_past_the_index_buffer_is_an_error() {
         "Submesh indices out of bounds"
     );
 }
+
+/// A merged surface draws each submesh's triangles on that submesh's own vertices.
+#[test]
+fn merged_streams_draw_every_submesh_triangle_on_its_own_vertices() {
+    let model = boar();
+    assert_eq!(model.submeshes.len(), 2);
+    let subs: Vec<&m2::Submesh> = model.submeshes.iter().collect();
+    let merged = m2::merged_submesh_arrays(&model, &subs).unwrap();
+    let parts: Vec<m2::SubmeshArrays> = subs
+        .iter()
+        .map(|sub| m2::submesh_arrays(&model, sub).unwrap())
+        .collect();
+    let corner = |arrays: &m2::SubmeshArrays, index: i32| {
+        let index = index as usize;
+        (
+            arrays.positions[index],
+            arrays.uv[index],
+            arrays.bones[index * 4..index * 4 + 4].to_vec(),
+        )
+    };
+    let mut drawn = Vec::new();
+    for part in &parts {
+        drawn.extend(part.indices.iter().map(|&index| corner(part, index)));
+    }
+    let merged_drawn: Vec<_> = merged
+        .indices
+        .iter()
+        .map(|&index| corner(&merged, index))
+        .collect();
+    assert_eq!(merged_drawn, drawn);
+    assert_eq!(
+        merged.positions.len(),
+        parts[0].positions.len() + parts[1].positions.len()
+    );
+    assert_eq!(merged.weights.len(), merged.positions.len() * 4);
+}

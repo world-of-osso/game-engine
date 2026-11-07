@@ -576,3 +576,32 @@ pub fn submesh_arrays(model: &Model, sub: &Submesh) -> Result<SubmeshArrays, Str
     }
     Ok(arrays)
 }
+
+/// The streams of `subs` drawn as one surface: each submesh's vertices follow the previous
+/// submesh's and its indices are offset by them, so every triangle keeps its vertices and
+/// winding.
+pub fn merged_submesh_arrays(model: &Model, subs: &[&Submesh]) -> Result<SubmeshArrays, String> {
+    let mut merged = SubmeshArrays {
+        positions: Vec::new(),
+        normals: Vec::new(),
+        uv: Vec::new(),
+        uv2: Vec::new(),
+        bones: Vec::new(),
+        weights: Vec::new(),
+        indices: Vec::new(),
+    };
+    for sub in subs {
+        let arrays = submesh_arrays(model, sub)?;
+        let offset = merged.positions.len() as i32;
+        merged.positions.extend(arrays.positions);
+        merged.normals.extend(arrays.normals);
+        merged.uv.extend(arrays.uv);
+        merged.uv2.extend(arrays.uv2);
+        merged.bones.extend(arrays.bones);
+        merged.weights.extend(arrays.weights);
+        merged
+            .indices
+            .extend(arrays.indices.iter().map(|index| index + offset));
+    }
+    Ok(merged)
+}

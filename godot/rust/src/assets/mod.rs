@@ -1,6 +1,7 @@
 //! Native M2/BLP conversion with authored batch resolution and materials.
 pub(crate) mod appearance;
 mod attachments;
+pub(crate) mod batch_merge;
 pub(crate) mod creature;
 pub(crate) mod equipment;
 pub(crate) mod m2_lights;
@@ -430,6 +431,11 @@ pub(crate) const M2_ABOVE_CHARACTER_META: &str = "m2_above_character";
 pub(crate) const M2_SOURCE_META: &str = "m2_source_path";
 /// Batch metadata: the skin section's mesh part (geoset) ID.
 const M2_MESH_PART_META: &str = "m2_mesh_part";
+/// Batch metadata: the skin submesh the batch draws.
+const M2_SUBMESH_META: &str = "m2_submesh";
+/// Batch metadata on opaque batches: batches of one model with the same group bind
+/// identical materials (`batch_merge`).
+const M2_MERGE_GROUP_META: &str = "m2_merge_group";
 
 fn m2_bounds(model: &m2::Model) -> Aabb {
     wow_aabb(model.bounding_box_min, model.bounding_box_max)
@@ -549,7 +555,7 @@ pub(super) fn build_model_filtered_with_textures(
             appearance,
             textures,
         )? {
-            batches.push((batch_index, batch.mesh_part_id, loaded));
+            batches.push((batch_index, batch.submesh_index, batch.mesh_part_id, loaded));
         }
     }
     let span = crate::profile::span(|| "model.skeleton".to_owned());
@@ -579,7 +585,7 @@ pub(super) fn build_model_filtered_with_textures(
         tracks,
         batches
             .iter()
-            .map(|(_, _, batch)| (batch.material.clone(), batch.binding.clone())),
+            .map(|(_, _, _, batch)| (batch.material.clone(), batch.binding.clone())),
     );
     let bounds = m2_bounds(model);
     let mut root = Node3D::new_alloc();
@@ -593,16 +599,29 @@ pub(super) fn build_model_filtered_with_textures(
     }
     root.set_meta(M2_SOURCE_META, &path.to_variant());
     root.add_child(&skeleton);
-    for (batch_index, mesh_part, batch) in batches {
+    let mut merge_keys: Vec<batch_merge::MergeKey> = Vec::new();
+    for (batch_index, submesh, mesh_part, batch) in batches {
         let LoadedBatch {
             mesh,
             material,
             visible,
+            merge,
             ..
         } = batch;
         let mut instance = MeshInstance3D::new_alloc();
         instance.set_name(&format!("Batch{batch_index}"));
         instance.set_meta(M2_MESH_PART_META, &i64::from(mesh_part).to_variant());
+        instance.set_meta(M2_SUBMESH_META, &(submesh as i64).to_variant());
+        if let Some(key) = merge {
+            let group = merge_keys
+                .iter()
+                .position(|known| *known == key)
+                .unwrap_or_else(|| {
+                    merge_keys.push(key);
+                    merge_keys.len() - 1
+                });
+            instance.set_meta(M2_MERGE_GROUP_META, &(group as i64).to_variant());
+        }
         instance.set_mesh(&mesh);
         instance.set_visible(visible);
         if let Some(skin) = &skin {
@@ -647,6 +666,7 @@ struct LoadedBatch {
     material: Gd<ShaderMaterial>,
     binding: game_engine_core::m2_material::BatchBinding,
     visible: bool,
+    merge: Option<batch_merge::MergeKey>,
 }
 
 fn load_batch(
@@ -718,11 +738,13 @@ fn load_batch(
         return Ok(None);
     }
     let mesh = shared_batch_mesh(model, batch.submesh_index, path)?;
+    let merge = batch_merge::MergeKey::of(batch, &binding);
     Ok(Some(LoadedBatch {
         mesh,
         material,
         binding,
         visible,
+        merge,
     }))
 }
 
@@ -768,6 +790,7 @@ fn shared_batch_mesh(
 
 pub(crate) fn clear_shared_meshes() {
     MESHES.with_borrow_mut(HashMap::clear);
+    batch_merge::clear_merged_meshes();
 }
 
 pub(crate) fn build_batch_mesh(
@@ -775,7 +798,11 @@ pub(crate) fn build_batch_mesh(
     sub: &m2::Submesh,
 ) -> Result<Gd<ArrayMesh>, String> {
     let _mesh = crate::profile::span(|| "phase.mesh_build.m2".to_owned());
-    let streams = m2::submesh_arrays(model, sub)?;
+    Ok(streams_mesh(&m2::submesh_arrays(model, sub)?))
+}
+
+/// One triangle surface of `streams`.
+fn streams_mesh(streams: &m2::SubmeshArrays) -> Gd<ArrayMesh> {
     let vectors = |values: &[[f32; 3]]| {
         let values: Vec<_> = values.iter().copied().map(Vector3::from_array).collect();
         PackedVector3Array::from(values.as_slice())
@@ -814,5 +841,5 @@ pub(crate) fn build_batch_mesh(
     );
     let mut mesh = ArrayMesh::new_gd();
     mesh.add_surface_from_arrays(mesh::PrimitiveType::TRIANGLES, &arrays);
-    Ok(mesh)
+    mesh
 }
