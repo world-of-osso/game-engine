@@ -50,6 +50,21 @@ Run it at both receipt poses (indoor -8785.9 820.7 97.65 yaw 0, outdoor -8855 64
 yaw 180°) with `BENCH_SCRIPT=rebuild_guard_live.gd`-style launches of the frame benchmark
 environment (`GODOT_TEST_SERVER`, `BENCH_ACCOUNT`, `BENCH_CHARACTER`, `BENCH_CAMERA_YAW`).
 
+## Proof — 2026-11-07
+
+Linux debug library, live clock, 10 s windows (logs in
+`data/diagnostics/fps-120-close-2026-11-06/rebuild-guard/`):
+
+| build | indoor | outdoor |
+|---|---|---|
+| 8d0bea36d + guard | PASS | **FAIL**: `sky_cubemap` 161 in 161 frames and `environment` 161 (budget 11) at `lighting::update_cubemap < WorldLighting::sync < GameClient::update_world_lighting`; 5313 global writes |
+| 5cb2b9d17 + guard (9c11889b9) | PASS (0 rebuilds, 356 liquid-clock writes) | PASS (`environment` 10, `shader_broadcast` 850 within budget) |
+
+The first master run also failed on `theme`: `ExperienceBarText` was re-themed twice per
+text update (style_label's base font, then update_label's resolved font), about 1.2
+sets/s; fixed in bdc023989. Windows that saw an NPC enter view counted the unit's
+materials and meshes (`attach_unit_visual`) and were measured again.
+
 ## Rule
 
 AGENTS.md: a per-frame path that touches materials, environment, meshes or UI theme/tree
