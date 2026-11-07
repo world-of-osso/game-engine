@@ -166,7 +166,7 @@ impl<T: Inherits<Control>> ThemeOverrides for Gd<T> {
             return;
         }
         count_detail(Rebuild::Theme, 1, || {
-            Some(format!("{} {name}", control.get_path()))
+            Some(format!("{} {name}", node_label(control)))
         });
         control.add_theme_color_override(name, color);
     }
@@ -179,7 +179,7 @@ impl<T: Inherits<Control>> ThemeOverrides for Gd<T> {
             return;
         }
         count_detail(Rebuild::Theme, 1, || {
-            Some(format!("{} {name}", control.get_path()))
+            Some(format!("{} {name}", node_label(control)))
         });
         control.add_theme_constant_override(name, constant);
     }
@@ -196,7 +196,7 @@ impl<T: Inherits<Control>> ThemeOverrides for Gd<T> {
             return;
         }
         count_detail(Rebuild::Theme, 1, || {
-            Some(format!("{} {name}", control.get_path()))
+            Some(format!("{} {name}", node_label(control)))
         });
         control.add_theme_font_override(name, font);
     }
@@ -208,7 +208,7 @@ impl<T: Inherits<Control>> ThemeOverrides for Gd<T> {
             return;
         }
         count_detail(Rebuild::Theme, 1, || {
-            Some(format!("{} {name}", control.get_path()))
+            Some(format!("{} {name}", node_label(control)))
         });
         control.add_theme_font_size_override(name, size);
     }
@@ -229,9 +229,18 @@ impl<T: Inherits<Control>> ThemeOverrides for Gd<T> {
             return;
         }
         count_detail(Rebuild::Theme, 1, || {
-            Some(format!("{} {name}", control.get_path()))
+            Some(format!("{} {name}", node_label(control)))
         });
         control.add_theme_stylebox_override(name, stylebox);
+    }
+}
+
+/// A node's scene path, or its name before it enters the tree (`get_path` errors then).
+pub(crate) fn node_label(node: &Node) -> String {
+    if node.is_inside_tree() {
+        node.get_path().to_string()
+    } else {
+        node.get_name().to_string()
     }
 }
 

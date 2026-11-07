@@ -888,7 +888,7 @@ impl UiProjection {
         registry: &FrameRegistry,
     ) -> Result<bool, String> {
         crate::rebuild_guard::count_detail(crate::rebuild_guard::Rebuild::UiTree, 1, || {
-            Some(node.get_path().to_string())
+            Some(crate::rebuild_guard::node_label(node))
         });
         let mut loading = false;
         let mut container = node.get_node_as::<Control>(PARTS_NODE);
