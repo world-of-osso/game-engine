@@ -6,14 +6,12 @@
 //!
 //! [npc-animation-lod]: ../../../../docs/specs/npc-animation-lod.md
 
-/// Models closer than this to the camera sample every frame.
-const FULL_RATE_MAX_YARDS: f32 = 30.0;
 /// Models farther than this from the camera stop sampling even when on screen.
 const FROZEN_MIN_YARDS: f32 = 60.0;
-/// Sampling stride for each distance band past [`FULL_RATE_MAX_YARDS`], in yards: a model
-/// more than this far away samples one frame in that many. Twelve poses a second at 54 yd
-/// is where a 1.9 yd body is ~47 px tall at 1080p and a stride of six is under a pixel of
-/// pose lag per sampled frame.
+/// Sampling stride per distance band, in yards: a model more than this far away samples
+/// one frame in that many, and one no farther than the first band samples every frame.
+/// Twelve poses a second at 54 yd is where a 1.9 yd body is ~47 px tall at 1080p and a
+/// stride of six stays under a pixel of pose lag per sampled frame.
 ///
 /// INFERRED: the retail client keeps a per-instance animation LOD level and the
 /// `animFrameSkipLOD` rule ("animations will skip frames at distance"), but its distances
@@ -50,15 +48,6 @@ impl AnimationLod {
             Self::Full
         } else {
             Self::Strided(stride)
-        }
-    }
-
-    /// Frames in which one pose is sampled.
-    pub fn stride(self) -> u64 {
-        match self {
-            Self::Full => 1,
-            Self::Strided(stride) => stride,
-            Self::Frozen => 0,
         }
     }
 
