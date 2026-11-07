@@ -194,9 +194,9 @@ func capture(name: String, with_ui: bool) -> Image:
 	if error != OK:
 		fail("cannot save " + path)
 		return null
-	print("VIEWPORT size=%s image=%dx%d scaling_3d_mode=%d scale=%.3f msaa=%d" % [root.size,
-		image.get_width(), image.get_height(), root.scaling_3d_mode, root.scaling_3d_scale,
-		root.msaa_3d])
+	print("VIEWPORT size=%s image=%dx%d scaling_3d_mode=%d scale=%.3f msaa=%d anisotropy=%d" % [
+		root.size, image.get_width(), image.get_height(), root.scaling_3d_mode,
+		root.scaling_3d_scale, root.msaa_3d, root.anisotropic_filtering_level])
 	print("CAPTURE skin=%s case=%s ui=%s file=%s" % [client.account_state().ui_skin,
 		OS.get_environment("CAPTURE_CASE"), with_ui, path])
 	return image

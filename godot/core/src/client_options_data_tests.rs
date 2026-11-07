@@ -188,7 +188,7 @@ fn anisotropic_filtering_defaults_to_retail_16x_and_snaps_to_the_ladder() {
     assert_eq!(snapped, [1, 1, 2, 2, 4, 4, 4, 8, 8, 16, 16]);
     let mut file = ClientOptionsFile::default();
     file.graphics.anisotropic_filtering = 12;
-    assert_eq!(file.clamped().graphics.anisotropic_filtering, 8);
+    assert_eq!(file.clone().clamped().graphics.anisotropic_filtering, 8);
     // The stored value survives a save/load round trip.
     file.graphics.anisotropic_filtering = 4;
     let saved = ron::ser::to_string(&file).unwrap();
