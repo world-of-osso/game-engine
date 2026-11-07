@@ -115,6 +115,7 @@ mod selection_debug;
 mod shader_warmup;
 mod sky_model;
 mod skybox_debug;
+mod slow_pipeline;
 mod soft_interact;
 mod sound;
 mod sound_client;
@@ -414,6 +415,8 @@ pub struct GameClient {
     auras: auras::Auras,
     ipc: Option<ipc::NativeIpc>,
     last_process_ms: f64,
+    /// Frame intervals that compiled pipelines (`slow_pipeline`).
+    slow_pipelines: slow_pipeline::SlowPipelines,
     /// Monotonic frame id for per-frame caches (visible surface, foot IK, draping).
     frame_id: u64,
     /// Offline capture fixtures: player models and spell kits on a previewed map.
@@ -587,6 +590,7 @@ impl INode3D for GameClient {
             auras: auras::Auras::default(),
             ipc: None,
             last_process_ms: 0.0,
+            slow_pipelines: slow_pipeline::SlowPipelines::default(),
             frame_id: 0,
             preview_characters: Vec::new(),
             preview_kits: Vec::new(),
@@ -842,6 +846,7 @@ impl INode3D for GameClient {
         self.frame_node_ms = profile::take_node_times();
         self.frame_system_ms.clear();
         self.attachment_gate_ms = animation::take_gate_time_ms();
+        self.observe_pipeline_compilations(delta);
         let _span = profile::span(|| "client.frame".to_owned());
         self.poll_native_ipc();
         self.run_frame(delta);
@@ -885,6 +890,28 @@ impl INode3D for GameClient {
 
 #[godot_api]
 impl GameClient {
+    /// Charges the last frame interval when the render compiled pipelines during it, and
+    /// logs it once at retail's slow-create threshold.
+    fn observe_pipeline_compilations(&mut self, delta: f64) {
+        let frame_ms = delta * 1000.0;
+        let Some(frame) = self
+            .slow_pipelines
+            .observe(slow_pipeline::Compilations::read(), frame_ms)
+        else {
+            return;
+        };
+        if frame.frame_ms >= slow_pipeline::SLOW_FRAME_MS {
+            godot_warn!(
+                "Slow pipeline frame: {:.0} ms, {} draw / {} specialization compilations (total {:.0} ms in {} compiling frames)",
+                frame.frame_ms,
+                frame.draw,
+                frame.specialization,
+                self.slow_pipelines.compiling_ms,
+                self.slow_pipelines.compiling_frames,
+            );
+        }
+    }
+
     #[signal]
     fn screen_requested(screen: GString);
 
@@ -1518,6 +1545,14 @@ impl GameClient {
         state.set("systems_ms", &systems);
         state.set("nodes_ms", &nodes);
         state.set("attachment_gates_ms", self.attachment_gate_ms);
+        let mut pipelines = VarDictionary::new();
+        pipelines.set(
+            "compiling_frames",
+            self.slow_pipelines.compiling_frames as i64,
+        );
+        pipelines.set("compiling_ms", self.slow_pipelines.compiling_ms);
+        pipelines.set("slow_frames", self.slow_pipelines.slow_frames as i64);
+        state.set("pipeline_compilation_frames", &pipelines);
         state
     }
 
