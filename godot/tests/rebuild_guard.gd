@@ -7,11 +7,13 @@
 ## without `RebuildCounters` report `rebuild_guard_error` instead.
 extends RefCounted
 
-## Seconds per lit-time step: core world_time LIGHT_STEP_HALF_MINUTES (1/32 half-minute)
-## at the realm's real-time speed (1/60 game minute per second). With the live clock the
-## world light re-samples and re-applies once per step (rust/src/lighting/mod.rs
-## WorldLighting::sync).
-const LIGHT_STEP_S := 0.9375
+## Half-minutes per lit-time step: core world_time LIGHT_STEP_HALF_MINUTES. With the live
+## clock the world light re-samples and re-applies once per step (rust/src/lighting/mod.rs
+## WorldLighting::sync). Steps are counted on the client's clock, not the wall: a stall
+## before a segment (the harness's screenshot) applies a step that was due earlier inside it.
+const LIGHT_STEP_HALF_MINUTES := 1.0 / 32.0
+## Half-minutes in a day, where the clock wraps.
+const DAY_HALF_MINUTES := 2880.0
 ## The work a steady frame does by design, each with its source: `per_frame` operations
 ## every frame, `per_light_step` operations per lit-time step in the segment.
 const ALLOWLIST := {
@@ -57,6 +59,9 @@ var _usec := 0
 var _godot := {}
 var _atlas := []
 var _atlas_changes := 0
+## The GameClient whose `world_minutes` clock the light steps are counted on, if any.
+var _client: Node
+var _minutes := 0.0
 
 func start(tree: SceneTree) -> void:
 	_tree = tree
@@ -65,6 +70,8 @@ func start(tree: SceneTree) -> void:
 	_godot = _godot_counters()
 	_atlas = _shadow_atlas()
 	_atlas_changes = 0
+	_client = tree.root.find_child("WorldOfOsso", true, false)
+	_minutes = _client.world_minutes() if _client else 0.0
 	if not ClassDB.class_exists(COUNTERS):
 		return
 	if not tree.process_frame.is_connected(_sample_shadow_atlas):
@@ -95,7 +102,7 @@ func finish() -> Dictionary:
 	if _atlas_changes > 0:
 		sites["shadow_atlas"] = "root viewport or directional shadow atlas settings changed"
 	return {"rebuild_frames": frames, "rebuild_seconds": (Time.get_ticks_usec() - _usec) / 1e6,
-		"rebuild_counts": counts, "rebuilds_per_frame": rebuilds, "rebuild_sites": sites,
+		"rebuild_light_steps": _light_steps(), "rebuild_counts": counts, "rebuilds_per_frame": rebuilds, "rebuild_sites": sites,
 		"world_events": taken.world_events,
 		"godot_per_frame": godot}
 
@@ -104,8 +111,8 @@ static func violations(report: Dictionary) -> PackedStringArray:
 	var failed := PackedStringArray()
 	var frames: int = report.rebuild_frames
 	# The takes fall mid-frame, so a per-frame operation may run once more than the frames
-	# between them; a segment spans at most this many lit-time step boundaries.
-	var light_steps := floori(report.rebuild_seconds / LIGHT_STEP_S) + 1
+	# between them.
+	var light_steps: int = report.rebuild_light_steps
 	for category in report.rebuild_counts:
 		var allowed: Dictionary = ALLOWLIST.get(category, {})
 		var budget: int = allowed.get("per_frame", 0) * (frames + 1) + allowed.get("per_light_step", 0) * light_steps
@@ -114,6 +121,17 @@ static func violations(report: Dictionary) -> PackedStringArray:
 			failed.append("%s %d in %d frames (%.3f/frame) over budget %d at %s" % [category, count,
 				frames, float(count) / frames, budget, report.rebuild_sites.get(category, "unknown site")])
 	return failed
+
+## The lit-time steps the world light may apply in the segment: the step boundaries the
+## client clock crossed, plus one already due at the start and applied in the segment's
+## first frame. Without a GameClient no world light runs; one step stays allowed.
+func _light_steps() -> int:
+	if _client == null:
+		return 1
+	var now: float = _client.world_minutes()
+	if now < _minutes:
+		now += DAY_HALF_MINUTES
+	return floori(now / LIGHT_STEP_HALF_MINUTES) - floori(_minutes / LIGHT_STEP_HALF_MINUTES) + 1
 
 func _godot_counters() -> Dictionary:
 	var counters := {}

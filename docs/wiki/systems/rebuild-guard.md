@@ -47,7 +47,15 @@ three). The steady window fails when a category exceeds its `ALLOWLIST` budget:
 - `environment`: 1 per lit-time step (0.9375 s at the realm's real-time speed);
 - `sky_cubemap`: 1 per lit-time step (the reflection cube is rewritten only when a light
   application changes the dome's colour stops). `tests/rebuild_guard_budget.gd` checks
-  these budgets with the 210e7fed1 receipt's counts.
+  these budgets with the receipts' counts.
+
+Lit-time steps are counted on the client clock (`GameClient.world_minutes`, 1/32
+half-minute per step): the boundaries crossed between the two takes plus one step already
+due at the start (`rebuild_light_steps`). A wall-clock count failed the f4654f139 receipt's
+outdoor idle_1: the harness screenshot before the segment stalled the step due about 0.5 s
+earlier into the segment's first frame, so 1.64 s held three applications while the client
+applied each step exactly once (Windows DIAGNOSTIC with the lit clock shifted to the
+receipt's time of day, `data/diagnostics/fps-120-close-2026-11-06/windows-diag-light4/`).
 
 Run it at both receipt poses (indoor -8785.9 820.7 97.65 yaw 0, outdoor -8855 645 97
 yaw 180°) with `BENCH_SCRIPT=rebuild_guard_live.gd`-style launches of the frame benchmark
