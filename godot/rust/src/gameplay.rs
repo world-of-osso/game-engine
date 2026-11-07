@@ -790,14 +790,19 @@ impl crate::GameClient {
             .local_player_node()
             .and_then(|node| node.get_world_3d())
             .and_then(|world| world.get_direct_space_state());
+        // No spawned object answers the game-object layer in most of the world; the ray
+        // cannot hit then, and the broadphase alone costs more than the terrain lookups.
+        let colliding = self.game_objects.has_floor_collision();
         let ground = crate::ground::TerrainGround {
             terrain: &self.terrain,
             walls: &|_, _, _| None,
             step_wall_blocked: &|_, _, _| false,
             game_object_floor: &|feet| {
-                space
-                    .as_ref()
-                    .and_then(|space| crate::game_objects::floor_hit(space, feet))
+                space.as_ref().and_then(|space| {
+                    colliding
+                        .then(|| crate::game_objects::floor_hit(space, feet))
+                        .flatten()
+                })
             },
         };
         let collision_floor = |feet: Vec3| ground.collision_floor(feet);

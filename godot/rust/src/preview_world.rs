@@ -318,6 +318,7 @@ impl GameClient {
                 scale,
                 enabled,
                 delta,
+                true,
                 &floor_at,
                 &mut surface_at,
             );

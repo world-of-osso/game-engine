@@ -53,10 +53,22 @@ pub(crate) struct FootSnapshot {
     pub knee_rest: [f32; 2],
 }
 
+/// The ground under one foot as the last full query found it: the height the foot settles
+/// toward and the collision floor it was measured from.
+#[derive(Debug, Clone, Copy, PartialEq)]
+struct FootGround {
+    target: f32,
+    floor: f32,
+}
+
 #[derive(Default)]
 struct LegState {
     weight: f32,
     ground: Option<f32>,
+    /// The last full ground query, reused on frames the caller asks for no new one.
+    sample: Option<FootGround>,
+    /// Whether `sample` is this pose's result: a foot that found no ground keeps asking.
+    sampled: bool,
 }
 
 impl FootIkState {
@@ -65,6 +77,11 @@ impl FootIkState {
     /// `enabled` is false while airborne, swimming or flying; the solve then fades out and
     /// the authored pose returns without a snap. `floor_at(x, z)` gives the collision floor
     /// and `surface_at(x, z, ceiling, floor)` the highest visible render surface.
+    ///
+    /// `query_ground` false reuses the ground each foot last found instead of asking again:
+    /// a distant unit redraws its solve from the same surface while the queries it would
+    /// spend are not worth a pixel. The solve, the blend and the pelvis offset run
+    /// unchanged, so the pose never pops.
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn apply(
         &mut self,
@@ -73,6 +90,7 @@ impl FootIkState {
         model_from_world_scale: f32,
         enabled: bool,
         delta: f32,
+        query_ground: bool,
         floor_at: &dyn Fn(f32, f32) -> Option<f32>,
         surface_at: &mut dyn FnMut(f32, f32, f32, f32) -> Option<f32>,
     ) {
@@ -103,13 +121,19 @@ impl FootIkState {
         for (index, leg) in rig.legs.iter().enumerate() {
             let foot = world_end(&joints[index]);
             let ankle = leg.end_height * model_from_world_scale;
-            let (desired, floor) = match surface_target(foot.x, foot.z, ankle, floor_at, surface_at)
-            {
-                Some((target, floor)) => (Some(target), floor),
+            let state = &mut self.legs[index];
+            // A foot with no sampled ground keeps asking: only a foot that found one can
+            // reuse it. The first frame of a pose samples even when the caller skips.
+            if query_ground || !state.sampled {
+                state.sample = surface_target(foot.x, foot.z, ankle, floor_at, surface_at)
+                    .map(|(target, floor)| FootGround { target, floor });
+                state.sampled = true;
+            }
+            let (desired, floor) = match state.sample {
+                Some(sample) => (Some(sample.target), sample.floor),
                 None => (None, f32::NAN),
             };
             floors[index] = floor;
-            let state = &mut self.legs[index];
             let smoothed = match (state.ground, desired) {
                 (Some(previous), Some(next)) => {
                     let next =
