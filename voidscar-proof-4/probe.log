@@ -1,0 +1,179 @@
+Initialize godot-rust (API v4.7.stable.official, runtime v4.7.2.stable.pr123946-pr123546-pr123391-fontatlas-matlist-bonepose, safeguards strict)
+Godot Engine v4.7.2.stable.pr123946-pr123546-pr123391-fontatlas-matlist-bonepose.ed1daf0bf (2026-08-17 01:18:38 UTC) - https://godotengine.org
+Vulkan 1.4.351 - Forward+ - Using Device #0: NVIDIA - NVIDIA GeForce RTX 5060 Ti
+WARNING: The separate rendering thread feature is experimental. Feel free to try it since it will eventually become a stable feature.
+However, bear in mind that at the moment it can lead to project crashes or instability.
+So, unless you want to test the engine, set the "rendering/driver/threads/thread_model" project setting to 'Safe'.
+     at: setup2 (main/main.cpp:3518)
+
+BENCH_DEVICE NVIDIA GeForce RTX 5060 Ti viewport=(1920, 1080) window=(1920, 1080)
+CharHairGeosets model 7, GeosetType=17: GeosetID=-1; unresolved signed geoset projection (not remapped)
+ChrCustomizationGeoset row 12028: GeosetID=-1; unresolved signed geoset projection (not remapped)
+ChrCustomizationGeoset row 12039: GeosetID=-1; unresolved signed geoset projection (not remapped)
+ChrCustomizationGeoset row 213: GeosetID=-1; unresolved signed geoset projection (not remapped)
+ChrCustomizationGeoset row 214: GeosetID=-1; unresolved signed geoset projection (not remapped)
+ChrCustomizationGeoset row 215: GeosetID=-1; unresolved signed geoset projection (not remapped)
+ChrCustomizationGeoset row 216: GeosetID=-1; unresolved signed geoset projection (not remapped)
+ChrCustomizationGeoset row 217: GeosetID=-1; unresolved signed geoset projection (not remapped)
+ChrCustomizationGeoset row 218: GeosetID=-1; unresolved signed geoset projection (not remapped)
+ChrCustomizationGeoset row 219: GeosetID=-1; unresolved signed geoset projection (not remapped)
+ChrCustomizationGeoset row 220: GeosetID=-1; unresolved signed geoset projection (not remapped)
+ChrCustomizationGeoset row 221: GeosetID=-1; unresolved signed geoset projection (not remapped)
+ChrCustomizationGeoset row 232: GeosetID=-1; unresolved signed geoset projection (not remapped)
+ChrCustomizationGeoset row 233: GeosetID=-1; unresolved signed geoset projection (not remapped)
+ChrCustomizationGeoset row 234: GeosetID=-1; unresolved signed geoset projection (not remapped)
+ChrCustomizationGeoset row 235: GeosetID=-1; unresolved signed geoset projection (not remapped)
+ChrCustomizationGeoset row 236: GeosetID=-1; unresolved signed geoset projection (not remapped)
+ChrCustomizationGeoset row 237: GeosetID=-1; unresolved signed geoset projection (not remapped)
+ChrCustomizationGeoset row 238: GeosetID=-1; unresolved signed geoset projection (not remapped)
+ChrCustomizationGeoset row 239: GeosetID=-1; unresolved signed geoset projection (not remapped)
+ChrCustomizationGeoset row 240: GeosetID=-1; unresolved signed geoset projection (not remapped)
+ChrCustomizationGeoset row 6710: GeosetID=-1; unresolved signed geoset projection (not remapped)
+ChrCustomizationSkinnedModel row 497: GeosetID=-1; unresolved signed geoset projection (not remapped)
+ChrCustomizationSkinnedModel row 614: GeosetID=-1; unresolved signed geoset projection (not remapped)
+WARNING: The requested V-Sync mode Mailbox is not available. Falling back to V-Sync mode Enabled.
+     at: swap_chain_resize (drivers/vulkan/rendering_device_driver_vulkan.cpp:3767)
+Loaded _obj0: 444 doodads (0 model paths), 11 WMOs (0 WMO paths), 256 chunk ref sets
+BENCH_WAIT CharacterSelect fps=8.0 objects={ "spawned": 0, "pending": 0, "failures": 0, "particles": { "pools": 0, "emitters": 0, "drawn": 0, "capacity": 0, "updated_emitters": 0, "simulate_us": 0, "upload_us": 0 } }
+UNIT_VISUAL_REQUEST server_id=4294739160 request_id=0 existing_appearance=false describe_unit="Character 4294739160 (race 10)" observed_process_frame=81 observed_ticks_usec=16001584
+UNIT_VISUAL_REQUEST server_id=4294739213 request_id=1 existing_appearance=false describe_unit="NPC 4294739213 display 141286" observed_process_frame=81 observed_ticks_usec=16002974
+UNIT_VISUAL_REQUEST server_id=4294739214 request_id=2 existing_appearance=false describe_unit="NPC 4294739214 display 141286" observed_process_frame=81 observed_ticks_usec=16003055
+UNIT_VISUAL_REQUEST server_id=4294739223 request_id=3 existing_appearance=false describe_unit="NPC 4294739223 display 140048" observed_process_frame=81 observed_ticks_usec=16003145
+UNIT_VISUAL_REQUEST server_id=4294739224 request_id=4 existing_appearance=false describe_unit="NPC 4294739224 display 140048" observed_process_frame=81 observed_ticks_usec=16003158
+UNIT_VISUAL_REQUEST server_id=4294739234 request_id=5 existing_appearance=false describe_unit="NPC 4294739234 display 140046" observed_process_frame=81 observed_ticks_usec=16003172
+UNIT_VISUAL_REQUEST server_id=4294739235 request_id=6 existing_appearance=false describe_unit="NPC 4294739235 display 140043" observed_process_frame=81 observed_ticks_usec=16003184
+UNIT_VISUAL_REQUEST server_id=4294739243 request_id=7 existing_appearance=false describe_unit="NPC 4294739243 display 140036" observed_process_frame=81 observed_ticks_usec=16003202
+UNIT_VISUAL_REQUEST server_id=4294739244 request_id=8 existing_appearance=false describe_unit="NPC 4294739244 display 140036" observed_process_frame=81 observed_ticks_usec=16003214
+UNIT_VISUAL_REQUEST server_id=4294739276 request_id=9 existing_appearance=false describe_unit="NPC 4294739276 display 130200" observed_process_frame=81 observed_ticks_usec=16003226
+UNIT_VISUAL_REQUEST server_id=4294739352 request_id=10 existing_appearance=false describe_unit="NPC 4294739352 display 141286" observed_process_frame=81 observed_ticks_usec=16003237
+UNIT_VISUAL_REQUEST server_id=4294739363 request_id=11 existing_appearance=false describe_unit="NPC 4294739363 display 141204" observed_process_frame=81 observed_ticks_usec=16003247
+UNIT_VISUAL_REQUEST server_id=4294739364 request_id=12 existing_appearance=false describe_unit="NPC 4294739364 display 141204" observed_process_frame=81 observed_ticks_usec=16003261
+UNIT_VISUAL_REQUEST server_id=4294739365 request_id=13 existing_appearance=false describe_unit="NPC 4294739365 display 141204" observed_process_frame=81 observed_ticks_usec=16003273
+UNIT_VISUAL_REQUEST server_id=4294739371 request_id=14 existing_appearance=false describe_unit="NPC 4294739371 display 138723" observed_process_frame=81 observed_ticks_usec=16003291
+UNIT_VISUAL_REQUEST server_id=4294739375 request_id=15 existing_appearance=false describe_unit="NPC 4294739375 display 141196" observed_process_frame=81 observed_ticks_usec=16003304
+UNIT_VISUAL_REQUEST server_id=4294739376 request_id=16 existing_appearance=false describe_unit="NPC 4294739376 display 141196" observed_process_frame=81 observed_ticks_usec=16003317
+UNIT_VISUAL_REQUEST server_id=4294739390 request_id=17 existing_appearance=false describe_unit="NPC 4294739390 display 141810" observed_process_frame=81 observed_ticks_usec=16003340
+UNIT_VISUAL_REQUEST server_id=4294739392 request_id=18 existing_appearance=false describe_unit="NPC 4294739392 display 141810" observed_process_frame=81 observed_ticks_usec=16003352
+UNIT_VISUAL_REQUEST server_id=4294739393 request_id=19 existing_appearance=false describe_unit="NPC 4294739393 display 141810" observed_process_frame=81 observed_ticks_usec=16003362
+UNIT_VISUAL_REQUEST server_id=4294739429 request_id=20 existing_appearance=false describe_unit="NPC 4294739429 display 130200" observed_process_frame=81 observed_ticks_usec=16003372
+UNIT_VISUAL_REQUEST server_id=4294739431 request_id=21 existing_appearance=false describe_unit="NPC 4294739431 display 130200" observed_process_frame=81 observed_ticks_usec=16003382
+UNIT_VISUAL_REQUEST server_id=4294739432 request_id=22 existing_appearance=false describe_unit="NPC 4294739432 display 140035" observed_process_frame=81 observed_ticks_usec=16003391
+UNIT_VISUAL_REQUEST server_id=4294739436 request_id=23 existing_appearance=false describe_unit="NPC 4294739436 display 140036" observed_process_frame=81 observed_ticks_usec=16003401
+UNIT_VISUAL_REQUEST server_id=4294739457 request_id=24 existing_appearance=false describe_unit="NPC 4294739457 display 140041" observed_process_frame=81 observed_ticks_usec=16003413
+UNIT_VISUAL_REQUEST server_id=4294739460 request_id=25 existing_appearance=false describe_unit="NPC 4294739460 display 140046" observed_process_frame=81 observed_ticks_usec=16003423
+UNIT_VISUAL_REQUEST server_id=4294739472 request_id=26 existing_appearance=false describe_unit="NPC 4294739472 display 140045" observed_process_frame=81 observed_ticks_usec=16003437
+MOUNT_JOURNAL_RECEIVED count=1702 mare=Some((false, false, false)) error=None
+UNIT_VISUAL_RESULT_CONSUMED server_id=4294739213 request_id=1 existing_visual=false describe_unit="NPC 4294739213 display 141286" prepared_result_ok=true visual_attached=true observed_process_frame=81 observed_ticks_usec=16449155
+UNIT_VISUAL_RESULT_CONSUMED server_id=4294739214 request_id=2 existing_visual=false describe_unit="NPC 4294739214 display 141286" prepared_result_ok=true visual_attached=true observed_process_frame=82 observed_ticks_usec=16612904
+UNIT_VISUAL_RESULT_CONSUMED server_id=4294739223 request_id=3 existing_visual=false describe_unit="NPC 4294739223 display 140048" prepared_result_ok=true visual_attached=true observed_process_frame=83 observed_ticks_usec=16831124
+Loaded _obj0: 0 doodads (0 model paths), 0 WMOs (0 WMO paths), 256 chunk ref sets
+Loaded _obj0: 88 doodads (0 model paths), 13 WMOs (0 WMO paths), 256 chunk ref sets
+Loaded _obj0: 817 doodads (0 model paths), 55 WMOs (0 WMO paths), 256 chunk ref sets
+Loaded _obj0: 494 doodads (0 model paths), 57 WMOs (0 WMO paths), 256 chunk ref sets
+UNIT_VISUAL_RESULT_CONSUMED server_id=4294739224 request_id=4 existing_visual=false describe_unit="NPC 4294739224 display 140048" prepared_result_ok=true visual_attached=true observed_process_frame=84 observed_ticks_usec=18592899
+UNIT_VISUAL_RESULT_CONSUMED server_id=4294739234 request_id=5 existing_visual=false describe_unit="NPC 4294739234 display 140046" prepared_result_ok=true visual_attached=true observed_process_frame=84 observed_ticks_usec=18598292
+UNIT_VISUAL_RESULT_CONSUMED server_id=4294739235 request_id=6 existing_visual=false describe_unit="NPC 4294739235 display 140043" prepared_result_ok=true visual_attached=true observed_process_frame=85 observed_ticks_usec=18901684
+UNIT_VISUAL_RESULT_CONSUMED server_id=4294739243 request_id=7 existing_visual=false describe_unit="NPC 4294739243 display 140036" prepared_result_ok=true visual_attached=true observed_process_frame=86 observed_ticks_usec=19295291
+UNIT_VISUAL_RESULT_CONSUMED server_id=4294739244 request_id=8 existing_visual=false describe_unit="NPC 4294739244 display 140036" prepared_result_ok=true visual_attached=true observed_process_frame=87 observed_ticks_usec=19846249
+UNIT_VISUAL_RESULT_CONSUMED server_id=4294739276 request_id=9 existing_visual=false describe_unit="NPC 4294739276 display 130200" prepared_result_ok=true visual_attached=true observed_process_frame=87 observed_ticks_usec=19897544
+UNIT_VISUAL_RESULT_CONSUMED server_id=4294739352 request_id=10 existing_visual=false describe_unit="NPC 4294739352 display 141286" prepared_result_ok=true visual_attached=true observed_process_frame=88 observed_ticks_usec=20280958
+UNIT_VISUAL_RESULT_CONSUMED server_id=4294739363 request_id=11 existing_visual=false describe_unit="NPC 4294739363 display 141204" prepared_result_ok=true visual_attached=true observed_process_frame=88 observed_ticks_usec=20295302
+UNIT_VISUAL_RESULT_CONSUMED server_id=4294739364 request_id=12 existing_visual=false describe_unit="NPC 4294739364 display 141204" prepared_result_ok=true visual_attached=true observed_process_frame=89 observed_ticks_usec=20611563
+UNIT_VISUAL_RESULT_CONSUMED server_id=4294739365 request_id=13 existing_visual=false describe_unit="NPC 4294739365 display 141204" prepared_result_ok=true visual_attached=true observed_process_frame=89 observed_ticks_usec=20613314
+UNIT_VISUAL_RESULT_CONSUMED server_id=4294739371 request_id=14 existing_visual=false describe_unit="NPC 4294739371 display 138723" prepared_result_ok=true visual_attached=true observed_process_frame=89 observed_ticks_usec=20620725
+Loaded _obj0: 380 doodads (0 model paths), 67 WMOs (0 WMO paths), 256 chunk ref sets
+Loaded _obj0: 1639 doodads (0 model paths), 40 WMOs (0 WMO paths), 256 chunk ref sets
+Loaded _obj0: 128 doodads (0 model paths), 18 WMOs (0 WMO paths), 256 chunk ref sets
+Loaded _obj0: 73 doodads (0 model paths), 20 WMOs (0 WMO paths), 256 chunk ref sets
+Loaded _obj0: 928 doodads (0 model paths), 51 WMOs (0 WMO paths), 256 chunk ref sets
+UNIT_VISUAL_RESULT_CONSUMED server_id=4294739375 request_id=15 existing_visual=false describe_unit="NPC 4294739375 display 141196" prepared_result_ok=true visual_attached=true observed_process_frame=90 observed_ticks_usec=21673807
+UNIT_VISUAL_RESULT_CONSUMED server_id=4294739376 request_id=16 existing_visual=false describe_unit="NPC 4294739376 display 141196" prepared_result_ok=true visual_attached=true observed_process_frame=90 observed_ticks_usec=21675849
+UNIT_VISUAL_RESULT_CONSUMED server_id=4294739390 request_id=17 existing_visual=false describe_unit="NPC 4294739390 display 141810" prepared_result_ok=true visual_attached=true observed_process_frame=90 observed_ticks_usec=21679629
+UNIT_VISUAL_RESULT_CONSUMED server_id=4294739392 request_id=18 existing_visual=false describe_unit="NPC 4294739392 display 141810" prepared_result_ok=true visual_attached=true observed_process_frame=91 observed_ticks_usec=21917536
+UNIT_VISUAL_RESULT_CONSUMED server_id=4294739393 request_id=19 existing_visual=false describe_unit="NPC 4294739393 display 141810" prepared_result_ok=true visual_attached=true observed_process_frame=91 observed_ticks_usec=21919437
+UNIT_VISUAL_RESULT_CONSUMED server_id=4294739429 request_id=20 existing_visual=false describe_unit="NPC 4294739429 display 130200" prepared_result_ok=true visual_attached=true observed_process_frame=91 observed_ticks_usec=21929305
+UNIT_VISUAL_RESULT_CONSUMED server_id=4294739431 request_id=21 existing_visual=false describe_unit="NPC 4294739431 display 130200" prepared_result_ok=true visual_attached=true observed_process_frame=92 observed_ticks_usec=23872432
+UNIT_VISUAL_RESULT_CONSUMED server_id=4294739432 request_id=22 existing_visual=false describe_unit="NPC 4294739432 display 140035" prepared_result_ok=true visual_attached=true observed_process_frame=92 observed_ticks_usec=23884239
+UNIT_VISUAL_RESULT_CONSUMED server_id=4294739436 request_id=23 existing_visual=false describe_unit="NPC 4294739436 display 140036" prepared_result_ok=true visual_attached=true observed_process_frame=93 observed_ticks_usec=24207877
+UNIT_VISUAL_RESULT_CONSUMED server_id=4294739457 request_id=24 existing_visual=false describe_unit="NPC 4294739457 display 140041" prepared_result_ok=true visual_attached=true observed_process_frame=93 observed_ticks_usec=24215580
+UNIT_VISUAL_RESULT_CONSUMED server_id=4294739460 request_id=25 existing_visual=false describe_unit="NPC 4294739460 display 140046" prepared_result_ok=true visual_attached=true observed_process_frame=94 observed_ticks_usec=24483091
+UNIT_VISUAL_RESULT_CONSUMED server_id=4294739472 request_id=26 existing_visual=false describe_unit="NPC 4294739472 display 140045" prepared_result_ok=true visual_attached=true observed_process_frame=95 observed_ticks_usec=24749714
+UNIT_VISUAL_RESULT_CONSUMED server_id=4294739160 request_id=0 existing_visual=false describe_unit="Character 4294739160 (race 10)" prepared_result_ok=true visual_attached=true observed_process_frame=96 observed_ticks_usec=25026843
+BENCH_WAIT Loading fps=1.0 objects={ "spawned": 140, "pending": 4725, "failures": 0, "tile_done": 103, "tile_total": 447, "collision_pending": 88, "nearby_done": 112, "nearby_total": 114, "nearby_collision_pending": 0, "particles": { "pools": 4, "emitters": 12, "drawn": 27, "capacity": 112, "updated_emitters": 6, "simulate_us": 79, "upload_us": 43 } }
+WARNING: 2D MSAA is enabled while there is no 2D content. Disable 2D MSAA for better performance.
+     at: _draw_viewport (servers/rendering/renderer_viewport.cpp:756)
+WARNING: QuestPOIBlob 519073: expected 1 points, found 10; excluded
+     at: game_engine_godot::quests::<impl game_engine_godot::GameClient>::load_quest_pois (rust/src/quests.rs:382)
+Quest POI catalog: 6782 conditional blobs excluded
+item catalog: 213908 items loaded in 32.7 s
+Item catalog loaded: 9 received bag and equipment items resolved
+BENCH_WAIT InWorld fps=10.0 objects={ "spawned": 296, "pending": 4671, "failures": 0, "tile_done": 451, "tile_total": 898, "collision_pending": 0, "nearby_done": 229, "nearby_total": 229, "nearby_collision_pending": 0, "particles": { "pools": 19, "emitters": 113, "drawn": 196, "capacity": 3193, "updated_emitters": 27, "simulate_us": 208, "upload_us": 67 } }
+WARNING: Call to texture_get_rd_texture causing RenderingServer synchronizations on every frame. This significantly affects performance.
+     at: texture_get_rd_texture (servers/rendering/rendering_server_default.h:267)
+WARNING: Call to get_shader_parameter_list causing RenderingServer synchronizations on every frame. This significantly affects performance.
+     at: get_shader_parameter_list (servers/rendering/rendering_server_default.h:312)
+WARNING: Call to shader_get_parameter_default causing RenderingServer synchronizations on every frame. This significantly affects performance.
+     at: shader_get_parameter_default (servers/rendering/rendering_server_default.h:316)
+WARNING: Call to shader_get_parameter_default causing RenderingServer synchronizations on every frame. This significantly affects performance.
+     at: shader_get_parameter_default (servers/rendering/rendering_server_default.h:316)
+WARNING: Call to shader_get_parameter_default causing RenderingServer synchronizations on every frame. This significantly affects performance.
+     at: shader_get_parameter_default (servers/rendering/rendering_server_default.h:316)
+WARNING: Call to shader_get_parameter_default causing RenderingServer synchronizations on every frame. This significantly affects performance.
+     at: shader_get_parameter_default (servers/rendering/rendering_server_default.h:316)
+WARNING: Call to shader_get_parameter_default causing RenderingServer synchronizations on every frame. This significantly affects performance.
+     at: shader_get_parameter_default (servers/rendering/rendering_server_default.h:316)
+WARNING: Call to shader_get_parameter_default causing RenderingServer synchronizations on every frame. This significantly affects performance.
+     at: shader_get_parameter_default (servers/rendering/rendering_server_default.h:316)
+WARNING: Call to shader_get_parameter_default causing RenderingServer synchronizations on every frame. This significantly affects performance.
+     at: shader_get_parameter_default (servers/rendering/rendering_server_default.h:316)
+WARNING: Call to shader_get_parameter_default causing RenderingServer synchronizations on every frame. This significantly affects performance.
+     at: shader_get_parameter_default (servers/rendering/rendering_server_default.h:316)
+WARNING: Call to shader_get_parameter_default causing RenderingServer synchronizations on every frame. This significantly affects performance.
+     at: shader_get_parameter_default (servers/rendering/rendering_server_default.h:316)
+WARNING: Call to shader_get_parameter_default causing RenderingServer synchronizations on every frame. This significantly affects performance.
+     at: shader_get_parameter_default (servers/rendering/rendering_server_default.h:316)
+WARNING: Call to shader_get_parameter_default causing RenderingServer synchronizations on every frame. This significantly affects performance.
+     at: shader_get_parameter_default (servers/rendering/rendering_server_default.h:316)
+WARNING: Call to shader_get_parameter_default causing RenderingServer synchronizations on every frame. This significantly affects performance.
+     at: shader_get_parameter_default (servers/rendering/rendering_server_default.h:316)
+WARNING: Call to shader_get_parameter_default causing RenderingServer synchronizations on every frame. This significantly affects performance.
+     at: shader_get_parameter_default (servers/rendering/rendering_server_default.h:316)
+WARNING: Call to shader_get_parameter_default causing RenderingServer synchronizations on every frame. This significantly affects performance.
+     at: shader_get_parameter_default (servers/rendering/rendering_server_default.h:316)
+WARNING: Call to shader_get_parameter_default causing RenderingServer synchronizations on every frame. This significantly affects performance.
+     at: shader_get_parameter_default (servers/rendering/rendering_server_default.h:316)
+WARNING: Call to shader_get_parameter_default causing RenderingServer synchronizations on every frame. This significantly affects performance.
+     at: shader_get_parameter_default (servers/rendering/rendering_server_default.h:316)
+WARNING: Call to shader_get_parameter_default causing RenderingServer synchronizations on every frame. This significantly affects performance.
+     at: shader_get_parameter_default (servers/rendering/rendering_server_default.h:316)
+WARNING: Call to shader_get_parameter_default causing RenderingServer synchronizations on every frame. This significantly affects performance.
+     at: shader_get_parameter_default (servers/rendering/rendering_server_default.h:316)
+WARNING: Call to shader_get_parameter_default causing RenderingServer synchronizations on every frame. This significantly affects performance.
+     at: shader_get_parameter_default (servers/rendering/rendering_server_default.h:316)
+BENCH_WAIT InWorld fps=9.0 objects={ "spawned": 1056, "pending": 3797, "failures": 0, "tile_done": 555, "tile_total": 898, "collision_pending": 0, "nearby_done": 229, "nearby_total": 229, "nearby_collision_pending": 0, "particles": { "pools": 68, "emitters": 200, "drawn": 471, "capacity": 5040, "updated_emitters": 89, "simulate_us": 1798, "upload_us": 195 } }
+BENCH_WAIT InWorld fps=6.0 objects={ "spawned": 1261, "pending": 3591, "failures": 0, "tile_done": 555, "tile_total": 898, "collision_pending": 0, "nearby_done": 229, "nearby_total": 229, "nearby_collision_pending": 0, "particles": { "pools": 75, "emitters": 241, "drawn": 472, "capacity": 7697, "updated_emitters": 89, "simulate_us": 1740, "upload_us": 194 } }
+BENCH_WAIT InWorld fps=4.0 objects={ "spawned": 1317, "pending": 3535, "failures": 0, "tile_done": 555, "tile_total": 898, "collision_pending": 0, "nearby_done": 229, "nearby_total": 229, "nearby_collision_pending": 0, "particles": { "pools": 75, "emitters": 241, "drawn": 484, "capacity": 7697, "updated_emitters": 89, "simulate_us": 1007, "upload_us": 199 } }
+BENCH_WAIT InWorld fps=4.0 objects={ "spawned": 1389, "pending": 3463, "failures": 0, "tile_done": 555, "tile_total": 898, "collision_pending": 0, "nearby_done": 229, "nearby_total": 229, "nearby_collision_pending": 0, "particles": { "pools": 75, "emitters": 241, "drawn": 465, "capacity": 7697, "updated_emitters": 89, "simulate_us": 3539, "upload_us": 2224 } }
+BENCH_WAIT InWorld fps=1.0 objects={ "spawned": 1420, "pending": 3432, "failures": 0, "tile_done": 555, "tile_total": 898, "collision_pending": 0, "nearby_done": 229, "nearby_total": 229, "nearby_collision_pending": 0, "particles": { "pools": 75, "emitters": 241, "drawn": 472, "capacity": 7697, "updated_emitters": 89, "simulate_us": 4450, "upload_us": 165 } }
+BENCH_WAIT InWorld fps=5.0 objects={ "spawned": 1558, "pending": 3294, "failures": 0, "tile_done": 555, "tile_total": 898, "collision_pending": 0, "nearby_done": 229, "nearby_total": 229, "nearby_collision_pending": 0, "particles": { "pools": 75, "emitters": 241, "drawn": 468, "capacity": 7697, "updated_emitters": 89, "simulate_us": 3152, "upload_us": 215 } }
+BENCH_WAIT InWorld fps=7.0 objects={ "spawned": 1595, "pending": 3258, "failures": 0, "tile_done": 555, "tile_total": 898, "collision_pending": 0, "nearby_done": 229, "nearby_total": 229, "nearby_collision_pending": 0, "particles": { "pools": 75, "emitters": 241, "drawn": 488, "capacity": 7697, "updated_emitters": 89, "simulate_us": 577, "upload_us": 1216 } }
+BENCH_WAIT InWorld fps=3.0 objects={ "spawned": 1618, "pending": 3235, "failures": 0, "tile_done": 555, "tile_total": 898, "collision_pending": 0, "nearby_done": 229, "nearby_total": 229, "nearby_collision_pending": 0, "particles": { "pools": 83, "emitters": 273, "drawn": 455, "capacity": 10402, "updated_emitters": 89, "simulate_us": 677, "upload_us": 16281 } }
+BENCH_WAIT InWorld fps=4.0 objects={ "spawned": 1734, "pending": 3114, "failures": 0, "tile_done": 671, "tile_total": 898, "collision_pending": 0, "nearby_done": 229, "nearby_total": 229, "nearby_collision_pending": 0, "particles": { "pools": 84, "emitters": 287, "drawn": 479, "capacity": 10558, "updated_emitters": 91, "simulate_us": 654, "upload_us": 160 } }
+BENCH_WAIT InWorld fps=7.0 objects={ "spawned": 1911, "pending": 2932, "failures": 0, "tile_done": 853, "tile_total": 898, "collision_pending": 0, "nearby_done": 229, "nearby_total": 229, "nearby_collision_pending": 0, "particles": { "pools": 84, "emitters": 289, "drawn": 468, "capacity": 10573, "updated_emitters": 91, "simulate_us": 855, "upload_us": 405 } }
+BENCH_WAIT InWorld fps=3.0 objects={ "spawned": 2045, "pending": 2765, "failures": 0, "tile_done": 898, "tile_total": 898, "collision_pending": 0, "nearby_done": 229, "nearby_total": 229, "nearby_collision_pending": 0, "particles": { "pools": 96, "emitters": 325, "drawn": 1214, "capacity": 12091, "updated_emitters": 103, "simulate_us": 4205, "upload_us": 6999 } }
+BENCH_WAIT InWorld fps=4.0 objects={ "spawned": 2127, "pending": 2668, "failures": 0, "tile_done": 898, "tile_total": 898, "collision_pending": 0, "nearby_done": 229, "nearby_total": 229, "nearby_collision_pending": 0, "particles": { "pools": 111, "emitters": 340, "drawn": 1232, "capacity": 12316, "updated_emitters": 103, "simulate_us": 1128, "upload_us": 1113 } }
+BENCH_WAIT InWorld fps=5.0 objects={ "spawned": 2249, "pending": 2536, "failures": 0, "tile_done": 898, "tile_total": 898, "collision_pending": 0, "nearby_done": 229, "nearby_total": 229, "nearby_collision_pending": 0, "particles": { "pools": 116, "emitters": 351, "drawn": 1233, "capacity": 12519, "updated_emitters": 112, "simulate_us": 1859, "upload_us": 250 } }
+BENCH_WAIT InWorld fps=3.0 objects={ "spawned": 2440, "pending": 2330, "failures": 0, "tile_done": 898, "tile_total": 898, "collision_pending": 0, "nearby_done": 229, "nearby_total": 229, "nearby_collision_pending": 0, "particles": { "pools": 134, "emitters": 376, "drawn": 1254, "capacity": 12653, "updated_emitters": 112, "simulate_us": 2198, "upload_us": 314 } }
+BENCH_WAIT InWorld fps=4.0 objects={ "spawned": 2684, "pending": 2082, "failures": 0, "tile_done": 898, "tile_total": 898, "collision_pending": 0, "nearby_done": 229, "nearby_total": 229, "nearby_collision_pending": 0, "particles": { "pools": 142, "emitters": 436, "drawn": 1244, "capacity": 12960, "updated_emitters": 112, "simulate_us": 2129, "upload_us": 1337 } }
+BENCH_WAIT InWorld fps=5.0 objects={ "spawned": 2850, "pending": 1915, "failures": 0, "tile_done": 898, "tile_total": 898, "collision_pending": 0, "nearby_done": 229, "nearby_total": 229, "nearby_collision_pending": 0, "particles": { "pools": 143, "emitters": 456, "drawn": 1261, "capacity": 13212, "updated_emitters": 112, "simulate_us": 1193, "upload_us": 347 } }
+BENCH_WAIT InWorld fps=6.0 objects={ "spawned": 3017, "pending": 1748, "failures": 0, "tile_done": 898, "tile_total": 898, "collision_pending": 0, "nearby_done": 229, "nearby_total": 229, "nearby_collision_pending": 0, "particles": { "pools": 146, "emitters": 472, "drawn": 1235, "capacity": 13384, "updated_emitters": 112, "simulate_us": 4699, "upload_us": 239 } }
+BENCH_WAIT InWorld fps=8.0 objects={ "spawned": 3319, "pending": 1445, "failures": 0, "tile_done": 898, "tile_total": 898, "collision_pending": 0, "nearby_done": 229, "nearby_total": 229, "nearby_collision_pending": 0, "particles": { "pools": 149, "emitters": 476, "drawn": 1252, "capacity": 13423, "updated_emitters": 112, "simulate_us": 1025, "upload_us": 204 } }
+BENCH_WAIT InWorld fps=6.0 objects={ "spawned": 3525, "pending": 1232, "failures": 0, "tile_done": 898, "tile_total": 898, "collision_pending": 0, "nearby_done": 229, "nearby_total": 229, "nearby_collision_pending": 0, "particles": { "pools": 149, "emitters": 488, "drawn": 1239, "capacity": 13531, "updated_emitters": 112, "simulate_us": 1731, "upload_us": 245 } }
+BENCH_WAIT InWorld fps=7.0 objects={ "spawned": 3525, "pending": 1445, "failures": 0, "tile_done": 898, "tile_total": 898, "collision_pending": 0, "nearby_done": 229, "nearby_total": 229, "nearby_collision_pending": 0, "particles": { "pools": 149, "emitters": 531, "drawn": 1243, "capacity": 13894, "updated_emitters": 112, "simulate_us": 1023, "upload_us": 379 } }
+BENCH_WAIT InWorld fps=6.0 objects={ "spawned": 3533, "pending": 1220, "failures": 0, "tile_done": 898, "tile_total": 898, "collision_pending": 0, "nearby_done": 229, "nearby_total": 229, "nearby_collision_pending": 0, "particles": { "pools": 151, "emitters": 622, "drawn": 1243, "capacity": 14888, "updated_emitters": 112, "simulate_us": 2851, "upload_us": 3151 } }
+BENCH_WAIT InWorld fps=7.0 objects={ "spawned": 3929, "pending": 751, "failures": 0, "tile_done": 898, "tile_total": 898, "collision_pending": 0, "nearby_done": 229, "nearby_total": 229, "nearby_collision_pending": 0, "particles": { "pools": 193, "emitters": 730, "drawn": 1263, "capacity": 17642, "updated_emitters": 112, "simulate_us": 1130, "upload_us": 373 } }
+BENCH_WAIT InWorld fps=6.0 objects={ "spawned": 4625, "pending": 50, "failures": 0, "tile_done": 898, "tile_total": 898, "collision_pending": 0, "nearby_done": 229, "nearby_total": 229, "nearby_collision_pending": 0, "particles": { "pools": 196, "emitters": 789, "drawn": 1244, "capacity": 18265, "updated_emitters": 112, "simulate_us": 1098, "upload_us": 315 } }
+BENCH_VSYNC 0
+BENCH_SCENE {"character":"Fbreceipts","objects":{"collision_pending":0,"failures":0,"nearby_collision_pending":0,"nearby_done":229,"nearby_total":229,"particles":{"capacity":18265,"drawn":1238,"emitters":789,"pools":196,"simulate_us":1112,"updated_emitters":112,"upload_us":292},"pending":0,"spawned":4672,"tile_done":898,"tile_total":898},"spawn":[4423.14013671875,451.899993896484]}
+ZONE_REPORT {"collision_pending":0,"failures":0,"nearby_collision_pending":0,"nearby_done":229,"nearby_total":229,"particles":{"capacity":18265,"drawn":1238,"emitters":789,"pools":196,"simulate_us":1112,"updated_emitters":112,"upload_us":292},"pending":0,"spawned":4672,"tile_done":898,"tile_total":898}
+FIXTURE FRAME_BENCHMARK_DONE

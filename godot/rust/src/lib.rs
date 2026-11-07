@@ -1146,6 +1146,14 @@ impl GameClient {
                         })
                         .unwrap_or_default()
                 };
+                // The uploaded texture of a slot: its GPU size proves what the shader samples.
+                let size = |name: &str| {
+                    material
+                        .get_shader_parameter(name)
+                        .try_to::<Gd<godot::classes::Texture2D>>()
+                        .map(|texture| [texture.get_width(), texture.get_height()])
+                        .unwrap_or_default()
+                };
                 let mut entry = VarDictionary::new();
                 entry.set("node", instance.get_name().to_string());
                 entry.set(
@@ -1155,6 +1163,23 @@ impl GameClient {
                         .try_to::<i64>()
                         .unwrap_or(-1),
                 );
+                entry.set(
+                    "vertex_shader",
+                    material
+                        .get_shader_parameter("vertex_shader")
+                        .try_to::<i64>()
+                        .unwrap_or(-1),
+                );
+                entry.set(
+                    "texture_wrap",
+                    material
+                        .get_shader_parameter("texture_wrap")
+                        .try_to::<i64>()
+                        .unwrap_or(-1),
+                );
+                entry.set("base_size", size("base_texture").as_slice());
+                entry.set("second_size", size("second_texture").as_slice());
+                entry.set("third_size", size("third_texture").as_slice());
                 entry.set("transparency", number("transparency"));
                 entry.set("texture_weight_0", number("texture_weights"));
                 let color = material

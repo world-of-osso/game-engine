@@ -1,0 +1,153 @@
+Initialize godot-rust (API v4.7.stable.official, runtime v4.7.2.stable.pr123946-pr123546-pr123391-fontatlas-matlist-bonepose, safeguards strict)
+Godot Engine v4.7.2.stable.pr123946-pr123546-pr123391-fontatlas-matlist-bonepose.ed1daf0bf (2026-08-17 01:18:38 UTC) - https://godotengine.org
+Vulkan 1.4.351 - Forward+ - Using Device #0: NVIDIA - NVIDIA GeForce RTX 5060 Ti
+WARNING: The separate rendering thread feature is experimental. Feel free to try it since it will eventually become a stable feature.
+However, bear in mind that at the moment it can lead to project crashes or instability.
+So, unless you want to test the engine, set the "rendering/driver/threads/thread_model" project setting to 'Safe'.
+     at: setup2 (main/main.cpp:3518)
+
+BENCH_DEVICE NVIDIA GeForce RTX 5060 Ti viewport=(1920, 1080) window=(1920, 1080)
+CharHairGeosets model 7, GeosetType=17: GeosetID=-1; unresolved signed geoset projection (not remapped)
+ChrCustomizationGeoset row 12028: GeosetID=-1; unresolved signed geoset projection (not remapped)
+ChrCustomizationGeoset row 12039: GeosetID=-1; unresolved signed geoset projection (not remapped)
+ChrCustomizationGeoset row 213: GeosetID=-1; unresolved signed geoset projection (not remapped)
+ChrCustomizationGeoset row 214: GeosetID=-1; unresolved signed geoset projection (not remapped)
+ChrCustomizationGeoset row 215: GeosetID=-1; unresolved signed geoset projection (not remapped)
+ChrCustomizationGeoset row 216: GeosetID=-1; unresolved signed geoset projection (not remapped)
+ChrCustomizationGeoset row 217: GeosetID=-1; unresolved signed geoset projection (not remapped)
+ChrCustomizationGeoset row 218: GeosetID=-1; unresolved signed geoset projection (not remapped)
+ChrCustomizationGeoset row 219: GeosetID=-1; unresolved signed geoset projection (not remapped)
+ChrCustomizationGeoset row 220: GeosetID=-1; unresolved signed geoset projection (not remapped)
+ChrCustomizationGeoset row 221: GeosetID=-1; unresolved signed geoset projection (not remapped)
+ChrCustomizationGeoset row 232: GeosetID=-1; unresolved signed geoset projection (not remapped)
+ChrCustomizationGeoset row 233: GeosetID=-1; unresolved signed geoset projection (not remapped)
+ChrCustomizationGeoset row 234: GeosetID=-1; unresolved signed geoset projection (not remapped)
+ChrCustomizationGeoset row 235: GeosetID=-1; unresolved signed geoset projection (not remapped)
+ChrCustomizationGeoset row 236: GeosetID=-1; unresolved signed geoset projection (not remapped)
+ChrCustomizationGeoset row 237: GeosetID=-1; unresolved signed geoset projection (not remapped)
+ChrCustomizationGeoset row 238: GeosetID=-1; unresolved signed geoset projection (not remapped)
+ChrCustomizationGeoset row 239: GeosetID=-1; unresolved signed geoset projection (not remapped)
+ChrCustomizationGeoset row 240: GeosetID=-1; unresolved signed geoset projection (not remapped)
+ChrCustomizationGeoset row 6710: GeosetID=-1; unresolved signed geoset projection (not remapped)
+ChrCustomizationSkinnedModel row 497: GeosetID=-1; unresolved signed geoset projection (not remapped)
+ChrCustomizationSkinnedModel row 614: GeosetID=-1; unresolved signed geoset projection (not remapped)
+WARNING: The requested V-Sync mode Mailbox is not available. Falling back to V-Sync mode Enabled.
+     at: swap_chain_resize (drivers/vulkan/rendering_device_driver_vulkan.cpp:3767)
+Loaded _obj0: 444 doodads (0 model paths), 11 WMOs (0 WMO paths), 256 chunk ref sets
+BENCH_WAIT CharacterSelect fps=13.0 objects={ "spawned": 0, "pending": 0, "failures": 0, "particles": { "pools": 0, "emitters": 0, "drawn": 0, "capacity": 0, "updated_emitters": 0, "simulate_us": 0, "upload_us": 0 } }
+UNIT_VISUAL_REQUEST server_id=4294739163 request_id=0 existing_appearance=false describe_unit="Character 4294739163 (race 10)" observed_process_frame=69 observed_ticks_usec=9209562
+UNIT_VISUAL_REQUEST server_id=4294739216 request_id=1 existing_appearance=false describe_unit="NPC 4294739216 display 141286" observed_process_frame=69 observed_ticks_usec=9209709
+UNIT_VISUAL_REQUEST server_id=4294739217 request_id=2 existing_appearance=false describe_unit="NPC 4294739217 display 141286" observed_process_frame=69 observed_ticks_usec=9209728
+UNIT_VISUAL_REQUEST server_id=4294739226 request_id=3 existing_appearance=false describe_unit="NPC 4294739226 display 140048" observed_process_frame=69 observed_ticks_usec=9209775
+UNIT_VISUAL_REQUEST server_id=4294739227 request_id=4 existing_appearance=false describe_unit="NPC 4294739227 display 140046" observed_process_frame=69 observed_ticks_usec=9209784
+UNIT_VISUAL_REQUEST server_id=4294739237 request_id=5 existing_appearance=false describe_unit="NPC 4294739237 display 140046" observed_process_frame=69 observed_ticks_usec=9209798
+UNIT_VISUAL_REQUEST server_id=4294739238 request_id=6 existing_appearance=false describe_unit="NPC 4294739238 display 140043" observed_process_frame=69 observed_ticks_usec=9209808
+UNIT_VISUAL_REQUEST server_id=4294739246 request_id=7 existing_appearance=false describe_unit="NPC 4294739246 display 140035" observed_process_frame=69 observed_ticks_usec=9209820
+UNIT_VISUAL_REQUEST server_id=4294739247 request_id=8 existing_appearance=false describe_unit="NPC 4294739247 display 140036" observed_process_frame=69 observed_ticks_usec=9209829
+UNIT_VISUAL_REQUEST server_id=4294739279 request_id=9 existing_appearance=false describe_unit="NPC 4294739279 display 130200" observed_process_frame=69 observed_ticks_usec=9209841
+UNIT_VISUAL_REQUEST server_id=4294739355 request_id=10 existing_appearance=false describe_unit="NPC 4294739355 display 141286" observed_process_frame=69 observed_ticks_usec=9209851
+UNIT_VISUAL_REQUEST server_id=4294739366 request_id=11 existing_appearance=false describe_unit="NPC 4294739366 display 141204" observed_process_frame=69 observed_ticks_usec=9209859
+UNIT_VISUAL_REQUEST server_id=4294739367 request_id=12 existing_appearance=false describe_unit="NPC 4294739367 display 141204" observed_process_frame=69 observed_ticks_usec=9209866
+UNIT_VISUAL_REQUEST server_id=4294739368 request_id=13 existing_appearance=false describe_unit="NPC 4294739368 display 141204" observed_process_frame=69 observed_ticks_usec=9209874
+UNIT_VISUAL_REQUEST server_id=4294739374 request_id=14 existing_appearance=false describe_unit="NPC 4294739374 display 138723" observed_process_frame=69 observed_ticks_usec=9209888
+UNIT_VISUAL_REQUEST server_id=4294739378 request_id=15 existing_appearance=false describe_unit="NPC 4294739378 display 141196" observed_process_frame=69 observed_ticks_usec=9209901
+UNIT_VISUAL_REQUEST server_id=4294739379 request_id=16 existing_appearance=false describe_unit="NPC 4294739379 display 141196" observed_process_frame=69 observed_ticks_usec=9209911
+UNIT_VISUAL_REQUEST server_id=4294739393 request_id=17 existing_appearance=false describe_unit="NPC 4294739393 display 141810" observed_process_frame=69 observed_ticks_usec=9209929
+UNIT_VISUAL_REQUEST server_id=4294739395 request_id=18 existing_appearance=false describe_unit="NPC 4294739395 display 141810" observed_process_frame=69 observed_ticks_usec=9209938
+UNIT_VISUAL_REQUEST server_id=4294739396 request_id=19 existing_appearance=false describe_unit="NPC 4294739396 display 141810" observed_process_frame=69 observed_ticks_usec=9209951
+UNIT_VISUAL_REQUEST server_id=4294739432 request_id=20 existing_appearance=false describe_unit="NPC 4294739432 display 130200" observed_process_frame=69 observed_ticks_usec=9209960
+UNIT_VISUAL_REQUEST server_id=4294739434 request_id=21 existing_appearance=false describe_unit="NPC 4294739434 display 130200" observed_process_frame=69 observed_ticks_usec=9209968
+UNIT_VISUAL_REQUEST server_id=4294739435 request_id=22 existing_appearance=false describe_unit="NPC 4294739435 display 140035" observed_process_frame=69 observed_ticks_usec=9209980
+UNIT_VISUAL_REQUEST server_id=4294739439 request_id=23 existing_appearance=false describe_unit="NPC 4294739439 display 140036" observed_process_frame=69 observed_ticks_usec=9209988
+UNIT_VISUAL_REQUEST server_id=4294739460 request_id=24 existing_appearance=false describe_unit="NPC 4294739460 display 140041" observed_process_frame=69 observed_ticks_usec=9209996
+UNIT_VISUAL_REQUEST server_id=4294739463 request_id=25 existing_appearance=false describe_unit="NPC 4294739463 display 140048" observed_process_frame=69 observed_ticks_usec=9210004
+UNIT_VISUAL_REQUEST server_id=4294739475 request_id=26 existing_appearance=false describe_unit="NPC 4294739475 display 140045" observed_process_frame=69 observed_ticks_usec=9210013
+MOUNT_JOURNAL_RECEIVED count=1702 mare=Some((false, false, false)) error=None
+UNIT_VISUAL_RESULT_CONSUMED server_id=4294739216 request_id=1 existing_visual=false describe_unit="NPC 4294739216 display 141286" prepared_result_ok=true visual_attached=true observed_process_frame=70 observed_ticks_usec=9415944
+UNIT_VISUAL_RESULT_CONSUMED server_id=4294739217 request_id=2 existing_visual=false describe_unit="NPC 4294739217 display 141286" prepared_result_ok=true visual_attached=true observed_process_frame=70 observed_ticks_usec=9427289
+ERROR: NPC 4294739226 display 140048: NPC display 140048 is outside imported appearance coverage
+   at: game_engine_godot::world::attach_unit_visual (rust/src/world.rs:631)
+UNIT_VISUAL_RESULT_CONSUMED server_id=4294739226 request_id=3 existing_visual=false describe_unit="NPC 4294739226 display 140048" prepared_result_ok=false visual_attached=false observed_process_frame=71 observed_ticks_usec=9497133
+UNIT_VISUAL_RESULT_CONSUMED server_id=4294739227 request_id=4 existing_visual=false describe_unit="NPC 4294739227 display 140046" prepared_result_ok=true visual_attached=true observed_process_frame=71 observed_ticks_usec=9516996
+UNIT_VISUAL_RESULT_CONSUMED server_id=4294739237 request_id=5 existing_visual=false describe_unit="NPC 4294739237 display 140046" prepared_result_ok=true visual_attached=true observed_process_frame=72 observed_ticks_usec=9616870
+ERROR: NPC 4294739238 display 140043: No verified asset receipt for wow FDID 982813.blp
+   at: game_engine_godot::world::attach_unit_visual (rust/src/world.rs:631)
+UNIT_VISUAL_RESULT_CONSUMED server_id=4294739238 request_id=6 existing_visual=false describe_unit="NPC 4294739238 display 140043" prepared_result_ok=false visual_attached=false observed_process_frame=72 observed_ticks_usec=9617106
+ERROR: NPC 4294739246 display 140035: NPC display 140035 is outside imported appearance coverage
+   at: game_engine_godot::world::attach_unit_visual (rust/src/world.rs:631)
+UNIT_VISUAL_RESULT_CONSUMED server_id=4294739246 request_id=7 existing_visual=false describe_unit="NPC 4294739246 display 140035" prepared_result_ok=false visual_attached=false observed_process_frame=72 observed_ticks_usec=9617136
+UNIT_VISUAL_RESULT_CONSUMED server_id=4294739247 request_id=8 existing_visual=false describe_unit="NPC 4294739247 display 140036" prepared_result_ok=true visual_attached=true observed_process_frame=72 observed_ticks_usec=9630983
+Loaded _obj0: 0 doodads (0 model paths), 0 WMOs (0 WMO paths), 256 chunk ref sets
+Loaded _obj0: 88 doodads (0 model paths), 13 WMOs (0 WMO paths), 256 chunk ref sets
+Loaded _obj0: 817 doodads (0 model paths), 55 WMOs (0 WMO paths), 256 chunk ref sets
+Loaded _obj0: 494 doodads (0 model paths), 57 WMOs (0 WMO paths), 256 chunk ref sets
+ERROR: NPC 4294739279 display 130200: No verified asset receipt for wow FDID 6385683.blp
+   at: game_engine_godot::world::attach_unit_visual (rust/src/world.rs:631)
+UNIT_VISUAL_RESULT_CONSUMED server_id=4294739279 request_id=9 existing_visual=false describe_unit="NPC 4294739279 display 130200" prepared_result_ok=false visual_attached=false observed_process_frame=73 observed_ticks_usec=10880518
+UNIT_VISUAL_RESULT_CONSUMED server_id=4294739355 request_id=10 existing_visual=false describe_unit="NPC 4294739355 display 141286" prepared_result_ok=true visual_attached=true observed_process_frame=73 observed_ticks_usec=10882529
+ERROR: NPC 4294739366 display 141204: No verified asset receipt for wow FDID 6652657.blp
+   at: game_engine_godot::world::attach_unit_visual (rust/src/world.rs:631)
+UNIT_VISUAL_RESULT_CONSUMED server_id=4294739366 request_id=11 existing_visual=false describe_unit="NPC 4294739366 display 141204" prepared_result_ok=false visual_attached=false observed_process_frame=73 observed_ticks_usec=10882832
+ERROR: NPC 4294739367 display 141204: No verified asset receipt for wow FDID 6652657.blp
+   at: game_engine_godot::world::attach_unit_visual (rust/src/world.rs:631)
+UNIT_VISUAL_RESULT_CONSUMED server_id=4294739367 request_id=12 existing_visual=false describe_unit="NPC 4294739367 display 141204" prepared_result_ok=false visual_attached=false observed_process_frame=73 observed_ticks_usec=10882873
+ERROR: NPC 4294739368 display 141204: No verified asset receipt for wow FDID 6652657.blp
+   at: game_engine_godot::world::attach_unit_visual (rust/src/world.rs:631)
+UNIT_VISUAL_RESULT_CONSUMED server_id=4294739368 request_id=13 existing_visual=false describe_unit="NPC 4294739368 display 141204" prepared_result_ok=false visual_attached=false observed_process_frame=73 observed_ticks_usec=10882885
+ERROR: NPC 4294739374 display 138723: No verified asset receipt for wow FDID 6245980.blp
+   at: game_engine_godot::world::attach_unit_visual (rust/src/world.rs:631)
+UNIT_VISUAL_RESULT_CONSUMED server_id=4294739374 request_id=14 existing_visual=false describe_unit="NPC 4294739374 display 138723" prepared_result_ok=false visual_attached=false observed_process_frame=73 observed_ticks_usec=10882896
+ERROR: NPC 4294739378 display 141196: No verified asset receipt for wow FDID 986819.blp
+   at: game_engine_godot::world::attach_unit_visual (rust/src/world.rs:631)
+UNIT_VISUAL_RESULT_CONSUMED server_id=4294739378 request_id=15 existing_visual=false describe_unit="NPC 4294739378 display 141196" prepared_result_ok=false visual_attached=false observed_process_frame=73 observed_ticks_usec=10882908
+ERROR: NPC 4294739379 display 141196: No verified asset receipt for wow FDID 986819.blp
+   at: game_engine_godot::world::attach_unit_visual (rust/src/world.rs:631)
+UNIT_VISUAL_RESULT_CONSUMED server_id=4294739379 request_id=16 existing_visual=false describe_unit="NPC 4294739379 display 141196" prepared_result_ok=false visual_attached=false observed_process_frame=73 observed_ticks_usec=10882918
+ERROR: NPC 4294739393 display 141810: No verified asset receipt for wow FDID 6890961.blp
+   at: game_engine_godot::world::attach_unit_visual (rust/src/world.rs:631)
+UNIT_VISUAL_RESULT_CONSUMED server_id=4294739393 request_id=17 existing_visual=false describe_unit="NPC 4294739393 display 141810" prepared_result_ok=false visual_attached=false observed_process_frame=73 observed_ticks_usec=10882930
+ERROR: NPC 4294739395 display 141810: No verified asset receipt for wow FDID 6890961.blp
+   at: game_engine_godot::world::attach_unit_visual (rust/src/world.rs:631)
+UNIT_VISUAL_RESULT_CONSUMED server_id=4294739395 request_id=18 existing_visual=false describe_unit="NPC 4294739395 display 141810" prepared_result_ok=false visual_attached=false observed_process_frame=73 observed_ticks_usec=10882942
+ERROR: NPC 4294739396 display 141810: No verified asset receipt for wow FDID 6890961.blp
+   at: game_engine_godot::world::attach_unit_visual (rust/src/world.rs:631)
+UNIT_VISUAL_RESULT_CONSUMED server_id=4294739396 request_id=19 existing_visual=false describe_unit="NPC 4294739396 display 141810" prepared_result_ok=false visual_attached=false observed_process_frame=73 observed_ticks_usec=10882958
+ERROR: NPC 4294739432 display 130200: No verified asset receipt for wow FDID 6385683.blp
+   at: game_engine_godot::world::attach_unit_visual (rust/src/world.rs:631)
+UNIT_VISUAL_RESULT_CONSUMED server_id=4294739432 request_id=20 existing_visual=false describe_unit="NPC 4294739432 display 130200" prepared_result_ok=false visual_attached=false observed_process_frame=73 observed_ticks_usec=10882968
+ERROR: NPC 4294739434 display 130200: No verified asset receipt for wow FDID 6385683.blp
+   at: game_engine_godot::world::attach_unit_visual (rust/src/world.rs:631)
+UNIT_VISUAL_RESULT_CONSUMED server_id=4294739434 request_id=21 existing_visual=false describe_unit="NPC 4294739434 display 130200" prepared_result_ok=false visual_attached=false observed_process_frame=73 observed_ticks_usec=10882978
+ERROR: NPC 4294739435 display 140035: NPC display 140035 is outside imported appearance coverage
+   at: game_engine_godot::world::attach_unit_visual (rust/src/world.rs:631)
+UNIT_VISUAL_RESULT_CONSUMED server_id=4294739435 request_id=22 existing_visual=false describe_unit="NPC 4294739435 display 140035" prepared_result_ok=false visual_attached=false observed_process_frame=73 observed_ticks_usec=10882991
+UNIT_VISUAL_RESULT_CONSUMED server_id=4294739439 request_id=23 existing_visual=false describe_unit="NPC 4294739439 display 140036" prepared_result_ok=true visual_attached=true observed_process_frame=73 observed_ticks_usec=10887541
+ERROR: NPC 4294739460 display 140041: No verified asset receipt for wow FDID 982812.blp
+   at: game_engine_godot::world::attach_unit_visual (rust/src/world.rs:631)
+UNIT_VISUAL_RESULT_CONSUMED server_id=4294739460 request_id=24 existing_visual=false describe_unit="NPC 4294739460 display 140041" prepared_result_ok=false visual_attached=false observed_process_frame=73 observed_ticks_usec=10887680
+ERROR: NPC 4294739463 display 140048: NPC display 140048 is outside imported appearance coverage
+   at: game_engine_godot::world::attach_unit_visual (rust/src/world.rs:631)
+UNIT_VISUAL_RESULT_CONSUMED server_id=4294739463 request_id=25 existing_visual=false describe_unit="NPC 4294739463 display 140048" prepared_result_ok=false visual_attached=false observed_process_frame=73 observed_ticks_usec=10887702
+UNIT_VISUAL_RESULT_CONSUMED server_id=4294739475 request_id=26 existing_visual=false describe_unit="NPC 4294739475 display 140045" prepared_result_ok=true visual_attached=true observed_process_frame=73 observed_ticks_usec=10894791
+UNIT_VISUAL_RESULT_CONSUMED server_id=4294739163 request_id=0 existing_visual=false describe_unit="Character 4294739163 (race 10)" prepared_result_ok=true visual_attached=true observed_process_frame=74 observed_ticks_usec=11152985
+Loaded _obj0: 380 doodads (0 model paths), 67 WMOs (0 WMO paths), 256 chunk ref sets
+Loaded _obj0: 1639 doodads (0 model paths), 40 WMOs (0 WMO paths), 256 chunk ref sets
+Loaded _obj0: 128 doodads (0 model paths), 18 WMOs (0 WMO paths), 256 chunk ref sets
+Loaded _obj0: 73 doodads (0 model paths), 20 WMOs (0 WMO paths), 256 chunk ref sets
+Loaded _obj0: 928 doodads (0 model paths), 51 WMOs (0 WMO paths), 256 chunk ref sets
+WARNING: 2D MSAA is enabled while there is no 2D content. Disable 2D MSAA for better performance.
+     at: _draw_viewport (servers/rendering/renderer_viewport.cpp:756)
+WARNING: QuestPOIBlob 519073: expected 1 points, found 10; excluded
+     at: game_engine_godot::quests::<impl game_engine_godot::GameClient>::load_quest_pois (rust/src/quests.rs:382)
+Quest POI catalog: 6782 conditional blobs excluded
+BENCH_WAIT InWorld fps=8.0 objects={ "spawned": 523, "pending": 4406, "failures": 0, "tile_done": 483, "tile_total": 898, "collision_pending": 0, "nearby_done": 229, "nearby_total": 229, "nearby_collision_pending": 0, "particles": { "pools": 54, "emitters": 174, "drawn": 436, "capacity": 3805, "updated_emitters": 76, "simulate_us": 627, "upload_us": 276 } }
+item catalog: 213908 items loaded in 18.9 s
+Item catalog loaded: 9 received bag and equipment items resolved
+BENCH_WAIT InWorld fps=8.0 objects={ "spawned": 1745, "pending": 3101, "failures": 0, "tile_done": 684, "tile_total": 898, "collision_pending": 0, "nearby_done": 229, "nearby_total": 229, "nearby_collision_pending": 0, "particles": { "pools": 84, "emitters": 287, "drawn": 450, "capacity": 10558, "updated_emitters": 91, "simulate_us": 736, "upload_us": 237 } }
+BENCH_WAIT InWorld fps=8.0 objects={ "spawned": 2594, "pending": 2172, "failures": 0, "tile_done": 898, "tile_total": 898, "collision_pending": 0, "nearby_done": 229, "nearby_total": 229, "nearby_collision_pending": 0, "particles": { "pools": 134, "emitters": 412, "drawn": 1229, "capacity": 12786, "updated_emitters": 112, "simulate_us": 570, "upload_us": 242 } }
+BENCH_WAIT InWorld fps=8.0 objects={ "spawned": 3530, "pending": 1458, "failures": 0, "tile_done": 898, "tile_total": 898, "collision_pending": 0, "nearby_done": 229, "nearby_total": 229, "nearby_collision_pending": 0, "particles": { "pools": 149, "emitters": 531, "drawn": 1238, "capacity": 13894, "updated_emitters": 112, "simulate_us": 1061, "upload_us": 400 } }
+BENCH_WAIT InWorld fps=10.0 objects={ "spawned": 4635, "pending": 39, "failures": 0, "tile_done": 898, "tile_total": 898, "collision_pending": 0, "nearby_done": 229, "nearby_total": 229, "nearby_collision_pending": 0, "particles": { "pools": 196, "emitters": 789, "drawn": 1238, "capacity": 18265, "updated_emitters": 112, "simulate_us": 1050, "upload_us": 225 } }
+BENCH_VSYNC 0
+BENCH_SCENE {"character":"Fbreceipts","objects":{"collision_pending":0,"failures":0,"nearby_collision_pending":0,"nearby_done":229,"nearby_total":229,"particles":{"capacity":18265,"drawn":1216,"emitters":789,"pools":196,"simulate_us":505,"updated_emitters":112,"upload_us":171},"pending":0,"spawned":4672,"tile_done":898,"tile_total":898},"spawn":[4423.14013671875,451.900024414062]}
+ZONE_REPORT {"collision_pending":0,"failures":0,"nearby_collision_pending":0,"nearby_done":229,"nearby_total":229,"particles":{"capacity":18265,"drawn":1216,"emitters":789,"pools":196,"simulate_us":505,"updated_emitters":112,"upload_us":171},"pending":0,"spawned":4672,"tile_done":898,"tile_total":898}
+FIXTURE FRAME_BENCHMARK_DONE

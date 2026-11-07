@@ -1,0 +1,84 @@
+{
+  "source_identity": {
+    "product": "wow",
+    "build": "12.1.5.70575",
+    "build_key": "d718abcc42604d8efbd35aecfa5bb75b",
+    "root_sha256": "e413705c7630b43e3f0e5e5cdab4cba793ec3b91e54a37a74ebfe26799f3544e",
+    "resolution_sha256": "5954290d8ad670f5fe6282c91bfd1b1394e355d459a3fb5a8ef28ccb999fb6b5",
+    "root_content_key": "29f9df18069c45b66a8dcb89bed93979"
+  },
+  "assets": [
+    {
+      "fdid": 982812,
+      "kind": "blp",
+      "product": "wow",
+      "build_key": "d718abcc42604d8efbd35aecfa5bb75b",
+      "source_path": "/home/osso/.worktrees/game-engine-s9/voidscar-proof/stage-receipts/raw/982812.dat",
+      "content_key": "3e7f4cca24cd13bebd5ec9dcd05878d0",
+      "sha256": "c4b6f65fbd31d7da50cbb9a7d974e7d90e11fa8b4c262918c363e34ab5811459",
+      "bytes": 350724
+    },
+    {
+      "fdid": 982813,
+      "kind": "blp",
+      "product": "wow",
+      "build_key": "d718abcc42604d8efbd35aecfa5bb75b",
+      "source_path": "/home/osso/.worktrees/game-engine-s9/voidscar-proof/stage-receipts/raw/982813.dat",
+      "content_key": "b6b75c3d70d122aff10d932b689ad975",
+      "sha256": "72236a52d004aad7a929f5d2e658eb93672eecabb12fc543083dbed0dfb03d57",
+      "bytes": 350724
+    },
+    {
+      "fdid": 986819,
+      "kind": "blp",
+      "product": "wow",
+      "build_key": "d718abcc42604d8efbd35aecfa5bb75b",
+      "source_path": "/home/osso/.worktrees/game-engine-s9/voidscar-proof/stage-receipts/raw/986819.dat",
+      "content_key": "db8b85a6f9016bca8622a824d5b63c1a",
+      "sha256": "a77ad8554a1c0e098c49d635a4aeabc4a827ac7284cefcc7018540d26935adae",
+      "bytes": 350724
+    },
+    {
+      "fdid": 6245980,
+      "kind": "blp",
+      "product": "wow",
+      "build_key": "d718abcc42604d8efbd35aecfa5bb75b",
+      "source_path": "/home/osso/.worktrees/game-engine-s9/voidscar-proof/stage-receipts/raw/6245980.dat",
+      "content_key": "a04fb0aa20dc650dbc606f560e18314e",
+      "sha256": "7c013ea678d3e19aa8f95a1486ae323adf56c6e83404c3b20d5c1f21211e3881",
+      "bytes": 1399300
+    },
+    {
+      "fdid": 6385683,
+      "kind": "blp",
+      "product": "wow",
+      "build_key": "d718abcc42604d8efbd35aecfa5bb75b",
+      "source_path": "/home/osso/.worktrees/game-engine-s9/voidscar-proof/stage-receipts/raw/6385683.dat",
+      "content_key": "daaf373c4b3dffb3a3f0aa63cf704ac8",
+      "sha256": "7a3e80936abb903171facf3306cf242f3887fde63e9afd89de9c33ac85ca3930",
+      "bytes": 350724
+    },
+    {
+      "fdid": 6652657,
+      "kind": "blp",
+      "product": "wow",
+      "build_key": "d718abcc42604d8efbd35aecfa5bb75b",
+      "source_path": "/home/osso/.worktrees/game-engine-s9/voidscar-proof/stage-receipts/raw/6652657.dat",
+      "content_key": "17eec977afd65174b01cab5b8777f64f",
+      "sha256": "19af2b6245eefa0e8497f9408c2374412a501ca34426faf145659d2e6876e448",
+      "bytes": 350724
+    },
+    {
+      "fdid": 6890961,
+      "kind": "blp",
+      "product": "wow",
+      "build_key": "d718abcc42604d8efbd35aecfa5bb75b",
+      "source_path": "/home/osso/.worktrees/game-engine-s9/voidscar-proof/stage-receipts/raw/6890961.dat",
+      "content_key": "0c753767bc871df70ff0922c2f9bab72",
+      "sha256": "857707d861f419c81768875432deadc837edba7691c24446525824b2dab2ee1c",
+      "bytes": 700260
+    }
+  ],
+  "dependencies": {},
+  "failures": []
+}

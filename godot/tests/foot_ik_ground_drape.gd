@@ -67,6 +67,8 @@ func run() -> void:
 		await capture_life()
 	elif case == "footik_fps":
 		await capture_fps()
+	elif case == "dnd_fps":
+		await capture_dnd_fps()
 	else:
 		fail("unknown CAPTURE_CASE " + case)
 
@@ -506,9 +508,15 @@ func capture_life() -> void:
 			return
 	finish()
 
-# Area-trigger ground visuals: replay the trigger's kits like a server update does and
-# capture the effect while it is up.
-func capture_trigger(spell: int, prefix: String, shots: Array) -> void:
+# The oblique eye the trigger captures use, or a straight-down one under
+# CAPTURE_CAMERA=topdown: the same effect state seen face-on instead of at a grazing angle.
+func trigger_eye(point: Vector3) -> Vector3:
+	if OS.get_environment("CAPTURE_CAMERA") == "topdown":
+		return point + Vector3(0.001, 18.0, 0.0)
+	return point + Vector3(3.6, 3.6, 4.8)
+
+# Ten fixed-pose windows of the drawn Death and Decay disc, for the filtering frame cost.
+func capture_dnd_fps() -> void:
 	var point := FLAT_GROUND
 	if not await load_world(point):
 		return
@@ -516,8 +524,39 @@ func capture_trigger(spell: int, prefix: String, shots: Array) -> void:
 	if not await wait_objects():
 		return
 	await wait_ms(1200)
-	place_camera(point + Vector3(3.6, 3.6, 4.8), point)
-	await capture("area-trigger-%s-none" % prefix, false)
+	place_camera(trigger_eye(point), point)
+	var started := Time.get_ticks_msec()
+	while Time.get_ticks_msec() < started + 60000:
+		await process_frame
+		client.preview_area_trigger(DECAY_SPELL, point, 8.0, 10.0, 0)
+		if kit_meshes() > 0:
+			break
+	if kit_meshes() == 0:
+		fail("dnd_fps: the kit never spawned")
+		return
+	await wait_ms(800)
+	pause_kits(true)
+	var windows := []
+	for round in 10:
+		windows.append(await sample_frames(120))
+	print("FPS dnd meshes=%d %s" % [kit_meshes(), JSON.stringify(windows)])
+	finish()
+
+# Area-trigger ground visuals: replay the trigger's kits like a server update does and
+# capture the effect while it is up.
+func capture_trigger(spell: int, prefix: String, shots: Array) -> void:
+	var point := FLAT_GROUND
+	var tag := prefix
+	if OS.get_environment("CAPTURE_CAMERA") == "topdown":
+		tag = prefix + "-topdown"
+	if not await load_world(point):
+		return
+	client.preview_set_focus(point)
+	if not await wait_objects():
+		return
+	await wait_ms(1200)
+	place_camera(trigger_eye(point), point)
+	await capture("area-trigger-%s-none" % tag, false)
 	# Control: the same kit through the preview path that was visible in v5, to separate a
 	# replay bug from a fixture/camera problem.
 	if prefix == "decay":
@@ -534,10 +573,10 @@ func capture_trigger(spell: int, prefix: String, shots: Array) -> void:
 		print("area trigger control: meshes=%d" % kit_meshes())
 		await wait_ms(1200)
 		pause_kits(true)
-		await capture("area-trigger-%s-preview-kit" % prefix, false)
+		await capture("area-trigger-%s-preview-kit" % tag, false)
 		client.preview_clear_kits()
 		await wait_ms(300)
-		await capture("area-trigger-%s-none2" % prefix, false)
+		await capture("area-trigger-%s-none2" % tag, false)
 	var started := Time.get_ticks_msec()
 	var pulse := 0
 	for shot in shots:
@@ -559,8 +598,9 @@ func capture_trigger(spell: int, prefix: String, shots: Array) -> void:
 		if OS.get_environment("CAPTURE_MATERIALS") != "":
 			print("MATERIALS-%s %s" % [shot[1], JSON.stringify(client.preview_kit_materials())])
 		var extent := effect_extent()
-		print("EXTENT-%s-%s %s" % [prefix, shot[1], JSON.stringify(extent)])
-		await capture("area-trigger-%s-%s" % [prefix, shot[1]], false)
+		print("EXTENT-%s-%s %s" % [tag, shot[1], JSON.stringify(extent)])
+		print("KITCLOCK-%s-%s %s" % [tag, shot[1], JSON.stringify(client.spell_visuals_state().clock)])
+		await capture("area-trigger-%s-%s" % [tag, shot[1]], false)
 		if closed:
 			return
 	finish()
