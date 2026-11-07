@@ -3501,7 +3501,18 @@ impl GameClient {
             self.terrain_materials.cull_outdoor(windows, interiors);
             drop(span);
             let span = profile::span(|| "cull.units_outdoor".to_owned());
-            self.world.cull_outdoor(windows, interiors);
+            let shadow_radius = self
+                .client_options
+                .graphics
+                .graphics_quality
+                .preset()
+                .unit_shadow_radius;
+            self.world.cull_outdoor(
+                windows,
+                interiors,
+                glam::Vec3::new(camera.x, camera.y, camera.z),
+                shadow_radius,
+            );
             drop(span);
             let span = profile::span(|| "cull.doodads".to_owned());
             self.world_objects

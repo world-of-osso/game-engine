@@ -79,9 +79,10 @@ struct UnitNode {
     /// `visual`'s model and its merged mesh bounds, read when the visual is attached:
     /// walking the model's mesh children costs more than the whole cull that reads it.
     model_bounds: Option<ModelBounds>,
-    /// Whether portal visibility admitted the unit to the camera when its subtree was
-    /// last refreshed; `None` once new geometry needs it applied.
-    camera_admitted: Option<bool>,
+    /// Whether portal visibility admitted the unit to the camera, and whether it stood
+    /// within the unit shadow radius, when its subtree was last refreshed; `None` once
+    /// new geometry needs them applied.
+    admission: Option<(bool, bool)>,
     /// Visual request still loading and the sheath state its virtual items are placed
     /// for; `visual` shows the previous appearance until it arrives.
     loading: Option<(u64, SheathState)>,
@@ -204,7 +205,7 @@ impl UnitNode {
             LodTarget::of(model, bounds.bounds)
         });
         self.visual = visual;
-        self.camera_admitted = None;
+        self.admission = None;
     }
 }
 
@@ -393,7 +394,7 @@ fn spawn_unit(
         visual: None,
         lod_target: None,
         model_bounds: None,
-        camera_admitted: None,
+        admission: None,
         loading: None,
         visual_player_model: None,
         death_applied: false,
@@ -1493,7 +1494,7 @@ impl WorldUnits {
                         unit.node.add_child(&model);
                         mount.bounds = model_bounds_of(&model);
                         mount.node = Some(model);
-                        unit.camera_admitted = None;
+                        unit.admission = None;
                         mount::seat_rider(unit);
                     }
                     Err(error) => {
@@ -1837,20 +1838,34 @@ impl WorldUnits {
 
     /// Rejects remote units outside portal visibility from the camera while keeping
     /// their shadows: the outdoor admission of terrain and doodads applied to each
-    /// unit's model and mount boxes. The local player is always admitted.
-    pub fn cull_outdoor(&mut self, windows: Option<&[Vec<HalfSpace>]>, interiors: &[(Vec3, Vec3)]) {
+    /// unit's model and mount boxes. Drawn remote units whose box centre is farther than
+    /// `shadow_radius` from `camera` cast no shadow. The local player is always admitted
+    /// and casts.
+    pub fn cull_outdoor(
+        &mut self,
+        windows: Option<&[Vec<HalfSpace>]>,
+        interiors: &[(Vec3, Vec3)],
+        camera: Vec3,
+        shadow_radius: f32,
+    ) {
         for (id, unit) in &mut self.units {
-            let admitted = Some(*id) == self.local_player_id
-                || unit_world_box(unit).is_none_or(|(min, max)| {
+            let local = Some(*id) == self.local_player_id;
+            let world_box = unit_world_box(unit);
+            let admitted = local
+                || world_box.is_none_or(|(min, max)| {
                     crate::terrain::scenery::outdoor_box_admitted(min, max, windows, interiors)
                 });
-            if unit.camera_admitted == Some(admitted) {
+            let in_shadow_range = local
+                || world_box.is_none_or(|(min, max)| {
+                    ((min + max) * 0.5).distance_squared(camera) <= shadow_radius * shadow_radius
+                });
+            if unit.admission == Some((admitted, in_shadow_range)) {
                 continue;
             }
             let mut node = unit.node.clone().upcast::<godot::classes::Node>();
-            crate::animation::set_camera_admitted(&mut node, admitted);
+            crate::animation::set_unit_admission(&mut node, admitted, in_shadow_range);
             crate::animation::refresh_unit_shadows(&node);
-            unit.camera_admitted = Some(admitted);
+            unit.admission = Some((admitted, in_shadow_range));
         }
     }
 

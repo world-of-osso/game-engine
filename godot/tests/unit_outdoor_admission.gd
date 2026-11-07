@@ -3,7 +3,8 @@ extends SceneTree
 # Real WorldUnits.cull_outdoor with synthetic native units. From an indoor camera, a
 # remote unit outside the interior and every exterior window is drawn only into
 # shadows; a double-sided caster stays drawn, a non-caster is untouched, the local
-# player is always drawn, and inactive attachments keep casting nothing.
+# player is always drawn, and inactive attachments keep casting nothing. Drawn remote
+# units beyond the unit shadow radius cast nothing; rejected ones keep their shadow.
 const ON := GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 const OFF := GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 const DOUBLE := GeometryInstance3D.SHADOW_CASTING_SETTING_DOUBLE_SIDED
@@ -29,11 +30,11 @@ func run_test() -> void:
 	fixture.initialize(PackedVector3Array([Vector3(0, 0, 0), Vector3(30, 0, 0), Vector3(-30, 0, 0), Vector3(-60, 0, 0)]))
 	fixture.set_local_player(LOCAL)
 
-	fixture.cull(true, INTERIOR_MIN, INTERIOR_MAX, PackedVector4Array())
+	fixture.cull(true, INTERIOR_MIN, INTERIOR_MAX, PackedVector4Array(), Vector3.ZERO, INF)
 	for unit in 4:
 		expect(unit, [ON, DOUBLE, OFF], "outdoor camera")
 
-	fixture.cull(false, INTERIOR_MIN, INTERIOR_MAX, PackedVector4Array([WINDOW]))
+	fixture.cull(false, INTERIOR_MIN, INTERIOR_MAX, PackedVector4Array([WINDOW]), Vector3.ZERO, INF)
 	expect(INSIDE, [ON, DOUBLE, OFF], "unit overlapping the interior")
 	expect(WINDOWED, [ON, DOUBLE, OFF], "unit through an exterior window")
 	expect(OUTSIDE, [ONLY, DOUBLE, OFF], "unit outside interior and windows")
@@ -42,22 +43,22 @@ func run_test() -> void:
 		check(batch_of(OUTSIDE, batch).visible, "rejected %s batch stays visible" % batch)
 
 	# An enclosed interior admits only what overlaps it.
-	fixture.cull(false, INTERIOR_MIN, INTERIOR_MAX, PackedVector4Array())
+	fixture.cull(false, INTERIOR_MIN, INTERIOR_MAX, PackedVector4Array(), Vector3.ZERO, INF)
 	expect(WINDOWED, [ONLY, DOUBLE, OFF], "unit once its window closes")
 
 	# The admitted box follows the unit's position: moving it through the window
 	# admits it, and moving it out again rejects it.
 	fixture.place_unit(OUTSIDE, Vector3(40, 0, 0))
-	fixture.cull(false, INTERIOR_MIN, INTERIOR_MAX, PackedVector4Array([WINDOW]))
+	fixture.cull(false, INTERIOR_MIN, INTERIOR_MAX, PackedVector4Array([WINDOW]), Vector3.ZERO, INF)
 	expect(OUTSIDE, [ON, DOUBLE, OFF], "unit moved into the window")
 	fixture.place_unit(OUTSIDE, Vector3(-30, 0, 0))
-	fixture.cull(false, INTERIOR_MIN, INTERIOR_MAX, PackedVector4Array([WINDOW]))
+	fixture.cull(false, INTERIOR_MIN, INTERIOR_MAX, PackedVector4Array([WINDOW]), Vector3.ZERO, INF)
 	expect(OUTSIDE, [ONLY, DOUBLE, OFF], "unit moved back out of the window")
 
 	# A new visual on a rejected unit is rejected with it.
 	fixture.replace_visual(OUTSIDE)
 	expect(OUTSIDE, [ON, DOUBLE, OFF], "fresh visual before culling")
-	fixture.cull(false, INTERIOR_MIN, INTERIOR_MAX, PackedVector4Array())
+	fixture.cull(false, INTERIOR_MIN, INTERIOR_MAX, PackedVector4Array(), Vector3.ZERO, INF)
 	expect(OUTSIDE, [ONLY, DOUBLE, OFF], "fresh visual on a rejected unit")
 
 	# Attachment participation and camera admission compose on one authored mode.
@@ -73,10 +74,27 @@ func run_test() -> void:
 	attachment.set_meta("m2_attachment_active", true)
 	fixture.refresh_shadows(OUTSIDE)
 	check(item.cast_shadow == ONLY, "active attachment on a rejected unit draws only shadows")
-	fixture.cull(true, INTERIOR_MIN, INTERIOR_MAX, PackedVector4Array())
+	fixture.cull(true, INTERIOR_MIN, INTERIOR_MAX, PackedVector4Array(), Vector3.ZERO, INF)
 	check(item.cast_shadow == ON, "admitted unit restores its attachment caster")
 	for unit in 4:
 		expect(unit, [ON, DOUBLE, OFF], "outdoor camera again")
+
+	# A 20 yd shadow radius from the origin: the unit at the origin and the local player
+	# 60 yd away cast; the drawn units 30 yd away do not, and restore past the radius.
+	fixture.cull(true, INTERIOR_MIN, INTERIOR_MAX, PackedVector4Array(), Vector3.ZERO, 20.0)
+	expect(INSIDE, [ON, DOUBLE, OFF], "unit within the shadow radius")
+	expect(WINDOWED, [OFF, OFF, OFF], "drawn unit beyond the shadow radius")
+	expect(OUTSIDE, [OFF, OFF, OFF], "drawn unit beyond the shadow radius")
+	expect(LOCAL, [ON, DOUBLE, OFF], "local player beyond the shadow radius")
+	check(item.cast_shadow == OFF, "attachment of a unit beyond the shadow radius casts nothing")
+	fixture.cull(false, INTERIOR_MIN, INTERIOR_MAX, PackedVector4Array(), Vector3.ZERO, 20.0)
+	expect(OUTSIDE, [ONLY, DOUBLE, OFF], "rejected unit beyond the shadow radius")
+	fixture.cull(true, INTERIOR_MIN, INTERIOR_MAX, PackedVector4Array(), Vector3(-30, 0, 0), 20.0)
+	expect(OUTSIDE, [ON, DOUBLE, OFF], "unit once the camera nears it")
+	expect(INSIDE, [OFF, OFF, OFF], "unit once the camera leaves it")
+	fixture.cull(true, INTERIOR_MIN, INTERIOR_MAX, PackedVector4Array(), Vector3.ZERO, INF)
+	for unit in 4:
+		expect(unit, [ON, DOUBLE, OFF], "unlimited shadow radius")
 
 	if failures.is_empty():
 		print("PASS unit_outdoor_admission")

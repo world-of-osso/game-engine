@@ -3,10 +3,10 @@
 //! data (Part A §1.2 of the retail-optimisation mapping: 14 blocks of `{name, int32}`
 //! CVar pairs), and its preset writes CVars rather than scaling them.
 //!
-//! `High`, the default, is this client's settings before presets existed. The lower rows
-//! scale each `High` value by the ratio of two retail rows: block 11 (`shadowMode` 2,
-//! `shadowNumCascades` 2, the cascade count `High` already used) to block 2 (`Medium`)
-//! or block 0 (`Low`). The retail values are VERIFIED (decoded blocks); applying their
+//! `High`, the default, is this client's distances and splits before presets existed,
+//! with retail's unit shadow radius. The lower rows scale each `High` distance by the
+//! ratio of two retail rows: block 11 (`shadowMode` 2, `shadowNumCascades` 2, the cascade
+//! count `High` already used) to block 2 (`Medium`) or block 0 (`Low`). The retail values are VERIFIED (decoded blocks); applying their
 //! ratios to this client's own distances is INFERRED.
 
 use serde::{Deserialize, Serialize};
@@ -29,6 +29,8 @@ pub struct QualityPreset {
     pub shadow_cascades: u8,
     /// Directional shadow atlas size, in texels.
     pub shadow_map_size: u32,
+    /// Distance from the camera within which drawn remote units cast shadows, in yards.
+    pub unit_shadow_radius: f32,
 }
 
 /// Retail block 11 `farClip` and `horizonStart`, the anchor of the `High` row.
@@ -44,27 +46,38 @@ const HIGH: QualityPreset = QualityPreset {
     shadow_cascades: 2,
     // Godot's `directional_shadow/size` default, which the client inherited.
     shadow_map_size: 4096,
+    // Retail `entityShadowFadeScale` default 50 (Part A §10.1, VERIFIED); that it is a
+    // radius in yards is INFERRED, its consumer was not located.
+    unit_shadow_radius: 50.0,
 };
 
-/// `High` with retail's `farClip`/`horizonStart` ratio to its anchor, and the shadow
+/// `High` with retail's `farClip`/`horizonStart` ratio to its anchor, the shadow
 /// mode's cascade count and map size (`shadowMode` 0: blob shadows, which this client
-/// does not draw; 1: one band, 1024).
-const fn scaled(far_clip: f32, horizon_start: f32, shadow_cascades: u8) -> QualityPreset {
+/// does not draw; 1: one band, 1024) and the unit shadow radius.
+const fn scaled(
+    far_clip: f32,
+    horizon_start: f32,
+    shadow_cascades: u8,
+    unit_shadow_radius: f32,
+) -> QualityPreset {
     QualityPreset {
         far_clip: HIGH.far_clip * far_clip / RETAIL_ANCHOR.0,
         horizon_range: HIGH.horizon_range * horizon_start / RETAIL_ANCHOR.1,
         shadow_cascades,
         shadow_map_size: 1024,
+        unit_shadow_radius,
     }
 }
 
 impl GraphicsQuality {
     pub const fn preset(self) -> QualityPreset {
         match self {
-            // Retail block 0: farClip 2000, horizonStart 600, shadowMode 0.
-            Self::Low => scaled(2000.0, 600.0, 0),
-            // Retail block 2: farClip 5000, horizonStart 1000, shadowMode 1.
-            Self::Medium => scaled(5000.0, 1000.0, 1),
+            // Retail block 0: farClip 2000, horizonStart 600, shadowMode 0; the lowest
+            // preset's `entityShadowFadeScale` 10 (Part A §10.1).
+            Self::Low => scaled(2000.0, 600.0, 0, 10.0),
+            // Retail block 2: farClip 5000, horizonStart 1000, shadowMode 1. Its
+            // `entityShadowFadeScale` is not decoded per block: the default 50.
+            Self::Medium => scaled(5000.0, 1000.0, 1, 50.0),
             Self::High => HIGH,
         }
     }
@@ -75,7 +88,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn high_row_keeps_the_client_settings() {
+    fn high_row_keeps_the_client_distances_and_splits() {
         assert_eq!(
             GraphicsQuality::default().preset(),
             QualityPreset {
@@ -83,6 +96,7 @@ mod tests {
                 horizon_range: 3108.0,
                 shadow_cascades: 2,
                 shadow_map_size: 4096,
+                unit_shadow_radius: 50.0,
             }
         );
     }

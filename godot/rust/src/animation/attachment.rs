@@ -23,6 +23,7 @@ pub(super) fn take_callbacks(animation: &mut AnimationState, active: bool) -> Ve
 const ACTIVE_META: &str = "m2_attachment_active";
 const SHADOW_META: &str = "m2_attachment_shadow_mode";
 const CAMERA_META: &str = "unit_camera_admitted";
+const SHADOW_RANGE_META: &str = "unit_in_shadow_range";
 
 struct AttachmentPoint {
     index: usize,
@@ -202,24 +203,34 @@ fn has_ancestor_meta_false(node: &Gd<Node>, meta: &str) -> bool {
     false
 }
 
-/// Marks a unit subtree admitted or rejected by the camera; `refresh_unit_shadows`
-/// applies it.
-pub(crate) fn set_camera_admitted(node: &mut Gd<Node>, admitted: bool) {
-    node.set_meta(CAMERA_META, &admitted.to_variant());
+/// Marks a unit subtree admitted or rejected by the camera, and within or beyond the
+/// unit shadow radius; `refresh_unit_shadows` applies both.
+pub(crate) fn set_unit_admission(
+    node: &mut Gd<Node>,
+    camera_admitted: bool,
+    in_shadow_range: bool,
+) {
+    node.set_meta(CAMERA_META, &camera_admitted.to_variant());
+    node.set_meta(SHADOW_RANGE_META, &in_shadow_range.to_variant());
 }
 
 /// The cast-shadow mode of a geometry authored `original`: an inactive attachment
-/// casts nothing, and a camera-rejected caster keeps only its shadow. Godot cannot
-/// combine shadows-only with double-sided casting, so those stay drawn.
+/// casts nothing, a camera-rejected caster keeps only its shadow, and a drawn caster
+/// beyond the unit shadow radius casts nothing. Godot cannot combine shadows-only with
+/// double-sided casting, so those stay drawn. A rejected caster keeps its shadow beyond
+/// the radius: casting nothing would draw it to the camera.
 pub(crate) fn shadow_mode(
     original: ShadowCastingSetting,
     active: bool,
     camera_admitted: bool,
+    in_shadow_range: bool,
 ) -> ShadowCastingSetting {
     if !active {
         ShadowCastingSetting::OFF
     } else if !camera_admitted && original == ShadowCastingSetting::ON {
         ShadowCastingSetting::SHADOWS_ONLY
+    } else if camera_admitted && !in_shadow_range {
+        ShadowCastingSetting::OFF
     } else {
         original
     }
@@ -239,6 +250,7 @@ pub(crate) fn refresh_unit_shadows(node: &Gd<Node>) {
             original,
             participates(node),
             !has_ancestor_meta_false(node, CAMERA_META),
+            !has_ancestor_meta_false(node, SHADOW_RANGE_META),
         );
         if mode != geometry.get_cast_shadows_setting() {
             geometry.set_cast_shadows_setting(mode);

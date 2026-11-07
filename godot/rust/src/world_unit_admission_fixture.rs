@@ -111,7 +111,8 @@ impl UnitAdmissionFixture {
 
     /// Culls from an indoor camera whose interior group spans `interior_min..interior_max`
     /// and whose visible exterior windows are each one half space `(normal, d)`;
-    /// `outdoor` culls from an outdoor camera instead.
+    /// `outdoor` culls from an outdoor camera instead. The camera stands at `camera`, and
+    /// units cast shadows within `shadow_radius` of it.
     #[func]
     fn cull(
         &mut self,
@@ -119,6 +120,8 @@ impl UnitAdmissionFixture {
         interior_min: Vector3,
         interior_max: Vector3,
         windows: PackedVector4Array,
+        camera: Vector3,
+        shadow_radius: f32,
     ) {
         let to_glam = |v: Vector3| Vec3::new(v.x, v.y, v.z);
         let windows: Vec<Vec<HalfSpace>> = windows
@@ -132,7 +135,11 @@ impl UnitAdmissionFixture {
             })
             .collect();
         let interiors = [(to_glam(interior_min), to_glam(interior_max))];
-        self.world
-            .cull_outdoor((!outdoor).then_some(windows.as_slice()), &interiors);
+        self.world.cull_outdoor(
+            (!outdoor).then_some(windows.as_slice()),
+            &interiors,
+            to_glam(camera),
+            shadow_radius,
+        );
     }
 }
