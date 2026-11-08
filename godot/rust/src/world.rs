@@ -639,6 +639,7 @@ fn attach_unit_visual(
     unit: &mut UnitNode,
     server_id: u64,
     loaded: Result<VisualParts, String>,
+    built: Option<Gd<Node3D>>,
     sheath: SheathState,
     models: &WorldModels,
     light: Option<&TerrainLight>,
@@ -663,7 +664,11 @@ fn attach_unit_visual(
         && unit.visual_player_model == appearance.player_model();
     let span = crate::profile::span(|| "unit.build_visual".to_owned());
     let replacement = loaded.and_then(|parts| {
-        models.build_world_visual(parts, unit.visual.as_ref().filter(|_| preserve_playback))
+        models.build_world_visual(
+            parts,
+            unit.visual.as_ref().filter(|_| preserve_playback),
+            built,
+        )
     });
     drop(span);
     unit.animation = None;
@@ -1188,6 +1193,9 @@ pub struct WorldUnits {
     models: WorldModels,
     /// Loaded visuals waiting for main-thread time, oldest first.
     arrived: VecDeque<(u64, Result<VisualParts, String>)>,
+    /// Creature visuals built in an earlier frame, or waiting for the template such a
+    /// visual makes, in arrival order (`attach_loaded_visuals`).
+    prebuilt: VecDeque<Staged>,
     light: Option<TerrainLight>,
     /// Units whose death clip started since `take_deaths`.
     deaths: Vec<u64>,
@@ -1226,6 +1234,7 @@ impl WorldUnits {
             local_visual_monitor: LocalVisualMonitor::default(),
             models: WorldModels::new(data_root),
             arrived: VecDeque::new(),
+            prebuilt: VecDeque::new(),
             light: None,
             deaths: Vec::new(),
             detached: Vec::new(),
@@ -1488,86 +1497,160 @@ impl WorldUnits {
     }
 
     /// Attach arrived visuals within `VISUAL_BUDGET` of main-thread time (at least one
-    /// per frame), each brought up to its unit's snapshot.
+    /// per frame), each brought up to its unit's snapshot. A creature visual no template
+    /// makes yet is built in one frame and becomes its template and attaches in a later
+    /// one (`WorldModels::prebuild`); arrivals sharing its template wait for it.
     pub fn attach_loaded_visuals(&mut self, replica: &Replica) {
         self.arrived.extend(self.models.poll());
         let started = Instant::now();
-        while let Some((request, loaded)) = self.arrived.pop_front() {
-            if let Some(index) = self.detached.iter().position(|id| *id == request) {
-                self.detached.swap_remove(index);
-                self.detached_arrived.push((request, loaded));
-                continue;
-            }
-            if let Some(unit) = self.units.values_mut().find(|unit| {
-                unit.mount
-                    .as_ref()
-                    .is_some_and(|mount| mount.request == Some(request))
-            }) {
-                let mount = unit.mount.as_mut().expect("matched a mounted unit");
-                mount.request = None;
-                match loaded.and_then(|parts| self.models.build_world_visual(parts, None)) {
-                    Ok(model) => {
-                        bind_visual_light(&model, self.light.as_ref());
-                        unit.node.add_child(&model);
-                        mount.bounds = model_bounds_of(&model);
-                        mount.node = Some(model);
-                        unit.geometry_changed();
-                        mount::seat_rider(unit);
+        let mut ready = std::mem::take(&mut self.prebuilt);
+        loop {
+            if let Some(staged) = ready.pop_front() {
+                self.attach_arrived(staged.request, staged.parts, staged.built, replica);
+            } else if let Some((request, loaded)) = self.arrived.pop_front() {
+                match loaded {
+                    Ok(parts) if self.unit_loading(request) && self.models.needs_build(&parts) => {
+                        self.stage_build(request, parts, &ready);
                     }
-                    Err(error) => {
-                        godot_error!("Mount of {}: {error}", unit.name);
-                    }
+                    loaded => self.attach_arrived(request, loaded, None, replica),
                 }
-                continue;
-            }
-            let loading = self
-                .units
-                .iter_mut()
-                .find(|(_, unit)| unit.loading.is_some_and(|(pending, _)| pending == request));
-            let Some((&id, unit)) = loading else {
-                // A superseded request, or its unit is gone.
-                if let Ok(parts) = loaded {
-                    self.models.discard(parts);
-                }
-                continue;
-            };
-            let (_, sheath) = unit.loading.take().expect("matched a loading unit");
-            let prepared_result_ok = loaded.is_ok();
-            let existing_visual = unit.visual.is_some();
-            let pools = self.particles.as_mut().map(|pools| {
-                if let Some(root) = self.root.as_mut() {
-                    pools.attach(root);
-                }
-                pools
-            });
-            attach_unit_visual(
-                unit,
-                id,
-                loaded,
-                sheath,
-                &self.models,
-                self.light.as_ref(),
-                pools,
-            );
-            log_visual_result(unit, id, request, existing_visual, prepared_result_ok);
-            if let Some(snapshot) = replica.unit(id) {
-                sync_unit_pick_selectability(unit, snapshot);
-                // Every visual load read the gear rows, so the weapon and pose resolve now.
-                if let Some(class) = combat::unit_weapon_class(unit, &self.models) {
-                    (unit.weapon, unit.main_hand_subclass) = class;
-                }
-                sync_unit_pose(unit, snapshot, &mut self.models);
-                sync_player_stand_state(unit, snapshot, &mut self.models);
-                sync_unit_sheath(unit, snapshot, &mut self.models);
-                if sync_unit_death(unit, snapshot) {
-                    self.deaths.push(id);
-                }
-                let fallbacks = combat::load_fallbacks(&mut self.anim_fallbacks, &self.data_root);
-                sync_unit_animation(unit, snapshot, fallbacks);
+            } else {
+                break;
             }
             if started.elapsed() >= VISUAL_BUDGET {
                 break;
             }
+        }
+        ready.extend(self.prebuilt.drain(..));
+        self.prebuilt = ready;
+    }
+
+    fn unit_loading(&self, request: u64) -> bool {
+        self.units
+            .values()
+            .any(|unit| unit.loading.is_some_and(|(pending, _)| pending == request))
+    }
+
+    /// Queues the first visual of a template to attach in a later frame: built now, or,
+    /// when a queued visual makes the same template, after that one.
+    fn stage_build(&mut self, request: u64, mut parts: VisualParts, ready: &VecDeque<Staged>) {
+        let waits = ready.iter().chain(&self.prebuilt).any(|queued| {
+            queued
+                .parts
+                .as_ref()
+                .is_ok_and(|queued| WorldModels::shares_template(queued, &parts))
+        });
+        let staged = if waits {
+            Staged {
+                request,
+                parts: Ok(parts),
+                built: None,
+            }
+        } else {
+            let _span = crate::profile::span(|| "unit.prebuild".to_owned());
+            match self.models.prebuild(&mut parts) {
+                Ok(visual) => Staged {
+                    request,
+                    parts: Ok(parts),
+                    built: Some(visual),
+                },
+                Err(error) => {
+                    self.models.discard(parts);
+                    Staged {
+                        request,
+                        parts: Err(error),
+                        built: None,
+                    }
+                }
+            }
+        };
+        self.prebuilt.push_back(staged);
+    }
+
+    /// Attaches the arrived visual of `request` to its mount, its detached request or its
+    /// unit, and brings the unit up to its snapshot.
+    fn attach_arrived(
+        &mut self,
+        request: u64,
+        loaded: Result<VisualParts, String>,
+        built: Option<Gd<Node3D>>,
+        replica: &Replica,
+    ) {
+        if let Some(index) = self.detached.iter().position(|id| *id == request) {
+            self.detached.swap_remove(index);
+            self.detached_arrived.push((request, loaded));
+            return;
+        }
+        if let Some(unit) = self.units.values_mut().find(|unit| {
+            unit.mount
+                .as_ref()
+                .is_some_and(|mount| mount.request == Some(request))
+        }) {
+            let mount = unit.mount.as_mut().expect("matched a mounted unit");
+            mount.request = None;
+            match loaded.and_then(|parts| self.models.build_world_visual(parts, None, None)) {
+                Ok(model) => {
+                    bind_visual_light(&model, self.light.as_ref());
+                    unit.node.add_child(&model);
+                    mount.bounds = model_bounds_of(&model);
+                    mount.node = Some(model);
+                    unit.geometry_changed();
+                    mount::seat_rider(unit);
+                }
+                Err(error) => {
+                    godot_error!("Mount of {}: {error}", unit.name);
+                }
+            }
+            return;
+        }
+        let loading = self
+            .units
+            .iter_mut()
+            .find(|(_, unit)| unit.loading.is_some_and(|(pending, _)| pending == request));
+        let Some((&id, unit)) = loading else {
+            // A superseded request, or its unit is gone.
+            if let Ok(parts) = loaded {
+                self.models.discard(parts);
+            }
+            if let Some(visual) = built {
+                visual.free();
+            }
+            return;
+        };
+        let (_, sheath) = unit.loading.take().expect("matched a loading unit");
+        let prepared_result_ok = loaded.is_ok();
+        let existing_visual = unit.visual.is_some();
+        let pools = self.particles.as_mut().map(|pools| {
+            if let Some(root) = self.root.as_mut() {
+                pools.attach(root);
+            }
+            pools
+        });
+        attach_unit_visual(
+            unit,
+            id,
+            loaded,
+            built,
+            sheath,
+            &self.models,
+            self.light.as_ref(),
+            pools,
+        );
+        log_visual_result(unit, id, request, existing_visual, prepared_result_ok);
+        if let Some(snapshot) = replica.unit(id) {
+            sync_unit_pick_selectability(unit, snapshot);
+            // Every visual load read the gear rows, so the weapon and pose resolve now.
+            if let Some(class) = combat::unit_weapon_class(unit, &self.models) {
+                (unit.weapon, unit.main_hand_subclass) = class;
+            }
+            sync_unit_pose(unit, snapshot, &mut self.models);
+            sync_player_stand_state(unit, snapshot, &mut self.models);
+            sync_unit_sheath(unit, snapshot, &mut self.models);
+            if sync_unit_death(unit, snapshot) {
+                self.deaths.push(id);
+            }
+            let fallbacks = combat::load_fallbacks(&mut self.anim_fallbacks, &self.data_root);
+            sync_unit_animation(unit, snapshot, fallbacks);
         }
     }
 
@@ -1933,6 +2016,7 @@ impl WorldUnits {
     }
 
     pub fn reset(&mut self) {
+        self.discard_prebuilt();
         self.light = None;
         for (id, unit) in &self.units {
             log_unit_removal("WORLD_UNIT_RESET", *id, unit);
@@ -1947,6 +2031,18 @@ impl WorldUnits {
         self.selected_name = None;
         if let Some(root) = self.root.take() {
             root.free();
+        }
+    }
+
+    /// Frees the visuals built ahead of attaching (`prebuilt`), which are in no tree.
+    fn discard_prebuilt(&mut self) {
+        for staged in std::mem::take(&mut self.prebuilt) {
+            if let Ok(parts) = staged.parts {
+                self.models.discard(parts);
+            }
+            if let Some(visual) = staged.built {
+                visual.free();
+            }
         }
     }
 
@@ -2199,6 +2295,20 @@ impl WorldUnits {
 
 /// Held items and animation reach past a model's bind-pose mesh bounds.
 const UNIT_BOX_MARGIN: f32 = 1.0;
+
+/// A unit visual queued to attach in a later frame (`WorldUnits::attach_loaded_visuals`):
+/// `built` is its prebuilt nodes, `None` while it waits for a queued visual's template.
+struct Staged {
+    request: u64,
+    parts: Result<VisualParts, String>,
+    built: Option<Gd<Node3D>>,
+}
+
+impl Drop for WorldUnits {
+    fn drop(&mut self) {
+        self.discard_prebuilt();
+    }
+}
 
 /// Applies camera admission and shadow radius `admission` to the unit subtree `node`,
 /// whose last applied pair was `applied`; new geometry (`applied` `None`) also has its

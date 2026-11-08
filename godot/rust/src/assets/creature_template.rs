@@ -93,17 +93,15 @@ impl CreatureTemplate {
     /// Whether a unit of `display_id` with `gear` can instantiate this template: the same
     /// models, wherever its virtual items sit (`instance` places them).
     pub(crate) fn matches(&self, display_id: u32, gear: &CreatureGear) -> bool {
-        let models = |gear: &CreatureGear| {
-            (
-                gear.armor_models.clone(),
-                gear.extra_geosets.clone(),
-                gear.items
-                    .iter()
-                    .map(|(item, _)| item.clone())
-                    .collect::<Vec<_>>(),
-            )
-        };
-        self.display_id == display_id && models(&self.gear) == models(gear)
+        self.display_id == display_id && Self::same_models(&self.gear, gear)
+    }
+
+    /// Whether `a` and `b` hold the same models, wherever their virtual items sit.
+    pub(crate) fn same_models(a: &CreatureGear, b: &CreatureGear) -> bool {
+        a.armor_models == b.armor_models
+            && a.extra_geosets == b.extra_geosets
+            && a.items.len() == b.items.len()
+            && a.items.iter().zip(&b.items).all(|((a, _), (b, _))| a == b)
     }
 
     /// A new visual like the one this template was made from, its virtual items on the
