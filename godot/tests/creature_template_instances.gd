@@ -104,12 +104,17 @@ func check_shared_clock(loader, counters) -> bool:
 		return false
 	return true
 
+## Whether the clock changes `visual`'s material inputs over a few advances: a global
+## sequence can hold a value for a while, so one advance may land in a hold.
 func clock_animates(visual: Node) -> bool:
-	var before := matrices(visual)
-	root.get_node("M2MaterialClock").advance_time_ms(1234.0)
-	await process_frame
-	await process_frame
-	return matrices(visual) != before
+	for delta in [1234.0, 777.0, 2500.0, 4321.0]:
+		var before := matrices(visual)
+		root.get_node("M2MaterialClock").advance_time_ms(delta)
+		await process_frame
+		await process_frame
+		if matrices(visual) != before:
+			return true
+	return false
 
 func matrices(visual: Node) -> Array:
 	var found := []
