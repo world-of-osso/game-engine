@@ -52,6 +52,9 @@ func run() -> void:
 		return
 	if OS.get_environment("CERT_SNAP") == "1" and mode == "terrain":
 		point = await _snapped_pose(map, point)
+	var skin_error: String = client.preview_world_skin(true)
+	if skin_error != "":
+		print("NOINSTALL_CERT_SKIN_ERROR ", skin_error)
 	client.set_world_minutes(1440.0)
 	var camera := Camera3D.new()
 	camera.far = 4000.0
@@ -130,6 +133,8 @@ func run() -> void:
 		"wdt_path": String(terrain.get("wdt_path", "")),
 		"global_wmo_fdid": _int_value(terrain.get("global_wmo_fdid", 0)),
 		"lighting_error": last_lighting_error,
+		"ui_skin": String(client.account_state().get("ui_skin", "")),
+		"skin_error": skin_error,
 		"visible_meshes": _visible_meshes(client),
 		"runtime": loader.asset_runtime_status(),
 		"screenshot": shot,

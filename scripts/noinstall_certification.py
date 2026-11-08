@@ -99,6 +99,8 @@ def pose_pass(row):
         return False
     if facts.get("lighting_error"):
         return False
+    if facts.get("skin_error") or facts.get("ui_skin") != "Forever":
+        return False
     if facts.get("mode") == "global_wmo":
         return facts.get("global_wmo_fdid", 0) > 0 and facts.get("terrain_failures", 1) == 0 and facts.get("visible_meshes", 0) > 0
     return (
