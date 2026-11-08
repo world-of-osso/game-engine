@@ -1,5 +1,6 @@
 //! Authored player and creature visual children for replicated units.
 use std::{
+    cell::RefCell,
     collections::HashMap,
     f32::consts::FRAC_PI_2,
     path::PathBuf,
@@ -25,6 +26,7 @@ use crate::{
             CreatureGear, CreatureModelParts, build_creature_model, insert_decoded_textures,
             prepare_creature_model,
         },
+        creature_template::CreatureTemplate,
         equipment::place_equipment,
         player::{PlayerParts, build_player_model, prepare_player_parts},
     },
@@ -59,8 +61,11 @@ pub(crate) fn bind_visual_light(visual: &Gd<Node3D>, light: Option<&TerrainLight
         if !bound.insert(material.instance_id()) {
             continue;
         }
+        // A creature template's units share their materials: the first binds them.
+        let lit = material.get_shader_parameter("scene_light").booleanize();
         match light {
-            Some(light) => light.bind_model(&mut material),
+            Some(light) if !lit => light.bind_model(&mut material),
+            Some(_) => {}
             None => TerrainLight::clear_model(&mut material),
         }
     }
@@ -424,6 +429,8 @@ pub(crate) struct WorldModels {
     /// Requests the workers have not taken yet, by request ID.
     requests: Arc<Mutex<HashMap<u64, VisualRequest>>>,
     next_request: u64,
+    /// World creature visuals by display and gear (`build_world_visual`).
+    templates: RefCell<Vec<CreatureTemplate>>,
 }
 
 impl WorldModels {
@@ -467,6 +474,7 @@ impl WorldModels {
             loader,
             requests,
             next_request: 0,
+            templates: RefCell::default(),
         }
     }
 
@@ -478,6 +486,16 @@ impl WorldModels {
             SheathState::Unarmed,
         )?;
         self.build_visual(parts, None)
+    }
+
+    /// `display_id` as a world unit shows it, unarmed (`build_world_visual`).
+    pub(crate) fn load_world_display(&self, display_id: u32) -> Result<Gd<Node3D>, String> {
+        let parts = self.catalogs.load_creature(
+            display_id,
+            &EquipmentAppearance::default(),
+            SheathState::Unarmed,
+        )?;
+        self.build_world_visual(parts, None)
     }
 
     /// Native player display from the same build-pinned ChrModel rows as unit voices.
@@ -593,6 +611,48 @@ impl WorldModels {
         }
     }
 
+    /// Main thread: a world unit's visual. A creature whose display and gear an earlier
+    /// world unit had instantiates that unit's template; its first visual is built and
+    /// becomes the template. Its materials are shared with the other units of the
+    /// template, so only the world, which binds them all alike, takes these visuals.
+    pub fn build_world_visual(
+        &self,
+        parts: VisualParts,
+        previous_player: Option<&Gd<Node3D>>,
+    ) -> Result<Gd<Node3D>, String> {
+        let VisualParts::Creature {
+            display_id, gear, ..
+        } = &parts
+        else {
+            return self.build_visual(parts, previous_player);
+        };
+        let (display_id, gear) = (*display_id, gear.clone());
+        if let Some(template) = self
+            .templates
+            .borrow()
+            .iter()
+            .find(|template| template.matches(display_id, &gear))
+        {
+            let _span = crate::profile::span(|| "creature.template_instance".to_owned());
+            let span = crate::profile::span(|| "template.discard".to_owned());
+            self.discard(parts);
+            drop(span);
+            return template.instance();
+        }
+        let visual = self.build_visual(parts, None)?;
+        let span = crate::profile::span(|| "creature.template".to_owned());
+        let template = CreatureTemplate::of(display_id, &gear, &visual);
+        drop(span);
+        match template {
+            Ok(template) => self.templates.borrow_mut().push(template),
+            Err(error) => {
+                visual.clone().free();
+                return Err(format!("Creature display {display_id} template: {error}"));
+            }
+        }
+        Ok(visual)
+    }
+
     /// Main thread: keep the textures a discarded visual's worker decoded, as no other
     /// worker decodes them again.
     pub fn discard(&self, parts: VisualParts) {
@@ -639,6 +699,7 @@ impl WorldModels {
         let catalogs = &self.catalogs;
         insert_decoded_textures(parts.textures)?;
         let appearance = npc.map(|npc| npc.appearance.into_prepared()).transpose()?;
+        let span = crate::profile::span(|| "creature.build_model".to_owned());
         let (mut model, missing) = build_creature_model(
             &catalogs.data_root,
             display,
@@ -649,10 +710,13 @@ impl WorldModels {
         if !missing.is_empty() {
             godot_warn!("Creature display {display_id} missing texture FDIDs: {missing:?}");
         }
+        drop(span);
+        let span = crate::profile::span(|| "creature.merge".to_owned());
         if let Err(error) = merge_shown_batches(&model, &parts.model) {
             model.free();
             return Err(error);
         }
+        drop(span);
         model.set_name("NpcModel");
         let scale = if display.scale_milli == 0 {
             1.0

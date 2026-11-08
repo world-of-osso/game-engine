@@ -489,38 +489,49 @@ fn shared_fade_material(
     SCENERY_FADE_MATERIALS.with_borrow_mut(|cache| {
         cache
             .entry(shared.instance_id())
-            .or_insert_with(|| {
-                let mut copy = crate::rebuild_guard::new_shader_material();
-                copy.set_shader(fade);
-                copy.set_render_priority(shared.get_render_priority());
-                if let Some(next) = shared.get_next_pass() {
-                    copy.set_next_pass(&next);
-                }
-                for (name, _) in scenery_shader_defaults(authored) {
-                    let value = shared.get_shader_parameter(name.as_str());
-                    if !value.is_nil() {
-                        copy.set_shader_parameter(name.as_str(), &value);
-                    }
-                }
-                for name in shared.get_meta_list().iter_shared() {
-                    copy.set_meta(&name, &shared.get_meta(&name));
-                }
-                copy
-            })
+            .or_insert_with(|| copy_with_shader(shared, authored, fade))
             .clone()
     })
+}
+
+/// A copy of `material` that its holder may change alone, made like `shared_fade_material`.
+pub(super) fn copy_material(material: &Gd<ShaderMaterial>) -> Gd<ShaderMaterial> {
+    let shader = material
+        .get_shader()
+        .expect("an M2 batch material has its shader");
+    copy_with_shader(material, &shader, &shader)
+}
+
+/// `source` drawn with `shader`, its parameters copied by the uniform names of `authored`,
+/// the shader `source` draws with.
+fn copy_with_shader(
+    source: &Gd<ShaderMaterial>,
+    authored: &Gd<Shader>,
+    shader: &Gd<Shader>,
+) -> Gd<ShaderMaterial> {
+    let mut copy = crate::rebuild_guard::new_shader_material();
+    copy.set_shader(shader);
+    copy.set_render_priority(source.get_render_priority());
+    if let Some(next) = source.get_next_pass() {
+        copy.set_next_pass(&next);
+    }
+    for (name, _) in scenery_shader_defaults(authored) {
+        let value = source.get_shader_parameter(name.as_str());
+        if !value.is_nil() {
+            copy.set_shader_parameter(name.as_str(), &value);
+        }
+    }
+    for name in source.get_meta_list().iter_shared() {
+        copy.set_meta(&name, &source.get_meta(&name));
+    }
+    copy
 }
 
 impl SceneryFade {
     /// The `Batch*` mesh materials under a `build_model` root.
     pub fn from_model(root: &Gd<Node3D>, light_bound: bool) -> Self {
         // Changing material animation and elastic trees retain and mutate their handles.
-        let animated = root
-            .get_node_or_null("M2MaterialAnimation")
-            .is_some_and(|node| {
-                node.try_cast::<super::uv_animation::WowMaterialAnimation>()
-                    .map_or(true, |animation| animation.bind().animates())
-            });
+        let animated = root.has_node("M2MaterialAnimation");
         let share = light_bound && !animated && !root.has_node("ElasticTree");
         let batches = root
             .get_children()

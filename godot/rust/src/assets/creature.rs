@@ -24,7 +24,7 @@ use super::{
 use crate::equipment_appearance_data::{RuntimeModelAppearance, model_attachment_id};
 
 /// What a creature model holds: its display's armor item models and its virtual items.
-#[derive(Default)]
+#[derive(Clone, Default, PartialEq)]
 pub(crate) struct CreatureGear {
     /// Armor item models, at their slots' default attachments.
     pub(crate) armor_models: Vec<RuntimeModelAppearance>,
@@ -80,14 +80,19 @@ pub(crate) fn build_creature_model(
     appearance: Option<&PreparedAppearance>,
     gear: &CreatureGear,
 ) -> Result<(Gd<Node3D>, PackedInt32Array), String> {
+    let span = crate::profile::span(|| "creature.resolver".to_owned());
     let resolver = authored_model_resolver(data_root, display.source_product, display.model_fdid)?;
+    drop(span);
     let parsed = &model.model;
     let path = GString::from(model.path.to_string_lossy().as_ref());
     let (mut model, missing) = build_model(parsed, &path, &display.skin_fdids, appearance)?;
     if let Some(geosets) = &gear.extra_geosets {
         apply_display_geosets(&mut model, geosets);
     }
+    let _equipment = crate::profile::span(|| "creature.equipment".to_owned());
+    let span = crate::profile::span(|| "creature.held_items".to_owned());
     let items = held_items(&model, &resolver, &gear.items);
+    drop(span);
     let models: Vec<_> = gear
         .armor_models
         .iter()
@@ -343,6 +348,12 @@ pub(crate) fn load_model_files(
         .expect("model cache")
         .insert(key, Arc::clone(&cached));
     Ok(cached)
+}
+
+/// The parsed model whose files are at `path` (`CachedModel::path`, the cache key, and a
+/// model root's `M2_SOURCE_META`), if a worker parsed it.
+pub(crate) fn model_at(path: &Path) -> Option<Arc<CachedModel>> {
+    MODELS.lock().expect("model cache").get(path).cloned()
 }
 
 /// Model `fdid` if a worker already parsed it (`load_model_files`), without file work.

@@ -3,6 +3,7 @@ pub(crate) mod appearance;
 mod attachments;
 pub(crate) mod batch_merge;
 pub(crate) mod creature;
+pub(crate) mod creature_template;
 pub(crate) mod equipment;
 pub(crate) mod m2_lights;
 pub(crate) mod material;
@@ -30,12 +31,14 @@ use osso_asset_resolver::{AssetResolverConfig, CascListfileResolver};
 #[class(base = RefCounted)]
 pub struct WowAssetLoader {
     base: Base<RefCounted>,
+    /// The world's unit visuals, made on the first `load_world_creature_display`.
+    world: Option<crate::world_models::WorldModels>,
 }
 
 #[godot_api]
 impl IRefCounted for WowAssetLoader {
     fn init(base: Base<RefCounted>) -> Self {
-        Self { base }
+        Self { base, world: None }
     }
 }
 
@@ -89,6 +92,26 @@ impl WowAssetLoader {
                 let models = crate::world_models::WorldModels::new(player_request::data_root());
                 models.load_display_preview(display)
             });
+        match loaded {
+            Ok(node) => {
+                let mut result = VarDictionary::new();
+                result.set("node", &node);
+                result
+            }
+            Err(error) => error_result(error),
+        }
+    }
+
+    /// A creature display built as the world builds a unit's visual: a display this loader
+    /// built before is a duplicate of its first visual (`WorldModels::build_world_visual`).
+    #[func]
+    fn load_world_creature_display(&mut self, display_id: i64) -> VarDictionary {
+        let models = self.world.get_or_insert_with(|| {
+            crate::world_models::WorldModels::new(player_request::data_root())
+        });
+        let loaded = u32::try_from(display_id)
+            .map_err(|_| format!("Invalid creature display {display_id}"))
+            .and_then(|display| models.load_world_display(display));
         match loaded {
             Ok(node) => {
                 let mut result = VarDictionary::new();
@@ -545,6 +568,7 @@ pub(super) fn build_model_filtered_with_textures(
     let tracks = game_engine_core::m2_material::MaterialTracks::of(model);
     let mut batches = Vec::new();
     let mut shared = Vec::new();
+    let span = crate::profile::span(|| "model.load_batches".to_owned());
     for (batch_index, batch) in resolved.iter().enumerate() {
         if let Some(loaded) = load_batch(
             model,
@@ -560,6 +584,7 @@ pub(super) fn build_model_filtered_with_textures(
             batches.push((batch_index, batch.submesh_index, batch.mesh_part_id, loaded));
         }
     }
+    drop(span);
     let span = crate::profile::span(|| "model.skeleton".to_owned());
     let (mut skeleton, skin) = build_skeleton(&model.bones);
     if let Err(error) = attachments::add_attachment_nodes(&mut skeleton, model) {
@@ -602,6 +627,7 @@ pub(super) fn build_model_filtered_with_textures(
     root.set_meta(M2_SOURCE_META, &path.to_variant());
     root.add_child(&skeleton);
     let mut merge_keys: Vec<batch_merge::MergeKey> = Vec::new();
+    let span = crate::profile::span(|| "model.batch_nodes".to_owned());
     for (batch_index, submesh, mesh_part, batch) in batches {
         let LoadedBatch {
             mesh,
@@ -641,6 +667,7 @@ pub(super) fn build_model_filtered_with_textures(
         instance.set_material_override(&material);
         root.add_child(&instance);
     }
+    drop(span);
     if let Some(mut player) = player {
         root.add_child(&player);
         player.bind_mut().apply_sequence_bounds();

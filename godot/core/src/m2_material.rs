@@ -494,21 +494,37 @@ pub fn sample_material(
 
 /// Some input changes with time or when the model switches sequence.
 pub fn material_animates(tracks: &MaterialTracks, binding: &BatchBinding) -> bool {
-    fn varies<T: PartialEq>(track: &AnimTrack<T>) -> bool {
-        !crate::m2::track_is_constant(track)
+    animates_where(tracks, binding, |_| true)
+}
+
+/// Whether some input of `binding` changes over its model's sequence timeline rather than a
+/// global sequence: only then do two models playing different sequences sample it apart.
+pub fn material_animates_locally(tracks: &MaterialTracks, binding: &BatchBinding) -> bool {
+    animates_where(tracks, binding, |global_sequence| global_sequence < 0)
+}
+
+/// Whether an input of `binding` whose track's timeline `timeline` accepts (its global
+/// sequence, or -1 for the playing sequence's own) changes over time.
+fn animates_where(
+    tracks: &MaterialTracks,
+    binding: &BatchBinding,
+    timeline: impl Fn(i16) -> bool,
+) -> bool {
+    fn varies<T: PartialEq>(track: &AnimTrack<T>, timeline: &impl Fn(i16) -> bool) -> bool {
+        timeline(track.global_sequence) && !crate::m2::track_is_constant(track)
     }
     binding.color.is_some_and(|index| {
         let color = &tracks.colors[index];
-        varies(&color.color) || varies(&color.opacity)
+        varies(&color.color, &timeline) || varies(&color.opacity, &timeline)
     }) || binding
         .texture_weights
         .iter()
         .flatten()
-        .any(|&index| varies(&tracks.weights[index]))
+        .any(|&index| varies(&tracks.weights[index], &timeline))
         || binding.texture_transforms.iter().flatten().any(|&index| {
             let transform = &tracks.transforms[index];
-            varies(&transform.translation)
-                || varies(&transform.rotation)
-                || varies(&transform.scale)
+            varies(&transform.translation, &timeline)
+                || varies(&transform.rotation, &timeline)
+                || varies(&transform.scale, &timeline)
         })
 }

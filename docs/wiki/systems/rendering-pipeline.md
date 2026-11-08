@@ -44,6 +44,41 @@ light) is `godot/tests/m2_material_pixels.gd`. Evidence and the coverage matrix:
 `data/diagnostics/m2render-20261001/` and the M2 materials row of
 [the parity matrix](../../specs/godot-parity-matrix.md).
 
+## World creature visual templates
+
+A world unit's creature visual is built once per display and gear, packed as a
+`PackedScene` and then instantiated (`godot/rust/src/assets/creature_template.rs`,
+`WorldModels::build_world_visual`). Before,
+every arrival rebuilt it: a Stormwind guard (display 3167) is four models (body, two
+shoulders, helm), 107 batch nodes before the merge, four skeletons and animation players,
+composited NPC textures and its equipment, 10-15 ms of one main-thread frame each time a
+guard came into view (Linux spans; the 2026-11-07 Windows Stormwind survey's only frames
+under 120 FPS were these arrivals). The instance shares the meshes, skins and materials.
+Instantiating the guard's 205 nodes took 3-5 ms where `Node::duplicate` (property-list
+copy per node) took 16-31 ms; packing takes about 13 ms once, at first sight:
+
+- A packed scene holds no Rust node state, so the template holds no Rust node; each
+  instance builds its `WowAnimationPlayer`, `WowMaterialAnimation` and `WowM2Lights` from
+  the parsed model (`creature::model_at`).
+- `WowMaterialAnimation` holds only materials whose inputs change over time; a constant
+  input keeps the sample `load_material` set. Of those, a material that changes on its
+  model's sequence timeline is copied per instance; one that changes on global sequences
+  only samples alike in every model, so the instances share it and the first one the NPC
+  animation LOD lets sample it in a frame sets it. The guard's two animated texture
+  transforms run on global sequences 2 and 3: its second visual makes no material. (A
+  first version sampled every shared material every frame from `WowMaterialClock`, without
+  the LOD: the d40ef54ab receipt lost 7.6 outdoor FPS to it, +3 M render-thread and +2-4 M
+  main-thread instructions per frame in a Linux A/B.)
+- `bind_visual_light` and `mark_unit_shadow_fade` skip a material that already holds their
+  constant values.
+- Portraits and previews keep their own builds (`build_visual`): `bind_preview_light`
+  writes their materials.
+
+Proof: `godot/tests/creature_template_instances.gd` builds display 3167 twice through
+`WowAssetLoader.load_world_creature_display` and checks the second visual's nodes, its 0
+new materials, its own players, that the clock animates the shared materials, and equal
+pixels.
+
 ## M2 effect fog specialization
 
 Commit `fbda0693` compiles `m2_fog_color` only under `DISTANCE_FOG`, matching Bevy's conditional fog binding. Previously the no-fog pipeline referenced a nonexistent binding. The fog-enabled path also supplies fragment coordinates to Bevy 0.19's five-argument `apply_fog` API. Binding paths and authored blend-mode fog colors are unchanged.

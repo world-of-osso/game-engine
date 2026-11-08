@@ -266,3 +266,57 @@ fn instance_portal_sheet_carries_its_colour_track_rgb() {
         assert!((actual - expected).abs() < 1e-6, "{mesh_color:?}");
     }
 }
+
+/// A Stormwind guard's scrolling texture transforms run on global sequences 2 and 3: every
+/// model samples them alike, so they animate but not on a model's own timeline.
+#[test]
+fn material_animates_locally_only_on_the_sequence_timeline() {
+    use super::m2_material::{
+        BatchBinding, MaterialTracks, material_animates, material_animates_locally,
+    };
+    let scroll = |global_sequence| TextureAnimTracks {
+        translation: AnimTrack {
+            interpolation_type: 1,
+            global_sequence,
+            sequences: vec![(vec![0, 1000], vec![[0.0; 3], [0.0, 1.0, 0.0]])],
+        },
+        rotation: track([0.0, 0.0, 0.0, 1.0]),
+        scale: track([1.0; 3]),
+    };
+    let tracks = MaterialTracks {
+        global_sequences: vec![1000],
+        stand_ms: 1000,
+        colors: Vec::new(),
+        weights: Vec::new(),
+        transforms: vec![
+            scroll(0),
+            scroll(-1),
+            TextureAnimTracks {
+                translation: track([0.5, 0.0, 0.0]),
+                rotation: track([0.0, 0.0, 0.0, 1.0]),
+                scale: track([1.0; 3]),
+            },
+        ],
+    };
+    let binding = |transform| BatchBinding {
+        pixel_shader: 0,
+        vertex_shader: 0,
+        textures: vec![Some(1), Some(2)],
+        texture_types: vec![0, 0],
+        texture_wrap: 0,
+        texture_transforms: [None, Some(transform)],
+        texture_weights: [None; 3],
+        color: None,
+        apply_weight: true,
+    };
+    let kinds: Vec<_> = (0..3)
+        .map(|transform| {
+            let binding = binding(transform);
+            (
+                material_animates(&tracks, &binding),
+                material_animates_locally(&tracks, &binding),
+            )
+        })
+        .collect();
+    assert_eq!(kinds, [(true, false), (true, true), (false, false)]);
+}
