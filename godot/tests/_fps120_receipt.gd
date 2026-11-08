@@ -1,7 +1,8 @@
 extends SceneTree
 
 ## Steady-state in-world frame time. Enters the world as card 0, waits until every requested
-## terrain, object and unit-visual job has drained, fixes the time of day and the camera orbit,
+## terrain, object and unit-visual job has drained, fixes the time of day (BENCH_WORLD_MINUTES
+## half-minutes, default noon) and the camera orbit,
 ## then measures three segments of BENCH_SEGMENT_S seconds each (default 20):
 ##   idle   no input; camera at BENCH_CAMERA_YAW (radians, default 0), pitch -0.35, 15 yd
 ##   orbit  the camera yaw sweeps one full turn around the standing character
@@ -22,6 +23,9 @@ extends SceneTree
 ## Run with Godot's --gpu-profile and `render_areas` adds the mean CPU ms per frame of each
 ## renderer timestamp area (the time until the next timestamp), the 15 largest.
 ## Reports only; frame-time budgets are not asserted (they depend on host load).
+## The server's clock is the realm's local wall clock, and the light, lamps and shadow casters
+## follow it: an unpinned clock makes receipts taken at different hours incomparable. Each
+## segment records `world_minutes`; a clock that moved during a segment fails the run.
 
 const PASSWORD := "fbtest"
 const Readiness = preload("res://tests/world_entry_readiness.gd")
@@ -56,6 +60,7 @@ var node_totals := {}
 var gates_total := 0.0
 var thread_split := ThreadCpuSplit.new()
 var rebuild_guard := RebuildGuard.new()
+var pinned_minutes := 0.0
 
 func _initialize() -> void:
 	call_deferred("run_test")
@@ -120,6 +125,9 @@ func run_test() -> void:
 		fail("No local player node WorldUnits/" + character)
 		return
 	client.set_camera_orbit(yaw, PITCH, DISTANCE)
+	client.set_world_minutes(float(OS.get_environment("BENCH_WORLD_MINUTES")) if OS.get_environment("BENCH_WORLD_MINUTES") != "" else WORLD_MINUTES)
+	pinned_minutes = client.world_minutes()
+	print("BENCH_WORLD_MINUTES ", pinned_minutes)
 	DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_DISABLED)
 	print("BENCH_VSYNC ", DisplayServer.window_get_vsync_mode())
 	if DisplayServer.window_get_vsync_mode() != DisplayServer.VSYNC_DISABLED:
@@ -147,7 +155,10 @@ func run_test() -> void:
 		await begin("idle_" + str(run + 1))
 		for frame in range(301):
 			await process_frame
-		await finish("idle_" + str(run + 1), {})
+		await finish("idle_" + str(run + 1), {"world_minutes": client.world_minutes()})
+		if client.world_minutes() != pinned_minutes:
+			fail("World clock moved from %s to %s" % [pinned_minutes, client.world_minutes()])
+			return
 		if not Readiness.is_ready(client.account_state()) or client.account_state().world_objects.failures != 0:
 			fail("Work queued or failed during sample: " + str(client.account_state().world_objects))
 			return
