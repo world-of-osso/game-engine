@@ -127,7 +127,7 @@ pub(crate) fn read_wmo_with_product(
             .map(|product| crate::assets::creature::wmo_resolver(data_root, product, fdid))
             .transpose()?;
         groups.push(read_group(
-            group_resolver.as_ref().unwrap_or(resolver),
+            group_resolver.as_deref().unwrap_or(resolver),
             data_root,
             root_fdid,
             &root,

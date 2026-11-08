@@ -209,7 +209,7 @@ struct WmoSpawn {
     /// The placement's index in the tile's MODF.
     index: usize,
     asset: Arc<NativeWmoAsset>,
-    resolver: CascListfileResolver,
+    resolver: Arc<CascListfileResolver>,
     product: AssetProduct,
     doodad_sets: Vec<u16>,
     build: WmoBuild,

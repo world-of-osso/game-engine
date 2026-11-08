@@ -398,7 +398,7 @@ pub(crate) fn load_player_model(
 fn load_player_body(
     data_root: &Path,
     player: &CharacterVisual,
-) -> Result<(CascListfileResolver, Arc<CachedModel>), String> {
+) -> Result<(Arc<CascListfileResolver>, Arc<CachedModel>), String> {
     let race = player.race;
     let sex = player.appearance.sex;
     let fdid = player_model_fdid(data_root, race, sex)?
