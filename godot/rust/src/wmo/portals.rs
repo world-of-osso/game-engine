@@ -131,8 +131,27 @@ impl WmoPortals {
         };
         let mut visible = match interior {
             Some(group) => {
-                let parent = self.split_parent(group);
-                let mut visible = traverse(&[parent]);
+                // The camera can stand inside an interior group's volume without a floor
+                // triangle below it (over lava, water or a floor owned by another group).
+                // Retail's camera query returns the groups the camera is inside, so start
+                // the traversal from each of them as well; otherwise a chamber entered
+                // through an unportalled opening is culled and its walls and ceiling show
+                // sky. Neltharus' Magmatusk chamber (groups 2 and 3) is such a case.
+                let mut starts = vec![self.split_parent(group)];
+                for candidate in &self.groups {
+                    if candidate.exterior
+                        || local_camera.cmplt(candidate.bbox_min).any()
+                        || local_camera.cmpgt(candidate.bbox_max).any()
+                        || !group_intersects_frustum(candidate, world_from_local, frustum)
+                    {
+                        continue;
+                    }
+                    let parent = self.split_parent(candidate.index);
+                    if !starts.contains(&parent) {
+                        starts.push(parent);
+                    }
+                }
+                let mut visible = traverse(&starts);
                 if exterior_windows
                     .as_ref()
                     .is_some_and(|windows| !windows.is_empty())
@@ -909,6 +928,49 @@ mod tests {
         let entrance_drawn = portals.visible_groups(transform, &[], entrance_camera);
         assert!(entrance_drawn[0], "military ward parent was hidden");
         assert!(entrance_drawn[1], "military ward child was hidden");
+    }
+
+    /// Neltharus' Magmatusk chamber (groups 2 and 3) is entered from the overlook
+    /// corridor (group 11) through an opening without a portal. A camera on the
+    /// overlook stands inside the chamber groups' volumes but over the lava, so no floor
+    /// triangle puts it in those groups; they must still be drawn or the chamber's walls
+    /// and ceiling show sky. Recorded Forever pose: camera (-160.0, 107.0977, 916.9087).
+    #[test]
+    fn camera_volume_over_lava_draws_the_chamber() {
+        let data_root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
+        let resolver = osso_asset_resolver::CascListfileResolver::new(
+            osso_asset_resolver::AssetResolverConfig::new()
+                .with_data_root(&data_root)
+                .with_shared_data_root(&data_root),
+        );
+        let bytes = std::fs::read(data_root.join("terrain/4334889.adt")).unwrap();
+        let objects = game_engine_core::adt::parse_obj(&bytes).unwrap();
+        let placement = &objects.wmos[0];
+        let asset = crate::wmo::assets::read_placement(&resolver, &data_root, placement).unwrap();
+        assert_eq!(asset.root_fdid, 4_329_056);
+        let portals = WmoPortals::new(&asset);
+        let transform = crate::wmo::placement::adt_world_from_local(placement, (33, 32));
+        let camera = Vec3::new(-160.0, 107.0977, 916.9087);
+        assert_eq!(
+            portals.camera_interior_group(transform.inverse().transform_point3(camera)),
+            Some(11)
+        );
+        let visibility = portals.visibility(transform, &[], camera);
+        for group in [2, 3] {
+            assert!(
+                visibility.groups[group],
+                "Magmatusk chamber group {group} was culled"
+            );
+        }
+
+        let boss_camera = Vec3::new(-211.1, 106.2798, 946.7906);
+        let boss = portals.visibility(transform, &[], boss_camera);
+        for group in [2, 3] {
+            assert!(
+                boss.groups[group],
+                "Magmatusk chamber group {group} was culled from the boss camera"
+            );
+        }
     }
 
     /// Cultists' Quay (WarbandScene 5, tile 2837_27_31): the scene's camera and its
