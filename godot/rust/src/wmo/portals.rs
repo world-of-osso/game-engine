@@ -17,6 +17,8 @@ use super::assets::{NativeWmoAsset, NativeWmoGroup};
 /// Distance from a portal's plane within which the portal counts as visible whatever
 /// the frustum says (WebWowViewerCpp `dotepsilon`, 1.5², as the original client).
 const PORTAL_NEAR_DISTANCE: f32 = 2.25;
+/// Portal crossings a traversal follows from a start group (WebWowViewerCpp `localLevel > 8`).
+const MAX_PORTAL_HOPS: u32 = 8;
 const ROOT_ALWAYS_DRAW_MASK: u32 = 0x2001_0008;
 pub(super) const ROOT_ANTIPORTAL: u32 = 0x0400_0000;
 const SPLIT_GROUP_PARENT: u32 = 0x40;
@@ -124,11 +126,7 @@ impl WmoPortals {
             .filter(|group| group.exterior)
             .map(|group| group.index)
             .collect();
-        let traverse = |start: &[u16]| {
-            self.traverse(start, |portal| {
-                self.portal_visible(portal, world_from_local, frustum, camera)
-            })
-        };
+        let traverse = |start: &[u16]| self.traverse(start, world_from_local, frustum, camera);
         let mut visible = match interior {
             Some(group) => {
                 // The camera can stand inside an interior group's volume without a floor
@@ -304,51 +302,68 @@ impl WmoPortals {
         fog.camera_fog(group, file_axes(local_camera))
     }
 
-    /// BFS from `start` through portals `visible` accepts; per group index, whether
-    /// it was reached.
-    fn traverse(&self, start: &[u16], visible: impl Fn(usize) -> bool) -> Vec<bool> {
+    /// Breadth-first from `start` (each seen through `frustum`) through the portals in
+    /// view; per group index, whether it was reached. Each crossing narrows the view to
+    /// the portal's window, so a portal counts only when it is seen through every portal
+    /// before it (WebWowViewerCpp `drainPortalTraversal`: portal planes per hop, at most
+    /// 8 hops, an almost equal frustum crosses a portal once).
+    fn traverse(
+        &self,
+        start: &[u16],
+        world_from_local: Affine3A,
+        frustum: &[HalfSpace],
+        camera: Vec3,
+    ) -> Vec<bool> {
         let mut reached = vec![false; self.adjacency.len()];
         let mut queue = VecDeque::with_capacity(start.len());
         for &group in start {
             if let Some(slot) = reached.get_mut(group as usize) {
                 *slot = true;
-                queue.push_back(group);
+                queue.push_back((group, frustum.to_vec(), 0));
             }
         }
-        while let Some(current) = queue.pop_front() {
+        let mut crossed: Vec<Vec<Vec<HalfSpace>>> = vec![Vec::new(); self.portal_vertices.len()];
+        while let Some((current, planes, hops)) = queue.pop_front() {
+            if hops == MAX_PORTAL_HOPS {
+                continue;
+            }
             for &(portal, destination) in &self.adjacency[current as usize] {
-                let Some(slot) = reached.get_mut(destination as usize) else {
+                if reached.get(destination as usize).is_none() {
+                    continue;
+                }
+                let Some(window) = self.portal_window(portal, world_from_local, &planes, camera)
+                else {
                     continue;
                 };
-                if !*slot && visible(portal) {
-                    *slot = true;
-                    queue.push_back(destination);
+                if crossed[portal]
+                    .iter()
+                    .any(|seen| frusta_almost_equal(seen, &window))
+                {
+                    continue;
                 }
+                crossed[portal].push(window.clone());
+                reached[destination as usize] = true;
+                queue.push_back((destination, window, hops + 1));
             }
         }
         reached
     }
 
-    /// Next to the portal's plane, or part of its polygon inside the frustum
-    /// (WebWowViewerCpp `MathHelper::planeCull`).
-    fn portal_visible(
+    /// The view through `portal` from inside `frustum`, if any of it is in view.
+    fn portal_window(
         &self,
         portal: usize,
         world_from_local: Affine3A,
         frustum: &[HalfSpace],
         camera: Vec3,
-    ) -> bool {
-        let Some(vertices) = self.portal_vertices.get(portal) else {
-            return false;
-        };
-        if vertices.len() < 3 {
-            return false;
-        }
-        let polygon: Vec<Vec3> = vertices
+    ) -> Option<Vec<HalfSpace>> {
+        let polygon: Vec<Vec3> = self
+            .portal_vertices
+            .get(portal)?
             .iter()
             .map(|vertex| world_from_local.transform_point3(*vertex))
             .collect();
-        camera_near_plane(&polygon, camera) || polygon_in_frustum(polygon, frustum)
+        portal_window(&polygon, frustum, camera)
     }
 
     /// The interior group the camera stands in: its bounding box contains the camera
@@ -481,6 +496,19 @@ fn build_portal_adjacency(root: &wmo::WmoRootData) -> Vec<Vec<(usize, u16)>> {
     adjacency
 }
 
+/// Equal plane for plane within 1e-3 of the larger magnitude (WebWowViewerCpp
+/// `frustumPlanesAlmostEqual`).
+fn frusta_almost_equal(a: &[HalfSpace], b: &[HalfSpace]) -> bool {
+    let close = |x: f32, y: f32| (x - y).abs() <= 1e-3 * x.abs().max(y.abs()).max(1.0);
+    a.len() == b.len()
+        && a.iter().zip(b).all(|(a, b)| {
+            close(a.normal.x, b.normal.x)
+                && close(a.normal.y, b.normal.y)
+                && close(a.normal.z, b.normal.z)
+                && close(a.d, b.d)
+        })
+}
+
 fn camera_near_plane(polygon: &[Vec3], camera: Vec3) -> bool {
     let normal = polygon_normal(polygon);
     normal != Vec3::ZERO && normal.dot(camera - polygon[0]).abs() <= PORTAL_NEAR_DISTANCE
@@ -533,17 +561,6 @@ fn polygon_normal(polygon: &[Vec3]) -> Vec3 {
                 )
         })
         .normalize_or_zero()
-}
-
-/// Sutherland-Hodgman against each half space; inside when an area survives all.
-fn polygon_in_frustum(mut polygon: Vec<Vec3>, frustum: &[HalfSpace]) -> bool {
-    for plane in frustum {
-        polygon = clip_polygon(&polygon, |point| plane.normal.dot(point) + plane.d);
-        if polygon.len() < 3 {
-            return false;
-        }
-    }
-    true
 }
 
 fn clip_polygon(polygon: &[Vec3], signed_distance: impl Fn(Vec3) -> f32) -> Vec<Vec3> {
@@ -685,6 +702,44 @@ mod tests {
             &view(eye, forward),
             eye,
         ))
+    }
+
+    /// `courtyard_and_room` plus interior group 2 (x,z in 0..10 x 10..20) behind room 1,
+    /// joined to it by a 1x2 doorway at x 0..1 in the plane z = 10.
+    fn courtyard_and_two_rooms() -> WmoPortals {
+        let mut portals = courtyard_and_room();
+        portals.groups.push(PortalGroup {
+            index: 2,
+            bbox_min: Vec3::new(0.0, -1.0, 10.0),
+            bbox_max: Vec3::new(10.0, 4.0, 20.0),
+            exterior: false,
+            root_flags: 0,
+            split_parent: None,
+            first_child: None,
+            next_child: None,
+            floor: Vec::new(),
+        });
+        portals.adjacency = vec![vec![(0, 1)], vec![(0, 0), (1, 2)], vec![(1, 1)]];
+        portals.portal_vertices.push(vec![
+            Vec3::new(0.0, 0.0, 10.0),
+            Vec3::new(1.0, 0.0, 10.0),
+            Vec3::new(1.0, 2.0, 10.0),
+            Vec3::new(0.0, 2.0, 10.0),
+        ]);
+        portals
+    }
+
+    #[test]
+    fn a_room_whose_doorway_is_outside_the_first_doorway_window_is_not_drawn() {
+        let portals = courtyard_and_two_rooms();
+        let visible = |eye: Vec3| {
+            drawn_indices(portals.visible_groups(Affine3A::IDENTITY, &view(eye, Vec3::Z), eye))
+        };
+        // From 20 yards out the front doorway's window spans x 3.5..6.5 at z = 10: the
+        // back doorway at x 0..1 is in the view frustum but not through the front door.
+        assert_eq!(visible(Vec3::new(5.0, 1.0, -20.0)), [0, 1]);
+        // From the right the window spans x -2.5..3.5 at z = 10: the doorways line up.
+        assert_eq!(visible(Vec3::new(7.25, 1.0, -5.0)), [0, 1, 2]);
     }
 
     #[test]

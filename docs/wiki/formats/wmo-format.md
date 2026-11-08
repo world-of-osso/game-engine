@@ -58,7 +58,7 @@ See [[stormwind-hilly-plaza]].
 
 ## Portal Culling
 
-The engine uses MOGP `EXTERIOR` (0x8) for exterior portal traversal. Its camera-group query uses bounds and a triangle below the camera; it does not yet implement Retail's multiple-seed query. Portal BFS admits reached groups. Separately, groups whose root MOGI has any bit in `0x20010008` are admitted when their bounds intersect the frustum; root antiportal bit `0x04000000` excludes them. See [[stormwind-hilly-plaza]] and [[halls-interior-opening]].
+The engine uses MOGP `EXTERIOR` (0x8) for exterior portal traversal. Its camera-group query uses bounds and a triangle below the camera; it does not yet implement Retail's multiple-seed query. Portal BFS admits reached groups. Each crossing narrows the view to the portal's window (`portal_window`: clip to the current window, add camera-to-edge planes; a camera within 1.5 yd of the portal plane keeps its window), at most 8 crossings, and an almost equal window crosses a portal once (WebWowViewerCpp `drainPortalTraversal`). Before 2026-11-08 every portal was tested against the unnarrowed view, so from outside the interiors of distant buildings were drawn whenever any inner doorway lay in view (outdoor receipt pose: 108 of 458 interior draws, mostly beyond 750 yd). The MOPR side check of the reference is not ported: its plane orientation in engine axes is unverified, and without it the traversal can only admit more groups, never fewer. Separately, groups whose root MOGI has any bit in `0x20010008` are admitted when their bounds intersect the frustum; root antiportal bit `0x04000000` excludes them. See [[stormwind-hilly-plaza]] and [[halls-interior-opening]].
 
 ## Parser Location
 
