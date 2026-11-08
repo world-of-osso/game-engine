@@ -4,7 +4,8 @@ extends SceneTree
 # ShaderMaterial and shares all 11 with the first; it has the same nodes with its own
 # animation players, and draws the same pixels. A third guard with its weapons drawn
 # instantiates the same template (the sheath state is not part of its key) and holds its
-# sword where a guard built drawn holds it. A Dark Iron dwarf (display 8803) animates a
+# sword where a guard built drawn holds it; the world's request for it is answered by the
+# template at once, without a worker load. A Dark Iron dwarf (display 8803) animates a
 # shown material on global sequences only: its second visual makes no material either, and
 # its material animation still animates the materials it shares.
 const DISPLAY := 3167
@@ -139,6 +140,25 @@ func check_drawn_instance(loader, counters, unarmed: Node) -> bool:
 		fail("the drawn guard's sword is at %s, a guard built drawn holds it at %s, unarmed at %s"
 			% [sword, sword_path(reference.node), sword_path(unarmed)])
 		return false
+	# The world's request for a unit with the template's display and items is answered at
+	# once by the template, with no worker load: the same nodes and sword as the drawn
+	# instance, and no material.
+	counters.take()
+	var requested: Dictionary = loader.request_world_creature_display(DISPLAY, ITEMS, MELEE)
+	var request_made: int = counters.take().counts.shader_material
+	if requested.has("error"):
+		fail(str(requested.error))
+		return false
+	var request_sword := sword_path(requested.node) if requested.ready else ""
+	print("CREATURE_TEMPLATE_REQUEST ready=%s materials=%d sword=%s"
+		% [requested.ready, request_made, request_sword])
+	if not requested.ready or request_made != 0 or request_sword != sword \
+			or describe(requested.node) != describe(drawn.node):
+		fail("the request was ready %s with %d materials, its sword at %s and %s nodes"
+			% [requested.ready, request_made, request_sword,
+				"the drawn instance's" if requested.ready and describe(requested.node) == describe(drawn.node) else "other"])
+		return false
+	requested.node.free()
 	drawn.node.free()
 	reference.node.free()
 	return true

@@ -133,6 +133,49 @@ impl WowAssetLoader {
         }
     }
 
+    /// `display_id` holding `items` placed for `sheath`, through the world's visual request
+    /// (`WorldModels::request` then `poll` in the same call): `ready` is whether it was
+    /// ready at once, which only a template's answer is (a worker load arrives in a later
+    /// frame), and `node` its visual when it was.
+    #[func]
+    fn request_world_creature_display(
+        &mut self,
+        display_id: i64,
+        items: VarArray,
+        sheath: i64,
+    ) -> VarDictionary {
+        let models = self.world.get_or_insert_with(|| {
+            crate::world_models::WorldModels::new(player_request::data_root())
+        });
+        let requested = u32::try_from(display_id)
+            .map_err(|_| format!("Invalid creature display {display_id}"))
+            .and_then(|display| {
+                let appearance = crate::world_models::UnitAppearance::Creature {
+                    display_id: display,
+                    items: player_request::equipment(&items)?,
+                };
+                let sheath = player_request::sheath_state(sheath)?;
+                let request = models.request(&appearance, sheath);
+                let ready = models.poll().into_iter().find(|(id, _)| *id == request);
+                ready
+                    .map(|(_, parts)| {
+                        parts.and_then(|parts| models.build_world_visual(parts, None, None))
+                    })
+                    .transpose()
+            });
+        match requested {
+            Ok(node) => {
+                let mut result = VarDictionary::new();
+                result.set("ready", node.is_some());
+                if let Some(node) = node {
+                    result.set("node", &node);
+                }
+                result
+            }
+            Err(error) => error_result(error),
+        }
+    }
+
     #[func]
     fn asset_runtime_status(&self) -> VarDictionary {
         let resolver = creature::local_resolver(&player_request::data_root());

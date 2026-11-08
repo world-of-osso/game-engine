@@ -89,9 +89,20 @@ took the worst unit-visual frame from 33 to 15 ms CPU and the frames over 5 ms f
 (Linux, one run each). The pack (about 4 ms CPU) is the largest remaining part: the body
 skeleton's 216 bones and its ~45 attachment nodes.
 
+A unit whose display and replicated virtual items an earlier unit's template was made
+for is answered by the template at request time (`WorldModels::request`): the template
+keeps the parts the attach reads (display, parsed model, gear) and its item keys, and the
+request places the items for the unit's sheath (`virtual_item_placements`). There is no
+worker load: before, every re-arrival re-ran the worker's catalog reads, NPC texture
+compositing (`appearance.compose`) and decode, which the instance discarded, and its ~10
+frames of loading ran 2-6 ms slower on Windows (receipt 9753528a3 outdoor R3 idle_3, 1%
+low 113.5). Worker parts whose gear matches a template add their items as its key.
+
 Proof: `godot/tests/creature_template_instances.gd` builds display 3167 twice through
 `WowAssetLoader.load_world_creature_display` and checks the second visual's nodes, its 0
-new materials, its own players and equal pixels; a Dark Iron dwarf (display 8803, the one
+new materials, its own players and equal pixels, and that the world's request for a drawn
+guard is ready in the same call (`WowAssetLoader.request_world_creature_display`) with the
+drawn instance's nodes and sword and no material; a Dark Iron dwarf (display 8803, the one
 display of 300 scanned whose shown batches animate on global sequences only) checks that
 its second visual makes no material and the clock animates the materials it shares.
 
