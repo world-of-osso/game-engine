@@ -125,6 +125,10 @@ impl CreatureTemplate {
         for (mut parent, node, index) in detached {
             parent.add_child(&node);
             parent.move_child(&node, index);
+            // Removing the bones dropped the global overrides `built`'s player had set.
+            if let Ok(mut player) = node.try_cast::<WowAnimationPlayer>() {
+                player.bind_mut().reapply_bone_overrides();
+            }
         }
         if packed != godot::global::Error::OK {
             return Err(format!("Creature visual did not pack: {packed:?}"));
