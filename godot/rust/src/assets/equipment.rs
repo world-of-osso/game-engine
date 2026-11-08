@@ -115,7 +115,9 @@ pub(super) fn attach_each_equipment(
     if models.is_empty() {
         return Ok(());
     }
+    let span = crate::profile::span(|| "equipment.context".to_owned());
     let mut context = EquipmentContext::new(character, character_model, data_root)?;
+    drop(span);
     for model in models {
         if let Err(error) = context.attach(model) {
             report(model, error);
@@ -237,11 +239,15 @@ fn load_transforms(data_root: &Path) -> Result<Arc<transforms::EquipmentTransfor
 
 impl EquipmentContext<'_> {
     fn attach(&mut self, definition: &RuntimeModelAppearance) -> Result<(), String> {
+        let span = crate::profile::span(|| "equipment.resolve".to_owned());
         let resolver =
             authored_model_resolver(self.data_root, definition.product, definition.fdid)?;
         let authored = resolver.resolve_path(definition.fdid);
         let authored_path = authored.as_deref().map(Path::new);
+        drop(span);
+        let span = crate::profile::span(|| "equipment.load_model_files".to_owned());
         let cached = load_model_files(&resolver, self.data_root, definition.fdid)?;
+        drop(span);
         let parsed = &cached.model;
         let bound = definition.bind_to_character;
         // Retail clears a bound collection's base parts and shows only its slot's
@@ -250,15 +256,23 @@ impl EquipmentContext<'_> {
         if bound && draws_no_visible_mesh(definition, parsed) {
             return Ok(());
         }
+        let span = crate::profile::span(|| "equipment.parent".to_owned());
         let mut parent = self.parent_for(definition.slot, authored_path, bound)?;
+        drop(span);
         let path = GString::from(cached.path.to_string_lossy().as_ref());
+        let span = crate::profile::span(|| "equipment.cache_model_textures".to_owned());
         cache_model_textures(&resolver, self.data_root, &[0; 3], parsed)?;
+        drop(span);
+        let span = crate::profile::span(|| "equipment.item_textures".to_owned());
         let textures = self.load_item_textures(definition, parsed)?;
+        drop(span);
+        let span = crate::profile::span(|| "equipment.bound_skin".to_owned());
         let skin = if bound {
             Some(self.bound_skin(parsed)?)
         } else {
             None
         };
+        drop(span);
         let (mut item, missing) = build_model_filtered_with_textures(
             parsed,
             &path,

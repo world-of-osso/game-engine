@@ -661,9 +661,11 @@ fn attach_unit_visual(
     let preserve_playback = unit.visual.is_some()
         && unit.visual_player_model.is_some()
         && unit.visual_player_model == appearance.player_model();
+    let span = crate::profile::span(|| "unit.build_visual".to_owned());
     let replacement = loaded.and_then(|parts| {
-        models.build_visual(parts, unit.visual.as_ref().filter(|_| preserve_playback))
+        models.build_world_visual(parts, unit.visual.as_ref().filter(|_| preserve_playback))
     });
+    drop(span);
     unit.animation = None;
     // A creature's load places its virtual items for `sheath`; a player's weapons are
     // placed by the sheath sync that follows the attach.
@@ -671,12 +673,19 @@ fn attach_unit_visual(
     unit.replace_visual(None);
     match replacement {
         Ok(visual) => {
+            let span = crate::profile::span(|| "unit.pick_area".to_owned());
             if let Err(error) = crate::targeting::attach_pick_area(&visual, server_id) {
                 godot_error!("{error}");
             }
+            drop(span);
+            let span = crate::profile::span(|| "unit.bind_light".to_owned());
             bind_visual_light(&visual, light);
+            drop(span);
+            let span = crate::profile::span(|| "unit.add_child".to_owned());
             unit.node.add_child(&visual);
             unit.replace_visual(Some(visual.clone()));
+            drop(span);
+            let _span = crate::profile::span(|| "unit.effects".to_owned());
             if let Some(pools) = particles {
                 if let Some((creature, items)) = ribbon_models {
                     if let (Some(source), Some(model)) =
@@ -1496,7 +1505,7 @@ impl WorldUnits {
             }) {
                 let mount = unit.mount.as_mut().expect("matched a mounted unit");
                 mount.request = None;
-                match loaded.and_then(|parts| self.models.build_visual(parts, None)) {
+                match loaded.and_then(|parts| self.models.build_world_visual(parts, None)) {
                     Ok(model) => {
                         bind_visual_light(&model, self.light.as_ref());
                         unit.node.add_child(&model);
@@ -2209,9 +2218,12 @@ pub(crate) fn apply_unit_admission(
     }
 }
 
-/// Sets the M2 shader's `unit_shadow_fade` on every distinct batch material under `node`.
+/// Sets the M2 shader's `unit_shadow_fade` on every distinct batch material under `node`
+/// that does not have it yet: units of one creature template share their materials.
 fn mark_unit_shadow_fade(node: &Gd<godot::classes::Node>) {
+    let _span = crate::profile::span(|| "unit.mark_shadow_fade".to_owned());
     let mut materials = std::collections::HashSet::new();
+    let mut marked = 0;
     for mesh in node
         .find_children_ex("*")
         .type_("MeshInstance3D")
@@ -2226,14 +2238,16 @@ fn mark_unit_shadow_fade(node: &Gd<godot::classes::Node>) {
         else {
             continue;
         };
-        if materials.insert(material.instance_id()) {
+        if materials.insert(material.instance_id())
+            && !material
+                .get_shader_parameter("unit_shadow_fade")
+                .booleanize()
+        {
             material.set_shader_parameter("unit_shadow_fade", &true.to_variant());
+            marked += 1;
         }
     }
-    crate::rebuild_guard::count(
-        crate::rebuild_guard::Rebuild::MaterialRebind,
-        materials.len() as u64,
-    );
+    crate::rebuild_guard::count(crate::rebuild_guard::Rebuild::MaterialRebind, marked);
 }
 
 /// World box of a unit's model and its mount's model, grown by `UNIT_BOX_MARGIN`;

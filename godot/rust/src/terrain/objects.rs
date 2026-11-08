@@ -262,13 +262,11 @@ impl CulledDoodad {
     ) -> Self {
         Self {
             // A model whose tracks are all constant keeps its first sample and is never
-            // advanced.
+            // advanced; it has no material animation (`WowMaterialAnimation::from_batches`).
             bones: node
                 .try_get_node_as::<WowAnimationPlayer>("M2Animation")
                 .filter(|bones| bones.bind().animates()),
-            materials: node
-                .try_get_node_as::<WowMaterialAnimation>("M2MaterialAnimation")
-                .filter(|materials| materials.bind().animates()),
+            materials: node.try_get_node_as::<WowMaterialAnimation>("M2MaterialAnimation"),
             fade: crate::assets::material::SceneryFade::from_model(&node, light_bound),
             node,
             scenery,
