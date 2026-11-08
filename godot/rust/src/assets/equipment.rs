@@ -191,8 +191,7 @@ pub(crate) fn place_equipment(
         item.set_visible(false);
         return Ok(());
     };
-    let parent = character
-        .get_node_or_null(&format!("Skeleton3D/AttachmentBone{id}/Attachment{id}"))
+    let parent = super::attachments::attachment_point(character.upcast_ref(), id)
         .ok_or_else(|| format!("Equipment {slot:?} requires missing attachment {id}"))?;
     if item.get_parent().as_ref() != Some(&parent) {
         item.reparent_ex(&parent)
@@ -346,9 +345,7 @@ impl EquipmentContext<'_> {
             Some(path) => model_attachment_id(slot, path),
             None => slot_attachment_id(slot),
         };
-        self.character
-            .get_node_or_null(&format!("Skeleton3D/AttachmentBone{id}/Attachment{id}"))
-            .and_then(|node| node.try_cast::<Node3D>().ok())
+        super::attachments::attachment_point(self.character.upcast_ref(), id)
             .ok_or_else(|| format!("Equipment {slot:?} requires missing character attachment {id}"))
     }
 

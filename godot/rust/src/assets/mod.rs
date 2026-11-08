@@ -1,6 +1,6 @@
 //! Native M2/BLP conversion with authored batch resolution and materials.
 pub(crate) mod appearance;
-mod attachments;
+pub(crate) mod attachments;
 pub(crate) mod batch_merge;
 pub(crate) mod creature;
 pub(crate) mod creature_template;
@@ -641,7 +641,7 @@ pub(super) fn build_model_filtered_with_textures(
     drop(span);
     let span = crate::profile::span(|| "model.skeleton".to_owned());
     let (mut skeleton, skin) = build_skeleton(&model.bones);
-    if let Err(error) = attachments::add_attachment_nodes(&mut skeleton, model) {
+    if let Err(error) = attachments::record_attachments(&mut skeleton, model) {
         skeleton.free();
         return Err(error);
     }

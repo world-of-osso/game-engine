@@ -1,4 +1,5 @@
 use super::*;
+use crate::assets::attachments::{attachment_point, visual_attachment_point};
 
 impl SpellEffects {
     /// A node of kit model `effect` (FDID `fdid`) under `parent`, with its particles
@@ -425,9 +426,7 @@ fn effect_attachment_node(
             let root = Gd::<Node3D>::try_from_instance_id(visual).ok()?;
             match attachment {
                 None | Some(GROUND_ATTACHMENT) => Some(root),
-                Some(attachment) => root.try_get_node_as::<Node3D>(&format!(
-                    "NpcModel/Skeleton3D/AttachmentBone{attachment}/Attachment{attachment}"
-                )),
+                Some(attachment) => visual_attachment_point(&root, u32::from(attachment)),
             }
         }
     }
@@ -441,11 +440,10 @@ pub(super) fn attachment_node(
 ) -> Option<Gd<Node3D>> {
     match attachment {
         None | Some(GROUND_ATTACHMENT) => world.unit_node(id),
-        Some(attachment) => world
-            .unit_model_node(id)?
-            .try_get_node_as::<Node3D>(&format!(
-                "Skeleton3D/AttachmentBone{attachment}/Attachment{attachment}"
-            )),
+        Some(attachment) => attachment_point(
+            world.unit_model_node(id)?.upcast_ref(),
+            u32::from(attachment),
+        ),
     }
 }
 
