@@ -302,8 +302,11 @@ impl CulledDoodad {
     }
 
     /// Retail distance fade: hidden at opacity 0, blended while fading. A WMO
-    /// doodad whose groups are all portal-culled is not drawn.
-    fn fade(&mut self, camera: Vec3, group_drawn: bool) {
+    /// doodad whose groups are all portal-culled is not drawn. Shadows are cast only
+    /// within `shadow_radius` of `camera`.
+    fn fade(&mut self, camera: Vec3, group_drawn: bool, shadow_radius: f32) {
+        self.fade
+            .set_shadow_admitted(self.scenery.within(camera, shadow_radius));
         let opacity = if group_drawn {
             self.scenery.opacity(camera)
         } else {
@@ -1610,13 +1613,14 @@ impl TerrainObjects {
     /// Fades each doodad by its retail scenery distance from `camera`, and
     /// advances its animation `delta_ms` at its animation LOD rate through `frustum`
     /// (world space); an undrawn doodad does not animate. A WMO doodad is drawn only
-    /// while a group referencing it is.
+    /// while a group referencing it is. Doodads cast shadows within `shadow_radius`.
     pub fn cull_doodads(
         &mut self,
         camera: Vector3,
         frustum: &[HalfSpace],
         delta_ms: f64,
         frame: u64,
+        shadow_radius: f32,
     ) {
         let camera = Vec3::new(camera.x, camera.y, camera.z);
         self.scenery_index
@@ -1641,7 +1645,7 @@ impl TerrainObjects {
                                 .any(|window| doodad.scenery.box_in_frustum(window))
                     })
                 });
-            doodad.fade(camera, group_drawn);
+            doodad.fade(camera, group_drawn, shadow_radius);
             doodad.fade.set_camera_admitted(camera_admitted);
             doodad.animate(camera, frustum, delta_ms, frame, group_drawn);
         }

@@ -32,6 +32,9 @@ pub struct QualityPreset {
     pub shadow_map_size: u32,
     /// Distance from the camera within which drawn remote units cast shadows, in yards.
     pub unit_shadow_radius: f32,
+    /// Distance from the camera within which opaque scenery doodads cast shadows, in
+    /// yards; independent of their fade band.
+    pub scenery_shadow_radius: f32,
 }
 
 /// Retail block 11 `farClip` and `horizonStart`, the anchor of the `High` row.
@@ -51,6 +54,11 @@ const HIGH: QualityPreset = QualityPreset {
     // Retail `entityShadowFadeScale` default 50 (Part A §10.1, VERIFIED); that it is a
     // radius in yards is INFERRED, its consumer was not located.
     unit_shadow_radius: 50.0,
+    // Retail keeps the scenery fade (`lodObjectFadeScale` 100) and the shadow fade
+    // (`entityShadowFadeScale` 50) as separate scales (Part A §1.8/§10.1, VERIFIED).
+    // Applying the shadow radius to scenery is INFERRED: at the receipt poses it removes
+    // 195 (outdoor) and 517 (indoor) of ~920 shadow draws with no visible ground change.
+    scenery_shadow_radius: 50.0,
 };
 
 /// `High` with retail's `farClip`/`horizonStart` ratio to its anchor, the shadow
@@ -68,6 +76,7 @@ const fn scaled(
         shadow_cascades,
         shadow_map_size: 1024,
         unit_shadow_radius,
+        scenery_shadow_radius: HIGH.scenery_shadow_radius,
     }
 }
 
@@ -99,6 +108,7 @@ mod tests {
                 shadow_cascades: 2,
                 shadow_map_size: 2048,
                 unit_shadow_radius: 50.0,
+                scenery_shadow_radius: 50.0,
             }
         );
     }
