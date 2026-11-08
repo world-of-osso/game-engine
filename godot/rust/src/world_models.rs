@@ -26,7 +26,7 @@ use crate::{
             CachedModel, CreatureBuild, CreatureGear, CreatureModelParts, build_creature_model,
             insert_decoded_textures, prepare_creature_model,
         },
-        creature_template::CreatureTemplate,
+        creature_template::{CreatureTemplate, TemplateSource},
         equipment::place_equipment,
         player::{PlayerParts, build_player_model, prepare_player_parts},
     },
@@ -149,6 +149,8 @@ enum VisualRequest {
 pub(crate) enum VisualParts {
     Creature {
         display_id: u32,
+        /// The replicated virtual items the gear was resolved from (a template's key).
+        items: EquipmentAppearance,
         display: CreatureDisplay,
         npc: Option<PreparedNpc>,
         gear: CreatureGear,
@@ -371,6 +373,7 @@ impl VisualCatalogs {
         let model = prepare_creature_model(&self.data_root, &display, &gear)?;
         Ok(VisualParts::Creature {
             display_id,
+            items: items.clone(),
             display,
             npc,
             gear,
@@ -431,6 +434,8 @@ pub(crate) struct WorldModels {
     next_request: u64,
     /// World creature visuals by display and gear (`build_world_visual`).
     templates: RefCell<Vec<CreatureTemplate>>,
+    /// Requests a template answered without a worker load, for the next `poll`.
+    template_hits: Vec<(u64, VisualParts)>,
 }
 
 impl WorldModels {
@@ -475,6 +480,7 @@ impl WorldModels {
             requests,
             next_request: 0,
             templates: RefCell::default(),
+            template_hits: Vec::new(),
         }
     }
 
@@ -565,6 +571,14 @@ impl WorldModels {
     /// `poll` hands it out under the returned request ID. Players load ahead of
     /// creatures: the loading screen waits for the local player's model.
     pub fn request(&mut self, appearance: &UnitAppearance, sheath: SheathState) -> u64 {
+        let id = self.next_request;
+        self.next_request += 1;
+        if let UnitAppearance::Creature { display_id, items } = appearance
+            && let Some(parts) = self.template_parts(*display_id, items, sheath)
+        {
+            self.template_hits.push((id, parts));
+            return id;
+        }
         let (request, priority) = match appearance {
             UnitAppearance::Creature { display_id, items } => (
                 VisualRequest::Creature {
@@ -579,8 +593,6 @@ impl WorldModels {
                 Priority::Now,
             ),
         };
-        let id = self.next_request;
-        self.next_request += 1;
         self.requests
             .lock()
             .expect("unit visual requests")
@@ -589,9 +601,56 @@ impl WorldModels {
         id
     }
 
-    /// Requested visuals whose file work finished since the last call.
+    /// Requested visuals whose file work finished since the last call, and those a
+    /// template answered.
     pub fn poll(&mut self) -> Vec<(u64, Result<VisualParts, String>)> {
-        self.loader.poll()
+        let mut ready = self.loader.poll();
+        ready.extend(
+            self.template_hits
+                .drain(..)
+                .map(|(id, parts)| (id, Ok(parts))),
+        );
+        ready
+    }
+
+    /// Main thread: the parts of a creature visual an earlier unit with `display_id` and
+    /// the replicated virtual items `items` made a template of, its items placed for
+    /// `sheath`. Its load needs no worker: the worker's file work, NPC texture compositing
+    /// and decoding would all be discarded for the template's instance.
+    fn template_parts(
+        &self,
+        display_id: u32,
+        items: &EquipmentAppearance,
+        sheath: SheathState,
+    ) -> Option<VisualParts> {
+        let templates = self.templates.borrow();
+        let source = templates
+            .iter()
+            .find(|template| template.made_for(display_id, items))?
+            .source();
+        let placements = virtual_item_placements(
+            self.visual_gear()
+                .expect("a template's visual loaded the gear rows"),
+            items,
+            sheath,
+        );
+        let mut gear = source.gear.clone();
+        for (item, attachment) in &mut gear.items {
+            if let Some((_, placed)) = placements.iter().find(|(slot, _)| *slot == item.slot) {
+                *attachment = *placed;
+            }
+        }
+        Some(VisualParts::Creature {
+            display_id,
+            items: items.clone(),
+            display: source.display,
+            npc: None,
+            gear,
+            model: CreatureModelParts {
+                model: Arc::clone(&source.model),
+                textures: Vec::new(),
+            },
+        })
     }
 
     /// Main thread: the nodes of `parts`; a player visual replacing `previous_player`
@@ -608,6 +667,7 @@ impl WorldModels {
                 npc,
                 gear,
                 model,
+                ..
             } => self.build_creature_visual(display_id, &display, npc, &gear, model),
             VisualParts::Player(parts) => self.build_player_visual(parts, previous_player),
         }
@@ -626,7 +686,10 @@ impl WorldModels {
         built: Option<Gd<Node3D>>,
     ) -> Result<Gd<Node3D>, String> {
         let VisualParts::Creature {
-            display_id, gear, ..
+            display_id,
+            items,
+            gear,
+            ..
         } = &parts
         else {
             return self.build_visual(parts, previous_player);
@@ -638,16 +701,18 @@ impl WorldModels {
         }
         if let Some(template) = self
             .templates
-            .borrow()
-            .iter()
+            .borrow_mut()
+            .iter_mut()
             .find(|template| template.matches(display_id, &gear))
         {
             let _span = crate::profile::span(|| "creature.template_instance".to_owned());
+            template.add_key(items);
             self.discard(parts);
             return template.instance(&gear);
         }
+        let (source, items) = template_source(&parts).expect("a creature visual's parts");
         let visual = self.build_visual(parts, None)?;
-        if let Err(error) = self.add_template(display_id, &gear, &visual) {
+        if let Err(error) = self.add_template(source, items, &visual) {
             visual.free();
             return Err(error);
         }
@@ -657,23 +722,20 @@ impl WorldModels {
     /// Main thread: makes the template of `visual`, the first visual built of the
     /// creature `parts`, before it enters the scene tree.
     pub fn make_template(&self, parts: &VisualParts, visual: &Gd<Node3D>) -> Result<(), String> {
-        let VisualParts::Creature {
-            display_id, gear, ..
-        } = parts
-        else {
-            return Err("Only creature visuals have templates".to_owned());
-        };
-        self.add_template(*display_id, gear, visual)
+        let (source, items) =
+            template_source(parts).ok_or("Only creature visuals have templates")?;
+        self.add_template(source, items, visual)
     }
 
     fn add_template(
         &self,
-        display_id: u32,
-        gear: &CreatureGear,
+        source: TemplateSource,
+        items: EquipmentAppearance,
         visual: &Gd<Node3D>,
     ) -> Result<(), String> {
         let _span = crate::profile::span(|| "creature.template".to_owned());
-        let template = CreatureTemplate::of(display_id, gear, visual)
+        let display_id = source.display_id;
+        let template = CreatureTemplate::of(source, items, visual)
             .map_err(|error| format!("Creature display {display_id} template: {error}"))?;
         self.templates.borrow_mut().push(template);
         Ok(())
@@ -828,6 +890,29 @@ impl WorldModels {
         drop(span);
         creature_visual(display_id, display, &parts.model, model, missing)
     }
+}
+
+/// What the template of a creature visual built of `parts` keeps, and the replicated
+/// virtual items it is first made for.
+fn template_source(parts: &VisualParts) -> Option<(TemplateSource, EquipmentAppearance)> {
+    let VisualParts::Creature {
+        display_id,
+        items,
+        display,
+        gear,
+        model,
+        ..
+    } = parts
+    else {
+        return None;
+    };
+    let source = TemplateSource {
+        display_id: *display_id,
+        display: *display,
+        model: Arc::clone(&model.model),
+        gear: gear.clone(),
+    };
+    Some((source, items.clone()))
 }
 
 /// What `WorldModels::continue_build` made: the build with an item more, or its visual.

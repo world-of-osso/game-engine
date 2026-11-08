@@ -126,7 +126,9 @@ impl NpcAppearances {
                 )
             })?;
         hide_armor_geoset_groups(&mut selected.geosets, &armor, db, &appearance);
-        let textures = compose_replacement_textures(
+        // Worker: the NPC's composited textures and their mip chains.
+        let span = crate::profile::span(|| format!("appearance.compose {display_id}"));
+        let textures = mip_chains(compose_replacement_textures(
             compositor,
             &appearance,
             &selected,
@@ -136,11 +138,12 @@ impl NpcAppearances {
             display_id,
             &armor.body_texture_assets,
             armor.merged_cape_texture,
-        )?;
+        )?);
+        drop(span);
         Ok(Some(PreparedNpc {
             appearance: AppearanceParts {
                 source: "NPC",
-                textures: mip_chains(textures),
+                textures,
                 inactive_npc_texture_types: Some(inactive_npc_texture_types(
                     compositor,
                     &selected.materials,

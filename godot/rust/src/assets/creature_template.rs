@@ -16,7 +16,10 @@
 
 use std::{path::Path, sync::Arc};
 
-use game_engine_core::m2_material::{BatchBinding, MaterialTracks};
+use game_engine_core::{
+    creature_display_data::CreatureDisplay,
+    m2_material::{BatchBinding, MaterialTracks},
+};
 use godot::{
     classes::{
         ClassDb, MeshInstance3D, Node3D, PackedScene, ShaderMaterial, Skeleton3D, class_db::ApiType,
@@ -33,13 +36,24 @@ use super::{
     uv_animation::WowMaterialAnimation,
 };
 use crate::animation::WowAnimationPlayer;
+use shared::components::EquipmentAppearance;
 
 /// A built creature visual without its Rust nodes, and how to make them again.
 pub(crate) struct CreatureTemplate {
-    display_id: u32,
-    gear: CreatureGear,
+    source: TemplateSource,
+    /// The replicated virtual items of the units it makes the visual of: each gives
+    /// `source.gear`, so a unit with one of them instantiates it without a worker load.
+    keys: Vec<EquipmentAppearance>,
     scene: Gd<PackedScene>,
     nodes: Vec<RustNode>,
+}
+
+/// What a template's visual was built of, which a unit instantiating it attaches with.
+pub(crate) struct TemplateSource {
+    pub(crate) display_id: u32,
+    pub(crate) display: CreatureDisplay,
+    pub(crate) model: Arc<CachedModel>,
+    pub(crate) gear: CreatureGear,
 }
 
 /// A Rust node of the built visual, by the path of its model root under the visual.
@@ -63,10 +77,11 @@ enum RustNode {
 }
 
 impl CreatureTemplate {
-    /// The template of `built`, a creature visual not yet in the scene tree.
+    /// The template of `built`, a creature visual of `source` not yet in the scene tree,
+    /// for units with the replicated virtual items `items`.
     pub(crate) fn of(
-        display_id: u32,
-        gear: &CreatureGear,
+        source: TemplateSource,
+        items: EquipmentAppearance,
         built: &Gd<Node3D>,
     ) -> Result<Self, String> {
         let span = crate::profile::span(|| "template.take_rust_nodes".to_owned());
@@ -88,17 +103,34 @@ impl CreatureTemplate {
             return Err(format!("Creature visual did not pack: {packed:?}"));
         }
         Ok(Self {
-            display_id,
-            gear: gear.clone(),
+            source,
+            keys: vec![items],
             scene,
             nodes,
         })
     }
 
+    pub(crate) fn source(&self) -> &TemplateSource {
+        &self.source
+    }
+
+    /// Whether a unit of `display_id` with the replicated virtual items `items` gets this
+    /// template's visual.
+    pub(crate) fn made_for(&self, display_id: u32, items: &EquipmentAppearance) -> bool {
+        self.source.display_id == display_id && self.keys.contains(items)
+    }
+
+    /// Records that the replicated virtual items `items` give this template's gear.
+    pub(crate) fn add_key(&mut self, items: &EquipmentAppearance) {
+        if !self.keys.contains(items) {
+            self.keys.push(items.clone());
+        }
+    }
+
     /// Whether a unit of `display_id` with `gear` can instantiate this template: the same
     /// models, wherever its virtual items sit (`instance` places them).
     pub(crate) fn matches(&self, display_id: u32, gear: &CreatureGear) -> bool {
-        self.display_id == display_id && Self::same_models(&self.gear, gear)
+        self.source.display_id == display_id && Self::same_models(&self.source.gear, gear)
     }
 
     /// Whether `a` and `b` hold the same models, wherever their virtual items sit.
@@ -124,7 +156,7 @@ impl CreatureTemplate {
         let moved = gear
             .items
             .iter()
-            .zip(&self.gear.items)
+            .zip(&self.source.gear.items)
             .filter(|((_, wanted), (_, built))| wanted != built);
         let mut model = None;
         for ((item, attachment), _) in moved {
