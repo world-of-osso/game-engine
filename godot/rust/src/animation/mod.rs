@@ -1012,6 +1012,14 @@ impl WowAnimationPlayer {
         self.write_poses();
     }
 
+    /// Applies the billboard and non-inheriting bones' global overrides of the last written
+    /// pose again, after the skeleton's bones were removed and added back.
+    pub(crate) fn reapply_bone_overrides(&mut self) {
+        if let (Some(billboards), Some(skeleton)) = (&self.billboards, &mut self.skeleton) {
+            billboards.apply(&self.written, skeleton);
+        }
+    }
+
     /// The displayed skeleton, for client-side pose passes such as foot IK.
     pub(crate) fn skeleton(&self) -> Option<Gd<Skeleton3D>> {
         self.skeleton.clone()

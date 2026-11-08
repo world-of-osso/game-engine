@@ -14,6 +14,7 @@ use godot::{
 };
 
 use super::AnimationState;
+use crate::assets::attachments::skeleton_attachment_point;
 
 pub(super) fn take_callbacks(animation: &mut AnimationState, active: bool) -> Vec<[u8; 4]> {
     let events = animation.take_fired_events();
@@ -114,8 +115,8 @@ impl AttachmentGates {
         let points = attachment_indices(model)
             .into_iter()
             .map(|(id, index)| {
-                let point = skeleton
-                    .try_get_node_as::<Node3D>(&format!("AttachmentBone{id}/Attachment{id}"))
+                // A model whose attachments show and hide with its animation has every point.
+                let point = skeleton_attachment_point(skeleton, id)
                     .ok_or_else(|| format!("Attachment {id} has no native point"))?;
                 Ok(AttachmentPoint {
                     index,

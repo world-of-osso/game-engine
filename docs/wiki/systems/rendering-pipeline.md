@@ -57,6 +57,25 @@ under 120 FPS were these arrivals). The instance shares the meshes, skins and ma
 Instantiating the guard's 205 nodes took 3-5 ms where `Node::duplicate` (property-list
 copy per node) took 16-31 ms; packing took about 13 ms once, at first sight:
 
+- The packed scene holds no skeleton bones: `PackedScene::pack` saves each bone's
+  name, parent, rest and pose as named properties, 70-90% of the pack (guard 1.69 of
+  2.48 ms, display 37850 1.19 of 1.31 ms, Linux debug library) and the largest step of a
+  first sight on the Windows release build (`template.pack` median 4.27 ms, 70 first
+  sights, 2026-11-08 noon DIAGNOSTIC). The template records them (`SkeletonBones`) and
+  each instance adds them back (`template.bones`, about 0.1 ms). The first-built visual
+  gets them back too, and its animation players reapply the billboard and non-inheriting
+  bones' persistent global overrides (`reapply_bone_overrides`), which removing the bones
+  dropped; without that a seated rider sat on a saddle 0.005 rad off its authored pose.
+- Nor does it hold the mesh nodes. `pack` reads every node's property list, and a
+  `GeometryInstance3D`'s list asks the rendering server for the instance shader
+  parameters, a call that waits for the render thread to finish the frame it is drawing.
+  In the world the first such read of a frame took 10-20 ms against 0.1-0.6 ms for the
+  next (loaded Linux host), which was most of a first sight's 4 ms `template.pack` on
+  Windows. The template records each leaf mesh node's stored properties that differ from
+  a new `MeshInstance3D` (the names read once per session), its metadata and surface
+  materials (`MeshNode`), and puts the nodes back at their indices; each instance makes
+  them (`template.parts`). In the world the template step went from 12.1 to 0.9 ms
+  (Linux, 71 first sights). `Node::duplicate` reads property lists as well.
 - A packed scene holds no Rust node state, so the template holds no Rust node; each
   instance builds its `WowAnimationPlayer`, `WowMaterialAnimation` and `WowM2Lights` from
   the parsed model (`creature::model_at`).
@@ -89,9 +108,33 @@ took the worst unit-visual frame from 33 to 15 ms CPU and the frames over 5 ms f
 (Linux, one run each). The pack (about 4 ms CPU) is the largest remaining part: the body
 skeleton's 216 bones and its ~45 attachment nodes.
 
+A unit whose display and replicated virtual items an earlier unit's template was made
+for is answered by the template at request time (`WorldModels::request`): the template
+keeps the parts the attach reads (display, parsed model, gear) and its item keys, and the
+request places the items for the unit's sheath (`virtual_item_placements`). There is no
+worker load: before, every re-arrival re-ran the worker's catalog reads, NPC texture
+compositing (`appearance.compose`) and decode, which the instance discarded, and its ~10
+frames of loading ran 2-6 ms slower on Windows (receipt 9753528a3 outdoor R3 idle_3, 1%
+low 113.5). Worker parts whose gear matches a template add their items as its key.
+
+A model's M2 attachment points are made on first use (`godot/rust/src/assets/attachments.rs`):
+the skeleton records its attachment table (`m2_attachments` meta), and one accessor
+(`attachment_point`, or `skeleton_attachment_point` before the skeleton has a parent)
+makes the `BoneAttachment3D` and point when equipment, held items, spell effects, mounts,
+vehicle seats or the Trading Post first ask, posed at once (`on_skeleton_update`). A
+model whose attachments show and hide with its animation (`AttachmentGates`) makes all of
+them at build. A guard holds 5-7 points instead of 55; packing its template took half the
+time without the unused ones (2.90 to 1.46 ms offline), and 100 animated guards cost 0.7-1.7 ms
+less main-thread time per frame (Linux, offline). Proof: `godot/tests/attachment_points_on_demand.gd`
+(a point made while the guard animates sits at its bone's pose at once); a drawn guard's
+sword, a guard on a riding horse's saddle and a spell effect on a point made for it render
+the same pixels as with every point built (2026-11-08 DIAGNOSTIC, max difference 0).
+
 Proof: `godot/tests/creature_template_instances.gd` builds display 3167 twice through
 `WowAssetLoader.load_world_creature_display` and checks the second visual's nodes, its 0
-new materials, its own players and equal pixels; a Dark Iron dwarf (display 8803, the one
+new materials, its own players and equal pixels, and that the world's request for a drawn
+guard is ready in the same call (`WowAssetLoader.request_world_creature_display`) with the
+drawn instance's nodes and sword and no material; a Dark Iron dwarf (display 8803, the one
 display of 300 scanned whose shown batches animate on global sequences only) checks that
 its second visual makes no material and the clock animates the materials it shares.
 

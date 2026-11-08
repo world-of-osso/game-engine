@@ -6,6 +6,20 @@
 //! the guard's 205 nodes took 3-5 ms where `Node::duplicate`, which copies each property
 //! through the property list, took 16-31 ms (loaded Linux host, debug library).
 //!
+//! Nor does the scene hold the skeletons' bones: packing saves each bone's properties by
+//! name, which took 70-90% of `PackedScene::pack` (a guard's 237 bones: 1.69 of the pack's
+//! 2.48 ms, Linux debug library) and was a first-sight frame's largest step (4.3 ms median
+//! on the Windows release build). The template keeps them as `SkeletonBones` and each
+//! instance adds them again.
+//!
+//! Nor does it hold the mesh nodes. Packing reads each node's property list, and a
+//! `GeometryInstance3D`'s list asks the rendering server for its instance shader
+//! parameters, which waits for the render thread to finish the frame it draws: in the
+//! world the first such read of a frame took 10-20 ms (loaded Linux host; the next one
+//! 0.1-0.6 ms) and made a first sight's pack 4 ms on the Windows release build. The
+//! template records each mesh node's stored properties (`MeshNode`), whose names it reads
+//! once from a new `MeshInstance3D`, and each instance makes them again.
+//!
 //! A packed scene cannot hold a Rust node's state (and `WowM2Lights` has no default
 //! constructor), so the template holds none: each instance gets its own animation player, material animation and model lights,
 //! built from the parsed model as `build_model` builds them. A material that animates on
@@ -16,12 +30,18 @@
 
 use std::{path::Path, sync::Arc};
 
-use game_engine_core::m2_material::{BatchBinding, MaterialTracks};
+use game_engine_core::{
+    creature_display_data::CreatureDisplay,
+    m2_material::{BatchBinding, MaterialTracks},
+};
 use godot::{
     classes::{
-        ClassDb, MeshInstance3D, Node3D, PackedScene, ShaderMaterial, Skeleton3D, class_db::ApiType,
+        ClassDb, Material, MeshInstance3D, Node3D, PackedScene, ShaderMaterial, Skeleton3D,
+        class_db::ApiType,
     },
+    obj::EngineBitfield,
     prelude::*,
+    register::info::PropertyUsageFlags,
 };
 
 use super::{
@@ -33,13 +53,53 @@ use super::{
     uv_animation::WowMaterialAnimation,
 };
 use crate::animation::WowAnimationPlayer;
+use shared::components::EquipmentAppearance;
 
 /// A built creature visual without its Rust nodes, and how to make them again.
 pub(crate) struct CreatureTemplate {
-    display_id: u32,
-    gear: CreatureGear,
+    source: TemplateSource,
+    /// The replicated virtual items of the units it makes the visual of: each gives
+    /// `source.gear`, so a unit with one of them instantiates it without a worker load.
+    keys: Vec<EquipmentAppearance>,
     scene: Gd<PackedScene>,
+    bones: Vec<SkeletonBones>,
+    meshes: Vec<MeshNode>,
     nodes: Vec<RustNode>,
+}
+
+/// The bones of the skeleton at `path` under the visual, which the template's scene does
+/// not hold.
+struct SkeletonBones {
+    path: NodePath,
+    bones: Vec<Bone>,
+}
+
+/// A mesh node the template's scene does not hold: its parent under the visual, its index
+/// there and the properties, metadata and surface materials it stores.
+struct MeshNode {
+    parent: NodePath,
+    index: i32,
+    name: StringName,
+    properties: Vec<(StringName, Variant)>,
+    metas: Vec<(StringName, Variant)>,
+    surfaces: Vec<Option<Gd<Material>>>,
+}
+
+struct Bone {
+    name: GString,
+    parent: i32,
+    rest: Transform3D,
+    position: Vector3,
+    rotation: Quaternion,
+    scale: Vector3,
+}
+
+/// What a template's visual was built of, which a unit instantiating it attaches with.
+pub(crate) struct TemplateSource {
+    pub(crate) display_id: u32,
+    pub(crate) display: CreatureDisplay,
+    pub(crate) model: Arc<CachedModel>,
+    pub(crate) gear: CreatureGear,
 }
 
 /// A Rust node of the built visual, by the path of its model root under the visual.
@@ -63,16 +123,21 @@ enum RustNode {
 }
 
 impl CreatureTemplate {
-    /// The template of `built`, a creature visual not yet in the scene tree.
+    /// The template of `built`, a creature visual of `source` not yet in the scene tree,
+    /// for units with the replicated virtual items `items`.
     pub(crate) fn of(
-        display_id: u32,
-        gear: &CreatureGear,
+        source: TemplateSource,
+        items: EquipmentAppearance,
         built: &Gd<Node3D>,
     ) -> Result<Self, String> {
         let span = crate::profile::span(|| "template.take_rust_nodes".to_owned());
         let (nodes, detached) = take_rust_nodes(built)?;
         drop(span);
         // Packing saves the nodes `built` owns; they own nothing again afterwards.
+        let span = crate::profile::span(|| "template.take_parts".to_owned());
+        let bones = take_bones(built);
+        let (meshes, taken) = take_meshes(built);
+        drop(span);
         let span = crate::profile::span(|| "template.pack".to_owned());
         set_owner(built, Some(built.clone().upcast()));
         let mut scene = PackedScene::new_gd();
@@ -80,25 +145,54 @@ impl CreatureTemplate {
         set_owner(built, None);
         drop(span);
         let _span = crate::profile::span(|| "template.reattach".to_owned());
+        for skeleton in &bones {
+            skeleton.add_to(built)?;
+        }
+        for (mesh, node) in meshes.iter().zip(taken) {
+            mesh.insert(built, node)?;
+        }
         for (mut parent, node, index) in detached {
             parent.add_child(&node);
             parent.move_child(&node, index);
+            // Removing the bones dropped the global overrides `built`'s player had set.
+            if let Ok(mut player) = node.try_cast::<WowAnimationPlayer>() {
+                player.bind_mut().reapply_bone_overrides();
+            }
         }
         if packed != godot::global::Error::OK {
             return Err(format!("Creature visual did not pack: {packed:?}"));
         }
         Ok(Self {
-            display_id,
-            gear: gear.clone(),
+            source,
+            keys: vec![items],
             scene,
+            bones,
+            meshes,
             nodes,
         })
+    }
+
+    pub(crate) fn source(&self) -> &TemplateSource {
+        &self.source
+    }
+
+    /// Whether a unit of `display_id` with the replicated virtual items `items` gets this
+    /// template's visual.
+    pub(crate) fn made_for(&self, display_id: u32, items: &EquipmentAppearance) -> bool {
+        self.source.display_id == display_id && self.keys.contains(items)
+    }
+
+    /// Records that the replicated virtual items `items` give this template's gear.
+    pub(crate) fn add_key(&mut self, items: &EquipmentAppearance) {
+        if !self.keys.contains(items) {
+            self.keys.push(items.clone());
+        }
     }
 
     /// Whether a unit of `display_id` with `gear` can instantiate this template: the same
     /// models, wherever its virtual items sit (`instance` places them).
     pub(crate) fn matches(&self, display_id: u32, gear: &CreatureGear) -> bool {
-        self.display_id == display_id && Self::same_models(&self.gear, gear)
+        self.source.display_id == display_id && Self::same_models(&self.source.gear, gear)
     }
 
     /// Whether `a` and `b` hold the same models, wherever their virtual items sit.
@@ -124,7 +218,7 @@ impl CreatureTemplate {
         let moved = gear
             .items
             .iter()
-            .zip(&self.gear.items)
+            .zip(&self.source.gear.items)
             .filter(|((_, wanted), (_, built))| wanted != built);
         let mut model = None;
         for ((item, attachment), _) in moved {
@@ -150,12 +244,209 @@ impl CreatureTemplate {
             .ok_or("Creature template did not instantiate")?;
         set_owner(&visual, None);
         drop(span);
+        let span = crate::profile::span(|| "template.parts".to_owned());
+        let parts = self
+            .bones
+            .iter()
+            .try_for_each(|bones| bones.add_to(&visual))
+            .and_then(|()| {
+                self.meshes
+                    .iter()
+                    .try_for_each(|mesh| mesh.insert(&visual, mesh.make()))
+            });
+        if let Err(error) = parts {
+            visual.free();
+            return Err(error);
+        }
+        drop(span);
         let _span = crate::profile::span(|| "template.rust_nodes".to_owned());
         if let Err(error) = self.nodes.iter().try_for_each(|node| node.attach(&visual)) {
             visual.free();
             return Err(error);
         }
         Ok(visual)
+    }
+}
+
+/// Takes the bones off every skeleton under `built`.
+fn take_bones(built: &Gd<Node3D>) -> Vec<SkeletonBones> {
+    built
+        .find_children_ex("*")
+        .type_("Skeleton3D")
+        .owned(false)
+        .done()
+        .iter_shared()
+        .filter_map(|node| node.try_cast::<Skeleton3D>().ok())
+        .map(|mut skeleton| {
+            let bones = (0..skeleton.get_bone_count())
+                .map(|bone| Bone {
+                    name: skeleton.get_bone_name(bone),
+                    parent: skeleton.get_bone_parent(bone),
+                    rest: skeleton.get_bone_rest(bone),
+                    position: skeleton.get_bone_pose_position(bone),
+                    rotation: skeleton.get_bone_pose_rotation(bone),
+                    scale: skeleton.get_bone_pose_scale(bone),
+                })
+                .collect();
+            skeleton.clear_bones();
+            SkeletonBones {
+                path: built.get_path_to(&skeleton),
+                bones,
+            }
+        })
+        .collect()
+}
+
+impl SkeletonBones {
+    /// Adds the bones to the skeleton at `path` under `visual`, which has none.
+    fn add_to(&self, visual: &Gd<Node3D>) -> Result<(), String> {
+        let mut skeleton = visual
+            .get_node_or_null(&self.path)
+            .and_then(|node| node.try_cast::<Skeleton3D>().ok())
+            .ok_or_else(|| format!("Creature template lost skeleton {}", self.path))?;
+        for bone in &self.bones {
+            skeleton.add_bone(&bone.name);
+        }
+        for (index, bone) in (0..).zip(&self.bones) {
+            skeleton.set_bone_parent(index, bone.parent);
+            skeleton.set_bone_rest(index, bone.rest);
+            skeleton.set_bone_pose_position(index, bone.position);
+            skeleton.set_bone_pose_rotation(index, bone.rotation);
+            skeleton.set_bone_pose_scale(index, bone.scale);
+        }
+        Ok(())
+    }
+}
+
+/// Takes every leaf mesh node out of `built`, in tree order, and returns their records and
+/// the nodes.
+fn take_meshes(built: &Gd<Node3D>) -> (Vec<MeshNode>, Vec<Gd<MeshInstance3D>>) {
+    let found: Vec<_> = built
+        .find_children_ex("*")
+        .type_("MeshInstance3D")
+        .owned(false)
+        .done()
+        .iter_shared()
+        .filter(|node| node.get_child_count() == 0)
+        .filter_map(|node| node.try_cast::<MeshInstance3D>().ok())
+        .collect();
+    let defaults = mesh_defaults();
+    let meshes = found
+        .iter()
+        .map(|node| MeshNode::of(built, node, &defaults))
+        .collect();
+    for node in &found {
+        if let Some(mut parent) = node.get_parent() {
+            parent.remove_child(node);
+        }
+    }
+    (meshes, found)
+}
+
+/// The names of a `MeshInstance3D`'s stored properties, read once from a new one: reading
+/// a mesh node's property list waits for the render thread. Plain strings, as a Godot
+/// value kept past the engine's shutdown is reported as leaked.
+fn mesh_property_names() -> &'static [String] {
+    thread_local! {
+        static NAMES: &'static [String] = {
+            let node = MeshInstance3D::new_alloc();
+            let storage = PropertyUsageFlags::STORAGE.ord();
+            let names: Vec<_> = node
+                .get_property_list()
+                .iter_shared()
+                .filter(|property| {
+                    property.get("usage").is_some_and(|usage| {
+                        u64::try_from(usage.to::<i64>()).is_ok_and(|usage| usage & storage != 0)
+                    })
+                })
+                .filter_map(|property| property.get("name"))
+                .map(|name| name.to::<GString>().to_string())
+                .filter(|name| name != "script")
+                .collect();
+            node.free();
+            Vec::leak(names)
+        };
+    }
+    NAMES.with(|names| *names)
+}
+
+/// The stored properties of a new `MeshInstance3D` with their values.
+fn mesh_defaults() -> Vec<(StringName, Variant)> {
+    let node = MeshInstance3D::new_alloc();
+    let defaults = mesh_property_names()
+        .iter()
+        .map(|name| {
+            let name = StringName::from(name.as_str());
+            let value = node.get(&name);
+            (name, value)
+        })
+        .collect();
+    node.free();
+    defaults
+}
+
+impl MeshNode {
+    fn of(
+        built: &Gd<Node3D>,
+        node: &Gd<MeshInstance3D>,
+        defaults: &[(StringName, Variant)],
+    ) -> Self {
+        let parent = node.get_parent().expect("a found mesh node has a parent");
+        Self {
+            parent: built.get_path_to(&parent),
+            index: node.get_index(),
+            name: node.get_name(),
+            properties: defaults
+                .iter()
+                .filter_map(|(name, default)| {
+                    let value = node.get(name);
+                    (value != *default).then(|| (name.clone(), value))
+                })
+                .collect(),
+            metas: node
+                .get_meta_list()
+                .iter_shared()
+                .map(|name| {
+                    let value = node.get_meta(&name);
+                    (name, value)
+                })
+                .collect(),
+            surfaces: (0..node.get_surface_override_material_count())
+                .map(|surface| node.get_surface_override_material(surface))
+                .collect(),
+        }
+    }
+
+    /// A new mesh node with the recorded state.
+    fn make(&self) -> Gd<MeshInstance3D> {
+        let mut node = MeshInstance3D::new_alloc();
+        node.set_name(&self.name);
+        for (name, value) in &self.properties {
+            node.set(name, value);
+        }
+        for (name, value) in &self.metas {
+            node.set_meta(name, value);
+        }
+        for (surface, material) in (0..).zip(&self.surfaces) {
+            if let Some(material) = material {
+                node.set_surface_override_material(surface, material);
+            }
+        }
+        node
+    }
+
+    /// Puts `node` back at its place under `visual`.
+    fn insert(&self, visual: &Gd<Node3D>, node: Gd<MeshInstance3D>) -> Result<(), String> {
+        let Some(mut parent) = visual.get_node_or_null(&self.parent) else {
+            node.free();
+            return Err(format!(
+                "Creature template lost mesh parent {}",
+                self.parent
+            ));
+        };
+        parent.add_child(&node);
+        parent.move_child(&node, self.index);
+        Ok(())
     }
 }
 
