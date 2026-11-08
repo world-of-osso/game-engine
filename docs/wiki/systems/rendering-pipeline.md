@@ -66,6 +66,16 @@ copy per node) took 16-31 ms; packing took about 13 ms once, at first sight:
   gets them back too, and its animation players reapply the billboard and non-inheriting
   bones' persistent global overrides (`reapply_bone_overrides`), which removing the bones
   dropped; without that a seated rider sat on a saddle 0.005 rad off its authored pose.
+- Nor does it hold the mesh nodes. `pack` reads every node's property list, and a
+  `GeometryInstance3D`'s list asks the rendering server for the instance shader
+  parameters, a call that waits for the render thread to finish the frame it is drawing.
+  In the world the first such read of a frame took 10-20 ms against 0.1-0.6 ms for the
+  next (loaded Linux host), which was most of a first sight's 4 ms `template.pack` on
+  Windows. The template records each leaf mesh node's stored properties that differ from
+  a new `MeshInstance3D` (the names read once per session), its metadata and surface
+  materials (`MeshNode`), and puts the nodes back at their indices; each instance makes
+  them (`template.parts`). In the world the template step went from 12.1 to 0.9 ms
+  (Linux, 71 first sights). `Node::duplicate` reads property lists as well.
 - A packed scene holds no Rust node state, so the template holds no Rust node; each
   instance builds its `WowAnimationPlayer`, `WowMaterialAnimation` and `WowM2Lights` from
   the parsed model (`creature::model_at`).
