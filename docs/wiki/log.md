@@ -1,3 +1,7 @@
+## MH2O terrain water audit: one ocean LVF gap fixed — 2026-11-08
+
+G7 audit against R-3d-terrain-water-mh2o. Matched: the layer's first `u16` is the type id verbatim (no 1..20 rewrite, no type-8 retry on the terrain path), a material-column-10 row is skipped, heights are a 9x9 grid with one 1/9-yard depth byte per vertex, coverage is one bit per tile, ocean type 2 draws at world y = 0, and the water shader's depth scale is `byte/255 = yards/28.333`. Gap fixed in `6cf912f36`: the ocean LVF 2 rule was keyed on object 42 instead of the layer's type with a sentinel format field, so a type 2 layer on a real LiquidObject above 42 would read LVF 0 heights from a depth-only block. New real-ADT test on `azeroth_31_58` (FDID 777877) proves 35 type 2 object 42 layers at y = 0 and 20 type 5/1 water layers with authored heights. No separate MapWater object exists; the per-chunk layers cover the same tiles. Captures and the per-frame A/B are in the page. [[mh2o-terrain-water-audit]]
+
 ## Rebuild guard counts per-frame scene and UI rebuilds — 2026-11-07
 
 Counters for sky cubemap, environment, material rebinds, global shader writes, mesh and
