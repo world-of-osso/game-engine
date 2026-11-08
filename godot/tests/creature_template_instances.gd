@@ -1,12 +1,14 @@
 extends SceneTree
 # A Stormwind guard (creature display 3167) built twice as world units: the second visual
-# instantiates the first one's template (rust/src/assets/creature_template.rs). The guard's
-# animated material inputs all run on global sequences, so the second makes no
-# ShaderMaterial and shares all 16 with the first, while its material animation still
-# animates them; it has the same nodes with its own animation players, and draws the same
-# pixels. A third guard with its weapons drawn instantiates the same template (the sheath
-# state is not part of its key) and holds its sword where a guard built drawn holds it.
+# instantiates the first one's template (rust/src/assets/creature_template.rs), makes no
+# ShaderMaterial and shares all 11 with the first; it has the same nodes with its own
+# animation players, and draws the same pixels. A third guard with its weapons drawn
+# instantiates the same template (the sheath state is not part of its key) and holds its
+# sword where a guard built drawn holds it. A Dark Iron dwarf (display 8803) animates a
+# shown material on global sequences only: its second visual makes no material either, and
+# its material animation still animates the materials it shares.
 const DISPLAY := 3167
+const ANIMATED_DISPLAY := 8803
 const SIZE := Vector2i(256, 320)
 ## The Stormwind guard's creature_equip_template row: sword, shield, crossbow.
 const ITEMS := [
@@ -65,8 +67,7 @@ func run() -> void:
 	if not check_drawn_instance(loader, counters, a):
 		return
 	var images := await render([a, b])
-	if not await clock_animates(b):
-		fail("the shared materials do not animate")
+	if not await check_shared_clock(loader, counters):
 		return
 	var covered := covered_pixels(images[0])
 	var difference := max_difference(images[0], images[1])
@@ -83,6 +84,25 @@ func run() -> void:
 ## Whether a texture matrix of `visual`'s materials changes when the material clock runs
 ## and the visual's material animation samples it
 ## (the guard's scrolling inputs are second-texture transforms).
+func check_shared_clock(loader, counters) -> bool:
+	var first: Dictionary = loader.load_world_creature_display(ANIMATED_DISPLAY, [], UNARMED)
+	counters.take()
+	var second: Dictionary = loader.load_world_creature_display(ANIMATED_DISPLAY, [], UNARMED)
+	var made: int = counters.take().counts.shader_material
+	if first.has("error") or second.has("error"):
+		fail(str(first.get("error", second.get("error"))))
+		return false
+	root.add_child(first.node)
+	root.add_child(second.node)
+	var animates := await clock_animates(second.node)
+	print("CREATURE_TEMPLATE_CLOCK display=%d materials=%d animates=%s"
+		% [ANIMATED_DISPLAY, made, animates])
+	if made != 0 or not animates:
+		fail("the Dark Iron dwarf's second visual made %d materials and animates: %s"
+			% [made, animates])
+		return false
+	return true
+
 func clock_animates(visual: Node) -> bool:
 	var before := matrices(visual)
 	root.get_node("M2MaterialClock").advance_time_ms(1234.0)

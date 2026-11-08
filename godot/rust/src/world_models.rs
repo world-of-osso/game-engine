@@ -680,7 +680,7 @@ impl WorldModels {
     }
 
     /// Whether `parts` is a creature visual no template makes yet: its first visual
-    /// is built (`prebuild`) before it becomes the template.
+    /// is built in parts (`start_build`) before it becomes the template.
     pub fn needs_build(&self, parts: &VisualParts) -> bool {
         let VisualParts::Creature {
             display_id, gear, ..
