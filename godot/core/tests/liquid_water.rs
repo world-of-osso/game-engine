@@ -75,9 +75,11 @@ fn a_layer_without_a_mask_marks_every_rectangle_tile_present() {
         let water = parse_mh2o(&payload).expect("maskless MH2O");
         let layer = &water.chunks[0].layers[0];
         let present = ((1u16 << width) - 1) as u8;
-        assert!(layer.exists[..height as usize]
-            .iter()
-            .all(|row| *row == present));
+        assert!(
+            layer.exists[..height as usize]
+                .iter()
+                .all(|row| *row == present)
+        );
         assert!(layer.exists[height as usize..].iter().all(|row| *row == 0));
         let geometry = game_engine_core::adt::build_water_geometry([0.0; 3], layer);
         assert_eq!(
@@ -238,7 +240,9 @@ fn liquid_object_427_is_slow_river_water_with_bump_and_foam_slots() {
     assert_eq!((material.flow_direction, material.flow_speed), (0.0, 0.0));
     assert_eq!(
         material.floats[..16],
-        [1.0, 0.0, 1.0, 1.0, 2.5, 90.0, 0.7, 0.5, 0.5, 0.2, 0.5, 0.2, 0.1, 1.0, 0.7, 2.5]
+        [
+            1.0, 0.0, 1.0, 1.0, 2.5, 90.0, 0.7, 0.5, 0.5, 0.2, 0.5, 0.2, 0.1, 1.0, 0.7, 2.5
+        ]
     );
     assert_eq!(
         material.depth_coefficients,
