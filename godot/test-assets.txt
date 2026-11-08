@@ -492,6 +492,8 @@ db2/active/LiquidTypeXTexture.csv
 terrain/778417.adt
 terrain/5493433.adt
 terrain/5493438.adt
+# G7 ocean coast: type 2 object 42 layers beside type 5/1 water on azeroth_31_58.
+terrain/777877.adt
 # Current Map 2703 WDT and primary (31,37) MAID companions for Background::load.
 terrain/5493025.wdt
 terrain/5493439.adt
