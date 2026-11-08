@@ -3348,6 +3348,7 @@ impl GameClient {
             self.horizon.reset();
             self.global_wmo.reset();
             self.wmo_collision.reset();
+            self.release_map_resource_caches();
             drop(span);
             self.account.session.screen = SessionScreen::Loading;
             let _screen = profile::span(|| "terrain.enter_loading.show_screen".to_owned());
@@ -3370,6 +3371,7 @@ impl GameClient {
         self.world.update_lighting(None);
         self.game_objects.reset();
         self.mailbox.close();
+        self.release_map_resource_caches();
         let [x, y, z] = destination.position;
         let tile = game_engine_core::terrain_height_data::bevy_to_tile_coords(x, z);
         self.terrain.request_map(destination.map_directory, tile)?;
@@ -3686,6 +3688,15 @@ impl GameClient {
         )
     }
 
+    /// Release the process-wide resources a map built. The stream and object caches are
+    /// per-map, but meshes, textures, scenery materials and parsed models are shared for the
+    /// whole session, so a map change must clear them or the session keeps every map alive.
+    fn release_map_resource_caches(&self) {
+        assets::material::clear_world_resource_caches();
+        assets::clear_shared_meshes();
+        assets::creature::clear_model_caches();
+    }
+
     fn reset_world(&mut self) -> Result<(), String> {
         self.close_toybox();
         self.toybox.model = Default::default();
@@ -3736,7 +3747,9 @@ impl GameClient {
         self.replica.drain_changes();
         self.auras.reset();
         self.tooltips.reset();
-        self.terrain.reset()
+        let terrain = self.terrain.reset();
+        self.release_map_resource_caches();
+        terrain
     }
 
     fn update_character_preview(&mut self, delta: f32) -> Result<(), String> {

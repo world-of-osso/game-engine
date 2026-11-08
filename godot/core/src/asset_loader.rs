@@ -148,6 +148,12 @@ where
         self.states.get(key).copied()
     }
 
+    /// Forget completed and failed keys so their results may be requested again. Loads still
+    /// in flight stay tracked; their results are consumed by the next `poll`.
+    pub fn forget_loaded(&mut self) {
+        self.states.retain(|_, state| *state == LoadState::Loading);
+    }
+
     /// Hand out the loads finished since the last call, without blocking.
     pub fn poll(&mut self) -> Vec<(K, Result<T, String>)> {
         let finished: Vec<_> = self.results.try_iter().collect();

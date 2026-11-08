@@ -13,6 +13,8 @@ const MAP_TILE_BOUND: u32 = 64;
 pub(crate) trait TerrainReader: Send + 'static {
     fn read_map_wdt(&self, map: &str) -> Result<NativeMapWdt, String>;
     fn read_tile(&self, map: &str, tile: (u32, u32)) -> Result<NativeTerrainTile, String>;
+    /// Release per-map caches; the reader lives for the process, not one map.
+    fn clear_map_cache(&self) {}
 }
 
 impl TerrainReader for NativeTerrainAssets {
@@ -23,9 +25,14 @@ impl TerrainReader for NativeTerrainAssets {
     fn read_tile(&self, map: &str, tile: (u32, u32)) -> Result<NativeTerrainTile, String> {
         Self::read_tile(self, map, tile.0, tile.1)
     }
+
+    fn clear_map_cache(&self) {
+        Self::clear_map_cache(self);
+    }
 }
 
 enum WorkerRequest {
+    Clear,
     Map {
         generation: u64,
         map: String,
@@ -386,6 +393,9 @@ impl StreamedTerrain {
         self.rejected_reported = false;
         self.failures.clear();
         self.map_error = None;
+        // The reader is shared by every map in the process; its per-map caches would
+        // otherwise keep every visited map's collision groups and decoded images.
+        self.requests.send(WorkerRequest::Clear).ok();
         Ok(())
     }
 
@@ -538,6 +548,10 @@ fn run_worker(
 ) {
     for request in requests {
         let result = match request {
+            WorkerRequest::Clear => {
+                reader.clear_map_cache();
+                continue;
+            }
             WorkerRequest::Map { generation, map } => WorkerResult::Map {
                 generation,
                 result: reader.read_map_wdt(&map),
@@ -919,6 +933,46 @@ mod tests {
             waited < Duration::from_millis(500),
             "drop waited {waited:?} for the read in hand"
         );
+    }
+
+    /// The reader lives for the process. `reset` must tell it to drop the per-map caches,
+    /// or every visited map keeps its collision groups and decoded images.
+    #[test]
+    fn reset_clears_the_reader_per_map_cache() {
+        use std::sync::{
+            Arc,
+            atomic::{AtomicUsize, Ordering},
+        };
+
+        struct CountingReader(Arc<AtomicUsize>);
+
+        impl TerrainReader for CountingReader {
+            fn read_map_wdt(&self, _map: &str) -> Result<NativeMapWdt, String> {
+                Err("unused".into())
+            }
+
+            fn read_tile(
+                &self,
+                _map: &str,
+                _tile: (u32, u32),
+            ) -> Result<NativeTerrainTile, String> {
+                Err("unused".into())
+            }
+
+            fn clear_map_cache(&self) {
+                self.0.fetch_add(1, Ordering::SeqCst);
+            }
+        }
+
+        let clears = Arc::new(AtomicUsize::new(0));
+        let mut stream = StreamedTerrain::with_reader(CountingReader(Arc::clone(&clears)));
+        stream.reset().unwrap();
+        let deadline = Instant::now() + Duration::from_secs(5);
+        while clears.load(Ordering::SeqCst) == 0 && Instant::now() < deadline {
+            stream.poll().expect("worker alive");
+            std::thread::sleep(Duration::from_millis(1));
+        }
+        assert_eq!(clears.load(Ordering::SeqCst), 1);
     }
 
     #[test]

@@ -184,6 +184,13 @@ impl NativeTerrainAssets {
         }
     }
 
+    /// Release the per-map CPU caches: parsed WMO collision groups and decoded terrain
+    /// images. The worker owns this reader for the process, so a map change must clear it.
+    pub fn clear_map_cache(&self) {
+        self.wmo_groups.borrow_mut().clear();
+        self.textures.borrow_mut().clear();
+    }
+
     pub fn read_map_wdt(&self, map: &str) -> Result<NativeMapWdt, String> {
         let identity = self.map_identity(map)?;
         let (path, bytes) = self.read_fdid_file(identity.wdt_fdid, "wdt")?;

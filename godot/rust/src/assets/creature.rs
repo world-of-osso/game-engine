@@ -426,6 +426,17 @@ pub(crate) fn model_cache_entries() -> usize {
     MODELS.lock().expect("model cache").len()
 }
 
+/// Drop parsed models and the published-texture names when a world ends. Godot nodes still
+/// hold the meshes and textures they use; without this, every map of a session kept its
+/// models, and their textures could never be published again after the texture cache clear.
+pub(crate) fn clear_model_caches() {
+    MODELS.lock().expect("model cache").clear();
+    PUBLISHED_TEXTURES
+        .lock()
+        .expect("published textures")
+        .clear();
+}
+
 /// Model `fdid`, extracted and parsed once per process (workers load it ahead of the
 /// main thread); a failure is not kept, so the next use tries again.
 pub(crate) fn load_model_files(

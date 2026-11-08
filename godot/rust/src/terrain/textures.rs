@@ -28,6 +28,10 @@ pub(crate) struct TerrainTextureCache {
 }
 
 impl TerrainTextureCache {
+    pub fn clear(&mut self) {
+        self.decoded.clear();
+    }
+
     /// Returns only indices actually referenced by MCNK layers, keyed by MCLY texture index.
     pub fn load_for_tile(
         &mut self,

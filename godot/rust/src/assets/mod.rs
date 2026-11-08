@@ -926,6 +926,14 @@ pub(crate) fn clear_shared_meshes() {
     batch_merge::clear_merged_meshes();
 }
 
+/// Shared batch meshes and merged-unit meshes held for every model seen so far.
+pub(crate) fn mesh_cache_counts() -> (usize, usize) {
+    (
+        MESHES.with_borrow(HashMap::len),
+        batch_merge::merged_mesh_count(),
+    )
+}
+
 pub(crate) fn build_batch_mesh(
     model: &m2::Model,
     sub: &m2::Submesh,

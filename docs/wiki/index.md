@@ -1,3 +1,4 @@
+- [Client map-cache retention and UDP double framing](investigations/client-map-cache-and-udp-framing-2026-11-08.md) — per-map meshes/textures/models kept for the session (>20 GiB growth) and framed datagrams re-framed by UDP pacing; cache clears and a separate deferred queue; 239,122→0 SizeMismatch errors at world entry.
 - [Offline BLS shader research](reference/bls-shaders.md) — exact GXSH extraction, SM5 assembly, declared slots and liquid t5 candidates; no runtime loading.
 - [World ribbon cost](investigations/godot-stormwind-fps.md#world-ribbon-cost-2026-11-01) — matched indoor CPU timings, hidden world ribbons, and an active NPC equipment check.
 - [Ruby Life Pools flame wall](investigations/ruby-flame-wall.md) — GO377194 open-state animation, observed particle drain and matched views.
