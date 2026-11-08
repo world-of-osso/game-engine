@@ -25,7 +25,7 @@ pub struct ReplicationBatch {
 
 /// Codec indices of components written or removed since the last `drain_changes`.
 #[derive(Clone, Copy, Default, Debug, PartialEq, Eq)]
-pub struct ComponentSet(u64);
+pub struct ComponentSet(u128);
 
 impl ComponentSet {
     fn insert(&mut self, codec: usize) {
