@@ -81,8 +81,9 @@ A pose passes only when every criterion holds:
    the Material130 LiquidType5 water fallback and the dummy audio driver.
 4. Terrain poses: at least one authored tile parsed, zero terrain failures,
    `spawned > 0`, `pending == 0`, `failures == 0` after the queue quiet window.
-5. Global-WMO poses: `global_wmo_fdid > 0`, zero terrain failures, at least one
-   visible mesh.
+5. Global-WMO poses: `global_wmo_fdid > 0`, zero terrain failures, at least
+   one visible mesh, `pending == 0` and `failures == 0` after the queue quiet
+   window.
 
 ### Miss classification
 

@@ -88,9 +88,14 @@ func run() -> void:
 					print("CERT_TRACE lighting_error=", lighting_error)
 			continue
 		if mode == "global_wmo":
-			if int(state.terrain.pending_count) == 0 and int(state.terrain.get("global_wmo_fdid", 0)) > 0:
-				drained = true
-				break
+			var objects: Dictionary = state.world_objects
+			if int(state.terrain.pending_count) == 0 and _int_value(state.terrain.get("global_wmo_fdid", 0)) > 0 and int(objects.pending) == 0:
+				stable += 1
+				if stable >= STABLE_FRAMES:
+					drained = true
+					break
+			else:
+				stable = 0
 			continue
 		var objects: Dictionary = state.world_objects
 		if int(objects.pending) == 0 and int(objects.spawned) > 0:
