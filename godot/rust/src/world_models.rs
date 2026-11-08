@@ -488,14 +488,16 @@ impl WorldModels {
         self.build_visual(parts, None)
     }
 
-    /// `display_id` as a world unit shows it, unarmed (`build_world_visual`).
-    pub(crate) fn load_world_display(&self, display_id: u32) -> Result<Gd<Node3D>, String> {
-        let parts = self.catalogs.load_creature(
-            display_id,
-            &EquipmentAppearance::default(),
-            SheathState::Unarmed,
-        )?;
-        self.build_world_visual(parts, None)
+    /// `display_id` holding `items` placed for `sheath`, as a world unit shows it
+    /// (`build_world_visual`).
+    pub(crate) fn load_world_display(
+        &self,
+        display_id: u32,
+        items: &EquipmentAppearance,
+        sheath: SheathState,
+    ) -> Result<Gd<Node3D>, String> {
+        let parts = self.catalogs.load_creature(display_id, items, sheath)?;
+        self.build_world_visual(parts, None, None)
     }
 
     /// Native player display from the same build-pinned ChrModel rows as unit voices.
@@ -615,10 +617,12 @@ impl WorldModels {
     /// world unit had instantiates that unit's template; its first visual is built and
     /// becomes the template. Its materials are shared with the other units of the
     /// template, so only the world, which binds them all alike, takes these visuals.
+    /// `built` is the visual `prebuild` made of `parts`, which becomes the template.
     pub fn build_world_visual(
         &self,
         parts: VisualParts,
         previous_player: Option<&Gd<Node3D>>,
+        built: Option<Gd<Node3D>>,
     ) -> Result<Gd<Node3D>, String> {
         let VisualParts::Creature {
             display_id, gear, ..
@@ -627,30 +631,96 @@ impl WorldModels {
             return self.build_visual(parts, previous_player);
         };
         let (display_id, gear) = (*display_id, gear.clone());
-        if let Some(template) = self
-            .templates
-            .borrow()
-            .iter()
-            .find(|template| template.matches(display_id, &gear))
-        {
-            let _span = crate::profile::span(|| "creature.template_instance".to_owned());
-            let span = crate::profile::span(|| "template.discard".to_owned());
-            self.discard(parts);
-            drop(span);
-            return template.instance();
-        }
-        let visual = self.build_visual(parts, None)?;
+        let visual = match built {
+            Some(visual) => {
+                self.discard(parts);
+                visual
+            }
+            None => {
+                if let Some(template) = self
+                    .templates
+                    .borrow()
+                    .iter()
+                    .find(|template| template.matches(display_id, &gear))
+                {
+                    let _span = crate::profile::span(|| "creature.template_instance".to_owned());
+                    self.discard(parts);
+                    return template.instance(&gear);
+                }
+                self.build_visual(parts, None)?
+            }
+        };
         let span = crate::profile::span(|| "creature.template".to_owned());
         let template = CreatureTemplate::of(display_id, &gear, &visual);
         drop(span);
         match template {
             Ok(template) => self.templates.borrow_mut().push(template),
             Err(error) => {
-                visual.clone().free();
+                visual.free();
                 return Err(format!("Creature display {display_id} template: {error}"));
             }
         }
         Ok(visual)
+    }
+
+    /// Whether `parts` is a creature visual no template makes yet: its first visual
+    /// is built (`prebuild`) before it becomes the template.
+    pub fn needs_build(&self, parts: &VisualParts) -> bool {
+        let VisualParts::Creature {
+            display_id, gear, ..
+        } = parts
+        else {
+            return false;
+        };
+        !self
+            .templates
+            .borrow()
+            .iter()
+            .any(|template| template.matches(*display_id, gear))
+    }
+
+    /// Whether the creature visuals `a` and `b` instantiate one template.
+    pub fn shares_template(a: &VisualParts, b: &VisualParts) -> bool {
+        match (a, b) {
+            (
+                VisualParts::Creature {
+                    display_id, gear, ..
+                },
+                VisualParts::Creature {
+                    display_id: other_id,
+                    gear: other_gear,
+                    ..
+                },
+            ) => display_id == other_id && CreatureTemplate::same_models(gear, other_gear),
+            _ => false,
+        }
+    }
+
+    /// Main thread: builds the nodes of the creature visual `parts` without making its
+    /// template, so the build and the template's packing fall in different frames
+    /// (`build_world_visual` packs it). `parts` keeps what the attach reads besides them.
+    pub fn prebuild(&self, parts: &mut VisualParts) -> Result<Gd<Node3D>, String> {
+        let VisualParts::Creature {
+            display_id,
+            display,
+            npc,
+            gear,
+            model,
+        } = parts
+        else {
+            return Err("Only creature visuals are built ahead of attaching".to_owned());
+        };
+        let textures = std::mem::take(&mut model.textures);
+        self.build_creature_visual(
+            *display_id,
+            display,
+            npc.take(),
+            gear,
+            CreatureModelParts {
+                model: Arc::clone(&model.model),
+                textures,
+            },
+        )
     }
 
     /// Main thread: keep the textures a discarded visual's worker decoded, as no other

@@ -102,16 +102,27 @@ impl WowAssetLoader {
         }
     }
 
-    /// A creature display built as the world builds a unit's visual: a display this loader
-    /// built before is a duplicate of its first visual (`WorldModels::build_world_visual`).
+    /// A creature display holding `items` (`player_request::equipment`) placed for `sheath`
+    /// (0 unarmed, 1 melee, 2 ranged), built as the world builds a unit's visual: a display
+    /// and items this loader built before instantiate its first visual's template
+    /// (`WorldModels::build_world_visual`).
     #[func]
-    fn load_world_creature_display(&mut self, display_id: i64) -> VarDictionary {
+    fn load_world_creature_display(
+        &mut self,
+        display_id: i64,
+        items: VarArray,
+        sheath: i64,
+    ) -> VarDictionary {
         let models = self.world.get_or_insert_with(|| {
             crate::world_models::WorldModels::new(player_request::data_root())
         });
         let loaded = u32::try_from(display_id)
             .map_err(|_| format!("Invalid creature display {display_id}"))
-            .and_then(|display| models.load_world_display(display));
+            .and_then(|display| {
+                let items = player_request::equipment(&items)?;
+                let sheath = player_request::sheath_state(sheath)?;
+                models.load_world_display(display, &items, sheath)
+            });
         match loaded {
             Ok(node) => {
                 let mut result = VarDictionary::new();

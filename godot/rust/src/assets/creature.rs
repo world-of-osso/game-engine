@@ -181,7 +181,7 @@ pub(crate) fn authored_model_resolver(
     data_root: &Path,
     product: game_engine_core::asset_product::AssetProduct,
     fdid: u32,
-) -> Result<CascListfileResolver, String> {
+) -> Result<Arc<CascListfileResolver>, String> {
     authored_asset_resolver(data_root, product, fdid, "m2")
 }
 
@@ -190,15 +190,36 @@ pub(crate) fn authored_asset_resolver(
     product: game_engine_core::asset_product::AssetProduct,
     fdid: u32,
     kind: &str,
-) -> Result<CascListfileResolver, String> {
+) -> Result<Arc<CascListfileResolver>, String> {
     let index = load_asset_index(data_root)?;
     let receipt = index.receipt(product, fdid, kind)?;
+    let key = (
+        data_root.to_owned(),
+        product.as_str(),
+        receipt.build_key.clone(),
+    );
+    // One resolver per data root and build: a resolver opens its listfile databases and
+    // keeps their answers, so a new one per asset reopened them for each model, item and
+    // texture (up to 20 ms of a creature's main-thread build on Windows).
+    static RESOLVERS: LazyLock<
+        Mutex<HashMap<(PathBuf, &'static str, String), Arc<CascListfileResolver>>>,
+    > = LazyLock::new(|| Mutex::new(HashMap::new()));
+    if let Some(resolver) = RESOLVERS.lock().expect("asset resolvers").get(&key) {
+        return Ok(Arc::clone(resolver));
+    }
     let identity = osso_asset_resolver::AssetIdentity::new(product.as_str(), &receipt.build_key)?;
-    Ok(CascListfileResolver::new(
+    let resolver = Arc::new(CascListfileResolver::new(
         AssetResolverConfig::new()
             .with_data_root(data_root)
             .with_shared_data_root(data_root)
             .with_identity(identity),
+    ));
+    Ok(Arc::clone(
+        RESOLVERS
+            .lock()
+            .expect("asset resolvers")
+            .entry(key)
+            .or_insert(resolver),
     ))
 }
 
@@ -276,7 +297,7 @@ pub(crate) fn wmo_resolver(
     data_root: &Path,
     product: game_engine_core::asset_product::AssetProduct,
     fdid: u32,
-) -> Result<CascListfileResolver, String> {
+) -> Result<Arc<CascListfileResolver>, String> {
     if data_root.join("cache/model-asset-index.json").is_file()
         && load_asset_index(data_root)?
             .receipt(product, fdid, "wmo")
@@ -284,7 +305,7 @@ pub(crate) fn wmo_resolver(
     {
         return authored_asset_resolver(data_root, product, fdid, "wmo");
     }
-    Ok(local_resolver(data_root))
+    Ok(Arc::new(local_resolver(data_root)))
 }
 
 pub(crate) fn local_resolver(data_root: &Path) -> CascListfileResolver {

@@ -2,7 +2,7 @@
 //! their GameObjectDisplayInfo file is a WMO root, drawn with the ADT WMO renderer and
 //! made solid with its authored MOPY-collidable faces under the object's own node, so
 //! game-object floor and wall rays follow the node wherever it is placed.
-use std::path::Path;
+use std::{path::Path, sync::Arc};
 
 use glam::Vec3;
 use godot::{classes::ConcavePolygonShape3D, prelude::*};
@@ -26,7 +26,7 @@ const DEFAULT_DOODAD_SETS: [u16; 1] = [0];
 fn read_transport_wmo(
     data_root: &Path,
     fdid: u32,
-) -> Result<(NativeWmoAsset, CascListfileResolver), String> {
+) -> Result<(NativeWmoAsset, Arc<CascListfileResolver>), String> {
     let resolver = crate::assets::creature::wmo_resolver(
         data_root,
         game_engine_core::asset_product::AssetProduct::Retail,

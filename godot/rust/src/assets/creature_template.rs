@@ -27,6 +27,7 @@ use godot::{
 use super::{
     M2_SOURCE_META,
     creature::{CachedModel, CreatureGear, model_at},
+    equipment::place_equipment,
     m2_lights::WowM2Lights,
     material::copy_material,
     uv_animation::WowMaterialAnimation,
@@ -89,12 +90,53 @@ impl CreatureTemplate {
         })
     }
 
+    /// Whether a unit of `display_id` with `gear` can instantiate this template: the same
+    /// models, wherever its virtual items sit (`instance` places them).
     pub(crate) fn matches(&self, display_id: u32, gear: &CreatureGear) -> bool {
-        self.display_id == display_id && self.gear == *gear
+        self.display_id == display_id && Self::same_models(&self.gear, gear)
     }
 
-    /// A new visual like the one this template was made from.
-    pub(crate) fn instance(&self) -> Result<Gd<Node3D>, String> {
+    /// Whether `a` and `b` hold the same models, wherever their virtual items sit.
+    pub(crate) fn same_models(a: &CreatureGear, b: &CreatureGear) -> bool {
+        a.armor_models == b.armor_models
+            && a.extra_geosets == b.extra_geosets
+            && a.items.len() == b.items.len()
+            && a.items.iter().zip(&b.items).all(|((a, _), (b, _))| a == b)
+    }
+
+    /// A new visual like the one this template was made from, its virtual items on the
+    /// attachments `gear` places them (a unit's sheath state, which `matches` ignores).
+    pub(crate) fn instance(&self, gear: &CreatureGear) -> Result<Gd<Node3D>, String> {
+        let visual = self.instantiate()?;
+        if let Err(error) = self.place_items(&visual, gear) {
+            visual.free();
+            return Err(error);
+        }
+        Ok(visual)
+    }
+
+    fn place_items(&self, visual: &Gd<Node3D>, gear: &CreatureGear) -> Result<(), String> {
+        let moved = gear
+            .items
+            .iter()
+            .zip(&self.gear.items)
+            .filter(|((_, wanted), (_, built))| wanted != built);
+        let mut model = None;
+        for ((item, attachment), _) in moved {
+            let model = match &model {
+                Some(model) => model,
+                None => model.insert(
+                    visual
+                        .try_get_node_as::<Node3D>("NpcModel")
+                        .ok_or("Creature template instance has no NpcModel")?,
+                ),
+            };
+            place_equipment(model, item.slot, *attachment)?;
+        }
+        Ok(())
+    }
+
+    fn instantiate(&self) -> Result<Gd<Node3D>, String> {
         let span = crate::profile::span(|| "template.instantiate".to_owned());
         let visual = self
             .scene
