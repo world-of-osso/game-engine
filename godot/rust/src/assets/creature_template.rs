@@ -6,6 +6,12 @@
 //! the guard's 205 nodes took 3-5 ms where `Node::duplicate`, which copies each property
 //! through the property list, took 16-31 ms (loaded Linux host, debug library).
 //!
+//! Nor does the scene hold the skeletons' bones: packing saves each bone's properties by
+//! name, which took 70-90% of `PackedScene::pack` (a guard's 237 bones: 1.69 of the pack's
+//! 2.48 ms, Linux debug library) and was a first-sight frame's largest step (4.3 ms median
+//! on the Windows release build). The template keeps them as `SkeletonBones` and each
+//! instance adds them again.
+//!
 //! A packed scene cannot hold a Rust node's state (and `WowM2Lights` has no default
 //! constructor), so the template holds none: each instance gets its own animation player, material animation and model lights,
 //! built from the parsed model as `build_model` builds them. A material that animates on
@@ -45,7 +51,24 @@ pub(crate) struct CreatureTemplate {
     /// `source.gear`, so a unit with one of them instantiates it without a worker load.
     keys: Vec<EquipmentAppearance>,
     scene: Gd<PackedScene>,
+    bones: Vec<SkeletonBones>,
     nodes: Vec<RustNode>,
+}
+
+/// The bones of the skeleton at `path` under the visual, which the template's scene does
+/// not hold.
+struct SkeletonBones {
+    path: NodePath,
+    bones: Vec<Bone>,
+}
+
+struct Bone {
+    name: GString,
+    parent: i32,
+    rest: Transform3D,
+    position: Vector3,
+    rotation: Quaternion,
+    scale: Vector3,
 }
 
 /// What a template's visual was built of, which a unit instantiating it attaches with.
@@ -89,12 +112,16 @@ impl CreatureTemplate {
         drop(span);
         // Packing saves the nodes `built` owns; they own nothing again afterwards.
         let span = crate::profile::span(|| "template.pack".to_owned());
+        let bones = take_bones(built);
         set_owner(built, Some(built.clone().upcast()));
         let mut scene = PackedScene::new_gd();
         let packed = scene.pack(built);
         set_owner(built, None);
         drop(span);
         let _span = crate::profile::span(|| "template.reattach".to_owned());
+        for skeleton in &bones {
+            skeleton.add_to(built)?;
+        }
         for (mut parent, node, index) in detached {
             parent.add_child(&node);
             parent.move_child(&node, index);
@@ -106,6 +133,7 @@ impl CreatureTemplate {
             source,
             keys: vec![items],
             scene,
+            bones,
             nodes,
         })
     }
@@ -182,12 +210,72 @@ impl CreatureTemplate {
             .ok_or("Creature template did not instantiate")?;
         set_owner(&visual, None);
         drop(span);
+        let span = crate::profile::span(|| "template.bones".to_owned());
+        if let Err(error) = self
+            .bones
+            .iter()
+            .try_for_each(|bones| bones.add_to(&visual))
+        {
+            visual.free();
+            return Err(error);
+        }
+        drop(span);
         let _span = crate::profile::span(|| "template.rust_nodes".to_owned());
         if let Err(error) = self.nodes.iter().try_for_each(|node| node.attach(&visual)) {
             visual.free();
             return Err(error);
         }
         Ok(visual)
+    }
+}
+
+/// Takes the bones off every skeleton under `built`.
+fn take_bones(built: &Gd<Node3D>) -> Vec<SkeletonBones> {
+    built
+        .find_children_ex("*")
+        .type_("Skeleton3D")
+        .owned(false)
+        .done()
+        .iter_shared()
+        .filter_map(|node| node.try_cast::<Skeleton3D>().ok())
+        .map(|mut skeleton| {
+            let bones = (0..skeleton.get_bone_count())
+                .map(|bone| Bone {
+                    name: skeleton.get_bone_name(bone),
+                    parent: skeleton.get_bone_parent(bone),
+                    rest: skeleton.get_bone_rest(bone),
+                    position: skeleton.get_bone_pose_position(bone),
+                    rotation: skeleton.get_bone_pose_rotation(bone),
+                    scale: skeleton.get_bone_pose_scale(bone),
+                })
+                .collect();
+            skeleton.clear_bones();
+            SkeletonBones {
+                path: built.get_path_to(&skeleton),
+                bones,
+            }
+        })
+        .collect()
+}
+
+impl SkeletonBones {
+    /// Adds the bones to the skeleton at `path` under `visual`, which has none.
+    fn add_to(&self, visual: &Gd<Node3D>) -> Result<(), String> {
+        let mut skeleton = visual
+            .get_node_or_null(&self.path)
+            .and_then(|node| node.try_cast::<Skeleton3D>().ok())
+            .ok_or_else(|| format!("Creature template lost skeleton {}", self.path))?;
+        for bone in &self.bones {
+            skeleton.add_bone(&bone.name);
+        }
+        for (index, bone) in (0..).zip(&self.bones) {
+            skeleton.set_bone_parent(index, bone.parent);
+            skeleton.set_bone_rest(index, bone.rest);
+            skeleton.set_bone_pose_position(index, bone.position);
+            skeleton.set_bone_pose_rotation(index, bone.rotation);
+            skeleton.set_bone_pose_scale(index, bone.scale);
+        }
+        Ok(())
     }
 }
 
