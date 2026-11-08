@@ -107,26 +107,32 @@ Every bullet states its proof level:
       `Unit_C.cpp:17775`). The "+900.0" seen in the first review was two labels overlapping,
       not a formatter: `text_for` formats `i32` and its test asserts `"+900"`.
 - [x] Absolute size comes from Retail's constants, not from this engine's old 174 px em:
-      `WorldTextScreenY_v2` (`0.015`) is the text height as a fraction of the viewport height at
-      the reference distance, `WorldTextCritScreenY_v2` sets the crit ratio, and
-      `WorldTextScale_v2` (`1.0`) multiplies both. At 1280x720 a hit therefore draws a 10.8 px em
-      (7.6 px of digit ink, FRIZQT__ cap height 0.701 em) and a crit 19.8 px, and a fixed world em
-      makes the screen height follow Retail's 1/d law with no per-frame distance maths.
+      `WorldTextScreenY_v2` (`0.015`) is the normal text height, and 15890 stores the same
+      quantity as a style height (`0.018333`, `WorldText.cpp:44-56`) in device-dependent
+      coordinates whose `0.6` height scale is one half-viewport (`Coordinate.cpp:19-22`).
+      The em is therefore `0.015 / 0.6 = 0.025` of the viewport height: 18 px at 720p (12.6 px
+      of digit ink, FRIZQT__ cap height 0.701 em) and 27 px at 1080p. `WorldTextCritScreenY_v2`
+      (`0.0275`) gives the crit the same conversion (0.0458 of the viewport, the 1.833x ratio)
+      and `WorldTextScale_v2` (`1.0`) multiplies both. A fixed world em makes the screen height
+      follow Retail's 1/d law with no per-frame distance maths.
       **Calibrated operand:** Retail 12.1.5 builds that fraction through two calls
       (`0x141e67100`, `0x1401f45a0`) that are still undecoded, so `REFERENCE_YARDS` (10) stands in
       for them; retirement is to replace it with whatever distance those operands resolve to.
-      Consequences: the engine no longer draws master's 174 px em, and the 7 px clamp holds far
-      targets up. Measured on the Forever captures (1280x720): a hit draws a 10.7 px em and a
-      crit 18.4 px at 10 yards, and every text sits exactly at the 7 px floor at 30 yards.
+      Consequences: the engine no longer draws master's 174 px em and has no far-size floor.
+      Measured on the Forever captures (1280x720): a hit draws an 18 px em and a crit 33 px at
+      10 yards, and the 1/d law takes them to 6 px and 11 px at 30 yards.
 
 ### Distance
 
 - [x] Text scales inversely with camera distance (**verified 12.1.5**): the text is a fixed
       world size, so the projected height is exactly `CVar fraction x viewport height x
-      reference / distance`, with the draw path's constant 7 px clamp taking over far out
-      (**verified 12.1.5**).
-- [x] `WorldTextMinSize` is a floor that only applies beyond 1 yard (**verified 12.1.5**, exact
-      formula unproven); its default `0.0` means no extra floor, so the 7 px clamp stands alone.
+      reference / distance`. There is no combat-text size floor: the 12.1.5 draw path does not
+      clamp world text. Measured on the Forever `single10`/`single30` captures (1280x720): an
+      18 px em at 10 yards draws 6 px at 30 yards, one third, with no lift back up.
+- [x] `WorldTextMinSize` is **not** a combat-text setting: Retail registers it as "Minimum
+      Character Name Size" (0-64, default `0`) for names, never for world text (**retail Lua**
+      `Blizzard_SettingsDefinitions_Frame/Accessibility.lua:12-35`). The former 7 px combat-text
+      floor was this setting misapplied and is gone.
 
 ### Lifetime, rise and fade
 
@@ -152,16 +158,17 @@ Every bullet states its proof level:
       the unit sits exactly one text height above the previous one, with
       `WorldTextRandomZMin_v2` (`0.8`) as the floor. Measured on the Forever capture: a unit's
       four slots never intersect (0 of 6 box pairs), and master's four slots all intersect
-      (15 of 15). The height is measured at the target's depth because fixed-size text covers
-      more world space the further away it is.
+      (15 of 15). The ladder is in world units, so it holds at every camera distance.
 - [ ] Retail instead packs rectangles in screen space (`SmartScreenRectPlace`, BFS up/left/
       right/down, SmartScreenRect.cpp:432; crits skip it, WorldText.cpp:440-441). Not
-      implemented: at master's text size 50 numbers need 1.9 M px of boxes in a 0.9 M px frame,
-      so no packing can separate them — see the size bullet.
+      implemented. At the 18 px em 50 numbers need about 40 000 px of boxes in a 921 600 px
+      frame, so packing is now possible where it was not at master's 174 px em; the no-overlap
+      fixture shows the ladder alone (0 of 1225 pairs) and does not need it.
 - [x] World text carries a black shadow. Label3D outlines do not render for this font (raising
       `outline_size` 8 -> 24 changed the dark-edge pixel count by 1), so the shadow is a black
-      copy of the label one fortieth of an em down-right, moved and faded with the text
-      (**verified 15890** `GxuFontAddShadow` with a 1,-1 shadow, WorldText.cpp:75).
+      copy of the label one tenth of an em down-right, moved and faded with the text
+      (**verified 15890** `GxuFontAddShadow` with a 1,-1 shadow; `s_shadowOffset` is 0.002
+      against the 0.0183 em, WorldText.cpp:19-29,59,75).
 - [x] One unit holds four world texts (search bound 4, array declared as 5): a spell crit
       replaces that unit's existing spell crit, otherwise the first free slot is used, otherwise
       the third slot is evicted, otherwise the text is dropped — in practice the newest text
@@ -182,7 +189,7 @@ Retail defaults. A CVar whose effect is read only from its name is marked so.
 | CVar | Default | State |
 |---|---|---|
 | `WorldTextScale_v2` | `1.0` | pure size multiplier; folded into the calibrated anchor |
-| `WorldTextScreenY_v2` | `0.015` | normal height; source of the 1.5× crit ratio comparison only |
+| `WorldTextScreenY_v2` | `0.015` | normal height: `/ 0.6` DDC gives a 0.025 viewport em |
 | `WorldTextCritScreenY_v2` | `0.0275` | crit height |
 | `WorldTextRampDuration_v2` / `RampPow_v2` / `RampPowCrit_v2` | `1.0` / `1.9` / `8.0` | **not observed** driving the 12.1.5 pop, which is the fixed three-segment curve; unused |
 | `WorldTextStartPosRandomness_v2` | `1.0` | sideways start spread |
@@ -191,7 +198,7 @@ Retail defaults. A CVar whose effect is read only from its name is marked so.
 | `WorldTextNonRandomZ_v2` | `2.5` | start height when randomness is off |
 | `WorldTextGravity_v2` | `0.5` | rise deceleration; formula not decoded |
 | `WorldTextMinAlpha_v2` | `0.5` | alpha floor while fading; formula not decoded |
-| `WorldTextMinSize` | `0.0` | height floor beyond 1 yard; formula not decoded |
+| `WorldTextMinSize` | `0.0` | minimum **character name** size, not combat text (Accessibility.lua:12) |
 | `floatingCombatTextCombatDamage_v2` | `1` | world damage text on/off |
 | `floatingCombatTextCombatDamageAllAutos_v2` | `1` | every auto-attack vs a merged swing |
 | `floatingCombatTextCombatDamageDirectionalOffset_v2` / `...DirectionalScale_v2` | `1.0` / `1.0` | hit-direction offset |
@@ -217,18 +224,41 @@ The engine has no CVar store; the defaults are compile-time constants.
 
 - [x] Retail mainline defines the behaviour; the Forever skin re-skins the same elements. The
       Forever UI source for `Blizzard_CombatText`, `SystemFont_World` and `DAMAGE_TEXT_FONT` is
-      byte-identical to Retail
-      (`diff -r blizzard-ui/wowforever/AddOns/Blizzard_CombatText blizzard-ui/retail/AddOns/Blizzard_CombatText`
-      is empty), so no Forever/Modern difference is specified and world text does not branch on
-      `LayoutSkin`.
+      the same as Retail: `diff -r blizzard-ui/wowforever/AddOns/Blizzard_CombatText
+      blizzard-ui/retail/AddOns/Blizzard_CombatText` reports only one added compatibility
+      global, `CombatText_UpdateDisplayedMessages` (CombatText.lua:468-473), and `Fonts.xml`
+      (`SystemFont_World`) is identical. So no Forever/Modern difference is specified and world
+      text does not branch on `LayoutSkin`.
 - [ ] A skin difference may only be added by an explicit spec entry (a Forever-only font or
       colour); none exists.
 
 ### Performance
 
-- [x] Fifty simultaneous numbers cost no more than 0.1 ms/frame in the release library:
-      53.6 µs per frame over 13 units with their shadows (three 2000-iteration samples,
-      `preview_combat_text_cost`, release `libgame_engine_godot.so`, 2026-11-06).
+- [x] Fifty simultaneous numbers cost no more than 0.1 ms/frame: three runs on the dev library
+      over 13 units with their shadows report 24.8, 26.4 and 42.4 µs per frame (three
+      2000-iteration samples each, medians, `preview_combat_text_cost`, headless Forever capture,
+      2026-11-08); the same fixture cost 38.1 µs before this change. The per-frame distance
+      lookup and 7 px clamp are gone. Budget `FRAME_BUDGET_US` = 100.
+
+## Parity audit (2026-11-08)
+
+Every item from the 2026-11-06 USER request, checked against the sources above. "Parity" means
+the engine draws what Retail 12.1.5 draws with its shipped CVar defaults.
+
+| Retail behaviour | Ours | Status |
+|---|---|---|
+| World text has no per-school colour. The style table colours by role: white damage and words, green heals, pet melee orange, pet spell yellow; per-school colours (physical red, spell purple `0.79,0.3,0.85`) exist only in the self frame's `CombatTextTypeInfo` (**retail Lua** CombatTextConstants.lua:24-73; **verified 12.1.5** style array). | `Attacker` role only; `school_mask` never reaches the colour. Damage/style test loops all seven schools and asserts white. | Parity for world text. The self frame's school colours belong to the open self-frame item. |
+| A crit is `WorldTextCritScreenY_v2 / WorldTextScreenY_v2` = 1.833x a hit (**retail CVar** `0.0275/0.015`) and plays the three-segment pop; the font is the same `SystemFont_World` (**retail Lua** Fonts.xml:1060, GameFontStyles.xml:147). | `CRIT_SCALE` = 1.833, `height_scale` pop (10 % -> 200 % -> 100 %), same Label3D font. `spells.rs` test fixes the crit font at 117 px against 64. | Parity. |
+| Heals float as `+N` in green, heal crits taller, and only a heal whose source is the active player draws (**verified 15890** Unit_C.cpp:21202-21230). | `text_for` emits `+N`, `HEAL_GREEN`, `HEAL_CRIT`, gated on `Attacker::Player`. Unit test asserts `+900` and green. | Parity. |
+| Absorb, Miss, Dodge, Parry, Block, Resist, Immune, Evade (also Deflect, Reflect) are words in one style at 0.6 of a hit's height; world words are ungated (**verified 12.1.5** style 9 `+0x1c` 0.6; **verified 15890** `s_combatTextTokens`, Unit_C.cpp:406). | `miss_word` covers all ten `MissKind` values; `WORD_STYLE.scale = 0.6`; no CVar gate. Test asserts every word and the scale. | Parity. |
+| Periodic damage and healing draw like direct text when `floatingCombatTextCombatLogPeriodicSpells_v2` is on (default `1`); repeated ticks are separate texts (**verified 15890** Unit_C.cpp:17705; **verified 12.1.5** no coalescing). | `periodic` never branches; test asserts a tick draws `55`. | Parity at the default; the gate itself waits for a CVar store. |
+| Damage or healing on the active player is not world text; it belongs to the screen-anchored self frame, which Retail ships off (`enableFloatingCombatText` = `0`, **retail CVar**). | `spawn_combat_text` returns when the target is the local player; no self frame exists. | Parity at Retail's default. Open: the self frame and its switch (needs a CVar store). |
+| Damage from an owned pet or guardian draws in the pet colours: pet melee orange `0xFFFF8400`, pet spell yellow `0xFFFFDE00` (**verified 15890** Unit_C.cpp:17681-17702,17737-17773,411-417). | `combat_text_attacker` follows `summoned_by` two levels (guardian of a pet of the player) and picks melee/spell colours by `spell_id`. | Parity. Guardian uses the same colours because 15890 does; no separate guardian colour exists in the sources. |
+| `floatingCombatTextCombatDamageAllAutos_v2` = `1` makes every auto-attack draw; the merged-swing rule behind `0` and any multistrike merge are not decoded (**retail CVar**). | Every event draws its own text; a unit's four slots bound the result. | Parity at the default. Open: the `0` merge rule has no source to implement. |
+| Forever and Modern share the combat-text UI: the Forever `Blizzard_CombatText` adds only the compatibility global `CombatText_UpdateDisplayedMessages`, and `SystemFont_World`/`DAMAGE_TEXT_FONT` are identical (**retail Lua** diff above). | World text draws the same font, colours and sizes in both skins; no `LayoutSkin` branch. | Parity; no Forever-only look is specified. |
+| Text size is `WorldTextScreenY_v2` (`0.015`) in 15890's DDC height (`0.6` half-viewport), i.e. 0.025 of the viewport height: 18 px at 720p, 27 px at 1080p (**retail CVar**; **verified 15890** WorldText.cpp:44-56, Coordinate.cpp:19-22). | `SCREEN_HEIGHT_FRACTION` = `0.015/0.6`; `em_yards` turns it into a world em at `REFERENCE_YARDS`. | Parity at the calibrated 10-yard anchor; the two distance operands stay undecoded. |
+| World text shrinks with camera distance (1/d); `WorldTextMinSize` is the minimum character-name size, not a combat-text floor (**retail CVar**; **retail Lua** Accessibility.lua:12-35). | Fixed world em, so projection gives exactly 1/d; `single10`/`single30` measure 18 px -> 6 px. The former 7 px floor is removed. | Parity. |
+| Many simultaneous numbers must stay cheap. | 50 numbers over 13 units: measured below. | Parity (budget 0.1 ms/frame). |
 
 ## How it works
 
@@ -240,7 +270,7 @@ The engine has no CVar store; the defaults are compile-time constants.
 - `godot/rust/src/combat_text.rs` — Retail style table (colours, lifetimes, rises, scale),
   distance law, start spread, crit pop, fade, `CombatLogEvent` → text mapping.
 - `godot/rust/src/spells/floating_text.rs` — `Label3D` spawn, per-frame advance (rise, pop,
-  distance, fade), the per-unit four-slot stack, the offline preview hooks.
+  pixel size, fade), the per-unit four-slot stack, the offline preview hooks.
 - `godot/rust/src/spells.rs` — the `SpellsHud` fields holding the live texts and the seen-event
   cursor.
 - `godot/rust/src/spells/snapshot.rs` — `combat_text` count for automation.
@@ -252,7 +282,7 @@ The engine has no CVar store; the defaults are compile-time constants.
 - `godot/rust/src/combat_text.rs` unit tests — per-school-invariance, melee vs spell styles,
   crit pop curve, avoidance word scale, colours, zero amounts, periodic, fade, distance law,
   start spread.
-- `godot/rust/src/spells.rs` — settled sizes (64 / 96 / 48).
+- `godot/rust/src/spells.rs` — settled font sizes (64 / 117 / 48: hit, crit, glancing).
 - `godot/tests/combat_text_capture.gd` — Forever capture fixture, offline in Stormwind:
   `set` (nine texts over three units, every style), `limit` (four slots, crit replacement,
   fifth-text eviction), `spread` (fifty over thirteen units), `measure` and `perf` (the frame
@@ -270,7 +300,18 @@ The engine has no CVar store; the defaults are compile-time constants.
 
   Master drew 13 800 yellow and 899 white pixels in `set` (school split, no heals or words) and
   36 928 yellow in `spread`, because its labels kept the old size.
-- `godot/tests/melee_outcomes_live.gd` — live crit text is 1.5× the plain size (Forever).
+
+  2026-11-08 re-run after the size/distance change (headless cage, dev library, same fixture,
+  same scenes; files `sizebase-*` and `sizeafter-*` in
+  `data/diagnostics/combat-text-parity-2026-11-08/`):
+
+  | scene | before (master's 10.8 px em) | after (Retail 18 px em) |
+  |---|---|---|
+  | `spread`, 50 over 13 units | 0 of 1225 boxes intersect; 5344 text pixels; 38.1 µs/frame | 0 of 1225; 12 571 text pixels; 24.8-42.4 µs/frame (three runs) |
+  | `set`, 9 over 3 units | 0 of 36 (2026-11-06 capture) | 1 of 36 (two different units, 1.4 yd apart; screen-space packing remains open) |
+  | `single10` | hit em 10.7 px | hit em 17.9 px, crit 33.3 px |
+  | `single30` | hit clamped to the old 7 px floor | hit em 6.0 px, crit 11.0 px, exactly one third of 10 yd |
+- `godot/tests/melee_outcomes_live.gd` — live crit text is 1.833× the plain size (Forever).
 
 ## Known gaps (current cycle)
 
@@ -279,8 +320,8 @@ The engine has no CVar store; the defaults are compile-time constants.
       combo points and PvP rank icons. Retail ships it off, so this waits for the CVar store
       rather than for the frame alone.
 - [ ] `floatingCombatTextCombatDamageDirectionalOffset_v2` hit-direction offset.
-- [ ] `WorldTextGravity_v2`, `WorldTextMinAlpha_v2` and `WorldTextMinSize` formulas, and the
-      decoded operands of the distance constant.
+- [ ] `WorldTextGravity_v2`, `WorldTextMinAlpha_v2` and the decoded operands of the distance
+      constant.
 - [ ] Guardian damage colour (unknown; pet colours apply).
 - [ ] CVar gating: the defaults are compiled in, with no runtime switch.
 

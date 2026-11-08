@@ -11,9 +11,9 @@ extends SceneTree
 ## one frame spends advancing every live text.
 ##
 ## Captures are 960x540 JPEGs, each paired with the same frame before any text so the diff is
-## the text alone. Run against the release library.
+## the text alone.
 
-const OUT_DIR := "/syncthing/AgentShared/2026-11-06/combat-text/"
+const OUT_DIR := "/home/osso/Projects/world-of-osso/game-engine/data/diagnostics/combat-text-parity-2026-11-08/"
 ## File-name prefix: "master-" for the before-everything baseline.
 var file_prefix := OS.get_environment("CAPTURE_PREFIX")
 ## Open ground inside the Stormwind wall (the healer-ring capture's flat row).
