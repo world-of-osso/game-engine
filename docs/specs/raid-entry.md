@@ -19,11 +19,15 @@ Retail Mainline raid entry uses the [server raid contract](../../../game-server/
 ## Tests asserting this spec
 - `godot/ui-model/tests/raid_entry.rs`.
 - `godot/rust/src/account_dungeonclient_tests.rs`.
+- [Server actor-set source tests](../../../game-server/scripts/tests/test_raid_encounters.py).
+- [Server multi-actor death-credit tests](../../../game-server/crates/server-combat/src/scripted_ai/tests/multi_boss_credit.rs).
 
 ## Known gaps (current cycle)
 - [x] Two-account Modern/Forever native frame/menu/portal/reset proof recorded.
 - [ ] Generic SocialUI raid-tab opener is not converted; native frame is currently reachable through /raidinfo and its show API.
-- [ ] Ambiguous/multi-actor raid bosses remain explicit server data gaps; no invented credit.
+- [x] Source-backed all-actor completion is tested for Four Horsemen and Theralion/Valiona using 12.1.5.70448 actor rows. The generator accepts 17 multi-actor journal groups whose full sets join uniquely.
+- [ ] The runtime database has not received these generated bindings. The lead must publish a reviewed copy before those 17 encounters gain live credit.
+- [ ] 17 multi-actor journal groups have partial/ambiguous display joins and 161 have no same-map joins; they remain uncredited. Single-actor data also has 7 partial and 130 no-join groups. See the [server source-gap census](../../../game-server/docs/wiki/systems/raid-entry.md#multi-actor-source-census--2026-11-08).
 
 ## Out of scope
 Raid encounter mechanics and rewards.
