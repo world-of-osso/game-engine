@@ -240,6 +240,26 @@ full-catalog or equivalent-scenario coverage. `misses.json`, `receipt-proof.json
 
 [Current certification coverage and evidence](../../handoffs/noinstall-cert-2026-10-21.md) owns the extracted-only native sweep,source fixes,publication readbacks and frozen current-metadata full-config diagnostics. The [fresh Retail](../../handoffs/noinstall-cert-2026-10-21.md#fresh-full-catalog-retail-diagnostic-on-frozen70448-metadata) and [Forever-runtime-metadata](../../handoffs/noinstall-cert-2026-10-21.md#sequential-forever-runtime-metadata-diagnostic) graphs predate receipt-selected auditor IO and retain their legacy-flat/single-requested-product scope. Already-valid scoped files appear missing and hide descendants in those preserved diagnostics. The [bounded receipt-IO qualification](../../handoffs/noinstall-cert-2026-10-21.md#offline-auditor-receipt-selected-model-io) changes the auditor,not those manifests; no full-graph replay or native metadata-owned mixed-product certification follows. These diagnostics are not extraction frontiers or a P4 certificate; historical graph counts remain historical.
 
+## No-install certification run — 2026-11-08
+
+[Shipped assets](../../specs/shipped-assets.md#p4-no-install-certification-run)
+defines the P4 certification poses and pass criteria. The first run on local
+`master` passed all eleven poses with the install hidden and
+`GAME_ENGINE_ASSET_MODE=extracted-only`: Northshire, Stormwind, Dun Morogh,
+Orgrimmar, Mulgore, Durotar, Stockades (global WMO), Zephras 2991, Dalaran
+2959, Dalaran 2980 and Nightmare Grove 2832. Evidence is
+`data/diagnostics/noinstall-cert-2026-11-08/REPORT.md` and `cert-run5/`.
+
+Pre-fix misses were all source-present and locally fixed, never absent from
+the build and never a wrong-ID request: 28 Retail M2 receipt gaps (10 Dun
+Morogh, 18 Durotar), 260 flat Forever WMO roots/groups on 2959 and 2980, and
+the 2959 skybox chain (8216399 and 13 dependencies). The local fixes are one
+68-asset/30-alias Retail fragment, one 14-asset Forever skybox fragment and
+flat copies of authenticated same-product WMO payloads. No publication
+occurred. These poses are bounded evidence, not whole-catalog P4 closure;
+the recorded 2,126 Retail root-absent and nine Forever absent FDIDs were not
+requested.
+
 ## Sources
 
 - [Contract](../../specs/offline-asset-closure.md).
