@@ -407,6 +407,27 @@ Evidence: `/syncthing/AgentShared/2026-11-06/fps-foot-ik/`
 (`stairs-stand-{before,after}-{master,branch}.jpg`, `stairs-empty-master.jpg`),
 `data/diagnostics/fps-120-close-2026-11-06/foot-ik/`. Windows re-measurement is the lead's.
 
+## Particle workers: measured and dropped (2026-11-08)
+
+Doodad M2 particle emitters were simulated on a global rayon pool (one deterministic
+random stream per emitter; prepare and draw stayed on the main thread). The Windows
+receipt for that branch (`c8b54d959`, not merged) fell from 257/222 FPS median
+(indoor/outdoor, reference `6479eb327`) to 175/174. Main-thread CPU rose 3.6-3.8 ->
+5.6-5.7 ms and render-thread CPU by 1.3-1.4 ms.
+
+- **The ceiling was small.** On master the whole `cull.particles` span costs 0.24 ms
+  outdoors and 0.34 ms indoors on the Windows release build, so a pool can save at most
+  about 0.3 ms.
+- **The pool cost more than that.** Spans that never run on the pool also slowed:
+  `cull.unit_animation_lod` 0.062 -> 0.387 ms, and the render thread. A 24-thread pool
+  woken every frame competes with the main and render threads (INFERRED; no OS trace).
+- **Linux debug A/Bs cannot show this.** Main-thread instruction counts on the loaded
+  Linux host moved by less than their noise and do not see Windows scheduling.
+
+Rule taken from it: do not move sub-millisecond per-frame work to a worker pool. The
+doodad admission test (`cull.doodads`, 0.18-0.20 ms on Windows) stays on the main thread
+for the same reason. Evidence: `data/diagnostics/fps-receipt-c8b54d959-2026-11-08/README.md`.
+
 ## Sources
 
 - `src/rendering/camera/culling.rs`: the original doodad, WMO and portal culling. Its 200/2,000/400 yd distances cite no source (commit `f475000f`), so they were not used.
