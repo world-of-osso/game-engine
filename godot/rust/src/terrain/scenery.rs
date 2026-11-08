@@ -83,6 +83,11 @@ impl SceneryDistance {
         }
     }
 
+    /// Whether the placement centre is within `radius` of `camera`.
+    pub fn within(&self, camera: Vec3, radius: f32) -> bool {
+        self.center.distance_squared(camera) < radius * radius
+    }
+
     pub fn visible_from(&self, camera: Vec3) -> bool {
         self.opacity(camera) > 0.0
     }
@@ -171,6 +176,17 @@ mod tests {
         assert!(scenery.visible_from(along(far - fade * 0.02)));
         assert!(!scenery.visible_from(along(far)));
         far
+    }
+
+    #[test]
+    fn shadow_radius_is_independent_of_the_fade_band() {
+        // A 50-yard building prop draws opaque to 730 yards, far past a 50-yard shadow radius.
+        let (min, max) = cube(50.0);
+        let scenery = SceneryDistance::new(min, max, Affine3A::IDENTITY);
+        let at = |distance: f32| Vec3::new(distance, 0.0, 0.0);
+        assert_eq!(scenery.opacity(at(100.0)), 1.0);
+        assert!(scenery.within(at(49.0), 50.0));
+        assert!(!scenery.within(at(100.0), 50.0));
     }
 
     #[test]

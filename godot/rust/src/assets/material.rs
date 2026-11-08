@@ -417,6 +417,7 @@ pub(crate) struct SceneryFade {
     batches: Vec<FadedBatch>,
     opacity: f32,
     camera_admitted: bool,
+    shadow_admitted: bool,
 }
 
 struct FadedBatch {
@@ -586,7 +587,31 @@ impl SceneryFade {
             batches,
             opacity: 1.0,
             camera_admitted: true,
+            shadow_admitted: true,
         }
+    }
+
+    /// An opaque placement inside its shadow radius casts its authored shadows. A fading
+    /// placement casts none: retail admits scenery shadows only within the fade-start
+    /// radius (solarityclient `SceneryDistance::admits_shadow`).
+    fn casts_shadows(&self) -> bool {
+        self.opacity >= 1.0 && self.shadow_admitted
+    }
+
+    fn apply_shadows(&mut self) {
+        let (admitted, casts) = (self.camera_admitted, self.casts_shadows());
+        for batch in &mut self.batches {
+            batch.apply_camera_admission(admitted, casts);
+        }
+    }
+
+    /// Admit or drop the placement's shadows, independently of its fade band.
+    pub fn set_shadow_admitted(&mut self, admitted: bool) {
+        if self.shadow_admitted == admitted {
+            return;
+        }
+        self.shadow_admitted = admitted;
+        self.apply_shadows();
     }
 
     /// Hide camera-rejected batches without discarding their admitted shadows.
@@ -597,6 +622,7 @@ impl SceneryFade {
             return;
         }
         self.camera_admitted = admitted;
+        let casts = self.casts_shadows();
         for batch in &mut self.batches {
             if admitted {
                 if let Some(visible) = batch.visible_before_cull.take() {
@@ -605,13 +631,11 @@ impl SceneryFade {
             } else {
                 batch.visible_before_cull = Some(batch.mesh.is_visible());
             }
-            batch.apply_camera_admission(admitted, self.opacity);
+            batch.apply_camera_admission(admitted, casts);
         }
     }
 
-    /// Opaque batches blend only while `opacity` is below 1. A fading placement casts
-    /// no shadow: retail admits scenery shadows only within the fade-start radius
-    /// (solarityclient `SceneryDistance::admits_shadow`).
+    /// Opaque batches blend only while `opacity` is below 1.
     pub fn set_opacity(&mut self, opacity: f32) {
         if opacity == self.opacity {
             return;
@@ -625,10 +649,8 @@ impl SceneryFade {
             batch.mesh.set_transparency(1.0 - opacity);
         }
         self.opacity = opacity;
-        if !self.camera_admitted {
-            for batch in &mut self.batches {
-                batch.apply_camera_admission(false, opacity);
-            }
+        if swap {
+            self.apply_shadows();
         }
     }
 }
@@ -653,18 +675,13 @@ impl FadedBatch {
                     .set_shader(if fading { fade } else { &self.authored }),
             }
         }
-        self.mesh.set_cast_shadows_setting(if fading {
-            ShadowCastingSetting::OFF
-        } else {
-            self.shadows
-        });
     }
 
-    fn apply_camera_admission(&mut self, admitted: bool, opacity: f32) {
-        let shadows = if opacity < 1.0 {
-            ShadowCastingSetting::OFF
-        } else {
+    fn apply_camera_admission(&mut self, admitted: bool, casts: bool) {
+        let shadows = if casts {
             self.shadows
+        } else {
+            ShadowCastingSetting::OFF
         };
         if admitted || shadows == ShadowCastingSetting::DOUBLE_SIDED {
             self.mesh.set_cast_shadows_setting(shadows);
@@ -720,6 +737,14 @@ impl WowSceneryFadeProbe {
             .as_mut()
             .expect("scenery probe is not tracking a model")
             .set_opacity(opacity);
+    }
+
+    #[func]
+    fn set_shadow_admitted(&mut self, admitted: bool) {
+        self.fade
+            .as_mut()
+            .expect("scenery probe is not tracking a model")
+            .set_shadow_admitted(admitted);
     }
 }
 

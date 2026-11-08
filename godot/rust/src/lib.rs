@@ -3549,22 +3549,22 @@ impl GameClient {
             self.terrain_materials.cull_outdoor(windows, interiors);
             drop(span);
             let span = profile::span(|| "cull.units_outdoor".to_owned());
-            let shadow_radius = self
-                .client_options
-                .graphics
-                .graphics_quality
-                .preset()
-                .unit_shadow_radius;
+            let preset = self.client_options.graphics.graphics_quality.preset();
             self.world.cull_outdoor(
                 windows,
                 interiors,
                 glam::Vec3::new(camera.x, camera.y, camera.z),
-                shadow_radius,
+                preset.unit_shadow_radius,
             );
             drop(span);
             let span = profile::span(|| "cull.doodads".to_owned());
-            self.world_objects
-                .cull_doodads(camera, &frustum, delta_ms, frame);
+            self.world_objects.cull_doodads(
+                camera,
+                &frustum,
+                delta_ms,
+                frame,
+                preset.scenery_shadow_radius,
+            );
             drop(span);
             if let Some(transform) = self.world_camera.transform() {
                 let _span = profile::span(|| "cull.particles".to_owned());

@@ -75,6 +75,7 @@ impl WowRibbonWorldProbe {
             &frustum,
             delta * 1000.0,
             self.frame,
+            scenery_shadow_radius(),
         );
         objects.update_particles(camera.get_global_transform(), &frustum, delta as f32);
         self.frame += 1;
@@ -194,9 +195,13 @@ impl WowWmoPlacementProbe {
         let position = camera.get_global_position();
         let frustum = crate::camera::frustum(&camera);
         loaded.objects.cull_wmos(position, &frustum);
-        loaded
-            .objects
-            .cull_doodads(position, &frustum, delta_ms, self.frame);
+        loaded.objects.cull_doodads(
+            position,
+            &frustum,
+            delta_ms,
+            self.frame,
+            scenery_shadow_radius(),
+        );
         loaded.objects.update_particles(
             camera.get_global_transform(),
             &frustum,
@@ -228,4 +233,11 @@ impl WowWmoPlacementProbe {
         }
         state
     }
+}
+
+/// The default quality row's scenery shadow radius, as the client uses it.
+fn scenery_shadow_radius() -> f32 {
+    game_engine_core::graphics_quality_data::GraphicsQuality::default()
+        .preset()
+        .scenery_shadow_radius
 }

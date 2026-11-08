@@ -71,5 +71,33 @@ func run() -> void:
 		push_error("Camera readmission revealed an initially hidden batch")
 		quit(1)
 		return
+	# Shadow radius, independent of the fade band: a placement outside it draws without
+	# shadows, and a fade ending outside it does not restore them.
+	probes[0].set_shadow_admitted(false)
+	if not (on.visible and on.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF):
+		return fail_state("shadow radius drops an admitted batch's shadows", on)
+	probes[0].set_opacity(0.5)
+	probes[0].set_opacity(1.0)
+	if not (on.visible and on.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF):
+		return fail_state("a fade ending outside the shadow radius keeps shadows off", on)
+	probes[0].set_camera_admitted(false)
+	if on.visible:
+		return fail_state("a camera-rejected batch outside the shadow radius is hidden", on)
+	probes[0].set_shadow_admitted(true)
+	if not (on.visible and on.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY):
+		return fail_state("re-entering the shadow radius restores a camera-rejected caster", on)
+	probes[0].set_camera_admitted(true)
+	if not (on.visible and on.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON):
+		return fail_state("camera readmission restores the authored shadows", on)
+	probes[2].set_shadow_admitted(false)
+	if not (double.visible and double.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF):
+		return fail_state("shadow radius drops double-sided shadows", double)
+	probes[2].set_shadow_admitted(true)
+	if double.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_DOUBLE_SIDED:
+		return fail_state("double-sided shadows return inside the radius", double)
 	print("PASS outdoor scenery camera and shadow admission")
 	quit(0)
+
+func fail_state(expected: String, batch: MeshInstance3D) -> void:
+	push_error("Expected: %s; visible=%s cast_shadow=%d" % [expected, batch.visible, batch.cast_shadow])
+	quit(1)
