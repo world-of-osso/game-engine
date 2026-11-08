@@ -26,7 +26,7 @@ Retail Mainline raid entry uses the [server raid contract](../../../game-server/
 - [x] Two-account Modern/Forever native frame/menu/portal/reset proof recorded.
 - [ ] Generic SocialUI raid-tab opener is not converted; native frame is currently reachable through /raidinfo and its show API.
 - [x] Source-backed all-actor completion is tested for Four Horsemen and Theralion/Valiona using 12.1.5.70448 actor rows. The generator accepts 17 multi-actor journal groups whose full sets join uniquely.
-- [ ] The runtime database has not received these generated bindings. The lead must publish a reviewed copy before those 17 encounters gain live credit.
+- [x] VERIFIED (read-only runtime query): the lead-published bindings include all 59 actor rows for 17 multi-actor encounters; `raid_encounter_creature` has 555 rows. The lead reports `PRAGMA integrity_check` returned `ok`.
 - [ ] 17 multi-actor journal groups have partial/ambiguous display joins and 161 have no same-map joins; they remain uncredited. Single-actor data also has 7 partial and 130 no-join groups. See the [server source-gap census](../../../game-server/docs/wiki/systems/raid-entry.md#multi-actor-source-census--2026-11-08).
 
 ## Out of scope
