@@ -330,7 +330,11 @@ fn take_meshes(built: &Gd<Node3D>) -> (Vec<MeshNode>, Vec<Gd<MeshInstance3D>>) {
         .filter(|node| node.get_child_count() == 0)
         .filter_map(|node| node.try_cast::<MeshInstance3D>().ok())
         .collect();
-    let meshes = found.iter().map(|node| MeshNode::of(built, node)).collect();
+    let defaults = mesh_defaults();
+    let meshes = found
+        .iter()
+        .map(|node| MeshNode::of(built, node, &defaults))
+        .collect();
     for node in &found {
         if let Some(mut parent) = node.get_parent() {
             parent.remove_child(node);
@@ -339,14 +343,15 @@ fn take_meshes(built: &Gd<Node3D>) -> (Vec<MeshNode>, Vec<Gd<MeshInstance3D>>) {
     (meshes, found)
 }
 
-/// The stored properties of a new `MeshInstance3D` and their defaults, read once: reading
-/// a mesh node's property list waits for the render thread.
-fn mesh_properties() -> &'static [(StringName, Variant)] {
+/// The names of a `MeshInstance3D`'s stored properties, read once from a new one: reading
+/// a mesh node's property list waits for the render thread. Plain strings, as a Godot
+/// value kept past the engine's shutdown is reported as leaked.
+fn mesh_property_names() -> &'static [String] {
     thread_local! {
-        static PROPERTIES: &'static [(StringName, Variant)] = {
+        static NAMES: &'static [String] = {
             let node = MeshInstance3D::new_alloc();
             let storage = PropertyUsageFlags::STORAGE.ord();
-            let properties: Vec<_> = node
+            let names: Vec<_> = node
                 .get_property_list()
                 .iter_shared()
                 .filter(|property| {
@@ -355,28 +360,43 @@ fn mesh_properties() -> &'static [(StringName, Variant)] {
                     })
                 })
                 .filter_map(|property| property.get("name"))
-                .map(|name| StringName::from(&name.to::<GString>()))
-                .filter(|name| name != &StringName::from("script"))
-                .map(|name| {
-                    let default = node.get(&name);
-                    (name, default)
-                })
+                .map(|name| name.to::<GString>().to_string())
+                .filter(|name| name != "script")
                 .collect();
             node.free();
-            Vec::leak(properties)
+            Vec::leak(names)
         };
     }
-    PROPERTIES.with(|properties| *properties)
+    NAMES.with(|names| *names)
+}
+
+/// The stored properties of a new `MeshInstance3D` with their values.
+fn mesh_defaults() -> Vec<(StringName, Variant)> {
+    let node = MeshInstance3D::new_alloc();
+    let defaults = mesh_property_names()
+        .iter()
+        .map(|name| {
+            let name = StringName::from(name.as_str());
+            let value = node.get(&name);
+            (name, value)
+        })
+        .collect();
+    node.free();
+    defaults
 }
 
 impl MeshNode {
-    fn of(built: &Gd<Node3D>, node: &Gd<MeshInstance3D>) -> Self {
+    fn of(
+        built: &Gd<Node3D>,
+        node: &Gd<MeshInstance3D>,
+        defaults: &[(StringName, Variant)],
+    ) -> Self {
         let parent = node.get_parent().expect("a found mesh node has a parent");
         Self {
             parent: built.get_path_to(&parent),
             index: node.get_index(),
             name: node.get_name(),
-            properties: mesh_properties()
+            properties: defaults
                 .iter()
                 .filter_map(|(name, default)| {
                     let value = node.get(name);
