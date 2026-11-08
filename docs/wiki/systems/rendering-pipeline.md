@@ -57,6 +57,15 @@ under 120 FPS were these arrivals). The instance shares the meshes, skins and ma
 Instantiating the guard's 205 nodes took 3-5 ms where `Node::duplicate` (property-list
 copy per node) took 16-31 ms; packing took about 13 ms once, at first sight:
 
+- The packed scene holds no skeleton bones: `PackedScene::pack` saves each bone's
+  name, parent, rest and pose as named properties, 70-90% of the pack (guard 1.69 of
+  2.48 ms, display 37850 1.19 of 1.31 ms, Linux debug library) and the largest step of a
+  first sight on the Windows release build (`template.pack` median 4.27 ms, 70 first
+  sights, 2026-11-08 noon DIAGNOSTIC). The template records them (`SkeletonBones`) and
+  each instance adds them back (`template.bones`, about 0.1 ms). The first-built visual
+  gets them back too, and its animation players reapply the billboard and non-inheriting
+  bones' persistent global overrides (`reapply_bone_overrides`), which removing the bones
+  dropped; without that a seated rider sat on a saddle 0.005 rad off its authored pose.
 - A packed scene holds no Rust node state, so the template holds no Rust node; each
   instance builds its `WowAnimationPlayer`, `WowMaterialAnimation` and `WowM2Lights` from
   the parsed model (`creature::model_at`).
