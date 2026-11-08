@@ -69,12 +69,17 @@ impl CreatureTemplate {
         gear: &CreatureGear,
         built: &Gd<Node3D>,
     ) -> Result<Self, String> {
+        let span = crate::profile::span(|| "template.take_rust_nodes".to_owned());
         let (nodes, detached) = take_rust_nodes(built)?;
+        drop(span);
         // Packing saves the nodes `built` owns; they own nothing again afterwards.
+        let span = crate::profile::span(|| "template.pack".to_owned());
         set_owner(built, Some(built.clone().upcast()));
         let mut scene = PackedScene::new_gd();
         let packed = scene.pack(built);
         set_owner(built, None);
+        drop(span);
+        let _span = crate::profile::span(|| "template.reattach".to_owned());
         for (mut parent, node, index) in detached {
             parent.add_child(&node);
             parent.move_child(&node, index);

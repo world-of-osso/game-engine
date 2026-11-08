@@ -55,7 +55,7 @@ composited NPC textures and its equipment, 10-15 ms of one main-thread frame eac
 guard came into view (Linux spans; the 2026-11-07 Windows Stormwind survey's only frames
 under 120 FPS were these arrivals). The instance shares the meshes, skins and materials.
 Instantiating the guard's 205 nodes took 3-5 ms where `Node::duplicate` (property-list
-copy per node) took 16-31 ms; packing takes about 13 ms once, at first sight:
+copy per node) took 16-31 ms; packing took about 13 ms once, at first sight:
 
 - A packed scene holds no Rust node state, so the template holds no Rust node; each
   instance builds its `WowAnimationPlayer`, `WowMaterialAnimation` and `WowM2Lights` from
@@ -64,8 +64,7 @@ copy per node) took 16-31 ms; packing takes about 13 ms once, at first sight:
   input keeps the sample `load_material` set. Of those, a material that changes on its
   model's sequence timeline is copied per instance; one that changes on global sequences
   only samples alike in every model, so the instances share it and the first one the NPC
-  animation LOD lets sample it in a frame sets it. The guard's two animated texture
-  transforms run on global sequences 2 and 3: its second visual makes no material. (A
+  animation LOD lets sample it in a frame sets it. (A
   first version sampled every shared material every frame from `WowMaterialClock`, without
   the LOD: the d40ef54ab receipt lost 7.6 outdoor FPS to it, +3 M render-thread and +2-4 M
   main-thread instructions per frame in a Linux A/B.)
@@ -74,10 +73,27 @@ copy per node) took 16-31 ms; packing takes about 13 ms once, at first sight:
 - Portraits and previews keep their own builds (`build_visual`): `bind_preview_light`
   writes their materials.
 
+A creature's geosets never change once it is built, so its build skips the batches its
+appearance and display geosets hide (`creature::creature_shows` as the `build_model`
+filter): no node, material, mesh or material animation. A humanoid NPC hid about 95 of
+its ~105 batch nodes; display 72724's only animated materials were on 5 hidden batches,
+sampled every frame. Without them the guard's template packs in half the time and its
+instance takes 1 ms (Linux CPU, canals, `57ec9c681`).
+
+A first sight is built in parts, one per frame, within `VISUAL_BUDGET` (2 ms, the 120 FPS
+headroom over the Windows outdoor frame) in `WorldUnits::attach_loaded_visuals`: body
+(`CreatureBuild::body`), each armor or held item (`attach_next`), the merge and visual root
+(`WorldModels::continue_build`), the template pack (`make_template`), then the attach.
+Arrivals of the same display and gear wait for the template. At the Stormwind canals this
+took the worst unit-visual frame from 33 to 15 ms CPU and the frames over 5 ms from 66 to 24
+(Linux, one run each). The pack (about 4 ms CPU) is the largest remaining part: the body
+skeleton's 216 bones and its ~45 attachment nodes.
+
 Proof: `godot/tests/creature_template_instances.gd` builds display 3167 twice through
 `WowAssetLoader.load_world_creature_display` and checks the second visual's nodes, its 0
-new materials, its own players, that the clock animates the shared materials, and equal
-pixels.
+new materials, its own players and equal pixels; a Dark Iron dwarf (display 8803, the one
+display of 300 scanned whose shown batches animate on global sequences only) checks that
+its second visual makes no material and the clock animates the materials it shares.
 
 ## M2 effect fog specialization
 
