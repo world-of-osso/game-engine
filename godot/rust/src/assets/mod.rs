@@ -176,6 +176,13 @@ impl WowAssetLoader {
         }
     }
 
+    /// The attachment point `id` of the model root `model` as world code reaches it
+    /// (`attachments::attachment_point`): made on first use, null when the model has none.
+    #[func]
+    fn attachment_point(&self, model: Gd<Node3D>, id: i64) -> Option<Gd<Node3D>> {
+        attachments::attachment_point(&model, u32::try_from(id).ok()?)
+    }
+
     #[func]
     fn asset_runtime_status(&self) -> VarDictionary {
         let resolver = creature::local_resolver(&player_request::data_root());
