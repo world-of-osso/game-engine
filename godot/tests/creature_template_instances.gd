@@ -3,9 +3,19 @@ extends SceneTree
 # instantiates the first one's template (rust/src/assets/creature_template.rs). The guard's
 # animated material inputs all run on global sequences, so the second makes no
 # ShaderMaterial and shares all 16 with the first, while its material animation still
-# animates them; it has the same nodes with its own animation players, and draws the same pixels.
+# animates them; it has the same nodes with its own animation players, and draws the same
+# pixels. A third guard with its weapons drawn instantiates the same template (the sheath
+# state is not part of its key) and holds its sword where a guard built drawn holds it.
 const DISPLAY := 3167
 const SIZE := Vector2i(256, 320)
+## The Stormwind guard's creature_equip_template row: sword, shield, crossbow.
+const ITEMS := [
+	{"slot": "MainHand", "item_id": 1899, "inventory_type": 13},
+	{"slot": "OffHand", "item_id": 143, "inventory_type": 14},
+	{"slot": "Ranged", "item_id": 2551, "inventory_type": 26},
+]
+const UNARMED := 0
+const MELEE := 1
 const BACKGROUND := Color(0.1, 0.2, 0.3)
 ## Largest per-channel difference two renders of one pose may show.
 const TOLERANCE := 2.0 / 255.0
@@ -25,9 +35,9 @@ func run() -> void:
 	var counters = ClassDB.instantiate("RebuildCounters")
 	var loader = ClassDB.instantiate("WowAssetLoader")
 	counters.take()
-	var first: Dictionary = loader.load_world_creature_display(DISPLAY)
+	var first: Dictionary = loader.load_world_creature_display(DISPLAY, ITEMS, UNARMED)
 	var built: int = counters.take().counts.shader_material
-	var second: Dictionary = loader.load_world_creature_display(DISPLAY)
+	var second: Dictionary = loader.load_world_creature_display(DISPLAY, ITEMS, UNARMED)
 	var instanced: int = counters.take().counts.shader_material
 	if first.has("error") or second.has("error"):
 		fail(str(first.get("error", second.get("error"))))
@@ -51,6 +61,8 @@ func run() -> void:
 	if players_a.is_empty() or players_b.size() != players_a.size() \
 			or players_b.any(func(player): return players_a.has(player)):
 		fail("animation players: %d built, %d instanced" % [players_a.size(), players_b.size()])
+		return
+	if not check_drawn_instance(loader, counters, a):
 		return
 	var images := await render([a, b])
 	if not await clock_animates(b):
@@ -86,6 +98,35 @@ func matrices(visual: Node) -> Array:
 			found.append([material.get_shader_parameter("texture_matrix_1"),
 				material.get_shader_parameter("texture_matrix_2")])
 	return found
+
+## A drawn guard instantiates the unarmed guard's template: no material, and its sword
+## sits on the attachment a guard built drawn puts it on, not where `unarmed` keeps it.
+func check_drawn_instance(loader, counters, unarmed: Node) -> bool:
+	counters.take()
+	var drawn: Dictionary = loader.load_world_creature_display(DISPLAY, ITEMS, MELEE)
+	var made: int = counters.take().counts.shader_material
+	var reference: Dictionary = ClassDB.instantiate("WowAssetLoader").load_world_creature_display(DISPLAY, ITEMS, MELEE)
+	if drawn.has("error") or reference.has("error"):
+		fail(str(drawn.get("error", reference.get("error"))))
+		return false
+	var sword := sword_path(drawn.node)
+	print("CREATURE_TEMPLATE_DRAWN materials=%d sword=%s reference=%s unarmed=%s"
+		% [made, sword, sword_path(reference.node), sword_path(unarmed)])
+	if made != 0:
+		fail("the drawn guard made %d materials instead of instancing the template" % made)
+		return false
+	if sword == "" or sword != sword_path(reference.node) or sword == sword_path(unarmed):
+		fail("the drawn guard's sword is at %s, a guard built drawn holds it at %s, unarmed at %s"
+			% [sword, sword_path(reference.node), sword_path(unarmed)])
+		return false
+	drawn.node.free()
+	reference.node.free()
+	return true
+
+## The path of the main-hand item's parent under the visual.
+func sword_path(visual: Node) -> String:
+	var sword := visual.find_child("EquipmentMainHand", true, false)
+	return "" if sword == null else str(visual.get_path_to(sword.get_parent()))
 
 ## Every descendant's path and class, in tree order.
 func describe(visual: Node) -> Array[String]:

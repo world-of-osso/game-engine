@@ -488,13 +488,15 @@ impl WorldModels {
         self.build_visual(parts, None)
     }
 
-    /// `display_id` as a world unit shows it, unarmed (`build_world_visual`).
-    pub(crate) fn load_world_display(&self, display_id: u32) -> Result<Gd<Node3D>, String> {
-        let parts = self.catalogs.load_creature(
-            display_id,
-            &EquipmentAppearance::default(),
-            SheathState::Unarmed,
-        )?;
+    /// `display_id` holding `items` placed for `sheath`, as a world unit shows it
+    /// (`build_world_visual`).
+    pub(crate) fn load_world_display(
+        &self,
+        display_id: u32,
+        items: &EquipmentAppearance,
+        sheath: SheathState,
+    ) -> Result<Gd<Node3D>, String> {
+        let parts = self.catalogs.load_creature(display_id, items, sheath)?;
         self.build_world_visual(parts, None)
     }
 
@@ -637,7 +639,7 @@ impl WorldModels {
             let span = crate::profile::span(|| "template.discard".to_owned());
             self.discard(parts);
             drop(span);
-            return template.instance();
+            return template.instance(&gear);
         }
         let visual = self.build_visual(parts, None)?;
         let span = crate::profile::span(|| "creature.template".to_owned());
