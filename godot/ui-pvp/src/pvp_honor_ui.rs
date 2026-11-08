@@ -1,5 +1,6 @@
 //! Retail Mainline PVPUI.xml804–861/1670–1728; Lua1904–1947/1975–1983.
 //! No ratio, badge level or next reward is invented while HONOR_LEVEL_XP_CURVE is open.
+//! CurrencyTypes1585/1586 are CurrencyAccountWide, so the lifetime total is account-wide.
 use super::PvpView;
 use game_engine_ui_model::bank_art::label;
 use game_engine_ui_model::game_tooltip::GameTooltip;
@@ -76,7 +77,7 @@ impl PvpView {
                 title: "Lifetime Honor".into(),
                 // Unknown max must not be replaced by the spendable currency cap15000.
                 lines: vec![TooltipLineState::new(
-                    snapshot.lifetime_honor_xp.to_string(),
+                    snapshot.account_lifetime_honor_xp.to_string(),
                 )],
                 ..TooltipPresentation::hidden()
             },
