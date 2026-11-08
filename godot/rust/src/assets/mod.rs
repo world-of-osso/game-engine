@@ -741,19 +741,7 @@ fn load_batch(
         .get(batch.source_unit_index)
         .ok_or("Resolved batch has no skin batch")?;
     let binding = game_engine_core::m2_material::batch_binding(model, unit, skin_texture_fdids)?;
-    let visible = appearance.is_none_or(|appearance| {
-        let visible = !appearance.hidden_geoset_ids.contains(&batch.mesh_part_id)
-            && game_engine_core::npc_appearance_selection_data::npc_geoset_visible(
-                batch.mesh_part_id,
-                &appearance.selected_geosets,
-                &appearance.authored_geosets,
-            );
-        game_engine_core::geoset_visibility_data::apply_exact_geoset_overrides(
-            batch.mesh_part_id,
-            visible,
-            &appearance.equipment_geosets,
-        )
-    });
+    let visible = appearance_shows(appearance, batch.mesh_part_id);
     check_required_replacement(batch, appearance)?;
     let missing_before = missing.len();
     let merge = batch_merge::MergeKey::of(batch, &binding);
@@ -821,6 +809,26 @@ fn load_batch(
         visible,
         merge,
     }))
+}
+
+/// Whether `appearance` shows mesh part `part`; a model without one shows every part.
+pub(super) fn appearance_shows(
+    appearance: Option<&appearance::PreparedAppearance>,
+    part: u16,
+) -> bool {
+    appearance.is_none_or(|appearance| {
+        let visible = !appearance.hidden_geoset_ids.contains(&part)
+            && game_engine_core::npc_appearance_selection_data::npc_geoset_visible(
+                part,
+                &appearance.selected_geosets,
+                &appearance.authored_geosets,
+            );
+        game_engine_core::geoset_visibility_data::apply_exact_geoset_overrides(
+            part,
+            visible,
+            &appearance.equipment_geosets,
+        )
+    })
 }
 
 /// A prepared body must bind its own body (1) and hair (6) textures.

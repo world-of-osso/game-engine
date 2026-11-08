@@ -9,11 +9,11 @@ use std::{
 
 use crate::{
     animation::{ActionPriority, WowAnimationPlayer, lod::AnimationLod},
-    assets::uv_animation::WowMaterialAnimation,
+    assets::{creature::CreatureBuild, uv_animation::WowMaterialAnimation},
     lighting::TerrainLight,
     particles::{ParticlePools, PlacedParticles, view_basis},
     world_models::{
-        UnitAppearance, VisualParts, WorldModels, bind_visual_light, place_items,
+        BuildStep, UnitAppearance, VisualParts, WorldModels, bind_visual_light, place_items,
         place_virtual_items,
     },
 };
@@ -60,8 +60,10 @@ mod unit_transform_fixture;
 mod vehicle_fixture;
 use combat::MeleeWeapon;
 
-/// Main-thread time per frame for attaching loaded unit visuals.
-const VISUAL_BUDGET: Duration = Duration::from_millis(8);
+/// Main-thread time per frame for attaching loaded unit visuals: the headroom of a 120 FPS
+/// frame (8.33 ms) over the outdoor Stormwind frame of the Windows receipt (about 5 ms,
+/// receipt 8dbd048df), less a margin, so a frame that attaches stays under it.
+const VISUAL_BUDGET: Duration = Duration::from_millis(2);
 
 /// Unit node metadata: the replicated name (Godot renames duplicate siblings `@Node3D@N`).
 const UNIT_NAME_META: &str = "unit_name";
@@ -1193,9 +1195,9 @@ pub struct WorldUnits {
     models: WorldModels,
     /// Loaded visuals waiting for main-thread time, oldest first.
     arrived: VecDeque<(u64, Result<VisualParts, String>)>,
-    /// Creature visuals built in an earlier frame, or waiting for the template such a
-    /// visual makes, in arrival order (`attach_loaded_visuals`).
-    prebuilt: VecDeque<Staged>,
+    /// Creature visuals built in parts, or waiting for the template such a visual makes,
+    /// in arrival order (`attach_loaded_visuals`).
+    staged: VecDeque<Staged>,
     light: Option<TerrainLight>,
     /// Units whose death clip started since `take_deaths`.
     deaths: Vec<u64>,
@@ -1234,7 +1236,7 @@ impl WorldUnits {
             local_visual_monitor: LocalVisualMonitor::default(),
             models: WorldModels::new(data_root),
             arrived: VecDeque::new(),
-            prebuilt: VecDeque::new(),
+            staged: VecDeque::new(),
             light: None,
             deaths: Vec::new(),
             detached: Vec::new(),
@@ -1496,33 +1498,48 @@ impl WorldUnits {
         );
     }
 
-    /// Attach arrived visuals within `VISUAL_BUDGET` of main-thread time (at least one
+    /// Attach arrived visuals within `VISUAL_BUDGET` of main-thread time (at least one step
     /// per frame), each brought up to its unit's snapshot. A creature visual no template
-    /// makes yet is built in one frame and becomes its template and attaches in a later
-    /// one (`WorldModels::prebuild`); arrivals sharing its template wait for it.
+    /// makes yet is built in parts, one per frame (`Stage`), and becomes its template
+    /// before it attaches; arrivals sharing its template wait for it.
     pub fn attach_loaded_visuals(&mut self, replica: &Replica) {
         self.arrived.extend(self.models.poll());
         let started = Instant::now();
-        let mut ready = std::mem::take(&mut self.prebuilt);
-        loop {
-            if let Some(staged) = ready.pop_front() {
-                self.attach_arrived(staged.request, staged.parts, staged.built, replica);
+        let mut queued = std::mem::take(&mut self.staged);
+        let mut advanced = VecDeque::new();
+        while started.elapsed() < VISUAL_BUDGET {
+            if let Some(staged) = queued.pop_front() {
+                let waits = matches!(staged.stage, Stage::Waiting)
+                    && advanced.iter().chain(&queued).any(|other: &Staged| {
+                        !matches!(other.stage, Stage::Waiting) && other.shares_template(&staged)
+                    });
+                if waits {
+                    advanced.push_back(staged);
+                } else {
+                    advanced.extend(self.advance_staged(staged, replica));
+                }
             } else if let Some((request, loaded)) = self.arrived.pop_front() {
                 match loaded {
                     Ok(parts) if self.unit_loading(request) && self.models.needs_build(&parts) => {
-                        self.stage_build(request, parts, &ready);
+                        let staged = Staged {
+                            request,
+                            parts,
+                            stage: Stage::Queued,
+                        };
+                        let waits = advanced.iter().any(|other| other.shares_template(&staged));
+                        advanced.push_back(Staged {
+                            stage: if waits { Stage::Waiting } else { Stage::Queued },
+                            ..staged
+                        });
                     }
                     loaded => self.attach_arrived(request, loaded, None, replica),
                 }
             } else {
                 break;
             }
-            if started.elapsed() >= VISUAL_BUDGET {
-                break;
-            }
         }
-        ready.extend(self.prebuilt.drain(..));
-        self.prebuilt = ready;
+        advanced.extend(queued);
+        self.staged = advanced;
     }
 
     fn unit_loading(&self, request: u64) -> bool {
@@ -1531,40 +1548,58 @@ impl WorldUnits {
             .any(|unit| unit.loading.is_some_and(|(pending, _)| pending == request))
     }
 
-    /// Queues the first visual of a template to attach in a later frame: built now, or,
-    /// when a queued visual makes the same template, after that one.
-    fn stage_build(&mut self, request: u64, mut parts: VisualParts, ready: &VecDeque<Staged>) {
-        let waits = ready.iter().chain(&self.prebuilt).any(|queued| {
-            queued
-                .parts
-                .as_ref()
-                .is_ok_and(|queued| WorldModels::shares_template(queued, &parts))
-        });
-        let staged = if waits {
-            Staged {
-                request,
-                parts: Ok(parts),
-                built: None,
+    /// One step of `staged`, which returns unless it attached, failed or its unit no
+    /// longer waits for it.
+    fn advance_staged(&mut self, staged: Staged, replica: &Replica) -> Option<Staged> {
+        let Staged {
+            request,
+            mut parts,
+            stage,
+        } = staged;
+        if !self.unit_loading(request) {
+            stage.free();
+            self.attach_arrived(request, Ok(parts), None, replica);
+            return None;
+        }
+        let next = match stage {
+            Stage::Waiting if self.models.needs_build(&parts) => Ok(Stage::Queued),
+            Stage::Waiting => {
+                self.attach_arrived(request, Ok(parts), None, replica);
+                return None;
             }
-        } else {
-            let _span = crate::profile::span(|| "unit.prebuild".to_owned());
-            match self.models.prebuild(&mut parts) {
-                Ok(visual) => Staged {
-                    request,
-                    parts: Ok(parts),
-                    built: Some(visual),
-                },
+            Stage::Queued => self.models.start_build(&mut parts).map(Stage::Building),
+            Stage::Building(build) => {
+                self.models
+                    .continue_build(&parts, build)
+                    .map(|step| match step {
+                        BuildStep::Building(build) => Stage::Building(build),
+                        BuildStep::Built(visual) => Stage::Built(visual),
+                    })
+            }
+            Stage::Built(visual) => match self.models.make_template(&parts, &visual) {
+                Ok(()) => Ok(Stage::Templated(visual)),
                 Err(error) => {
-                    self.models.discard(parts);
-                    Staged {
-                        request,
-                        parts: Err(error),
-                        built: None,
-                    }
+                    visual.free();
+                    Err(error)
                 }
+            },
+            Stage::Templated(visual) => {
+                self.attach_arrived(request, Ok(parts), Some(visual), replica);
+                return None;
             }
         };
-        self.prebuilt.push_back(staged);
+        match next {
+            Ok(stage) => Some(Staged {
+                request,
+                parts,
+                stage,
+            }),
+            Err(error) => {
+                self.models.discard(parts);
+                self.attach_arrived(request, Err(error), None, replica);
+                None
+            }
+        }
     }
 
     /// Attaches the arrived visual of `request` to its mount, its detached request or its
@@ -2016,7 +2051,7 @@ impl WorldUnits {
     }
 
     pub fn reset(&mut self) {
-        self.discard_prebuilt();
+        self.discard_staged();
         self.light = None;
         for (id, unit) in &self.units {
             log_unit_removal("WORLD_UNIT_RESET", *id, unit);
@@ -2034,15 +2069,11 @@ impl WorldUnits {
         }
     }
 
-    /// Frees the visuals built ahead of attaching (`prebuilt`), which are in no tree.
-    fn discard_prebuilt(&mut self) {
-        for staged in std::mem::take(&mut self.prebuilt) {
-            if let Ok(parts) = staged.parts {
-                self.models.discard(parts);
-            }
-            if let Some(visual) = staged.built {
-                visual.free();
-            }
+    /// Frees the staged visuals' nodes, which are in no tree.
+    fn discard_staged(&mut self) {
+        for staged in std::mem::take(&mut self.staged) {
+            self.models.discard(staged.parts);
+            staged.stage.free();
         }
     }
 
@@ -2296,17 +2327,47 @@ impl WorldUnits {
 /// Held items and animation reach past a model's bind-pose mesh bounds.
 const UNIT_BOX_MARGIN: f32 = 1.0;
 
-/// A unit visual queued to attach in a later frame (`WorldUnits::attach_loaded_visuals`):
-/// `built` is its prebuilt nodes, `None` while it waits for a queued visual's template.
+/// A creature visual built in parts before it attaches (`WorldUnits::attach_loaded_visuals`).
 struct Staged {
     request: u64,
-    parts: Result<VisualParts, String>,
-    built: Option<Gd<Node3D>>,
+    parts: VisualParts,
+    stage: Stage,
+}
+
+impl Staged {
+    fn shares_template(&self, other: &Staged) -> bool {
+        WorldModels::shares_template(&self.parts, &other.parts)
+    }
+}
+
+/// Where a staged visual's build is; each frame takes it one stage further.
+enum Stage {
+    /// Waits for the template a queued visual of its display makes.
+    Waiting,
+    /// Not started.
+    Queued,
+    /// Its body built, and some of its items attached (`CreatureBuild`).
+    Building(CreatureBuild),
+    /// Built; its template is not made yet.
+    Built(Gd<Node3D>),
+    /// Built, and its template made: it attaches next.
+    Templated(Gd<Node3D>),
+}
+
+impl Stage {
+    /// Frees the nodes built so far.
+    fn free(self) {
+        match self {
+            Self::Building(build) => build.free(),
+            Self::Built(visual) | Self::Templated(visual) => visual.free(),
+            Self::Waiting | Self::Queued => {}
+        }
+    }
 }
 
 impl Drop for WorldUnits {
     fn drop(&mut self) {
-        self.discard_prebuilt();
+        self.discard_staged();
     }
 }
 
