@@ -53,7 +53,7 @@ scripts/agent/headless-client.sh start-godot {args.root} {args.xdg} -s res://tes
 cp=$(cat {args.root}/target/headless-client.pid)
 child=""
 for i in $(seq 1 100); do child=$(pgrep -P "$cp" || true); [ -n "$child" ] && break; sleep 0.1; done
-[ -n "$child" ] && tail --pid="$child" -f /dev/null || true
+[ -n "$child" ] && timeout {max(120, args.timeout_ms // 1000 + 180)} tail --pid="$child" -f /dev/null || true
 scripts/agent/headless-client.sh stop {args.root}/target
 cp {args.root}/target/headless-client.log {log}
 """
@@ -96,6 +96,8 @@ def pose_pass(row):
     if facts.get("runtime", {}).get("forbidden_casc_accesses") != 0:
         return False
     if row["flat_misses"] or row["receipt_misses"] or row["forbidden_casc"]:
+        return False
+    if facts.get("lighting_error"):
         return False
     if facts.get("mode") == "global_wmo":
         return facts.get("global_wmo_fdid", 0) > 0 and facts.get("terrain_failures", 1) == 0 and facts.get("visible_meshes", 0) > 0

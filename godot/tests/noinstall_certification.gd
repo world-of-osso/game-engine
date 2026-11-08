@@ -63,14 +63,26 @@ func run() -> void:
 	var stable := 0
 	var drained := false
 	var lit := false
+	var frame_count := 0
+	var trace := OS.get_environment("CERT_TRACE") == "1"
+	var last_lighting_error := ""
 	while Time.get_ticks_msec() < deadline:
 		await process_frame
+		frame_count += 1
 		camera.current = true
 		var state: Dictionary = client.account_state()
+		if trace and frame_count % 60 == 0:
+			print("CERT_TRACE frame=%d objects=%s terrain_pending=%d" % [frame_count, state.world_objects, int(state.terrain.pending_count)])
 		if not lit:
 			var lighting_error: String = client.preview_world_lighting(point, camera.position)
 			if lighting_error == "":
 				lit = true
+			else:
+				if lighting_error != "Preview lighting requires a loaded WDT" and lighting_error != last_lighting_error:
+					last_lighting_error = lighting_error
+					print("NOINSTALL_CERT_LIGHTING ", lighting_error)
+				elif trace and frame_count % 60 == 0:
+					print("CERT_TRACE lighting_error=", lighting_error)
 			continue
 		if mode == "global_wmo":
 			if int(state.terrain.pending_count) == 0 and int(state.terrain.get("global_wmo_fdid", 0)) > 0:
@@ -116,7 +128,8 @@ func run() -> void:
 		"tiles": terrain.parsed_tiles.size(),
 		"terrain_failures": terrain.failures.size(),
 		"wdt_path": String(terrain.get("wdt_path", "")),
-		"global_wmo_fdid": int(terrain.get("global_wmo_fdid", 0)),
+		"global_wmo_fdid": _int_value(terrain.get("global_wmo_fdid", 0)),
+		"lighting_error": last_lighting_error,
 		"visible_meshes": _visible_meshes(client),
 		"runtime": loader.asset_runtime_status(),
 		"screenshot": shot,
@@ -130,6 +143,17 @@ func run() -> void:
 	for frame in 8:
 		await process_frame
 	quit(0)
+
+func _int_value(value: Variant) -> int:
+	match typeof(value):
+		TYPE_INT:
+			return value
+		TYPE_FLOAT:
+			return int(value)
+		TYPE_STRING, TYPE_STRING_NAME:
+			var text := str(value)
+			return int(text) if text.is_valid_int() else 0
+	return 0
 
 func _visible_meshes(node: Node) -> int:
 	var count := 0
