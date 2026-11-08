@@ -612,7 +612,7 @@ impl WorldModels {
     }
 
     /// Main thread: a world unit's visual. A creature whose display and gear an earlier
-    /// world unit had duplicates that unit's template; its first visual is built and
+    /// world unit had instantiates that unit's template; its first visual is built and
     /// becomes the template. Its materials are shared with the other units of the
     /// template, so only the world, which binds them all alike, takes these visuals.
     pub fn build_world_visual(
@@ -634,7 +634,9 @@ impl WorldModels {
             .find(|template| template.matches(display_id, &gear))
         {
             let _span = crate::profile::span(|| "creature.template_instance".to_owned());
+            let span = crate::profile::span(|| "template.discard".to_owned());
             self.discard(parts);
+            drop(span);
             return template.instance();
         }
         let visual = self.build_visual(parts, None)?;

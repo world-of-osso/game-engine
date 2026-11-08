@@ -1,11 +1,13 @@
-//! A world creature visual kept per display and gear: a later unit with both duplicates it
-//! instead of building it again. A Stormwind guard's build (four models, 107 batches, their
+//! A world creature visual kept per display and gear: a later unit with both instantiates
+//! it instead of building it again. A Stormwind guard's build (four models, 107 batches, their
 //! skeletons, players, composited textures and equipment) took 10-15 ms of one main-thread
-//! frame each time a guard came into view; its duplicate shares the meshes, skins and
-//! static materials and makes no material.
+//! frame each time a guard came into view; its instance shares the meshes, skins and
+//! static materials and makes no material. The template is a `PackedScene`: instantiating
+//! the guard's 205 nodes took 3-5 ms where `Node::duplicate`, which copies each property
+//! through the property list, took 16-31 ms (loaded Linux host, debug library).
 //!
-//! `Node::duplicate` copies native nodes but not a Rust node's state, so the template holds
-//! none: each instance gets its own animation player, material animation and model lights,
+//! A packed scene cannot hold a Rust node's state (and `WowM2Lights` has no default
+//! constructor), so the template holds none: each instance gets its own animation player, material animation and model lights,
 //! built from the parsed model as `build_model` builds them. A material that animates on
 //! its model's sequence timeline follows its own instance's animation, so each instance
 //! copies it; one that animates on global sequences only samples alike in every model, so
@@ -16,8 +18,8 @@ use std::{path::Path, sync::Arc};
 use game_engine_core::m2_material::{BatchBinding, MaterialTracks};
 use godot::{
     classes::{
-        ClassDb, Engine, MeshInstance3D, Node3D, SceneTree, ShaderMaterial, Skeleton3D,
-        class_db::ApiType,
+        ClassDb, Engine, MeshInstance3D, Node3D, PackedScene, SceneTree, ShaderMaterial,
+        Skeleton3D, class_db::ApiType,
     },
     prelude::*,
 };
@@ -35,7 +37,7 @@ use crate::animation::WowAnimationPlayer;
 pub(crate) struct CreatureTemplate {
     display_id: u32,
     gear: CreatureGear,
-    visual: Gd<Node3D>,
+    scene: Gd<PackedScene>,
     nodes: Vec<RustNode>,
     /// The clock animating the template's materials that animate on global sequences.
     clock: Gd<WowMaterialClock>,
@@ -72,14 +74,19 @@ impl CreatureTemplate {
         built: &Gd<Node3D>,
     ) -> Result<Self, String> {
         let mut clock = material_clock()?;
-        let visual = built.duplicate_node();
-        let (nodes, global) = match take_rust_nodes(built, &visual) {
-            Ok(taken) => taken,
-            Err(error) => {
-                visual.free();
-                return Err(error);
-            }
-        };
+        let (nodes, global, detached) = take_rust_nodes(built)?;
+        // Packing saves the nodes `built` owns; they own nothing again afterwards.
+        set_owner(built, Some(built.clone().upcast()));
+        let mut scene = PackedScene::new_gd();
+        let packed = scene.pack(built);
+        set_owner(built, None);
+        for (mut parent, node, index) in detached {
+            parent.add_child(&node);
+            parent.move_child(&node, index);
+        }
+        if packed != godot::global::Error::OK {
+            return Err(format!("Creature visual did not pack: {packed:?}"));
+        }
         let mut shared = Vec::new();
         for (tracks, materials) in global {
             shared.extend(materials.iter().map(|(material, _)| material.instance_id()));
@@ -88,7 +95,7 @@ impl CreatureTemplate {
         Ok(Self {
             display_id,
             gear: gear.clone(),
-            visual,
+            scene,
             nodes,
             clock,
             shared,
@@ -101,7 +108,15 @@ impl CreatureTemplate {
 
     /// A new visual like the one this template was made from.
     pub(crate) fn instance(&self) -> Result<Gd<Node3D>, String> {
-        let visual = self.visual.duplicate_node();
+        let span = crate::profile::span(|| "template.instantiate".to_owned());
+        let visual = self
+            .scene
+            .instantiate()
+            .and_then(|node| node.try_cast::<Node3D>().ok())
+            .ok_or("Creature template did not instantiate")?;
+        set_owner(&visual, None);
+        drop(span);
+        let _span = crate::profile::span(|| "template.rust_nodes".to_owned());
         if let Err(error) = self.nodes.iter().try_for_each(|node| node.attach(&visual)) {
             visual.free();
             return Err(error);
@@ -115,7 +130,16 @@ impl Drop for CreatureTemplate {
         if self.clock.is_instance_valid() {
             self.clock.bind_mut().unshare(&self.shared);
         }
-        self.visual.clone().free();
+    }
+}
+
+/// Sets the owner of every node under `root`.
+fn set_owner(root: &Gd<Node3D>, owner: Option<Gd<Node>>) {
+    for mut node in root.find_children_ex("*").owned(false).done().iter_shared() {
+        match &owner {
+            Some(owner) => node.set_owner(owner),
+            None => node.set_owner(Gd::null_arg()),
+        }
     }
 }
 
@@ -130,57 +154,66 @@ fn material_clock() -> Result<Gd<WowMaterialClock>, String> {
         .ok_or_else(|| "Creature templates require /root/M2MaterialClock".to_owned())
 }
 
-/// Frees the Rust nodes of `visual`, a duplicate of `built`, and returns how to make them
-/// again from `built`'s, and `built`'s materials that animate on global sequences only.
-/// Those leave `built`'s material animation, and one left with none is freed.
+/// Detaches the Rust nodes of `built` and returns how to make them again, `built`'s
+/// materials that animate on global sequences only, and each detached node with its parent
+/// and index, in tree order. Those materials leave `built`'s material animation, and one
+/// left with none is freed instead of detached.
 fn take_rust_nodes(
     built: &Gd<Node3D>,
-    visual: &Gd<Node3D>,
-) -> Result<(Vec<RustNode>, Vec<GlobalMaterials>), String> {
+) -> Result<
+    (
+        Vec<RustNode>,
+        Vec<GlobalMaterials>,
+        Vec<(Gd<Node>, Gd<Node>, i32)>,
+    ),
+    String,
+> {
     let mut nodes = Vec::new();
     let mut global = Vec::new();
-    let copies = visual.find_children_ex("*").owned(false).done();
-    for copy in copies.iter_shared() {
-        let class = copy.get_class();
-        if ClassDb::singleton().class_get_api_type(&StringName::from(&class)) != ApiType::EXTENSION
+    let mut found = Vec::new();
+    for original in built
+        .find_children_ex("*")
+        .owned(false)
+        .done()
+        .iter_shared()
+    {
+        let class = original.get_class();
+        if ClassDb::singleton().class_get_api_type(&StringName::from(&class)) == ApiType::EXTENSION
         {
-            continue;
+            found.push(original);
         }
-        let path = visual.get_path_to(&copy);
-        let original = built
-            .get_node_or_null(&path)
-            .ok_or_else(|| format!("Creature visual lost {path} in its duplicate"))?;
-        let root = built.get_path_to(
-            &original
-                .get_parent()
-                .ok_or("Creature visual Rust node has no parent")?,
-        );
+    }
+    let mut detached = Vec::new();
+    for original in found {
+        let mut parent = original
+            .get_parent()
+            .ok_or("Creature visual Rust node has no parent")?;
+        let root = built.get_path_to(&parent);
         let model = model_of(built, &root)?;
+        let index = original.get_index();
         if let Ok(mut animation) = original.clone().try_cast::<WowMaterialAnimation>() {
             let materials = animation.bind_mut().take_global_materials();
             global.push((Arc::new(MaterialTracks::of(&model.model)), materials));
             let local = animation.bind().materials();
+            parent.remove_child(&animation);
             if local.is_empty() {
-                if let Some(mut parent) = animation.get_parent() {
-                    parent.remove_child(&animation);
-                }
                 animation.free();
-            } else {
-                nodes.push(RustNode::MaterialAnimation {
-                    root,
-                    name: original.get_name(),
-                    materials: local,
-                });
+                continue;
             }
+            nodes.push(RustNode::MaterialAnimation {
+                root,
+                name: original.get_name(),
+                materials: local,
+            });
         } else {
-            nodes.push(rust_node(built, root, original)?);
+            nodes.push(rust_node(built, root, original.clone())?);
+            parent.remove_child(&original);
         }
-        if let Some(mut parent) = copy.get_parent() {
-            parent.remove_child(&copy);
-        }
-        copy.free();
+        detached.push((parent, original, index));
     }
-    Ok((nodes, global))
+    // Reattached lowest index first, each lands at its own index.
+    detached.reverse();
+    Ok((nodes, global, detached))
 }
 
 fn rust_node(built: &Gd<Node3D>, root: NodePath, original: Gd<Node>) -> Result<RustNode, String> {
@@ -213,6 +246,14 @@ impl RustNode {
     }
 
     fn attach(&self, visual: &Gd<Node3D>) -> Result<(), String> {
+        let _span = crate::profile::span(|| {
+            match self {
+                Self::Animation { .. } => "template.animation",
+                Self::MaterialAnimation { .. } => "template.material_animation",
+                Self::Lights { .. } => "template.lights",
+            }
+            .to_owned()
+        });
         let mut root = visual
             .get_node_or_null(self.root())
             .ok_or_else(|| format!("Creature template lost model root {}", self.root()))?;

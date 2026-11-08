@@ -46,15 +46,18 @@ light) is `godot/tests/m2_material_pixels.gd`. Evidence and the coverage matrix:
 
 ## World creature visual templates
 
-A world unit's creature visual is built once per display and gear and then duplicated
-(`godot/rust/src/assets/creature_template.rs`, `WorldModels::build_world_visual`). Before,
+A world unit's creature visual is built once per display and gear, packed as a
+`PackedScene` and then instantiated (`godot/rust/src/assets/creature_template.rs`,
+`WorldModels::build_world_visual`). Before,
 every arrival rebuilt it: a Stormwind guard (display 3167) is four models (body, two
 shoulders, helm), 107 batch nodes before the merge, four skeletons and animation players,
 composited NPC textures and its equipment, 10-15 ms of one main-thread frame each time a
 guard came into view (Linux spans; the 2026-11-07 Windows Stormwind survey's only frames
-under 120 FPS were these arrivals). The duplicate shares the meshes, skins and materials:
+under 120 FPS were these arrivals). The instance shares the meshes, skins and materials.
+Instantiating the guard's 205 nodes took 3-5 ms where `Node::duplicate` (property-list
+copy per node) took 16-31 ms; packing takes about 13 ms once, at first sight:
 
-- Rust nodes keep no state through `Node::duplicate`, so the template holds none; each
+- A packed scene holds no Rust node state, so the template holds no Rust node; each
   instance builds its `WowAnimationPlayer`, `WowMaterialAnimation` and `WowM2Lights` from
   the parsed model (`creature::model_at`).
 - `WowMaterialAnimation` holds only materials whose inputs change over time; a constant

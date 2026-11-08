@@ -1,6 +1,6 @@
 extends SceneTree
 # A Stormwind guard (creature display 3167) built twice as world units: the second visual
-# duplicates the first one's template (rust/src/assets/creature_template.rs). The guard's
+# instantiates the first one's template (rust/src/assets/creature_template.rs). The guard's
 # animated material inputs all run on global sequences, so the second makes no
 # ShaderMaterial and shares all 16 with the first, while the material clock still animates
 # them; it has the same nodes with its own animation players, and draws the same pixels.
