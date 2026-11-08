@@ -396,6 +396,7 @@
 
 - [DB2 readable-section qualification](systems/offline-asset-closure.md#named-encrypted-section-qualification) — pinned table/key-census proofs, explicit excluded row slots and source-restoration boundaries.
 - [No-install receipt recovery](systems/offline-asset-closure.md#no-install-receipt-recovery--verified-2026-10-10) — authenticated legacy publication, native-kind preflight, pinned display-cache rebuild and bounded sandbox recheck; newly exposed skin/receipt gaps keep certification open.
+- [No-install certification run](systems/offline-asset-closure.md#no-install-certification-run--2026-11-08) — eleven extracted-only poses pass after locally fixing 28 Retail receipt gaps and 260 Forever flat WMO payloads; bounded poses, not full-catalog P4 closure.
 
 - [Class spell live proof](investigations/class-spell-live-proof.md) — first pass on private54113; batches9–14 continuation on54123 adds twelve new class paths plus a Monk control, four both-skin classes and explicit guardian/numeric gaps.
 
