@@ -98,6 +98,19 @@ compositing (`appearance.compose`) and decode, which the instance discarded, and
 frames of loading ran 2-6 ms slower on Windows (receipt 9753528a3 outdoor R3 idle_3, 1%
 low 113.5). Worker parts whose gear matches a template add their items as its key.
 
+A model's M2 attachment points are made on first use (`godot/rust/src/assets/attachments.rs`):
+the skeleton records its attachment table (`m2_attachments` meta), and one accessor
+(`attachment_point`, or `skeleton_attachment_point` before the skeleton has a parent)
+makes the `BoneAttachment3D` and point when equipment, held items, spell effects, mounts,
+vehicle seats or the Trading Post first ask, posed at once (`on_skeleton_update`). A
+model whose attachments show and hide with its animation (`AttachmentGates`) makes all of
+them at build. A guard holds 5-7 points instead of 55; packing its template took half the
+time without the unused ones (2.90 to 1.46 ms offline), and 100 animated guards cost 0.7-1.7 ms
+less main-thread time per frame (Linux, offline). Proof: `godot/tests/attachment_points_on_demand.gd`
+(a point made while the guard animates sits at its bone's pose at once); a drawn guard's
+sword, a guard on a riding horse's saddle and a spell effect on a point made for it render
+the same pixels as with every point built (2026-11-08 DIAGNOSTIC, max difference 0).
+
 Proof: `godot/tests/creature_template_instances.gd` builds display 3167 twice through
 `WowAssetLoader.load_world_creature_display` and checks the second visual's nodes, its 0
 new materials, its own players and equal pixels, and that the world's request for a drawn
