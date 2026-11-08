@@ -63,9 +63,12 @@ copy per node) took 16-31 ms; packing takes about 13 ms once, at first sight:
 - `WowMaterialAnimation` holds only materials whose inputs change over time; a constant
   input keeps the sample `load_material` set. Of those, a material that changes on its
   model's sequence timeline is copied per instance; one that changes on global sequences
-  only samples alike in every model, so `WowMaterialClock` samples it once per frame for
-  all of them. The guard's two animated texture transforms run on global sequences 2 and 3:
-  its second visual makes no material.
+  only samples alike in every model, so the instances share it and the first one the NPC
+  animation LOD lets sample it in a frame sets it. The guard's two animated texture
+  transforms run on global sequences 2 and 3: its second visual makes no material. (A
+  first version sampled every shared material every frame from `WowMaterialClock`, without
+  the LOD: the d40ef54ab receipt lost 7.6 outdoor FPS to it, +3 M render-thread and +2-4 M
+  main-thread instructions per frame in a Linux A/B.)
 - `bind_visual_light` and `mark_unit_shadow_fade` skip a material that already holds their
   constant values.
 - Portraits and previews keep their own builds (`build_visual`): `bind_preview_light`

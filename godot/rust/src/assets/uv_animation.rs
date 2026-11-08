@@ -1,6 +1,6 @@
 //! Local effect UVs, colours and opacity follow model playback. Global-sequence
 //! tracks share application time.
-use std::sync::Arc;
+use std::{cell::RefCell, collections::HashMap};
 
 use crate::animation::WowAnimationPlayer;
 use game_engine_core::m2_material::{self, BatchBinding, MaterialSample, MaterialTracks};
@@ -14,14 +14,6 @@ use godot::{
 pub struct WowMaterialClock {
     base: Base<Node>,
     elapsed_ms: f64,
-    /// Materials that animate on global sequences only and that several models share
-    /// (`creature_template`): each is sampled once per frame here.
-    shared: Vec<SharedAnimatedMaterial>,
-}
-
-struct SharedAnimatedMaterial {
-    entry: AnimatedMaterial,
-    tracks: Arc<MaterialTracks>,
 }
 
 #[godot_api]
@@ -30,53 +22,12 @@ impl INode for WowMaterialClock {
         Self {
             base,
             elapsed_ms: 0.0,
-            shared: Vec::new(),
         }
     }
 
     fn process(&mut self, delta: f64) {
         let _timing = crate::profile::node_span("WowMaterialClock.process");
         self.advance_time_ms(delta * 1000.0);
-        let global_ms = self.elapsed_ms as u32;
-        for shared in &mut self.shared {
-            let sample = m2_material::sample_material(
-                &shared.tracks,
-                &shared.entry.binding,
-                shared.tracks.stand_time(global_ms),
-            );
-            let entry = &mut shared.entry;
-            super::material::apply_sample(&mut entry.material, &sample, entry.applied.as_ref());
-            entry.applied = Some(sample);
-        }
-    }
-}
-
-impl WowMaterialClock {
-    /// Samples `materials`, whose inputs change on global sequences only, every frame.
-    pub(super) fn share(
-        &mut self,
-        tracks: &Arc<MaterialTracks>,
-        materials: Vec<(Gd<ShaderMaterial>, BatchBinding)>,
-    ) {
-        self.shared
-            .extend(
-                materials
-                    .into_iter()
-                    .map(|(material, binding)| SharedAnimatedMaterial {
-                        entry: AnimatedMaterial {
-                            material,
-                            binding,
-                            applied: None,
-                        },
-                        tracks: Arc::clone(tracks),
-                    }),
-            );
-    }
-
-    /// Stops sampling `materials` (`share`).
-    pub(super) fn unshare(&mut self, materials: &[InstanceId]) {
-        self.shared
-            .retain(|shared| !materials.contains(&shared.entry.material.instance_id()));
     }
 }
 
@@ -114,6 +65,17 @@ struct AnimatedMaterial {
     binding: BatchBinding,
     /// The sample last set on `material`; `None` before the first.
     applied: Option<MaterialSample>,
+    /// Several models bind `material` (`creature_template`), whose inputs change on global
+    /// sequences only: every model samples it alike, so the first to sample it in a frame
+    /// sets it (`SHARED_SAMPLES`).
+    shared: bool,
+}
+
+thread_local! {
+    /// Shared animated materials (`AnimatedMaterial::shared`): the process frame each was
+    /// last sampled in and the sample set on it.
+    static SHARED_SAMPLES: RefCell<HashMap<InstanceId, (u64, MaterialSample)>> =
+        RefCell::new(HashMap::new());
 }
 
 #[derive(GodotClass)]
@@ -187,6 +149,7 @@ impl WowMaterialAnimation {
                 material,
                 binding,
                 applied: None,
+                shared: false,
             })
             .collect();
         if materials.is_empty() {
@@ -202,29 +165,62 @@ impl WowMaterialAnimation {
         }))
     }
 
-    /// The animated materials and their bindings.
-    pub(super) fn materials(&self) -> Vec<(Gd<ShaderMaterial>, BatchBinding)> {
-        self.materials
-            .iter()
-            .map(|entry| (entry.material.clone(), entry.binding.clone()))
-            .collect()
-    }
-
-    /// Removes and returns the materials whose inputs change on global sequences only:
-    /// every model samples them alike, so one clock may animate them for all.
-    pub(super) fn take_global_materials(&mut self) -> Vec<(Gd<ShaderMaterial>, BatchBinding)> {
+    /// Marks the materials whose inputs change on global sequences only as shared and
+    /// returns them: every model samples them alike, so other models may bind them.
+    pub(super) fn share_global_materials(&mut self) -> Vec<(Gd<ShaderMaterial>, BatchBinding)> {
         let tracks = self
             .tracks
             .as_ref()
             .expect("built material animation has tracks");
-        let (global, local) = std::mem::take(&mut self.materials)
-            .into_iter()
-            .partition(|entry| !m2_material::material_animates_locally(tracks, &entry.binding));
-        self.materials = local;
-        global
-            .into_iter()
-            .map(|entry: AnimatedMaterial| (entry.material, entry.binding))
+        self.materials
+            .iter_mut()
+            .filter(|entry| !m2_material::material_animates_locally(tracks, &entry.binding))
+            .map(|entry| {
+                entry.shared = true;
+                (entry.material.clone(), entry.binding.clone())
+            })
             .collect()
+    }
+
+    /// The materials whose inputs change on the model's sequence timeline.
+    pub(super) fn local_materials(&self) -> Vec<(Gd<ShaderMaterial>, BatchBinding)> {
+        self.materials
+            .iter()
+            .filter(|entry| !entry.shared)
+            .map(|entry| (entry.material.clone(), entry.binding.clone()))
+            .collect()
+    }
+
+    /// A material animation of `local`, this model's own materials, and `shared`, the
+    /// materials it shares with other models (`share_global_materials`).
+    pub(super) fn with_shared(
+        tracks: MaterialTracks,
+        local: Vec<(Gd<ShaderMaterial>, BatchBinding)>,
+        shared: &[(Gd<ShaderMaterial>, BatchBinding)],
+    ) -> Gd<Self> {
+        let entry = |material, binding, shared| AnimatedMaterial {
+            material,
+            binding,
+            applied: None,
+            shared,
+        };
+        let materials = local
+            .into_iter()
+            .map(|(material, binding)| entry(material, binding, false))
+            .chain(
+                shared
+                    .iter()
+                    .map(|(material, binding)| entry(material.clone(), binding.clone(), true)),
+            )
+            .collect();
+        Gd::from_init_fn(|base| Self {
+            base,
+            materials,
+            tracks: Some(tracks),
+            clock: None,
+            player: None,
+            sampling: true,
+        })
     }
 
     #[func]
@@ -238,7 +234,12 @@ impl WowMaterialAnimation {
             return;
         };
         let global_ms = clock.bind().elapsed_ms as u32;
+        let frame = godot::classes::Engine::singleton().get_process_frames();
         for entry in &mut self.materials {
+            if entry.shared {
+                sample_shared(entry, tracks, global_ms, frame);
+                continue;
+            }
             let sample = self
                 .player
                 .as_ref()
@@ -255,4 +256,19 @@ impl WowMaterialAnimation {
             entry.applied = Some(sample);
         }
     }
+}
+
+/// Samples the shared `entry` at the global clock, unless a model already did this frame.
+fn sample_shared(entry: &AnimatedMaterial, tracks: &MaterialTracks, global_ms: u32, frame: u64) {
+    SHARED_SAMPLES.with_borrow_mut(|samples| {
+        let last = samples.get(&entry.material.instance_id());
+        if last.is_some_and(|(sampled, _)| *sampled == frame) {
+            return;
+        }
+        let sample =
+            m2_material::sample_material(tracks, &entry.binding, tracks.stand_time(global_ms));
+        let mut material = entry.material.clone();
+        super::material::apply_sample(&mut material, &sample, last.map(|(_, applied)| applied));
+        samples.insert(entry.material.instance_id(), (frame, sample));
+    });
 }

@@ -2,8 +2,8 @@ extends SceneTree
 # A Stormwind guard (creature display 3167) built twice as world units: the second visual
 # instantiates the first one's template (rust/src/assets/creature_template.rs). The guard's
 # animated material inputs all run on global sequences, so the second makes no
-# ShaderMaterial and shares all 16 with the first, while the material clock still animates
-# them; it has the same nodes with its own animation players, and draws the same pixels.
+# ShaderMaterial and shares all 16 with the first, while its material animation still
+# animates them; it has the same nodes with its own animation players, and draws the same pixels.
 const DISPLAY := 3167
 const SIZE := Vector2i(256, 320)
 const BACKGROUND := Color(0.1, 0.2, 0.3)
@@ -54,7 +54,7 @@ func run() -> void:
 		return
 	var images := await render([a, b])
 	if not await clock_animates(b):
-		fail("the material clock does not animate the shared materials")
+		fail("the shared materials do not animate")
 		return
 	var covered := covered_pixels(images[0])
 	var difference := max_difference(images[0], images[1])
@@ -69,6 +69,7 @@ func run() -> void:
 	quit(0)
 
 ## Whether a texture matrix of `visual`'s materials changes when the material clock runs
+## and the visual's material animation samples it
 ## (the guard's scrolling inputs are second-texture transforms).
 func clock_animates(visual: Node) -> bool:
 	var before := matrices(visual)

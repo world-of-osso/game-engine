@@ -11,15 +11,15 @@
 //! built from the parsed model as `build_model` builds them. A material that animates on
 //! its model's sequence timeline follows its own instance's animation, so each instance
 //! copies it; one that animates on global sequences only samples alike in every model, so
-//! the material clock animates it once for all of them (`WowMaterialClock::share`).
+//! the instances share it and the first one the animation LOD lets sample it in a frame
+//! sets it (`WowMaterialAnimation::share_global_materials`).
 
 use std::{path::Path, sync::Arc};
 
 use game_engine_core::m2_material::{BatchBinding, MaterialTracks};
 use godot::{
     classes::{
-        ClassDb, Engine, MeshInstance3D, Node3D, PackedScene, SceneTree, ShaderMaterial,
-        Skeleton3D, class_db::ApiType,
+        ClassDb, MeshInstance3D, Node3D, PackedScene, ShaderMaterial, Skeleton3D, class_db::ApiType,
     },
     prelude::*,
 };
@@ -29,7 +29,7 @@ use super::{
     creature::{CachedModel, CreatureGear, model_at},
     m2_lights::WowM2Lights,
     material::copy_material,
-    uv_animation::{WowMaterialAnimation, WowMaterialClock},
+    uv_animation::WowMaterialAnimation,
 };
 use crate::animation::WowAnimationPlayer;
 
@@ -39,13 +39,7 @@ pub(crate) struct CreatureTemplate {
     gear: CreatureGear,
     scene: Gd<PackedScene>,
     nodes: Vec<RustNode>,
-    /// The clock animating the template's materials that animate on global sequences.
-    clock: Gd<WowMaterialClock>,
-    shared: Vec<InstanceId>,
 }
-
-/// Materials of one model that animate on global sequences only, with the model's tracks.
-type GlobalMaterials = (Arc<MaterialTracks>, Vec<(Gd<ShaderMaterial>, BatchBinding)>);
 
 /// A Rust node of the built visual, by the path of its model root under the visual.
 enum RustNode {
@@ -57,7 +51,9 @@ enum RustNode {
     MaterialAnimation {
         root: NodePath,
         name: StringName,
-        materials: Vec<(Gd<ShaderMaterial>, BatchBinding)>,
+        /// Materials each instance copies, and materials the instances share.
+        local: Vec<(Gd<ShaderMaterial>, BatchBinding)>,
+        shared: Vec<(Gd<ShaderMaterial>, BatchBinding)>,
     },
     Lights {
         root: NodePath,
@@ -66,15 +62,13 @@ enum RustNode {
 }
 
 impl CreatureTemplate {
-    /// The template of `built`, a creature visual not yet in the scene tree. The material
-    /// clock animates `built`'s materials that animate on global sequences from now on.
+    /// The template of `built`, a creature visual not yet in the scene tree.
     pub(crate) fn of(
         display_id: u32,
         gear: &CreatureGear,
         built: &Gd<Node3D>,
     ) -> Result<Self, String> {
-        let mut clock = material_clock()?;
-        let (nodes, global, detached) = take_rust_nodes(built)?;
+        let (nodes, detached) = take_rust_nodes(built)?;
         // Packing saves the nodes `built` owns; they own nothing again afterwards.
         set_owner(built, Some(built.clone().upcast()));
         let mut scene = PackedScene::new_gd();
@@ -87,18 +81,11 @@ impl CreatureTemplate {
         if packed != godot::global::Error::OK {
             return Err(format!("Creature visual did not pack: {packed:?}"));
         }
-        let mut shared = Vec::new();
-        for (tracks, materials) in global {
-            shared.extend(materials.iter().map(|(material, _)| material.instance_id()));
-            clock.bind_mut().share(&tracks, materials);
-        }
         Ok(Self {
             display_id,
             gear: gear.clone(),
             scene,
             nodes,
-            clock,
-            shared,
         })
     }
 
@@ -125,14 +112,6 @@ impl CreatureTemplate {
     }
 }
 
-impl Drop for CreatureTemplate {
-    fn drop(&mut self) {
-        if self.clock.is_instance_valid() {
-            self.clock.bind_mut().unshare(&self.shared);
-        }
-    }
-}
-
 /// Sets the owner of every node under `root`.
 fn set_owner(root: &Gd<Node3D>, owner: Option<Gd<Node>>) {
     for mut node in root.find_children_ex("*").owned(false).done().iter_shared() {
@@ -143,33 +122,13 @@ fn set_owner(root: &Gd<Node3D>, owner: Option<Gd<Node>>) {
     }
 }
 
-fn material_clock() -> Result<Gd<WowMaterialClock>, String> {
-    Engine::singleton()
-        .get_main_loop()
-        .and_then(|main| main.try_cast::<SceneTree>().ok())
-        .and_then(|tree| {
-            tree.get_root()
-                .try_get_node_as::<WowMaterialClock>("M2MaterialClock")
-        })
-        .ok_or_else(|| "Creature templates require /root/M2MaterialClock".to_owned())
-}
-
-/// Detaches the Rust nodes of `built` and returns how to make them again, `built`'s
-/// materials that animate on global sequences only, and each detached node with its parent
-/// and index, in tree order. Those materials leave `built`'s material animation, and one
-/// left with none is freed instead of detached.
+/// Detaches the Rust nodes of `built` and returns how to make them again and each detached
+/// node with its parent and index, in tree order. `built`'s materials that animate on global
+/// sequences only become shared (`WowMaterialAnimation::share_global_materials`).
 fn take_rust_nodes(
     built: &Gd<Node3D>,
-) -> Result<
-    (
-        Vec<RustNode>,
-        Vec<GlobalMaterials>,
-        Vec<(Gd<Node>, Gd<Node>, i32)>,
-    ),
-    String,
-> {
+) -> Result<(Vec<RustNode>, Vec<(Gd<Node>, Gd<Node>, i32)>), String> {
     let mut nodes = Vec::new();
-    let mut global = Vec::new();
     let mut found = Vec::new();
     for original in built
         .find_children_ex("*")
@@ -189,31 +148,25 @@ fn take_rust_nodes(
             .get_parent()
             .ok_or("Creature visual Rust node has no parent")?;
         let root = built.get_path_to(&parent);
-        let model = model_of(built, &root)?;
+        model_of(built, &root)?;
         let index = original.get_index();
         if let Ok(mut animation) = original.clone().try_cast::<WowMaterialAnimation>() {
-            let materials = animation.bind_mut().take_global_materials();
-            global.push((Arc::new(MaterialTracks::of(&model.model)), materials));
-            let local = animation.bind().materials();
-            parent.remove_child(&animation);
-            if local.is_empty() {
-                animation.free();
-                continue;
-            }
+            let shared = animation.bind_mut().share_global_materials();
             nodes.push(RustNode::MaterialAnimation {
                 root,
                 name: original.get_name(),
-                materials: local,
+                local: animation.bind().local_materials(),
+                shared,
             });
         } else {
             nodes.push(rust_node(built, root, original.clone())?);
-            parent.remove_child(&original);
         }
+        parent.remove_child(&original);
         detached.push((parent, original, index));
     }
-    // Reattached lowest index first, each lands at its own index.
+    // Reattached in reverse, each lands at the index it had when it was detached.
     detached.reverse();
-    Ok((nodes, global, detached))
+    Ok((nodes, detached))
 }
 
 fn rust_node(built: &Gd<Node3D>, root: NodePath, original: Gd<Node>) -> Result<RustNode, String> {
@@ -270,9 +223,12 @@ impl RustNode {
                 player.bind_mut().apply_sequence_bounds();
             }
             Self::MaterialAnimation {
-                name, materials, ..
+                name,
+                local,
+                shared,
+                ..
             } => {
-                let copies: Vec<_> = materials
+                let copies: Vec<_> = local
                     .iter()
                     .map(|(material, binding)| {
                         let copy = copy_material(material);
@@ -280,11 +236,11 @@ impl RustNode {
                         (copy, binding.clone())
                     })
                     .collect();
-                let mut animation = WowMaterialAnimation::from_batches(
+                let mut animation = WowMaterialAnimation::with_shared(
                     MaterialTracks::of(&model.model),
-                    copies.into_iter(),
-                )
-                .ok_or("Creature template's material animation has no animated material")?;
+                    copies,
+                    shared,
+                );
                 animation.set_name(name);
                 root.add_child(&animation);
             }
