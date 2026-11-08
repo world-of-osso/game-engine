@@ -817,6 +817,16 @@ impl TerrainObjects {
         self.spawned_doodads.len() + self.spawned_wmos.len()
     }
 
+    /// Cached parsed models, WMO assets and surface lookup cells, for memory diagnostics.
+    pub fn cache_counts(&self) -> (usize, usize, usize, usize) {
+        (
+            self.models.len(),
+            self.wmo_assets.len(),
+            self.surface_cells.len(),
+            self.surface_wmo_cells.len(),
+        )
+    }
+
     /// Placements not yet spawned or failed, loading or not.
     pub fn pending_count(&self) -> usize {
         self.pending.len()
@@ -1752,6 +1762,11 @@ impl TerrainObjects {
         self.surface_wmo_len = 0;
         self.surface_epoch = self.surface_epoch.wrapping_add(1);
         self.failures = 0;
+        // The loader lives for the process; forget finished keys together with the parsed
+        // models so a later map loads them again instead of stalling on a Done entry.
+        self.models.clear();
+        self.wmo_assets.clear();
+        self.loader.forget_loaded();
         if let Some(pools) = &mut self.particles {
             pools.reset();
         }

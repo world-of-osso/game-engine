@@ -225,3 +225,34 @@ fn loads_the_loading_screen_waits_for_go_ahead_of_every_queued_load() {
         vec![1, 6, 4, 2, 3, 5]
     );
 }
+
+#[test]
+fn forgetting_finished_keys_allows_a_later_request_to_load_them_again() {
+    let mut loader = AssetLoader::new("test", 1, |&fdid: &u32| Ok(fdid));
+    assert!(loader.request(1_237_495, Priority::Now));
+    assert_eq!(wait_for(&mut loader, 1), vec![(1_237_495, Ok(1_237_495))]);
+    assert_eq!(loader.state(&1_237_495), Some(LoadState::Done));
+    assert!(!loader.request(1_237_495, Priority::Now));
+
+    loader.forget_loaded();
+    assert_eq!(loader.state(&1_237_495), None);
+    assert!(loader.request(1_237_495, Priority::Now));
+    assert_eq!(wait_for(&mut loader, 1), vec![(1_237_495, Ok(1_237_495))]);
+}
+
+#[test]
+fn forgetting_loaded_keys_keeps_in_flight_keys_tracked() {
+    let (release, gate) = mpsc::channel::<()>();
+    let gate = Mutex::new(gate);
+    let mut loader = AssetLoader::new("test", 1, move |&fdid: &u32| {
+        gate.lock().unwrap().recv().unwrap();
+        Ok(fdid)
+    });
+    loader.request(1_713_682, Priority::Now);
+    loader.forget_loaded();
+    assert_eq!(loader.state(&1_713_682), Some(LoadState::Loading));
+    assert!(!loader.request(1_713_682, Priority::Now));
+    release.send(()).unwrap();
+    assert_eq!(wait_for(&mut loader, 1), vec![(1_713_682, Ok(1_713_682))]);
+    assert_eq!(loader.state(&1_713_682), Some(LoadState::Done));
+}

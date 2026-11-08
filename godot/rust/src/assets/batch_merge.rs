@@ -63,6 +63,10 @@ pub(crate) fn clear_merged_meshes() {
     MERGED.with_borrow_mut(HashMap::clear);
 }
 
+pub(crate) fn merged_mesh_count() -> usize {
+    MERGED.with_borrow(HashMap::len)
+}
+
 /// Draws the shown batches of `root` (built from `model` at `path`) that share a merge group
 /// as their first batch: it takes one surface of all their submeshes and keeps its own
 /// name, material and instance settings; the others are freed. `root` must not be in the

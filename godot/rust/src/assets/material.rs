@@ -126,6 +126,26 @@ pub(crate) fn clear_shared_shaders() {
     SCENERY_FADE_MATERIALS.with_borrow_mut(HashMap::clear);
 }
 
+/// Release the GPU resources a map built: its uploaded textures, scenery materials and
+/// per-placement fade copies. The shader objects stay because their variants are bounded
+/// by the shader source, not by the map.
+pub(crate) fn clear_world_resource_caches() {
+    TEXTURES.with_borrow_mut(HashMap::clear);
+    SCENERY_MATERIALS.with_borrow_mut(HashMap::clear);
+    SCENERY_SHADER_DEFAULTS.with_borrow_mut(HashMap::clear);
+    SCENERY_FADE_MATERIALS.with_borrow_mut(HashMap::clear);
+}
+
+/// Uploaded textures, scenery materials, fade materials and compiled shader variants.
+pub(crate) fn cache_counts() -> (usize, usize, usize, usize) {
+    (
+        TEXTURES.with_borrow(HashMap::len),
+        SCENERY_MATERIALS.with_borrow(HashMap::len),
+        SCENERY_FADE_MATERIALS.with_borrow(HashMap::len),
+        SHADERS.with_borrow(HashMap::len),
+    )
+}
+
 /// Compiles `pipeline`'s shader and, when opaque, its scenery-fade shader: Godot
 /// compiles a shader when a material first takes it.
 pub(crate) fn compile_pipeline(pipeline: Pipeline) -> Result<(), String> {
