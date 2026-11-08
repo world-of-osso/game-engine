@@ -440,10 +440,7 @@ pub(super) fn attachment_node(
 ) -> Option<Gd<Node3D>> {
     match attachment {
         None | Some(GROUND_ATTACHMENT) => world.unit_node(id),
-        Some(attachment) => attachment_point(
-            world.unit_model_node(id)?.upcast_ref(),
-            u32::from(attachment),
-        ),
+        Some(attachment) => attachment_point(&world.unit_model_node(id)?, u32::from(attachment)),
     }
 }
 

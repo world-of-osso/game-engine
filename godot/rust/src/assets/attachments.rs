@@ -72,7 +72,7 @@ fn point_path(id: u32) -> String {
 /// Attachment{id}`), made on first use (`skeleton_attachment_point`); `None` when the model
 /// has no such attachment. The rigs of effect anchors and stand-in actors hold plain nodes
 /// at the same paths.
-pub(crate) fn attachment_point(model: &Gd<Node>, id: u32) -> Option<Gd<Node3D>> {
+pub(crate) fn attachment_point(model: &Gd<Node3D>, id: u32) -> Option<Gd<Node3D>> {
     model
         .try_get_node_as::<Node3D>(&format!("Skeleton3D/{}", point_path(id)))
         .or_else(|| {
@@ -83,7 +83,7 @@ pub(crate) fn attachment_point(model: &Gd<Node>, id: u32) -> Option<Gd<Node3D>> 
 
 /// The attachment point `id` of the creature visual root `visual` (its `NpcModel`).
 pub(crate) fn visual_attachment_point(visual: &Gd<Node3D>, id: u32) -> Option<Gd<Node3D>> {
-    attachment_point(&visual.try_get_node_as::<Node>("NpcModel")?, id)
+    attachment_point(&visual.try_get_node_as::<Node3D>("NpcModel")?, id)
 }
 
 /// The attachment point `id` of `skeleton`, made from its attachment table on first use: a

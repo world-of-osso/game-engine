@@ -243,7 +243,7 @@ fn held_items<'a>(
                 return true;
             };
             let id = model_attachment_id(item.slot, Path::new(&authored));
-            super::attachments::attachment_point(model.upcast_ref(), id).is_some()
+            super::attachments::attachment_point(model, id).is_some()
         })
         .collect()
 }
