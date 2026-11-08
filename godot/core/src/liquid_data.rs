@@ -593,9 +593,10 @@ impl LiquidCatalog {
             .ok_or_else(|| format!("LiquidMaterial {} has no DB2 row", row.material_id))?;
         let lvf = if liquid_object < FIRST_LIQUID_OBJECT {
             liquid_object as u8
-        } else if liquid_object == FIRST_LIQUID_OBJECT && type_id == OCEAN_LIQUID_TYPE {
-            // The sentinel's hard-coded rule: an Ocean layer is vertex format 2, overriding
-            // LiquidMaterial 1's LVF 0.
+        } else if u32::from(liquid_type) == OCEAN_LIQUID_TYPE {
+            // G7: the sentinel's hard-coded rule is keyed on the layer's own type, not on
+            // object 42: an Ocean layer is vertex format 2 whenever the format field is a
+            // sentinel (>= 42), overriding LiquidMaterial 1's LVF 0.
             OCEAN_LVF
         } else {
             material_lvf
