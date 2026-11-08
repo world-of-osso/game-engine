@@ -867,7 +867,7 @@ impl crate::GameClient {
             && !viewport
                 .gui_get_focus_owner()
                 .is_some_and(|focus| focus.is_class("LineEdit") || focus.is_class("TextEdit"));
-        let Some(facing) = self.world.local_player_facing() else {
+        let Some(facing) = self.world.controlled_unit_facing() else {
             self.halt_player_movement();
             return Ok(());
         };
@@ -907,7 +907,7 @@ impl crate::GameClient {
         let yaw = waypoint_yaw
             .or(step.and_then(|step| step.facing_yaw))
             .unwrap_or(yaw);
-        self.world.set_local_player_facing(yaw);
+        self.world.set_controlled_unit_facing(yaw);
         if self.world.local_player_controlled() {
             self.halt_player_movement();
             return Ok(());
@@ -986,7 +986,7 @@ impl crate::GameClient {
         use godot::prelude::*;
         let mut player = self
             .world
-            .local_player_node()
+            .controlled_unit_node()
             .ok_or("Selected player vanished during input")?;
         let current = player.get_position();
         let space = player
@@ -1071,8 +1071,8 @@ impl crate::GameClient {
             return Ok(());
         }
         let (Some(yaw), Some(node), Some(epoch)) = (
-            self.world.local_player_facing(),
-            self.world.local_player_node(),
+            self.world.controlled_unit_facing(),
+            self.world.controlled_unit_node(),
             self.world.local_player_epoch(),
         ) else {
             return Ok(());

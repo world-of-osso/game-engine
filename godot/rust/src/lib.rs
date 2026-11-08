@@ -2823,6 +2823,10 @@ impl GameClient {
                 Ok(c.update_skybox_debug_options()?)
             }),
             ("Account", |c, _| c.poll_account()),
+            ("Control", |c, _| {
+                c.world.set_controlled_unit(c.account.controlled_unit);
+                Ok(())
+            }),
             ("Shader compilation", |c, _| Ok(c.compile_used_shaders()?)),
             ("Item data", |c, _| {
                 c.receive_item_catalog();
@@ -3668,7 +3672,7 @@ impl GameClient {
         if self.terrain.parsed_tiles.is_empty() && !self.terrain.state().global_wmo_present {
             return Ok(());
         }
-        let Some(player) = self.world.local_player_node() else {
+        let Some(player) = self.world.controlled_unit_node() else {
             return Ok(());
         };
         let mut parent = self.to_gd().upcast::<Node3D>();
