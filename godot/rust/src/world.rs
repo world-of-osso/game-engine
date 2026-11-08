@@ -1191,6 +1191,8 @@ pub struct WorldUnits {
     units: HashMap<u64, UnitNode>,
     selected_name: Option<String>,
     local_player_id: Option<u64>,
+    /// `ControlUpdate`: the unit this client controls instead of its player body.
+    controlled_unit: Option<u64>,
     local_visual_monitor: LocalVisualMonitor,
     models: WorldModels,
     /// Loaded visuals waiting for main-thread time, oldest first.
@@ -1232,6 +1234,7 @@ impl WorldUnits {
             units: HashMap::new(),
             selected_name: None,
             local_player_id: None,
+            controlled_unit: None,
             shadow_view: None,
             local_visual_monitor: LocalVisualMonitor::default(),
             models: WorldModels::new(data_root),
@@ -2047,6 +2050,7 @@ impl WorldUnits {
         }
         if self.local_player_id == Some(id) {
             self.local_player_id = None;
+            self.controlled_unit = None;
         }
     }
 
@@ -2062,6 +2066,7 @@ impl WorldUnits {
         self.units.clear();
         self.deaths.clear();
         self.local_player_id = None;
+        self.controlled_unit = None;
         self.local_visual_monitor = LocalVisualMonitor::default();
         self.selected_name = None;
         if let Some(root) = self.root.take() {
@@ -2142,6 +2147,36 @@ impl WorldUnits {
 
     pub fn local_player_node(&self) -> Option<Gd<Node3D>> {
         Some(self.units.get(&self.local_player_id?)?.node.clone())
+    }
+
+    /// Camera/movement target: the possessed unit while its body is controlled, else the
+    /// local player. A controlled GUID that is not replicated yet falls back to the player.
+    pub fn controlled_unit_node(&self) -> Option<Gd<Node3D>> {
+        self.controlled_unit
+            .and_then(|id| self.units.get(&id))
+            .or_else(|| self.units.get(&self.local_player_id?))
+            .map(|unit| unit.node.clone())
+    }
+
+    pub fn controlled_unit_facing(&self) -> Option<f32> {
+        self.controlled_unit
+            .and_then(|id| self.units.get(&id))
+            .or_else(|| self.units.get(&self.local_player_id?))
+            .map(|unit| unit.motion.facing_yaw)
+    }
+
+    pub fn set_controlled_unit_facing(&mut self, yaw: f32) {
+        let id = self
+            .controlled_unit
+            .filter(|id| self.units.contains_key(id))
+            .or(self.local_player_id);
+        if let Some(unit) = id.and_then(|id| self.units.get_mut(&id)) {
+            unit.motion.facing_yaw = yaw;
+        }
+    }
+
+    pub fn set_controlled_unit(&mut self, id: Option<u64>) {
+        self.controlled_unit = id;
     }
 
     pub fn local_footstep_phase(&self) -> Option<(u64, Vector3, (usize, u16, f32, f32))> {
@@ -2316,6 +2351,7 @@ impl WorldUnits {
         if self.selected_name.as_deref() != selected_name {
             self.selected_name = selected_name.map(str::to_owned);
             self.local_player_id = None;
+            self.controlled_unit = None;
         }
         let Some(name) = selected_name else {
             return;

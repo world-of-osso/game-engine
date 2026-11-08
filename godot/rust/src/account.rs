@@ -89,11 +89,11 @@ use shared::protocol::{
     InteractionOpened, InventoryDelta, InventoryError, InventorySnapshot, MerchantChannel,
     MerchantFailed, RepairItem, SellAllJunkItems, SellItem, VendorInventory,
 };
+use shared::protocol::{ControlUpdate, PetAction, PetClearSpells, PetSpellAutocast, PetSpells};
 use shared::protocol::{
     MailChannel, MailFailed, MailRequest, MailSent, MailboxContents, PendingMail, SendMail,
     UseGameObject,
 };
-use shared::protocol::{PetAction, PetClearSpells, PetSpellAutocast, PetSpells};
 use shared::protocol::{PetStableChannel, PetStableContents, PetStableFailed, PetStableRequest};
 
 use game_engine_ui_model::group_state::{GroupCommand, GroupState};
@@ -194,6 +194,9 @@ pub struct Account {
     pub group: GroupState,
     /// The pet action bar of the last `PetSpells`; `None` without a pet (`PetClearSpells`).
     pub pet_bar: Option<PetSpells>,
+    /// The unit the server lets this client control (`ControlUpdate`), separate from the
+    /// player's own body. `None` means the local player is controlled.
+    pub controlled_unit: Option<u64>,
     /// The group's raid target icons, or the solo player's own.
     pub raid_targets: RaidTargetIcons,
 }
@@ -430,6 +433,7 @@ impl Account {
             xp: None,
             group: GroupState::default(),
             pet_bar: None,
+            controlled_unit: None,
             raid_targets: RaidTargetIcons::default(),
         }
     }
@@ -1914,6 +1918,17 @@ impl Account {
             self.pet_bar = None;
             return Ok(());
         }
+        if message.is::<ControlUpdate>() {
+            let update = decode::<ControlUpdate>(message)?;
+            self.controlled_unit = if update.on {
+                Some(update.unit)
+            } else if self.controlled_unit == Some(update.unit) {
+                None
+            } else {
+                self.controlled_unit
+            };
+            return Ok(());
+        }
         if self.receive_spell_message(&message) {
             return self.dispatch_spell_message(message, output);
         }
@@ -3393,6 +3408,40 @@ mod tests {
             .dispatch_message(ProtocolMessage::for_tests(PetClearSpells), &mut output)
             .unwrap();
         assert_eq!(account.pet_bar, None);
+        assert!(output.is_empty());
+    }
+
+    #[test]
+    fn control_update_sets_and_clears_the_controlled_unit() {
+        use shared::protocol::ControlUpdate;
+        let mut account = Account::new(PathBuf::from("/nonexistent-control-data"));
+        let mut output = Vec::new();
+        let unit = 0x0000_0002_0000_0031;
+        account
+            .dispatch_message(
+                ProtocolMessage::for_tests(ControlUpdate { unit, on: true }),
+                &mut output,
+            )
+            .unwrap();
+        assert_eq!(account.controlled_unit, Some(unit));
+        // A stale release for another unit must not clear the current control.
+        account
+            .dispatch_message(
+                ProtocolMessage::for_tests(ControlUpdate {
+                    unit: unit + 1,
+                    on: false,
+                }),
+                &mut output,
+            )
+            .unwrap();
+        assert_eq!(account.controlled_unit, Some(unit));
+        account
+            .dispatch_message(
+                ProtocolMessage::for_tests(ControlUpdate { unit, on: false }),
+                &mut output,
+            )
+            .unwrap();
+        assert_eq!(account.controlled_unit, None);
         assert!(output.is_empty());
     }
 
