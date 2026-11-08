@@ -11,10 +11,10 @@
 //! starts, so simultaneous numbers do not stack; `WorldTextRampDuration_v2 = 1.0` with
 //! `WorldTextRampPow_v2 = 1.9` / `WorldTextRampPowCrit_v2 = 8.0` shape the size ramp, a crit
 //! settling faster. No source has the engine formula; the mapping of each CVar here is read
-//! from its name. Text keeps a fixed screen size (15890 draws it in a screen-space ortho
-//! projection at a fixed NDC height, `WorldText.cpp:234-253`), so the start spread is measured
-//! in `unit`s that scale with it (the caller passes 1.5 text heights at the target's depth), or
-//! distant numbers would still land on each other.
+//! from its name. Text is world-anchored and shrinks with camera distance (Retail 12.1.5);
+//! 15890 drew the same words in a screen-space ortho at a fixed screen height
+//! (`WorldText.cpp:234-253`), which is the older behaviour. The start spread is measured in
+//! world units that scale with the text, so distant numbers do not land on each other.
 
 use godot::prelude::*;
 use shared::protocol::{CombatLogEvent, CombatLogKind, MissKind};
@@ -223,48 +223,31 @@ fn miss_word(kind: MissKind) -> &'static str {
     }
 }
 
-/// Retail's world-text height, as a fraction of the viewport height, at
-/// [`REFERENCE_YARDS`]: `WorldTextScreenY_v2` (**retail CVar** `0.015`), the same value 15890
-/// carries as a style's end height (`WorldText.cpp:44-56`). `WorldTextCritScreenY_v2` =
-/// `0.0275` gives the crit ratio.
+/// Retail's world-text height: `WorldTextScreenY_v2` (**retail CVar** `0.015`), the same
+/// quantity 15890 stores as a style height, `0.018333` (`WorldText.cpp:44-56`). Those heights
+/// are device-dependent coordinates, and 0.6 of them is one half-viewport (`Coordinate.cpp:19-22`
+/// `s_ddcHeightScale` at the 4:3 reference), so the em draws `0.015 / 0.6 = 0.025` of the
+/// viewport height: 18 px at 720p and 27 px at 1080p. `WorldTextCritScreenY_v2` = `0.0275`
+/// converts to the same 4.58 % for a crit, the 1.833x ratio the CVar pair specifies.
 pub(crate) const SCREEN_Y: f32 = 0.015;
 pub(crate) const CRIT_SCREEN_Y: f32 = 0.0275;
-/// The distance at which `WorldTextScreenY_v2` is the on-screen fraction of the viewport
-/// height. **Calibrated**: Retail 12.1.5 defines the text height through a screen scale built
-/// from two operands this project has not decoded (calls at 0x141e67100 and 0x1401f45a0), so
-/// the reference distance stands in for them. Retirement: replace it with whatever distance
+const DDC_HEIGHT_SCALE: f32 = 0.6;
+/// Normal-text em as a fraction of the viewport height at [`REFERENCE_YARDS`].
+pub(crate) const SCREEN_HEIGHT_FRACTION: f32 = SCREEN_Y / DDC_HEIGHT_SCALE;
+/// The distance at which the em is [`SCREEN_HEIGHT_FRACTION`] of the viewport height.
+/// **Calibrated**: Retail 12.1.5 defines the text height through a screen scale built from
+/// two operands this project has not decoded (calls at 0x141e67100 and 0x1401f45a0), so the
+/// reference distance stands in for them. Retirement: replace it with whatever distance
 /// those operands resolve to, which leaves the CVar fraction as the only size input.
 pub(crate) const REFERENCE_YARDS: f32 = 10.0;
-/// The draw path clamps the text to a constant 7 px (**verified 12.1.5**).
-pub(crate) const MIN_SCREEN_PX: f32 = 7.0;
 
-/// World yards one text em covers, from the CVar fraction and the camera's field of view. A
-/// constant world size is what makes the screen height follow Retail's 1/d law: the projected
-/// height of a fixed world size divides by the distance exactly as the law does.
+/// World yards one text em covers, from the screen fraction at [`REFERENCE_YARDS`] and the
+/// camera's field of view. A constant world size is what makes the screen height follow
+/// Retail's 1/d law: the projected height of a fixed world size divides by the distance
+/// exactly as the law does, so no per-frame distance term is needed.
 pub(crate) fn em_yards(fov_degrees: f32) -> f32 {
     let half_fov = (fov_degrees * std::f32::consts::PI / 360.0).tan();
-    SCREEN_Y * REFERENCE_YARDS * 2.0 * half_fov
-}
-
-/// World yards one world yard covers on screen at `distance`, for the 7 px floor.
-fn pixels_per_yard(distance: f32, fov_degrees: f32, viewport_height: f32) -> f32 {
-    let half_fov = (fov_degrees * std::f32::consts::PI / 360.0).tan();
-    viewport_height.max(1.0) / (2.0 * distance.max(1.0) * half_fov)
-}
-
-/// Multiplier that keeps a shrinking text above [`MIN_SCREEN_PX`] on screen.
-pub(crate) fn min_pixel_scale(
-    em_yards: f32,
-    distance: f32,
-    fov_degrees: f32,
-    viewport_height: f32,
-) -> f32 {
-    let px = em_yards * pixels_per_yard(distance, fov_degrees, viewport_height);
-    if px >= MIN_SCREEN_PX || px <= 0.0 {
-        1.0
-    } else {
-        MIN_SCREEN_PX / px
-    }
+    SCREEN_HEIGHT_FRACTION * REFERENCE_YARDS * 2.0 * half_fov
 }
 
 /// Shadow offset in ems: 15890's `s_shadowOffset` is 0.002 against an 0.0183 em shadow
@@ -539,22 +522,25 @@ mod tests {
         assert_eq!(fade_alpha(SPELL_DAMAGE.duration, SPELL_DAMAGE), 0.0);
     }
 
+    fn pixels_per_yard(distance: f32, fov_degrees: f32, viewport_height: f32) -> f32 {
+        let half_fov = (fov_degrees * std::f32::consts::PI / 360.0).tan();
+        viewport_height.max(1.0) / (2.0 * distance.max(1.0) * half_fov)
+    }
+
     #[test]
     fn the_cvar_height_is_a_fraction_of_the_viewport_at_the_reference_distance() {
-        // 1280x720, 75 degrees: one em is 0.015 * 10 yards * 2 tan(37.5) = 0.23 yards, and a
-        // yard is 46.9 px there, so a hit draws a 10.8 px em at the reference distance.
+        // 1280x720, 75 degrees: the CVar's 0.015 in 15890's 0.6 DDC height gives a
+        // 0.025 viewport fraction, so one em is 0.025 * 10 yards * 2 tan(37.5) = 0.3835
+        // yards, and a yard is 46.9 px there: a hit draws an 18 px em at the reference.
         let em = em_yards(75.0);
-        assert!((em - 0.2301).abs() < 0.001, "{em}");
+        assert!((em - 0.3835).abs() < 0.001, "{em}");
         let px = em * pixels_per_yard(REFERENCE_YARDS, 75.0, 720.0);
+        assert!((px - 18.0).abs() < 0.01, "{px} vs 18");
         assert!(
-            (px - SCREEN_Y * 720.0).abs() < 0.01,
-            "{px} vs {}",
-            SCREEN_Y * 720.0
+            (px - SCREEN_HEIGHT_FRACTION * 720.0).abs() < 0.01,
+            "{px} is the CVar fraction"
         );
-        // A fixed world size divides by the distance exactly as Retail's 1/d law does.
-        let far = em * pixels_per_yard(3.0 * REFERENCE_YARDS, 75.0, 720.0);
-        assert!((far - px / 3.0).abs() < 0.01, "{far}");
-        // The crit style is taller by the CVar pair's own ratio.
+        // The pop and the crit height then make a crit 1.833x the hit.
         assert!((CRIT_SCALE - 0.0275 / 0.015).abs() < 1e-6);
         assert!((CRIT_SCALE - 1.8333).abs() < 0.001);
         assert!(
@@ -564,21 +550,24 @@ mod tests {
     }
 
     #[test]
-    fn a_far_text_is_lifted_to_the_seven_pixel_floor() {
+    fn distance_shrinks_the_text_with_no_pixel_floor() {
         let em = em_yards(75.0);
-        // At the reference distance a hit is above the floor, so nothing changes.
-        assert_eq!(min_pixel_scale(em, REFERENCE_YARDS, 75.0, 720.0), 1.0);
-        // Ten times further it would be 1.08 px, so it is scaled up to exactly 7 px.
-        let scale = min_pixel_scale(em, 10.0 * REFERENCE_YARDS, 75.0, 720.0);
-        let px = em * scale * pixels_per_yard(10.0 * REFERENCE_YARDS, 75.0, 720.0);
-        assert!((px - MIN_SCREEN_PX).abs() < 0.01, "{px}");
+        let near = em * pixels_per_yard(REFERENCE_YARDS, 75.0, 720.0);
+        let far = em * pixels_per_yard(3.0 * REFERENCE_YARDS, 75.0, 720.0);
+        // A fixed world size divides by the distance exactly as Retail's 1/d law does, and
+        // nothing lifts a distant number back up.
+        assert!((far - near / 3.0).abs() < 0.01, "{far} vs {}", near / 3.0);
+        assert!(
+            (far - 6.0).abs() < 0.01,
+            "30 yards draws a 6 px em, not a floor"
+        );
     }
 
     #[test]
     fn each_slot_starts_above_the_previous_numbers_full_travel() {
-        // A hit rises 2 yards and is 0.23 yards tall, so a second one starts 2.23 + 0.8*0.23
+        // A hit rises 2 yards and is 0.38 yards tall, so a second one starts 2.38 + 0.8*0.38
         // yards up; a third adds the second's travel again.
-        let height = 0.2302;
+        let height = 0.3835;
         let first = stack_offset(&[], height);
         assert!((first - 0.8 * height).abs() < 1e-6, "{first}");
         let second = stack_offset(&[(2.0, height)], height);

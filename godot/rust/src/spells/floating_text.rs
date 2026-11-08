@@ -26,15 +26,12 @@ pub(super) struct FloatingText {
     spell_crit: bool,
     /// Down-right screen direction the shadow is offset along.
     shadow_offset: Vector3,
-    /// World height of a style-scale-1 em, from the CVar fraction and the camera.
+    /// World height of a style-scale-1 em, from the screen fraction and the camera.
     em_base: f32,
-    /// Camera field of view and viewport height, for the 7 px floor.
-    fov: f32,
-    viewport_height: f32,
 }
 
 impl FloatingText {
-    fn advance(&mut self, delta: f32, eye: Option<Vector3>) -> bool {
+    fn advance(&mut self, delta: f32) -> bool {
         self.age += delta;
         if !self.node.is_instance_valid() {
             return false;
@@ -49,15 +46,12 @@ impl FloatingText {
         let t = self.age / self.style.duration;
         let position = self.origin + Vector3::new(0.0, self.style.ascend * t, 0.0);
         self.node.set_position(position);
-        let distance = eye.map_or(combat_text::REFERENCE_YARDS, |eye| {
-            eye.distance_to(self.origin)
-        });
-        // A constant world em makes the screen height follow Retail's 1/d law; the 7 px draw
-        // clamp then holds the far sizes up.
-        let em = self.em_base * self.style.scale * combat_text::height_scale(self.age, self.style);
+        // A constant world em makes the screen height follow Retail's 1/d law with no
+        // per-frame distance term: the em is the same at every distance and projection
+        // divides it by the distance. Close text therefore grows; far text shrinks with no
+        // floor (WorldTextMinSize is the minimum *character name* size, not combat text).
         let pixel = self.em_base * combat_text::height_scale(self.age, self.style)
-            / combat_text::TEXT_FONT_SIZE as f32
-            * combat_text::min_pixel_scale(em, distance, self.fov, self.viewport_height);
+            / combat_text::TEXT_FONT_SIZE as f32;
         self.node.set_pixel_size(pixel);
         let alpha = combat_text::fade_alpha(self.age, self.style);
         let mut color = self.node.get_modulate();
@@ -196,11 +190,8 @@ impl GameClient {
         for (event, attacker) in events {
             self.spawn_combat_text(&event, attacker, camera.clone());
         }
-        let eye = camera.map(|camera| camera.get_global_transform().origin);
         if !self.spells.combat_text_hold {
-            self.spells
-                .floating
-                .retain_mut(|text| text.advance(delta, eye));
+            self.spells.floating.retain_mut(|text| text.advance(delta));
         }
     }
 
@@ -306,18 +297,14 @@ impl GameClient {
             combat_text_size(event, text.style) as f32,
         );
         let camera_transform = camera.get_global_transform();
-        let distance = camera_transform.origin.distance_to(origin);
-        let fov = camera.get_fov();
-        let viewport_height = Self::viewport_height(&camera);
-        let em_base = combat_text::em_yards(fov);
+        let em_base = combat_text::em_yards(camera.get_fov());
         let em = em_base * text.style.scale * combat_text::height_scale(0.0, text.style);
         // 15890's shadow is a tenth of an em, and an em is the text height.
         let shadow_step = em
             * combat_text::SHADOW_OFFSET_EM
             * (camera_transform.basis.col_a() - camera_transform.basis.col_b()).normalized();
         let pixel = em_base * combat_text::height_scale(0.0, text.style)
-            / combat_text::TEXT_FONT_SIZE as f32
-            * combat_text::min_pixel_scale(em, distance, fov, viewport_height);
+            / combat_text::TEXT_FONT_SIZE as f32;
         label.set_position(origin);
         label.set_pixel_size(pixel);
         shadow.set_position(origin);
@@ -329,8 +316,6 @@ impl GameClient {
             shadow,
             shadow_offset: shadow_step,
             em_base,
-            fov,
-            viewport_height,
             unit: unit_id,
             age: 0.0,
             origin,
@@ -359,12 +344,9 @@ impl GameClient {
     /// Offline fixture: advance every live world text by `seconds`, as a frame would, and
     /// return the live count. Lets a capture decide the texts' age.
     pub(crate) fn preview_float_text_advance(&mut self, seconds: f32) -> i64 {
-        let eye = self
-            .combat_text_camera()
-            .map(|camera| camera.get_global_transform().origin);
         self.spells
             .floating
-            .retain_mut(|text| text.advance(seconds, eye));
+            .retain_mut(|text| text.advance(seconds));
         self.spells.floating.len() as i64
     }
 
@@ -373,9 +355,7 @@ impl GameClient {
         let iterations = iterations.clamp(1, 100_000);
         let started = std::time::Instant::now();
         for _ in 0..iterations {
-            self.spells
-                .floating
-                .retain_mut(|text| text.advance(0.0, None));
+            self.spells.floating.retain_mut(|text| text.advance(0.0));
         }
         started.elapsed().as_secs_f64() * 1_000_000.0 / f64::from(iterations)
     }
@@ -441,12 +421,5 @@ impl GameClient {
             .collect();
         let offset = combat_text::stack_offset(&live, height);
         origin + camera_transform.basis.col_b() * offset
-    }
-
-    /// Viewport height in pixels: the reference Godot's fixed-size text factor scales with.
-    fn viewport_height(camera: &Gd<Camera3D>) -> f32 {
-        camera
-            .get_viewport()
-            .map_or(720.0, |viewport| viewport.get_visible_rect().size.y)
     }
 }
