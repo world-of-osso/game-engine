@@ -563,17 +563,6 @@ fn polygon_normal(polygon: &[Vec3]) -> Vec3 {
         .normalize_or_zero()
 }
 
-/// Sutherland-Hodgman against each half space; inside when an area survives all.
-fn polygon_in_frustum(mut polygon: Vec<Vec3>, frustum: &[HalfSpace]) -> bool {
-    for plane in frustum {
-        polygon = clip_polygon(&polygon, |point| plane.normal.dot(point) + plane.d);
-        if polygon.len() < 3 {
-            return false;
-        }
-    }
-    true
-}
-
 fn clip_polygon(polygon: &[Vec3], signed_distance: impl Fn(Vec3) -> f32) -> Vec<Vec3> {
     let mut clipped = Vec::with_capacity(polygon.len() + 2);
     for (&a, &b) in polygon.iter().zip(polygon.iter().cycle().skip(1)) {
