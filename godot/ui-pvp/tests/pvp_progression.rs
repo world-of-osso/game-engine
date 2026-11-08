@@ -17,6 +17,7 @@ fn quick_match_and_rated_tabs_show_wallet_balances_without_fake_season_policy() 
         view.visible = true;
         view.snapshot = Some(PvpSnapshot {
             lifetime_honor_xp: 0,
+            account_lifetime_honor_xp: 0,
             honor_level: None,
             honor: 750,
             honor_max: 15000,
@@ -134,6 +135,7 @@ fn honor_lifetime_display_never_substitutes_spendable_cap_for_unknown_level_curv
         view.honor_faction = Some(game_engine_ui_model::char_create_data::Faction::Alliance);
         view.snapshot = Some(shared::protocol::PvpSnapshot {
             lifetime_honor_xp: 47,
+            account_lifetime_honor_xp: 47,
             honor_level: None,
             honor: 750,
             honor_max: 15000,
