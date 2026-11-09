@@ -1,3 +1,7 @@
+## Ruby collision-only surface indexing fix — 2026-11-09
+
+Ruby Life Pools' collision-only M2 carries inverted empty render bounds. Its transformed bounds caused the visible-surface query to build an unbounded dense grid. `TerrainObjects::index_surface_cells` now indexes doodads only when they own a non-empty render mesh surface; camera collision is unchanged. The committed real-M2 fixture and post-fix Ruby RSS are pending final verification. [[client-map-cache-and-udp-framing-2026-11-08]]
+
 ## No-install certification poses: 11/11 pass — 2026-11-08
 
 [Shipped assets](../specs/shipped-assets.md#p4-no-install-certification-run) defines the P4 zone/pose table and pass criteria. `scripts/noinstall_certification.py` runs one extracted-only process per pose with the install hidden and records missing-asset and fallback lines. All eleven poses passed after local fixes: 28 Retail M2 receipt gaps, 260 flat Forever WMO roots/groups and the 2959 skybox chain. All observed misses were source-present; none was absent from the build or a wrong-ID request. Evidence `data/diagnostics/noinstall-cert-2026-11-08/REPORT.md`. Bounded poses, not whole-catalog P4 closure.

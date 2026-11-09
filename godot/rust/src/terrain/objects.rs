@@ -159,6 +159,21 @@ const WORKERS: usize = 2;
 /// holds a handful of placements, so a query tests those instead of every doodad.
 const SURFACE_CELL_YARDS: f32 = 8.0;
 
+/// Model roots are Node3D; only rendered mesh children have a visible surface to index.
+fn has_render_geometry(root: &Gd<Node3D>) -> bool {
+    root.find_children_ex("*")
+        .type_("MeshInstance3D")
+        .owned(false)
+        .recursive(true)
+        .done()
+        .iter_shared()
+        .filter_map(|node| node.try_cast::<MeshInstance3D>().ok())
+        .any(|mesh| {
+            mesh.get_mesh()
+                .is_some_and(|resource| resource.get_surface_count() > 0)
+        })
+}
+
 /// Worker: extract and parse `asset` and decode the textures it draws with.
 fn load_asset(data_root: &Path, asset: ObjectAsset) -> Result<LoadedAsset, String> {
     let _span = crate::profile::span(|| format!("objects.worker {asset:?}"));
@@ -763,14 +778,11 @@ impl TerrainObjects {
     /// are fixed at spawn, so each one is indexed once.
     fn index_surface_cells(&mut self) {
         for index in self.surface_cells_len..self.doodads.len() {
-            let (min, max) = self.doodads[index].scenery.world_bounds();
-            if (max - min).max_element() > 512.0 {
-                eprintln!(
-                    "SURFACE_INDEX_DOODAD index={index} name={} id={} min={min:?} max={max:?}",
-                    self.doodads[index].node.get_name(),
-                    self.doodads[index].unique_id
-                );
+            let node = &self.doodads[index].node;
+            if !has_render_geometry(node) {
+                continue;
             }
+            let (min, max) = self.doodads[index].scenery.world_bounds();
             for x in surface_cell(min.x)..=surface_cell(max.x) {
                 for z in surface_cell(min.z)..=surface_cell(max.z) {
                     self.surface_cells
@@ -791,11 +803,6 @@ impl TerrainObjects {
         for index in self.surface_wmo_len..self.wmos.len() {
             for (group, (min, max)) in &self.wmos[index].group_boxes {
                 let (min, max, group) = (*min, *max, *group);
-                if (max - min).max_element() > 512.0 {
-                    eprintln!(
-                        "SURFACE_INDEX_WMO index={index} group={group} min={min:?} max={max:?}"
-                    );
-                }
                 for x in surface_cell(min.x)..=surface_cell(max.x) {
                     for z in surface_cell(min.z)..=surface_cell(max.z) {
                         self.surface_wmo_cells
