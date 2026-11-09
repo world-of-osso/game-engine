@@ -24,7 +24,7 @@ M2 batches must retain the authored priority plane when the native renderer draw
 
 ## Known gaps (current cycle)
 
-- [ ] Acceptance test is committed before the material binding fix; RED and GREEN evidence belongs in the investigation.
+- [ ] Run the committed camera-sweep raster acceptance after binding the authored priority; update the requirements only after it passes.
 
 ## Out of scope
 

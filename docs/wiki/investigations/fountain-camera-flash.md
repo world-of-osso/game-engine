@@ -22,7 +22,7 @@ WebWowViewerCpp1a8cccbeffc46231c6497e6b3f5bfbf3507d8071's `SortMeshes` compares 
 
 ## Acceptance and proof status
 
-The committed `m2_transparent_priority.gd` test loads real366804 geometry/textures and freezes material time at700ms. It compares rendered basin pixels at120 yaw/pitch poses with an independent raw-skin priority reference, including128 colourless transparent draws. It also requires visible blue water, so an empty render cannot pass. RED/GREEN and final gates are pending; no product fix is included in the initial acceptance commit.
+The committed `m2_transparent_priority.gd` test loads real366804 geometry/textures and freezes material time at700ms. It compares rendered basin pixels at120 yaw/pitch poses with an independent raw-skin priority reference, including128 colourless transparent draws. It also requires visible blue water, so an empty render cannot pass. The first run was RED at88/120 poses, worst3501 basin pixels. The production material now binds the resolved signed priority when it is created; post-fix raster and compiler gates are pending.
 
 ## Sources
 
