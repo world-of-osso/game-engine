@@ -181,6 +181,7 @@ pub(super) fn load_material(
     let span = crate::profile::span(|| "material.set_shader".to_owned());
     let mut material = crate::rebuild_guard::new_shader_material();
     material.set_shader(&shader);
+    material.set_render_priority(i32::from(batch.priority_plane));
     drop(span);
     let _span = crate::profile::span(|| "material.parameters".to_owned());
     if let Some(fade) = fade {
