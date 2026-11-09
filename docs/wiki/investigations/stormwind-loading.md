@@ -76,6 +76,21 @@ terrain tile finishing after the per-chunk gathering. Evidence:
 `data/diagnostics/fps-120-close-2026-11-06/windows-diag-stream/win-sb-*` and
 `profile/stream-prof-{o2a,b1a}.log`.
 
+## Game-object visuals off the replication event (November 9, 2026)
+
+After the Lakeshire -> Trade District teleport, one replication event cost 110 ms of main-thread
+CPU on Linux debug (up to 455 ms wall with a cold model cache): `GameObjects::upsert` extracted,
+parsed and decoded every new game object's model inline (52 objects; one 37-material model
+alone took 166 ms). Units were already worker-loaded. Game objects now take the world-object
+path: the node is placed at once, an `AssetLoader` worker loads and decodes the model, and the
+main thread publishes one texture per iteration and attaches visuals within 8 ms per frame.
+
+Linux debug, 3 profiled interleaved runs each, main-thread on-CPU ms: worst replication event
+110 -> 25, replication total 148 -> 81, new visual step worst 14 (total 41), worst frame
+142 -> 85. All 52 objects end with their visual; the visual follows its node by a median of
+1 frame (at most 13). Remaining >50 ms frames are terrain tile finishing and single WMO texture
+uploads. Evidence: `data/diagnostics/fps-120-close-2026-11-06/profile/stream-up-*`, `stream-ua-*`.
+
 ## Proof
 
 Baseline samples, profile summary, argv, server setup and logs: `data/diagnostics/swload-2026-10-05/`. Automated coverage includes dynamic child discovery, moved-player requirements, inclusive boundaries, duplicate completion, tile-edge coverage, and `godot/tests/stormwind_loading.gd` for real private-server entry with nonzero distant pending and eventual drain. Before/after rendered and headless proof must be interpreted separately.
