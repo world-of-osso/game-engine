@@ -44,10 +44,21 @@ struct TileVisibility {
 struct TileBuild {
     tile: Tile,
     assembly: TileAssembly,
-    collisions: Vec<(String, Gd<ConcavePolygonShape3D>)>,
+    /// Chunk collision bodies, allocated with their chunk so a tile's 256 bodies spread
+    /// over the gathering frames instead of one finishing frame (~15 ms per tile).
+    collisions: Vec<Gd<StaticBody3D>>,
     bounds: Vec<(usize, Vec3, Vec3)>,
     /// Next root chunk to build.
     next: usize,
+}
+
+impl Drop for TileBuild {
+    /// Frees the bodies of a tile that never spawned: failed, reset or no longer parsed.
+    fn drop(&mut self) {
+        for body in self.collisions.drain(..) {
+            body.free();
+        }
+    }
 }
 
 #[derive(Default)]
@@ -295,9 +306,9 @@ impl TerrainMaterials {
                 geometry_min(&geometry),
                 geometry_max(&geometry),
             ));
-            build.collisions.push((
-                format!("Chunk{}_{}", chunk.index_x, chunk.index_y),
-                collision_from_geometry(&geometry),
+            build.collisions.push(spawn_collision(
+                &format!("Chunk{}_{}", chunk.index_x, chunk.index_y),
+                &collision_from_geometry(&geometry),
             ));
         }
         Ok(Some(build))
@@ -307,7 +318,7 @@ impl TerrainMaterials {
         &mut self,
         tile: Tile,
         parsed: &NativeTerrainTile,
-        build: TileBuild,
+        mut build: TileBuild,
     ) -> Result<Gd<Node3D>, String> {
         let span = crate::profile::span(|| "terrain.water".to_owned());
         let water = self.water.build(&parsed.root, &parsed.liquid_materials)?;
@@ -319,13 +330,15 @@ impl TerrainMaterials {
             None
         } else {
             let shader = self.shader()?;
-            let (mesh, mut material) = build.assembly.build(&shader, &self.layers, &mask)?;
+            let (mesh, mut material) =
+                std::mem::take(&mut build.assembly).build(&shader, &self.layers, &mask)?;
             if let Some(light) = &self.light {
                 light.bind(&mut material);
             }
             Some((mesh, material))
         };
-        // Allocate manual-lifetime nodes only after all fallible resource construction.
+        // Allocate the root only after all fallible resource construction; on an error
+        // `TileBuild` frees its collision bodies.
         let mut root = Node3D::new_alloc();
         root.set_name(&format!("Tile{}_{}", tile.0, tile.1));
         if let Some(water) = water {
@@ -341,11 +354,11 @@ impl TerrainMaterials {
             self.tiles.push(TileVisibility {
                 texture: mask,
                 hidden,
-                chunks: build.bounds,
+                chunks: std::mem::take(&mut build.bounds),
             });
         }
-        for (name, collision) in build.collisions {
-            root.add_child(&spawn_collision(&name, &collision));
+        for body in build.collisions.drain(..) {
+            root.add_child(&body);
         }
         Ok(root)
     }
