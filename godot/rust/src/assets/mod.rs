@@ -320,8 +320,7 @@ pub(super) fn dependent_asset_path(
         "wow_classic_beta" => game_engine_core::asset_product::AssetProduct::Forever,
         other => return Err(format!("Unsupported asset product {other}")),
     };
-    let index = creature::load_asset_index(&root)?;
-    Ok(root.join(&index.receipt(product, fdid, kind)?.path))
+    Ok(root.join(client_receipts::asset_receipt(&root, product, fdid, kind)?.path))
 }
 
 fn primary_skin_path(
