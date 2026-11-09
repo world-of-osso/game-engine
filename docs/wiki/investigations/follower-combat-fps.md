@@ -44,6 +44,10 @@ Logs, diagnostic scripts and the independently built extension's SHA-256 are in 
 
 VERIFIED: `forever_unit_reference::pet_is_below_player_right_with_retail_player_portrait` fails with `missing PlayerPortrait` on `7b7aea959` (one case run). Its October 14 expectation, committed in `6c7f55451`, was superseded by the user's October 30 no-player-portrait decision in `847843192`. That removal updated the product, [HUD specification](../../specs/hud-edit-mode.md) and [item-appearance specification](../../specs/item-definition-sources.md), but missed this test. Keep Forever portrait-free and retain the pet size/position assertions; correct only this stale portrait expectation. The existing committed failure is the RED acceptance case; do not invent a model failure or restore the obsolete portrait.
 
+## Unit-frame projection redrew every node (fixed, 2026-11-09)
+
+After the class-bar fix, an animating essence pip still dirtied a few frames every frame, and `UiProjection::sync` then called `update_node` for all 205 unit-frame nodes (about 1.2 ms median for `projection.nodes`). A sync now updates only a node whose frame is render-dirty, whose rect or an ancestor's rect moved, whose parent is render-dirty (highlight layers and stepper arrows read the parent's button state), or that has no projected visual yet (new frame, skin or scale change, arrived art). It sets the z index only when it changes. Evoker combat, interleaved 2+2 runs (heavy host load): nodes updated per unit-frame sync 205 -> median 4. Unit-frame sync CPU fell from 2.94/3.39 to 1.44/1.43 ms per frame, and `Targeting` from 4.69/5.13 to 3.08/2.90 ms. The unit frames render the same (`projection-dirty-only-unitframes-master-vs-fix.jpg`). `ui_projection_parity.gd` compares every node with a fresh projection after each of ten changes (move, recolour, hide, text, add, remove, hover, unhover, patch). It fails when the parent rule is removed.
+
 ## Particle update re-read static transforms (fixed, 2026-11-09)
 
 Windows receipt (same session as master 87d82cc38): indoor 294.55/235.40 vs 282.09/226.45, outdoor 299.67/237.81 vs 303.77/235.63 (median/1% low); passes the reference rule. See `data/diagnostics/fps-receipt-e3b50db0b-benchadc-2026-11-09/README.md`.
@@ -60,6 +64,7 @@ A doodad's node never moves, and its bones change only when its `WowAnimationPla
 
 - [Auras host](../../../godot/rust/src/auras.rs) — player-frame and target-aura state, swipe pass.
 - [Unit frame auras](../../../godot/ui-model/src/ui/screens/inworld_unit_frames_aura.rs) — `player_aura_icons`, `aura_elapsed`, `set_target_auras`.
+- [UI projection](../../../godot/rust/src/ui/projection.rs) — which nodes a sync updates.
 - [Particles](../../../godot/rust/src/particles.rs) — placed emitters, held emitter transforms.
 - [Camera follow](../../../godot/core/src/camera_follow_data.rs) — terrain-sampled orbit and ground clamp.
 - [Player model chain](../../../godot/core/src/player_model_data.rs) and [world appearance selection](../../../godot/rust/src/world.rs) — body FDIDs and replicated display overrides.
