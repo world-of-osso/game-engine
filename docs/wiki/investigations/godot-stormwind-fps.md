@@ -438,7 +438,7 @@ owner in turn (Linux, master `691751cf9`, 2460 draws) put WMO groups at about 83
 units 380, WMO doodads 290, ADT doodads 270. Doodads are already auto-instanced by the
 Forward+ renderer (1005 visible surfaces cost 661 draws), so instancing them would gain little.
 
-`wmo/occluder.rs` gives each WMO one `ArrayOccluder3D` built from the drawn opaque batches
+`wmo/occluder.rs` gives each WMO of at least 100 yd one `ArrayOccluder3D` built from the drawn opaque batches
 (MOMT blend mode 0) of its EXTERIOR (MOGP `0x8`) groups. Interior groups, so rooms and
 dungeons, and alpha-keyed or blended batches never occlude. `project.godot` turns occlusion
 culling on with 128 rays per thread and Low BVH build quality.
@@ -454,6 +454,12 @@ culling on with 128 rays per thread and Low BVH build quality.
   a change stayed near the control (median of the 10-frame maxima 23.3 vs 21.4 ms, loaded
   Linux host) with the same culled draws. Keeping only triangles of at least 8 yd2 cut the
   occluder to 20% of its triangles but culled fewer draws and stalled more than Low quality.
+- **Only large shells.** Each occluder added or removed costs one rebuild, and a rebuild
+  for many changes in one frame costs about as much as for one. Of the 61 Stormwind WMO
+  occluders, the 18 whose bounding box spans at least 100 yd hold 84% of the triangles and
+  cull the same draws at eight views (outdoor and indoor, within 24 draws), so only those get
+  one: 70% fewer rebuilds while streaming. Applying changes one per N frames spread the
+  same rebuilds (more total stall than applying them together) and was not adopted.
 - **Linux A/B** (master `3fc8727cb` against branch, bench-adcb9dd81): outdoor draws 2450 ->
   1464, render thread 18.3-18.5 -> 13.5-13.7 Minstr/frame; indoor draws 1668 -> 1114, render
   17.7 -> 14.6-15.4. Main thread unchanged where frame rates match.
