@@ -26,7 +26,7 @@ Retail Mainline raid entry uses the [server raid contract](../../../game-server/
 - [x] Two-account Modern/Forever native frame/menu/portal/reset proof recorded.
 - [ ] Generic SocialUI raid-tab opener is not converted; native frame is currently reachable through /raidinfo and its show API.
 - [ ] The all-actor death mechanism has tests for Four Horsemen and Theralion/Valiona. The corrected generator accepts eight sets with encounter-specific evidence and reports other multi-actor groups as gaps; historical sources do not prove current Retail event timing.
-- [ ] VERIFIED (read-only runtime query, 2026-11-08): `raid_encounter_creature` has 534 rows after 21 previously published rows were reverted. Of 38 remaining rows from that publication, 14 for Kael'thas, Omnotron and Ascendant Council are not emitted by the corrected generator; additive SQL does not remove them. See the [server source-gap census](../../../game-server/docs/wiki/systems/raid-entry.md#multi-actor-source-census--2026-11-08).
+- [ ] VERIFIED (read-only runtime query, 2026-11-08): `raid_encounter_creature` has 520 rows after the lead removed 35 previously published actor rows. The corrected generator retains the remaining 24 rows and does not emit the removed sets. See the [server source-gap census](../../../game-server/docs/wiki/systems/raid-entry.md#multi-actor-source-census--2026-11-08).
 
 ## Out of scope
 Raid encounter mechanics and rewards.
