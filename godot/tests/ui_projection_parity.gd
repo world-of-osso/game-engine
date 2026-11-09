@@ -1,7 +1,8 @@
 extends SceneTree
 # Incremental UI projection: after each change (move, recolour, hide, text, add, remove,
-# hover, patch), every frame's node equals the node a fresh projection draws.
-const STEPS := 10
+# hover, patch, a dynamic texture's relayout and new pixels), every frame's node equals
+# the node a fresh projection draws, and a dynamic texture redraws only for new pixels.
+const STEPS := 12
 
 func _initialize() -> void:
 	call_deferred("watchdog")

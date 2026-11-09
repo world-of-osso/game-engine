@@ -4,7 +4,12 @@ use super::super::RegistryUi;
 use super::UiProjection;
 use godot::{classes::Control, prelude::*};
 use ui_toolkit::{
-    frame::WidgetData, rsx, screen::SharedContext, widget_def::Element, widgets::button::ButtonData,
+    frame::WidgetData,
+    rsx,
+    screen::SharedContext,
+    widget_def::Element,
+    widgets::button::ButtonData,
+    widgets::texture::{DynamicTextureId, TextureData, TextureSource},
 };
 
 #[derive(Clone, PartialEq)]
@@ -45,8 +50,29 @@ fn parity_screen(shared: &SharedContext) -> Element {
                 r#frame { name: "ParityButtonHighlight", width: 120.0, height: 30.0,
                     pos_type: "absolute", draw_layer: "HIGHLIGHT", background_color: "1,1,1,0.3" }
             }
+            texture { name: "ParityDynamic", left: 300.0, top: 150.0, width: 64.0, height: 64.0,
+                pos_type: "absolute" }
             {extra}
         }
+    }
+}
+
+/// The dynamic texture `ParityDynamic` draws.
+fn parity_dynamic_texture(
+    registry: &ui_toolkit::registry::FrameRegistry,
+) -> Result<DynamicTextureId, String> {
+    let id = registry
+        .get_by_name("ParityDynamic")
+        .ok_or("ParityDynamic missing")?;
+    match &registry
+        .get(id)
+        .and_then(|frame| frame.widget_data.as_ref())
+    {
+        Some(WidgetData::Texture(TextureData {
+            source: TextureSource::Dynamic(texture),
+            ..
+        })) => Ok(*texture),
+        _ => Err("ParityDynamic draws no dynamic texture".into()),
     }
 }
 
@@ -121,6 +147,32 @@ impl RegistryUi {
         result.map(|()| mismatch)
     }
 
+    /// Draw a host-owned dynamic texture on `ParityDynamic`, as the minimap draws its
+    /// composite.
+    fn attach_parity_dynamic_texture(&mut self) -> Result<(), String> {
+        let model = self.model.as_mut().ok_or("Parity fixture has no model")?;
+        let texture = model
+            .registry
+            .create_dynamic_texture(1, 1, vec![0, 255, 0, 255])
+            .map_err(str::to_owned)?;
+        let id = model
+            .registry
+            .get_by_name("ParityDynamic")
+            .ok_or("ParityDynamic missing")?;
+        if let Some(WidgetData::Texture(data)) = model
+            .registry
+            .get_mut(id)
+            .and_then(|frame| frame.widget_data.as_mut())
+        {
+            data.source = TextureSource::Dynamic(texture);
+        }
+        let projection = self
+            .projection
+            .as_mut()
+            .ok_or("Parity fixture has no projection")?;
+        projection.sync(&mut model.registry)
+    }
+
     fn set_parity_button_hovered(&mut self, hovered: bool) -> Result<(), String> {
         let model = self.model.as_mut().ok_or("Parity fixture has no model")?;
         let id = model
@@ -140,9 +192,65 @@ impl RegistryUi {
         projection.sync(&mut model.registry)
     }
 
+    /// Instance IDs of the nodes drawing `ParityDynamic`'s parts.
+    fn dynamic_part_ids(&self) -> Result<Vec<i64>, String> {
+        let model = self.model.as_ref().ok_or("Parity fixture has no model")?;
+        let id = model
+            .registry
+            .get_by_name("ParityDynamic")
+            .ok_or("ParityDynamic missing")?;
+        let node = self
+            .projection
+            .as_ref()
+            .and_then(|projection| projection.node(id))
+            .ok_or("ParityDynamic has no node")?;
+        let parts = node
+            .try_get_node_as::<Control>("Parts")
+            .ok_or("ParityDynamic has no parts")?;
+        Ok(parts
+            .get_children()
+            .iter_shared()
+            .map(|part| part.instance_id().to_i64())
+            .collect())
+    }
+
+    /// Mark `ParityDynamic` dirty (a relayout) or give its texture new pixels, then sync;
+    /// its parts are drawn again only for new pixels.
+    fn change_parity_dynamic(&mut self, new_pixels: bool) -> Result<(), String> {
+        let before = self.dynamic_part_ids()?;
+        let model = self.model.as_mut().ok_or("Parity fixture has no model")?;
+        let id = model
+            .registry
+            .get_by_name("ParityDynamic")
+            .ok_or("ParityDynamic missing")?;
+        if new_pixels {
+            let texture = parity_dynamic_texture(&model.registry)?;
+            model
+                .registry
+                .update_dynamic_texture(texture, 2, 1, vec![255, 0, 0, 255, 0, 0, 255, 255])
+                .map_err(str::to_owned)?;
+        } else {
+            model.registry.mark_rect_dirty(id);
+        }
+        let projection = self
+            .projection
+            .as_mut()
+            .ok_or("Parity fixture has no projection")?;
+        projection.sync(&mut model.registry)?;
+        let redrawn = self.dynamic_part_ids()? != before;
+        if redrawn != new_pixels {
+            return Err(format!(
+                "ParityDynamic parts redrawn={redrawn} for new pixels={new_pixels}"
+            ));
+        }
+        Ok(())
+    }
+
     /// Apply change `step` through the path production uses for it.
     fn apply_parity_step(&mut self, step: u32) -> Result<(), String> {
         match step {
+            10 => self.change_parity_dynamic(false),
+            11 => self.change_parity_dynamic(true),
             7 => self.set_parity_button_hovered(true),
             8 => self.set_parity_button_hovered(false),
             9 => self.patch_frames([(
@@ -160,7 +268,8 @@ impl RegistryUi {
     fn show_projection_parity_fixture(&mut self) -> GString {
         let shown = super::super::party_preview::load_data_root().and_then(|()| {
             ui_toolkit::atlas::set_thread_skin(ui_toolkit::atlas::ActiveSkin::Modern);
-            self.show_standalone_screen(ParityStep(0), parity_screen)
+            self.show_standalone_screen(ParityStep(0), parity_screen)?;
+            self.attach_parity_dynamic_texture()
         });
         shown.err().unwrap_or_default().as_str().into()
     }

@@ -76,6 +76,18 @@ text update (style_label's base font, then update_label's resolved font), about 
 sets/s; fixed in bdc023989. Windows that saw an NPC enter view counted the unit's
 materials and meshes (`attach_unit_visual`) and were measured again.
 
+## Minimap clock-tick flake — 2026-11-09
+
+About one guard run in three failed on `ui_tree 1` at `MinimapDisplay` (master too). Each
+in-game minute changes the minimap clock text; that relayout marked `MinimapDisplay`
+render-dirty with no change, and the projection redrew any render-dirty frame that draws a
+dynamic texture, so it re-uploaded the unchanged composite. The projection now compares the
+dynamic texture pixels each frame last drew (168aa14b8). With 65 s windows, each holding a
+minute tick, master counted `ui_tree` 1 and the fix 0 in all three windows; 10 s windows
+passed 5 of 5 (logs `data/diagnostics/fps-120-close-2026-11-06/profile/g{m,f}-long.log`, `gf-*.log`).
+`ui_projection_parity.gd` steps 10-11 check that a dirty mark keeps a dynamic texture's
+parts and new pixels redraw them.
+
 ## Rule
 
 AGENTS.md: a per-frame path that touches materials, environment, meshes or UI theme/tree
