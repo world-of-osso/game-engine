@@ -1,6 +1,10 @@
 ## Fountain moving-camera flash — 2026-11-09
 
 Game-window-only video grids and tracked water crops establish blue-white basin discontinuities. An exact Linux camera-path A/B plus colourless transparent-list perturbation isolates missing authored batch priority. Binding the signed priority reduces the isolated sweep's maximum basin luma step29.168→0.290/255; the source-backed 120-pose raster acceptance passes with zero pixel mismatches. Debug/release `cargo check` both pass with zero warnings; `cargo fmt --check` passes. See [[fountain-camera-flash]].
+## Character-select process fixture readiness — 2026-11-09
+
+VERIFIED: `native_reconnect_fixture` and `native_transfer_fixture` pass in `d631259b9` after waiting for the expected authenticated roster and revealed, enabled Enter World controls. Reconnect reaches `RECONNECTED`; transfer completes all phases and receives one `WorldPortAck`. Debug/release workspace checks report zero warnings; fmt passes. The Forever screenshot and process/check logs are in `data/diagnostics/charselect-fixtures-2026-11-09/`. INFERRED, SOURCE-ONLY: `23c06168e` added early account polling during asset startup; no historical runtime bisect was performed.
+
 ## Ruby collision-only surface indexing fix — 2026-11-09
 
 Ruby Life Pools' collision-only M2 carries inverted empty render bounds. Its transformed bounds caused the visible-surface query to build an unbounded dense grid. `TerrainObjects::index_surface_cells` now indexes doodads only when they own a non-empty render mesh surface; camera collision is unchanged. The real-M2 fixture passes (676-byte query delta); a private Ruby entry settled for 180 seconds at 4.99 GiB peak RSS versus 12.45 GiB last sampled before the 12 GiB cgroup OOM. Debug/release checks and fmt pass. [[client-map-cache-and-udp-framing-2026-11-08]]
