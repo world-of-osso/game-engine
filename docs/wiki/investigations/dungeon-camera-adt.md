@@ -6,7 +6,9 @@ VERIFIED (2026-11-09): local engine master `7b7aea959`, Ruby Life Pools entrance
 
 Camera collision uses the first actual collidable surface intersected by the eye-to-camera segment. Terrain, WMOs, and doodads participate equally. A high ADT height is not a solid half-space under that height. Do not select collision behavior by map ID, dungeon flag, or a guessed indoor threshold. The same ray rule applies above terrain, below terrain, and through authored holes. Keep the existing collision offset, smooth distance recovery, follow smoothing, and final eye-to-smoothed-camera sight check.
 
-Remove the redundant ADT sample pass and height-only camera ground clamp. Native physics already contains the rendered, hole-aware ADT triangles plus WMO and doodad collision. A segment that actually crosses the terrain still collides. No substitute height clamp or missing-grid ground plane is permitted.
+VERIFIED implementation: commits `4da81cdc3` and `43b8d3434` remove the ADT sample sweep, the height-only ground clamp and terrain plumbing into the camera follow calculation. `raycast_solid` still queries actual terrain, WMO and doodad collision. There is no replacement height fallback.
+
+The camera now relies on native physics geometry: hole-aware ADT triangles, WMO collision and doodad collision. A segment that crosses terrain still collides. No height clamp or missing-grid ground plane remains.
 
 ## Player support and reference behavior
 
@@ -16,15 +18,15 @@ Retail's normal behind-player Ruby camera is the task's observed reference, not 
 
 ## Acceptance and proof
 
-- RED native real-data fixture: Ruby WMO floor below ADT must retain the clear 15 yd orbit.
-- Outdoor real-data control: downward orbit must retreat before actual ADT triangles.
-- RED rendered private-server fixture: `godot/tests/dungeon_camera.gd` captures Forever and compares settled distance to an independent Godot physics ray.
-- Preserve existing Stockade WMO-wall and stairwell camera coverage, core orbit/zoom/recovery/settling coverage.
-- Final gates: debug/release cargo check, zero warnings, fmt.
+- VERIFIED native Ruby fixture: WMO support at 131.0005 lies below ADT 204.6584, the 15 yd orbit ray is clear, and the camera reaches the intended pose. The camera-named native suite passes 17/17 (`camera-native-green.log`).
+- VERIFIED native outdoor control: the downward orbit retreats before actual ADT triangles. Existing Stockade stairwell and indoor-WMO wall tests also pass (`camera-native-green.log`).
+- VERIFIED core camera behavior: `camera_data` passes 9/9, including mesh hits, recovery, clear orbit below overhead terrain, zoom and final sight obstruction (`core-camera-green.log`).
+- VERIFIED rendered Forever Ruby before/after with an independent Godot physics-ray oracle: camera distance changes from 16.169 yd to 15.000 yd; height changes from 17.969 yd to 6.943 yd. Terrain, object and collision queues are all 0. The outdoor Azeroth capture retains a 15 yd eye-to-camera distance and passes the same ray oracle. Original 1920×1080 PNGs are `/syncthing/AgentShared/2026-11-09/dungeon-camera/ruby-before.png`, `ruby-after.png`, and `outdoor-after.png`; JSON/log receipts are in `data/diagnostics/dungeon-camera-adt-2026-11-09/`.
+- VERIFIED final gates: debug and release workspace `cargo check --all-targets` each report 0 warnings and 0 errors; `cargo fmt --check` passes (`check-debug.log`, `check-release.log`).
 
 VERIFIED bounded search for another affected dungeon: entrance samples in Neltharus (floor 72.60, ADT 0), Halls of Infusion (floor 20.82, ADT -190.65), and Azure Vault (floor 594.22, ADT 0) all retain a clear 15 yd orbit on the baseline. This does not qualify other positions or prove those whole dungeons unaffected. No second affected location found in these entrance samples.
 
-Evidence: lane-local `data/diagnostics/dungeon-camera-adt-2026-11-09/` contains logs/JSON and the unaffected entrance captures. Requested screenshots are under `/syncthing/AgentShared/2026-11-09/dungeon-camera/` (`ruby-before.png`; after/outdoor pending).
+Evidence: lane-local `data/diagnostics/dungeon-camera-adt-2026-11-09/` contains logs, JSON receipts and unaffected entrance captures. All requested screenshots are under `/syncthing/AgentShared/2026-11-09/dungeon-camera/`: `ruby-before.png`, `ruby-after.png`, and `outdoor-after.png`.
 
 ## Sources
 
@@ -32,7 +34,7 @@ Evidence: lane-local `data/diagnostics/dungeon-camera-adt-2026-11-09/` contains 
 - [Shared follow](../../../godot/core/src/camera_follow_data.rs) — orbit and collision-distance recovery.
 - [Player ground](../../../godot/rust/src/ground.rs) — 3D support selection.
 - [Camera geometry tests](../../../godot/rust/src/wmo/collision_tests.rs) — Ruby and outdoor regressions.
-- [Follower combat FPS](follower-combat-fps.md#camera-under-the-adt-terrain-not-fixed) — original report.
+- [Follower combat FPS](follower-combat-fps.md#camera-under-the-adt-terrain-fixed) — original report.
 
 ## See Also
 

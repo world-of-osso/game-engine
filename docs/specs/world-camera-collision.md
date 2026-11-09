@@ -4,9 +4,9 @@ The in-world orbit camera must use the geometry around the player and camera. Na
 
 ## What it must do
 
-- [ ] Preserve a clear orbit above a WMO floor even when ADT terrain is far overhead, including Ruby Life Pools' lower entrance.
-- [ ] Stop before actual outdoor ADT surfaces and local WMO/doodad obstructions; preserve authored terrain holes.
-- [ ] Preserve the existing orbit/zoom, collision offset, recovery, smoothing, and final visibility check.
+- [x] Preserve a clear orbit above a WMO floor even when ADT terrain is far overhead, including Ruby Life Pools' lower entrance.
+- [x] Stop before actual outdoor ADT surfaces and nearby WMO walls. Actual collidable geometry, not ADT height, determines obstruction.
+- [x] Preserve the existing orbit/zoom, collision offset, recovery, smoothing, and final visibility check.
 
 ## How it works
 
@@ -25,7 +25,7 @@ The in-world orbit camera must use the geometry around the player and camera. Na
 
 ## Known gaps (current cycle)
 
-- [ ] Ruby and outdoor regression tests, rendered before/after captures, and debug/release zero-warning checks are pending.
+- None for this cycle.
 
 ## Out of scope
 

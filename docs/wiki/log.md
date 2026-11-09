@@ -1,6 +1,6 @@
 ## Dungeon camera below ADT — 2026-11-09
 
-VERIFIED: private-server Forever Ruby entrance reproduction on engine `7b7aea959`: floor 131.0005, ADT 204.6584, camera height 17.97 despite a clear 15 yd physics ray. The decided rule uses finite local collision geometry and removes ADT half-space sampling/clamping; acceptance tests precede implementation. Three other dungeon entrance samples did not reproduce this failure. See [[dungeon-camera-adt]].
+VERIFIED: Ruby's Forever view changed from 16.169 yd and 17.969 yd camera height to 15.000 yd and 6.943 yd after removing ADT height-only collision; the intended 15 yd physics ray is clear. Native camera tests pass 17/17 and core camera tests pass 9/9. Debug and release workspace checks each report 0 warnings and 0 errors; fmt check passes. The outdoor Forever capture and real ADT-triangle collision test pass. Captures: `/syncthing/AgentShared/2026-11-09/dungeon-camera/{ruby-before,ruby-after,outdoor-after}.png`. Neltharus, Halls of Infusion and Azure Vault entrance samples did not reproduce; this does not qualify those full dungeons. See [[dungeon-camera-adt]].
 
 ## Fountain moving-camera flash — 2026-11-09
 

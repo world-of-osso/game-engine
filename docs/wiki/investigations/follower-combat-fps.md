@@ -16,9 +16,9 @@ The Forever player frame carried the player's auras as `AuraInstance` values wit
 
 The class bar has the same pattern: `ClassBarView` texture `swipe` progress is computed from the clock. It does not affect a Warrior and is not fixed.
 
-## Camera under the ADT terrain (not fixed)
+## Camera under the ADT terrain (fixed)
 
-Ruby's lower level (entrance at WoW 1386, -170, 131) is a WMO floor 70-200 yd below the tile's ADT terrain. `follow_camera` samples the ADT height along the orbit and pulls the camera in to 0.5 yd; its ground clamp then lifts it to the first mesh overhead. Every view there is top-down from 18-19 yd above the player. The plateau measurement avoids it.
+Ruby's entrance WMO floor is below its ADT terrain; the 2026-11-09 private Forever capture measured floor 131.0005 and ADT 204.6584. Before the fix, a clear 15 yd orbit sat 16.169 yd from the eye and 17.969 yd above the player. The camera now checks only actual local geometry along the eye-to-camera ray. The matched after capture restores the full 15 yd orbit at 6.943 yd above the player; see [the camera investigation](dungeon-camera-adt.md) for tests, outdoor control and proof.
 
 ## Remaining costs
 
