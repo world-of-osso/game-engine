@@ -1,0 +1,38 @@
+# Follower dungeon combat FPS
+
+Steady-state frame cost in real gameplay: Ruby Life Pools (map 2521) with the four follower NPCs fighting a Primalist pack, measured against the same spot out of combat. The largest combat cost was the unit frames resyncing every frame while the player had a timed aura.
+
+## Scene and method
+
+Linux debug client against the bench server (game-server `adcb9dd81`), account `fb_ruby`, level-70 Human Warrior `Rubyfps`, 1920x1080. `godot/tests/_diag_combat.gd` (uncommitted diagnostic) queues Ruby through the Group Finder controls (`MinimapLauncherButton` -> `LauncherEntryLFDMicroButton` -> follower type, DPS, dungeon 2436, Find Group). The admin `stage-follower-party` command then places the party on the upper plateau at WoW (1450, -295, 330), next to Primalist Cinderweavers, Flamedancers and Ashseers. The script measures 15 s out of combat and then pulls itself with Tab and `use_spell` (Charge 100, Heroic Throw 57755, Auto Attack 6603). The Primalists do not aggro by proximity. Each segment uses `frame_benchmark.gd`'s per-system medians and its main/render thread split. Driver: `fps120close-tools/combat-run.sh`, summary `combat-summary.py`.
+
+Out of combat at that spot: about 2400 draws, 38 units, main thread 16 ms, render thread 12 ms (Linux debug). In combat: about 2500 draws and 39-48 units.
+
+## Unit frames resynced every frame (fixed, 2026-11-09)
+
+The Forever player frame carried the player's auras as `AuraInstance` values with `remaining` seconds, and target aura icons carried their swipe's `elapsed` fraction. Both change every frame. `InWorldUnitFramesState` therefore never compared equal, and `set_state` rebuilt and re-projected the whole unit-frames screen every frame (`ui.set_state` 414 calls in 414 frames). Follower buffs last one hour, so this happened out of combat too. The state now holds what the frames draw: the player icon's timer text (`player_aura_icons`) and a target icon's `timed` flag. The swipe fractions travel beside the state to the existing per-frame swipe pass (`aura_elapsed`). Unit-frame state changes per run fell from 2201 to about 100; the rest are real value changes such as mana.
+
+`Targeting` step median, 3+3 interleaved runs, master `78a0b50f2` vs fix (load about 31): out of combat 2.38/0.30/1.61 -> 0.19/0.09/0.42 ms, in combat 2.75/0.17/4.23 -> 0.38/0.15/0.68 ms. Run 2 of each had few buffs and little combat. Whole-frame medians were dominated by host load and by how long each fight lasted.
+
+The class bar has the same pattern: `ClassBarView` texture `swipe` progress is computed from the clock. It does not affect a Warrior and is not fixed.
+
+## Camera under the ADT terrain (not fixed)
+
+Ruby's lower level (entrance at WoW 1386, -170, 131) is a WMO floor 70-200 yd below the tile's ADT terrain. `follow_camera` samples the ADT height along the orbit and pulls the camera in to 0.5 yd; its ground clamp then lifts it to the first mesh overhead. Every view there is top-down from 18-19 yd above the player. The plateau measurement avoids it.
+
+## Remaining costs
+
+`Culling` stays at 2-3 ms in both states; with profiling, `cull.particles` (M2 particle update for world objects, units and game objects) cost about 3 ms per frame. The render thread rises about 3 ms in combat.
+
+## Sources
+
+- [Auras host](../../../godot/rust/src/auras.rs) — player-frame and target-aura state, swipe pass.
+- [Unit frame auras](../../../godot/ui-model/src/ui/screens/inworld_unit_frames_aura.rs) — `player_aura_icons`, `aura_elapsed`, `set_target_auras`.
+- [Camera follow](../../../godot/core/src/camera_follow_data.rs) — terrain-sampled orbit and ground clamp.
+- Evidence: `data/diagnostics/fps-120-close-2026-11-06/profile/combat-{probe*,diag*,ab-*}.log` and `*-shots/`.
+
+## See Also
+
+- [[rebuild-guard]] — per-frame UI rebuilds must be change-driven.
+- [[follower-dungeons]] — follower admission and staging.
+- [[godot-stormwind-fps]] — idle city costs.
