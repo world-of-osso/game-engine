@@ -38,10 +38,6 @@ impl OccluderGeometry {
             .extend(indices.iter().map(|&index| index as i32 + offset));
     }
 
-    pub(super) fn triangles(&self) -> usize {
-        self.indices.len() / 3
-    }
-
     /// One occluder instance for the whole shell; `None` without occluding batches.
     pub(super) fn into_node(self) -> Option<Gd<OccluderInstance3D>> {
         if self.indices.is_empty() {
@@ -85,7 +81,6 @@ mod tests {
             &[[5.0, 0.0, 0.0], [6.0, 0.0, 0.0], [5.0, 1.0, 0.0]],
             &[0, 2, 1],
         );
-        assert_eq!(geometry.triangles(), 2);
         assert_eq!(geometry.indices, vec![0, 1, 2, 3, 5, 4]);
         assert_eq!(
             geometry.positions[geometry.indices[4] as usize],

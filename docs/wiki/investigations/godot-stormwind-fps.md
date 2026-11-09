@@ -428,6 +428,43 @@ Rule taken from it: do not move sub-millisecond per-frame work to a worker pool.
 doodad admission test (`cull.doodads`, 0.18-0.20 ms on Windows) stays on the main thread
 for the same reason. Evidence: `data/diagnostics/fps-receipt-c8b54d959-2026-11-08/README.md`.
 
+## Occlusion culling from WMO exterior shells (2026-11-08)
+
+Portal culling hides a WMO's interior groups behind its own walls, not behind other WMOs.
+At the outdoor pose 167 interior batches of distant districts (sw_keep, sw_oldtown) passed
+their doorways but sat behind nearer buildings: hiding them removed about 170 draw calls
+and changed no pixel beyond the noise of moving units and water. A census by hiding each
+owner in turn (Linux, master `691751cf9`, 2460 draws) put WMO groups at about 830 draws,
+units 380, WMO doodads 290, ADT doodads 270. Doodads are already auto-instanced by the
+Forward+ renderer (1005 visible surfaces cost 661 draws), so instancing them would gain little.
+
+`wmo/occluder.rs` gives each WMO one `ArrayOccluder3D` built from the drawn opaque batches
+(MOMT blend mode 0) of its EXTERIOR (MOGP `0x8`) groups. Interior groups, so rooms and
+dungeons, and alpha-keyed or blended batches never occlude. `project.godot` turns occlusion
+culling on with 128 rays per thread and Low BVH build quality.
+
+- **Settings must be in the project.** Setting `Viewport.use_occlusion_culling` at runtime
+  culled nothing; the project setting has to be on at startup.
+- **Ray count.** The buffer has rays x logical cores pixels (3072 on the 24-core desktop).
+  Linux outdoor, instructions per frame: render 18.5 -> 13.4 Minstr at 128, 256 or 512 rays;
+  whole-process cost +4.2 (128), +10.9 (256), +24 (512) Minstr on the worker threads.
+- **BVH rebuilds.** Adding or removing one WMO occluder, as streaming does, rebuilds the
+  BVH inside the viewport render. At High build quality the measured render CPU after the
+  change reached 20-60 ms (no-occluder control: at most 11 ms); at Low the frame time after
+  a change stayed near the control (median of the 10-frame maxima 23.3 vs 21.4 ms, loaded
+  Linux host) with the same culled draws. Keeping only triangles of at least 8 yd2 cut the
+  occluder to 20% of its triangles but culled fewer draws and stalled more than Low quality.
+- **Linux A/B** (master `3fc8727cb` against branch, bench-adcb9dd81): outdoor draws 2450 ->
+  1464, render thread 18.3-18.5 -> 13.5-13.7 Minstr/frame; indoor draws 1668 -> 1114, render
+  17.7 -> 14.6-15.4. Main thread unchanged where frame rates match.
+- **Visual checks.** Occluders shown, hidden and shown again at four yaws per pose with a
+  3072-pixel buffer (96 rays on the 32-core host): every stable difference was animated
+  water, flames, critters or moving units. Neltharus and Halls of Infusion captures match
+  master (interior groups never occlude).
+
+Evidence: `data/diagnostics/fps-120-close-2026-11-06/profile/occ-*`, `occimpl-*`,
+`occr-*`; captures in `/syncthing/AgentShared/2026-11-08/fps-120-close/walls-regression/`.
+
 ## Sources
 
 - `src/rendering/camera/culling.rs`: the original doodad, WMO and portal culling. Its 200/2,000/400 yd distances cite no source (commit `f475000f`), so they were not used.
