@@ -1,16 +1,24 @@
 //! Real replicated usable game-object M2s, including stones and ritual portals,
-//! resolved through build-pinned GameObjectDisplayInfo.
+//! resolved through build-pinned GameObjectDisplayInfo. A new object's node is placed at
+//! once; workers extract, parse and decode its model, and the main thread attaches the
+//! visual within a per-frame budget (`attach_loaded_visuals`), as world objects stream.
 use crate::{
     assets::{
         M2_BOUNDS_META, build_model,
-        creature::{cache_model_files, cache_model_textures, local_resolver},
-        read_model,
+        creature::{
+            CachedModel, DecodedTextures, cache_model_textures, decode_new_textures,
+            load_model_files, local_resolver, model_asset_root, model_texture_dir,
+            publish_decoded_texture,
+        },
     },
     lighting::TerrainLight,
     particles::{ModelParticles, ParticlePools, PlacedParticles, view_basis},
     world_models::bind_visual_light,
 };
-use game_engine_core::csv_util::parse_csv_line;
+use game_engine_core::{
+    asset_loader::{AssetLoader, Priority},
+    csv_util::parse_csv_line,
+};
 use game_engine_network::replica::Unit;
 use game_engine_ui_model::wow_cursor_data::ActiveWowCursor;
 use godot::{
@@ -24,7 +32,13 @@ use shared::protocol::{
     GAMEOBJECT_TYPE_MEETINGSTONE, GAMEOBJECT_TYPE_RITUAL, GAMEOBJECT_TYPE_SPELL_FOCUS,
     GameObjectAnimation, GameObjectCollision, GameObjectInfo, GameObjectVisible,
 };
-use std::{collections::HashMap, path::PathBuf, rc::Rc};
+use std::{
+    collections::{HashMap, VecDeque},
+    path::{Path, PathBuf},
+    rc::Rc,
+    sync::Arc,
+    time::{Duration, Instant},
+};
 
 pub(crate) mod transport_wmo;
 
@@ -66,15 +80,33 @@ fn measure_live_queries(
     (samples, hits)
 }
 
+/// Main-thread time per frame for publishing game-object textures and attaching visuals.
+const VISUAL_BUDGET: Duration = Duration::from_millis(8);
+
+/// Worker result: a parsed model and its decoded textures not yet on the GPU.
+type LoadedVisual = (Arc<CachedModel>, DecodedTextures);
+
 struct ObjectNode {
-    /// The display its loaded visual shows.
+    /// The display its visual shows (or will show once loaded).
     display_id: u32,
+    /// Template entry, for error context.
+    entry: u32,
+    /// Whether the object takes a cursor and so a pick area.
+    pickable: bool,
     /// Whether its authored collision body answers the game-object layer.
     collision: bool,
     node: Gd<Node3D>,
     animation: Option<GameObjectAnimation>,
+    /// The replicated animation that arrived before the visual did.
+    pending_animation: Option<GameObjectAnimation>,
     particles: Option<PlacedParticles>,
     ribbons: Option<crate::ribbons::PlacedRibbons>,
+}
+
+impl ObjectNode {
+    fn has_visual(&self) -> bool {
+        self.node.has_node("GameObjectModel")
+    }
 }
 pub(crate) struct GameObjects {
     data_root: PathBuf,
@@ -90,6 +122,22 @@ pub(crate) struct GameObjects {
     transports: HashMap<u64, crate::transport_motion::TransportView>,
     light: Option<TerrainLight>,
     particles: Option<ParticlePools>,
+    loader: AssetLoader<u32, LoadedVisual>,
+    /// Models that arrived from the workers, publishing their textures one at a time.
+    arrived: VecDeque<(u32, Result<LoadedVisual, String>)>,
+    /// Models whose textures are all published, by FileDataID.
+    models: HashMap<u32, Result<Arc<CachedModel>, String>>,
+    /// Objects waiting for their model, in arrival order: (server id, model FileDataID).
+    waiting: VecDeque<(u64, u32)>,
+}
+
+/// Worker: extract and parse model `fdid` and decode the textures it draws with.
+fn load_visual_files(data_root: &Path, fdid: u32) -> Result<LoadedVisual, String> {
+    let resolver = local_resolver(data_root);
+    let cached = load_model_files(&resolver, data_root, fdid)?;
+    let fdids = cache_model_textures(&resolver, data_root, &[0; 3], &cached.model)?;
+    let textures = decode_new_textures(model_asset_root(&cached)?, &fdids)?;
+    Ok((cached, textures))
 }
 
 fn parse_displays(text: &str) -> Result<HashMap<u32, u32>, String> {
@@ -187,7 +235,17 @@ fn bounds_top(model: Transform3D, bounds: Aabb) -> Vector3 {
 
 impl GameObjects {
     pub fn new(data_root: PathBuf) -> Self {
+        let loader = {
+            let data_root = data_root.clone();
+            AssetLoader::new("game-objects", 1, move |&fdid: &u32| {
+                load_visual_files(&data_root, fdid)
+            })
+        };
         Self {
+            loader,
+            arrived: VecDeque::new(),
+            models: HashMap::new(),
+            waiting: VecDeque::new(),
             data_root,
             displays: None,
             animation_fallbacks: None,
@@ -328,13 +386,6 @@ impl GameObjects {
             .get(&id)
             .is_none_or(|old| old.display_id != info.display_id);
         if changed {
-            let (visual, particle_model, ribbon_model) = self.load_visual(info)?;
-            if game_object_info_cursor(info).is_some()
-                && let Err(error) = crate::targeting::attach_pick_area(&visual, id)
-            {
-                visual.free();
-                return Err(error);
-            }
             self.remove(id);
             let mut node = Node3D::new_alloc();
             node.set_name(&format!("Mailbox_{id}"));
@@ -345,43 +396,34 @@ impl GameObjects {
                 "game_object_display_id",
                 &(info.display_id as i64).to_variant(),
             );
-            node.add_child(&visual);
             parent.add_child(&node);
-            let particles = match self.place_particles(parent, &visual, id, particle_model) {
-                Ok(particles) => particles,
-                Err(error) => {
-                    node.free();
-                    return Err(error);
-                }
-            };
-            let ribbons =
-                if let (Some(_), Some((model, texture_dir))) = (&self.particles, ribbon_model) {
-                    match crate::ribbons::PlacedRibbons::place(&model, &visual, &texture_dir) {
-                        Ok(ribbons) => ribbons,
-                        Err(error) => {
-                            node.free();
-                            return Err(format!("Game object {id} ribbon: {error}"));
-                        }
-                    }
-                } else {
-                    None
-                };
             self.objects.insert(
                 id,
                 ObjectNode {
                     display_id: info.display_id,
+                    entry: info.entry,
+                    pickable: game_object_info_cursor(info).is_some(),
                     collision: false,
                     node,
                     animation: None,
-                    particles,
-                    ribbons,
+                    pending_animation: None,
+                    particles: None,
+                    ribbons: None,
                 },
             );
+            let fdid = self.display_fdid(info)?;
+            if info.go_type == transport_wmo::GAMEOBJECT_TYPE_MAP_OBJ_TRANSPORT {
+                // Transports drive floors their riders stand on: built at once.
+                let visual = self.load_transport(info, fdid)?;
+                self.attach_visual(parent, id, visual, None, None)?;
+            } else {
+                self.waiting.push_back((id, fdid));
+                if !self.models.contains_key(&fdid) {
+                    self.loader.request(fdid, Priority::Now);
+                }
+            }
         }
-        let object = self
-            .objects
-            .get_mut(&id)
-            .ok_or("Mailbox visual missing after load")?;
+        let object = self.objects.get_mut(&id).expect("object node placed above");
         object
             .node
             .set_position(Vector3::new(position.x, position.y, position.z));
@@ -408,15 +450,20 @@ impl GameObjects {
                 "game_object_animation",
                 &(animation.animation_id as i64).to_variant(),
             );
-            apply_object_animation(
-                object,
-                *animation,
-                &self.data_root,
-                &mut self.animation_fallbacks,
-            )?;
+            if !object.has_visual() {
+                object.pending_animation = Some(*animation);
+            } else {
+                apply_object_animation(
+                    object,
+                    *animation,
+                    &self.data_root,
+                    &mut self.animation_fallbacks,
+                )?;
+            }
         } else if object.node.has_meta("game_object_animation") {
             object.node.remove_meta("game_object_animation");
             object.animation = None;
+            object.pending_animation = None;
         }
         if let Some(state) = unit.get::<shared::components::TransportState>() {
             match self.transports.get_mut(&id) {
@@ -447,17 +494,8 @@ impl GameObjects {
             Err(format!("Game object {id} particles: {}", errors.join("; ")))
         }
     }
-    fn load_visual(
-        &mut self,
-        info: &GameObjectInfo,
-    ) -> Result<
-        (
-            Gd<Node3D>,
-            Option<Rc<ModelParticles>>,
-            Option<(game_engine_core::m2::Model, PathBuf)>,
-        ),
-        String,
-    > {
+    /// The model FileDataID of `info`'s display (GameObjectDisplayInfo, read once).
+    fn display_fdid(&mut self, info: &GameObjectInfo) -> Result<u32, String> {
         let path = self.data_root.join("db2/active/GameObjectDisplayInfo.csv");
         let displays = self
             .displays
@@ -468,7 +506,7 @@ impl GameObjects {
             })
             .as_ref()
             .map_err(Clone::clone)?;
-        let fdid = displays
+        displays
             .get(&info.display_id)
             .copied()
             .filter(|id| *id != 0)
@@ -477,28 +515,29 @@ impl GameObjects {
                     "Game object entry {} has no GameObjectDisplayInfo {} model FileDataID",
                     info.entry, info.display_id
                 )
-            })?;
-        let resolver = local_resolver(&self.data_root);
-        if info.go_type == transport_wmo::GAMEOBJECT_TYPE_MAP_OBJ_TRANSPORT {
-            return self.load_transport(info, fdid);
-        }
-        let path = cache_model_files(&resolver, &self.data_root, fdid).map_err(|e| {
-            format!(
-                "Game object entry {} display {} model {fdid}: {e}",
-                info.entry, info.display_id
-            )
-        })?;
-        let texture_dir = crate::assets::creature::model_texture_dir(&path)?;
-        let path = GString::from(path.to_string_lossy().as_ref());
-        let parsed = read_model(&path)?;
-        cache_model_textures(&resolver, &self.data_root, &[0; 3], &parsed)?;
-        let (mut model, missing) = build_model(&parsed, &path, &[0; 3], None)?;
+            })
+    }
+
+    /// Main thread: the model node of loaded model `fdid`, its emitters and ribbons.
+    fn build_visual(
+        &self,
+        fdid: u32,
+        cached: &Arc<CachedModel>,
+    ) -> Result<
+        (
+            Gd<Node3D>,
+            Option<Rc<ModelParticles>>,
+            Option<(Arc<CachedModel>, PathBuf)>,
+        ),
+        String,
+    > {
+        let texture_dir = model_texture_dir(&cached.path)?;
+        let path = GString::from(cached.path.to_string_lossy().as_ref());
+        let parsed = &cached.model;
+        let (mut model, missing) = build_model(parsed, &path, &[0; 3], None)?;
         if !missing.is_empty() {
             model.free();
-            return Err(format!(
-                "Game object entry {} model {fdid} missing texture FDIDs: {missing:?}",
-                info.entry
-            ));
+            return Err(format!("model {fdid} missing texture FDIDs: {missing:?}"));
         }
         if let Some(shape) =
             crate::terrain::doodad_collision::collision_shape(parsed.collision.as_ref())
@@ -509,22 +548,124 @@ impl GameObjects {
         model.set_meta("model_file_data_id", &(fdid as i64).to_variant());
         model.set_rotation(Vector3::new(0.0, MODEL_YAW, 0.0));
         bind_visual_light(&model, self.light.as_ref());
-        let particles = ModelParticles::from_model(fdid, &parsed, texture_dir.clone());
-        let ribbons = (!parsed.ribbon_emitters.is_empty()).then_some((parsed, texture_dir));
+        let particles = ModelParticles::from_model(fdid, parsed, texture_dir.clone());
+        let ribbons =
+            (!parsed.ribbon_emitters.is_empty()).then(|| (Arc::clone(cached), texture_dir));
         Ok((model, particles, ribbons))
     }
-    fn load_transport(
-        &self,
-        info: &GameObjectInfo,
-        fdid: u32,
-    ) -> Result<
-        (
-            Gd<Node3D>,
-            Option<Rc<ModelParticles>>,
-            Option<(game_engine_core::m2::Model, PathBuf)>,
-        ),
-        String,
-    > {
+
+    /// Put `visual` under object `id`'s node, with its pick area, emitters and ribbons, and
+    /// apply the collision state and animation replicated before it loaded.
+    fn attach_visual(
+        &mut self,
+        parent: &mut Gd<Node3D>,
+        id: u64,
+        visual: Gd<Node3D>,
+        particle_model: Option<Rc<ModelParticles>>,
+        ribbon_model: Option<(Arc<CachedModel>, PathBuf)>,
+    ) -> Result<(), String> {
+        let object = self.objects.get_mut(&id).expect("attached object exists");
+        if object.pickable
+            && let Err(error) = crate::targeting::attach_pick_area(&visual, id)
+        {
+            visual.free();
+            return Err(error);
+        }
+        object.node.add_child(&visual);
+        let particles = self.place_particles(parent, &visual, id, particle_model)?;
+        let ribbons = if let (Some(_), Some((model, texture_dir))) = (&self.particles, ribbon_model)
+        {
+            crate::ribbons::PlacedRibbons::place(&model.model, &visual, &texture_dir)
+                .map_err(|error| format!("Game object {id} ribbon: {error}"))?
+        } else {
+            None
+        };
+        let object = self.objects.get_mut(&id).expect("attached object exists");
+        object.particles = particles;
+        object.ribbons = ribbons;
+        let collision = object.collision;
+        apply_object_collision(object, collision);
+        if let Some(animation) = object.pending_animation.take() {
+            apply_object_animation(
+                object,
+                animation,
+                &self.data_root,
+                &mut self.animation_fallbacks,
+            )?;
+        }
+        Ok(())
+    }
+
+    /// Publish arrived textures and attach the visuals of waiting objects whose models are
+    /// ready, within `VISUAL_BUDGET`. Returns one error per object that could not be shown.
+    pub fn attach_loaded_visuals(&mut self, parent: &mut Gd<Node3D>) -> Vec<String> {
+        self.arrived.extend(self.loader.poll());
+        let deadline = Instant::now() + VISUAL_BUDGET;
+        let mut errors = Vec::new();
+        while Instant::now() < deadline {
+            if let Some((fdid, loaded)) = self.arrived.pop_front() {
+                self.publish_arrived(fdid, loaded);
+                continue;
+            }
+            let Some(index) = self
+                .waiting
+                .iter()
+                .position(|(_, fdid)| self.models.contains_key(fdid))
+            else {
+                break;
+            };
+            let (id, fdid) = self.waiting.remove(index).expect("found above");
+            let Some(object) = self.objects.get(&id) else {
+                continue;
+            };
+            let context = format!(
+                "Game object {id} entry {} display {} model {fdid}",
+                object.entry, object.display_id
+            );
+            let _span = crate::profile::span(|| format!("game_objects.attach {fdid}"));
+            let attached = match &self.models[&fdid] {
+                Ok(cached) => {
+                    let cached = Arc::clone(cached);
+                    self.build_visual(fdid, &cached)
+                        .and_then(|(visual, particles, ribbons)| {
+                            self.attach_visual(parent, id, visual, particles, ribbons)
+                        })
+                }
+                Err(error) => Err(error.clone()),
+            };
+            errors.extend(attached.err().map(|error| format!("{context}: {error}")));
+        }
+        errors
+    }
+
+    /// One texture of an arrived model per call; the model is ready once all are published.
+    fn publish_arrived(&mut self, fdid: u32, loaded: Result<LoadedVisual, String>) {
+        let _span = crate::profile::span(|| format!("game_objects.upload {fdid}"));
+        match loaded {
+            Ok((cached, mut textures)) => {
+                if let Some((address, image)) = textures.pop() {
+                    match publish_decoded_texture(address, image) {
+                        Ok(()) => self.arrived.push_front((fdid, Ok((cached, textures)))),
+                        Err(error) => {
+                            self.models.insert(fdid, Err(error));
+                        }
+                    }
+                } else {
+                    self.models.insert(fdid, Ok(cached));
+                }
+            }
+            Err(error) => {
+                self.models.insert(fdid, Err(error));
+            }
+        }
+    }
+
+    /// Objects placed whose visual has not attached yet.
+    pub fn visuals_pending(&self) -> usize {
+        self.waiting.len()
+    }
+
+    fn load_transport(&self, info: &GameObjectInfo, fdid: u32) -> Result<Gd<Node3D>, String> {
         let mut model =
             transport_wmo::load_transport_wmo(&self.data_root, fdid, self.light.as_ref()).map_err(
                 |e| {
@@ -538,7 +679,7 @@ impl GameObjects {
         model.set_meta("model_file_data_id", &(fdid as i64).to_variant());
         // WMO and M2 local axes match (ADT MODF and MDDF share `placement_rotation`).
         model.set_rotation(Vector3::new(0.0, MODEL_YAW, 0.0));
-        Ok((model, None, None))
+        Ok(model)
     }
     /// Advance the source emitters of each replicated, loaded game-object model.
     pub fn update_particles(
@@ -629,6 +770,7 @@ impl GameObjects {
 
     pub fn remove(&mut self, id: u64) {
         self.transports.remove(&id);
+        self.waiting.retain(|&(waiting, _)| waiting != id);
         if let Some(object) = self.objects.remove(&id) {
             if object.collision {
                 self.colliding -= 1;
@@ -644,6 +786,9 @@ impl GameObjects {
         self.colliding = 0;
         self.collision_epoch = self.collision_epoch.wrapping_add(1);
         self.transports.clear();
+        self.waiting.clear();
+        self.arrived.clear();
+        self.models.clear();
         if let Some(pools) = &mut self.particles {
             pools.reset();
         }
