@@ -3503,14 +3503,15 @@ impl GameClient {
 
     fn attach_world_objects(&mut self) {
         let mut parent = self.to_gd().upcast::<Node3D>();
-        let focus = self
-            .world
-            .local_player_transform()
-            .map(|transform| {
-                let origin = transform.origin;
-                glam::Vec3::new(origin.x, origin.y, origin.z)
-            })
-            .or(self.preview_focus);
+        let player = self.world.local_player_transform().map(|transform| {
+            let origin = transform.origin;
+            glam::Vec3::new(origin.x, origin.y, origin.z)
+        });
+        let focus = loading::object_loading_focus(
+            self.account.session.screen == SessionScreen::Loading,
+            player,
+            self.preview_focus,
+        );
         self.world_objects.set_loading_focus(focus);
         if let Some(center) = self.preview_focus.filter(|_| focus.is_some()) {
             self.world_objects.sync(
