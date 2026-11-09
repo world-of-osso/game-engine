@@ -14,7 +14,11 @@ Regression: `godot/tests/map_memory_census.gd` streams four maps in one offline 
 
 ## Ruby collision-only surface index — 2026-11-09 design
 
-VERIFIED: engine `fca0c3ac9` still exceeds a client-only 12 GiB cgroup while directly entering Ruby Life Pools (2521). RSS reached 12.45 GiB at 66 seconds; Godot's frame-driven memory sampler stopped at 6.2 seconds. Stockade (34) peaked at 2.93 GiB and Stormwind at 4.39 GiB, with Stormwind settled through 180 seconds. These runs used a private server and the same debug extension, not release performance receipts.
+VERIFIED: engine `fca0c3ac9` exceeded a client-only 12 GiB cgroup while directly entering Ruby Life Pools (2521). Its last RSS sample at 66 seconds was 12.45 GiB; systemd recorded the OOM kill at 68 seconds. Godot's frame-driven memory sampler stopped at 6.2 seconds.
+
+VERIFIED: after the fix, an authenticated direct Ruby entry on the same debug build completed 180 seconds under the same 12 GiB cap. Peak RSS was 4.99 GiB, peak anonymous RSS 4.18 GiB, and systemd's cgroup peak 5.2 GiB. At 178.9 seconds Godot reported 969,293,078 static bytes, 1,236,000,768 texture bytes, 190,771,336 render-buffer bytes, 148,534 objects, 109,168 nodes, 21 resources, 13,414 spawned doodads, 802 spawned WMOs and 665 cached models; pending/waiting queues were zero. The production fixture passed under 12 GiB with 676 bytes of static-memory growth, zero doodad surface cells and collision retained.
+
+VERIFIED controls on the same build: Stockade (34) peaked at 2.93 GiB RSS and settled within 73 seconds; Stormwind (0) peaked at 4.39 GiB and remained settled through 180 seconds. Debug and release workspace checks passed with zero warnings/errors; fmt check passed. These are local debug live runs, not release performance receipts.
 
 VERIFIED: a live stack locates the allocation in `TerrainObjects::visible_surface`, called by foot IK. Doodad 36449083 in ADT 4289434 uses M2 4695280 (`world/expansion09/doodads/deleteme/10xp_collision07.m2`). The M2 has no render vertices, an inverted empty render box (minimum +10,000,000; maximum -10,000,000), and separate real collision faces. Transforming all render-box corners converts that empty box into a 28-million-yard world box. The eight-yard visible-surface grid then attempts trillions of cells.
 
@@ -31,6 +35,8 @@ Fix in `shared-protocol/vendor/lightyear_udp`: deferred frames go to a UDP-owned
 ## Sources
 
 - `data/diagnostics/bg-oom-mtu-2026-11-08/` — before/after server counters, census output and cache samples.
+- [Surface-index acceptance fixture](../../../godot/tests/collision_only_surface_memory.gd) — loads the real collision-only M2 and checks the terrain-floor query, zero surface cells, memory growth and camera collision.
+- [Surface-index implementation](../../../godot/rust/src/terrain/objects.rs) — excludes doodads without rendered mesh surfaces from visible-surface indexing.
 
 ## See Also
 

@@ -1,6 +1,6 @@
 ## Ruby collision-only surface indexing fix — 2026-11-09
 
-Ruby Life Pools' collision-only M2 carries inverted empty render bounds. Its transformed bounds caused the visible-surface query to build an unbounded dense grid. `TerrainObjects::index_surface_cells` now indexes doodads only when they own a non-empty render mesh surface; camera collision is unchanged. The committed real-M2 fixture and post-fix Ruby RSS are pending final verification. [[client-map-cache-and-udp-framing-2026-11-08]]
+Ruby Life Pools' collision-only M2 carries inverted empty render bounds. Its transformed bounds caused the visible-surface query to build an unbounded dense grid. `TerrainObjects::index_surface_cells` now indexes doodads only when they own a non-empty render mesh surface; camera collision is unchanged. The real-M2 fixture passes (676-byte query delta); a private Ruby entry settled for 180 seconds at 4.99 GiB peak RSS versus 12.45 GiB last sampled before the 12 GiB cgroup OOM. Debug/release checks and fmt pass. [[client-map-cache-and-udp-framing-2026-11-08]]
 
 ## No-install certification poses: 11/11 pass — 2026-11-08
 

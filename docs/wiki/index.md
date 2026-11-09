@@ -1,4 +1,4 @@
-- [Client map-cache retention and UDP double framing](investigations/client-map-cache-and-udp-framing-2026-11-08.md) — per-map resource retention and UDP double framing fixes; Ruby's collision-only M2 empty bounds also caused unbounded visible-surface indexing, now excluded from that render grid.
+- [Client map-cache retention and UDP double framing](investigations/client-map-cache-and-udp-framing-2026-11-08.md) — per-map resource retention and UDP double framing fixes; Ruby's collision-only M2 empty bounds caused unbounded visible-surface indexing, fixed and verified at 4.99 GiB peak RSS after 180 s.
 - [Offline BLS shader research](reference/bls-shaders.md) — exact GXSH extraction, SM5 assembly, declared slots and liquid t5 candidates; no runtime loading.
 - [World ribbon cost](investigations/godot-stormwind-fps.md#world-ribbon-cost-2026-11-01) — matched indoor CPU timings, hidden world ribbons, and an active NPC equipment check.
 - [Ruby Life Pools flame wall](investigations/ruby-flame-wall.md) — GO377194 open-state animation, observed particle drain and matched views.
