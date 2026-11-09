@@ -16,7 +16,7 @@ use ui_toolkit::layout::LayoutRect;
 use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::widgets::button::ButtonState;
 use ui_toolkit::widgets::font_string::{GameFont, JustifyH, JustifyV, Outline};
-use ui_toolkit::widgets::texture::TextureSource;
+use ui_toolkit::widgets::texture::{DynamicTexture, TextureSource};
 
 use super::assets;
 use super::hit_button::RegistryButton;
@@ -184,6 +184,8 @@ pub struct UiProjection {
     skin: atlas::ActiveSkin,
     /// Z index last set on each frame's node.
     z_indices: HashMap<u64, i32>,
+    /// The dynamic texture pixels each frame's parts last drew.
+    dynamic_drawn: HashMap<u64, Vec<DynamicTexture>>,
     assisted_elapsed: HashMap<u64, f64>,
 }
 
@@ -206,6 +208,7 @@ impl UiProjection {
             arrived: 0,
             skin: atlas::thread_skin(),
             z_indices: HashMap::new(),
+            dynamic_drawn: HashMap::new(),
             assisted_elapsed: HashMap::new(),
         }
     }
@@ -412,6 +415,7 @@ impl UiProjection {
         for id in self.nodes.keys().copied().collect::<Vec<_>>() {
             if !current.contains(&id) {
                 self.visuals.remove(&id);
+                self.dynamic_drawn.remove(&id);
                 self.z_indices.remove(&id);
                 if let Some(mut node) = self.nodes.remove(&id) {
                     // Detach now: a queued node keeps its name until the frame ends, so a
@@ -894,13 +898,10 @@ impl UiProjection {
             part.rect[0] += position.x - whole.x;
             part.rect[1] += position.y - whole.y;
         }
-        // A dynamic texture keeps its source when its pixels change; the registry marks
-        // the frames that draw it dirty, so re-read those.
-        let dynamic_redraw = registry.render_dirty.contains(&frame.id)
-            && visual
-                .images
-                .iter()
-                .any(|part| matches!(part.source, Some(TextureSource::Dynamic(_))));
+        // A dynamic texture keeps its source when its pixels change. A frame is dirtied for
+        // other reasons too (a relayout), so compare the pixels last drawn.
+        let dynamic = dynamic_textures(&visual, registry);
+        let dynamic_redraw = self.dynamic_drawn.get(&frame.id) != Some(&dynamic);
         if dynamic_redraw || self.visuals.get(&frame.id) != Some(&visual) {
             if self.sync_parts(&node, &visual, registry)? {
                 self.waiting.insert(frame.id);
@@ -908,6 +909,7 @@ impl UiProjection {
                 self.waiting.remove(&frame.id);
             }
             self.visuals.insert(frame.id, visual);
+            self.dynamic_drawn.insert(frame.id, dynamic);
         }
         // The track mask stays fixed while scrolling moves unchanged level art.
         if super::journeys_track_mask::apply(&node, frame, rect, registry)? {
@@ -1240,6 +1242,18 @@ fn vertical(justify: JustifyV) -> VerticalAlignment {
         JustifyV::Middle => VerticalAlignment::CENTER,
         JustifyV::Bottom => VerticalAlignment::BOTTOM,
     }
+}
+
+/// The current pixels of each dynamic texture `visual` draws, in part order.
+fn dynamic_textures(visual: &FrameVisual, registry: &FrameRegistry) -> Vec<DynamicTexture> {
+    visual
+        .images
+        .iter()
+        .filter_map(|part| match part.source {
+            Some(TextureSource::Dynamic(id)) => registry.dynamic_texture(id).cloned(),
+            _ => None,
+        })
+        .collect()
 }
 
 fn depth(registry: &FrameRegistry, id: u64) -> usize {
