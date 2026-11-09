@@ -102,7 +102,14 @@ type Tile = (u32, u32);
 pub(crate) trait ObjectSelection {
     /// Parsed tiles to spawn from, in order; empty while prerequisites load.
     fn tiles(&self, terrain: &StreamedTerrain) -> Vec<Tile>;
-    fn doodad(&self, doodad: &DoodadPlacement, model: Option<&str>, tile: Tile) -> bool;
+    /// `model` resolves the doodad's model path, which can query the listfile cache:
+    /// call it only when the decision needs the path.
+    fn doodad(
+        &self,
+        doodad: &DoodadPlacement,
+        model: impl FnOnce() -> Option<String>,
+        tile: Tile,
+    ) -> bool;
     fn wmo(&self, wmo: &WmoPlacement, tile: Tile) -> bool;
 }
 
@@ -114,7 +121,7 @@ impl ObjectSelection for AllObjects {
         terrain.parsed_tiles.keys().copied().collect()
     }
 
-    fn doodad(&self, _: &DoodadPlacement, _: Option<&str>, _: Tile) -> bool {
+    fn doodad(&self, _: &DoodadPlacement, _: impl FnOnce() -> Option<String>, _: Tile) -> bool {
         true
     }
 
@@ -500,7 +507,12 @@ impl ObjectSelection for PreviewObjects {
             .collect()
     }
 
-    fn doodad(&self, doodad: &DoodadPlacement, _: Option<&str>, tile: Tile) -> bool {
+    fn doodad(
+        &self,
+        doodad: &DoodadPlacement,
+        _: impl FnOnce() -> Option<String>,
+        tile: Tile,
+    ) -> bool {
         let position = doodad_position(doodad, tile.0, tile.1);
         position.distance_squared(self.center) <= self.radius * self.radius
     }
@@ -1106,8 +1118,7 @@ impl TerrainObjects {
             };
             let queued = self.pending.len();
             for (index, doodad) in objects.doodads.iter().enumerate() {
-                let model = self.doodad_model_path(doodad);
-                if selection.doodad(doodad, model.as_deref(), tile) {
+                if selection.doodad(doodad, || self.doodad_model_path(doodad), tile) {
                     let pending = Pending::Doodad(tile, index);
                     let position = doodad_position(doodad, tile.0, tile.1);
                     self.nearby.add(pending, position, position);

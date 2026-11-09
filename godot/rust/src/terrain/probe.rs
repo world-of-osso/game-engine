@@ -119,7 +119,7 @@ impl ObjectSelection for WmoRootSelection {
         }
     }
 
-    fn doodad(&self, _: &DoodadPlacement, _: Option<&str>, _: Tile) -> bool {
+    fn doodad(&self, _: &DoodadPlacement, _: impl FnOnce() -> Option<String>, _: Tile) -> bool {
         false
     }
 
