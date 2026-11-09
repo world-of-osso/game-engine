@@ -1,6 +1,6 @@
 ## Fountain moving-camera flash — 2026-11-09
 
-Game-window-only video grids and tracked water crops establish blue-white basin discontinuities. An exact Linux camera-path A/B plus colourless transparent-list perturbation isolates missing authored batch priority. Binding the signed priority reduces the isolated sweep's maximum basin luma step29.168→0.290/255; the source-backed 120-pose raster acceptance passes with zero pixel mismatches. Final debug/release check gates remain. See [[fountain-camera-flash]].
+Game-window-only video grids and tracked water crops establish blue-white basin discontinuities. An exact Linux camera-path A/B plus colourless transparent-list perturbation isolates missing authored batch priority. Binding the signed priority reduces the isolated sweep's maximum basin luma step29.168→0.290/255; the source-backed 120-pose raster acceptance passes with zero pixel mismatches. Debug/release `cargo check` both pass with zero warnings; `cargo fmt --check` passes. See [[fountain-camera-flash]].
 
 ## No-install certification poses: 11/11 pass — 2026-11-08
 

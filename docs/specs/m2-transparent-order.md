@@ -24,7 +24,7 @@ M2 batches must retain the authored priority plane when the native renderer draw
 
 ## Known gaps (current cycle)
 
-- [ ] Run final debug and release `cargo check` with zero warnings.
+None.
 
 ## Out of scope
 
