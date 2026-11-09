@@ -16,6 +16,7 @@ use ui_toolkit::frame::{Dimension, Frame, WidgetData, WidgetType};
 use ui_toolkit::layout_values::Val;
 use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::screen::{Screen, SharedContext};
+use ui_toolkit::widgets::texture::TextureSource;
 
 /// Camelot `ColoredProgressBarTemplate.FillArea` inset (`ColoredProgressBar.xml:8-12`).
 const BAR_FILL_INSET: f32 = 6.0;
@@ -172,10 +173,16 @@ fn the_reputation_tab_swaps_the_paper_doll_for_the_faction_standings_in_both_pre
                 &format!("ReputationEntry{index}ReputationBarFill"),
             )
         };
-        let bar = width(&reputation, "ReputationEntry3ReputationBarBackground");
+        // The standing text spans the whole bar in both presets; Forever's fill track is
+        // the bar less its `FillArea` insets.
+        let bar = width(&reputation, "ReputationEntry3ReputationBarBarText");
+        let track = match skin {
+            ActiveSkin::Modern => bar,
+            ActiveSkin::Forever => bar - 2.0 * BAR_FILL_INSET,
+        };
         assert!(
-            (fill(3) - bar / 3.0).abs() < 0.01,
-            "{skin:?}: {} of {bar}",
+            (fill(3) - track / 3.0).abs() < 0.01,
+            "{skin:?}: {} of {track}",
             fill(3)
         );
         assert_eq!(fill(1), 0.0);
@@ -213,6 +220,8 @@ fn the_reputation_tab_swaps_the_paper_doll_for_the_faction_standings_in_both_pre
     set_thread_skin(ActiveSkin::Modern);
 }
 
+/// Each bar, its standing text and its 0%, partial and full fill stay inside the row, the
+/// frame and the border the drawn `common-stat-bar-BG` art paints, at both resolutions.
 #[test]
 fn forever_reputation_bars_fit_rows_borders_and_frame_at_both_resolutions() {
     game_engine_ui_model::paths::set_data_root(
@@ -224,7 +233,9 @@ fn forever_reputation_bars_fit_rows_borders_and_frame_at_both_resolutions() {
     let standings = [
         entry(1341, long_name, "Friendly", 6_000),
         entry(72, "Stormwind", "Exalted", 42_000),
+        entry(47, "Ironforge", "Friendly", 3_000),
     ];
+    let sheet = BarSheet::load();
 
     for resolution in [(1920.0, 1080.0), (3440.0, 1440.0)] {
         let registry = build_at(view(CharacterTab::Reputation, &standings), resolution);
@@ -232,7 +243,7 @@ fn forever_reputation_bars_fit_rows_borders_and_frame_at_both_resolutions() {
         let root_frame = registry.get(root).unwrap();
         let frame_rect = (0.0, 0.0, fixed(root_frame.width), fixed(root_frame.height));
 
-        for (index, progress) in [(1, 0.5_f32), (2, 1.0)] {
+        for (index, progress) in [(1, 0.5_f32), (2, 1.0), (3, 0.0)] {
             let row = registry
                 .get_by_name(&format!("ReputationEntry{index}"))
                 .unwrap();
@@ -242,10 +253,12 @@ fn forever_reputation_bars_fit_rows_borders_and_frame_at_both_resolutions() {
                 "{resolution:?}: row {index} exceeds the frame: {row_rect:?}"
             );
 
-            let bar = registry
-                .get_by_name(&format!("ReputationEntry{index}ReputationBarBackground"))
-                .unwrap();
-            let bar_rect = rect_in(&registry, registry.get(bar).unwrap(), root).unwrap();
+            let background = drawn_pieces(
+                &registry,
+                root,
+                &format!("ReputationEntry{index}ReputationBarBackground"),
+            );
+            let bar_rect = union(&background);
             assert!(
                 rect_contains(row_rect, bar_rect),
                 "{resolution:?}: bar {index} exceeds its row: {bar_rect:?} vs {row_rect:?}"
@@ -276,24 +289,40 @@ fn forever_reputation_bars_fit_rows_borders_and_frame_at_both_resolutions() {
                 .get_by_name(&format!("ReputationEntry{index}ReputationBarFill"))
                 .unwrap();
             let fill_rect = rect_in(&registry, registry.get(fill).unwrap(), root).unwrap();
-            let fill_area = (
-                bar_rect.0 + BAR_FILL_INSET,
-                bar_rect.1 + BAR_FILL_INSET,
-                bar_rect.2 - 2.0 * BAR_FILL_INSET,
-                bar_rect.3 - 2.0 * BAR_FILL_INSET,
+            let track = bar_rect.2 - 2.0 * BAR_FILL_INSET;
+            assert!(
+                (fill_rect.0 - (bar_rect.0 + BAR_FILL_INSET)).abs() < LAYOUT_EPSILON,
+                "{resolution:?}: fill {index} does not start at the FillArea inset"
             );
             assert!(
-                rect_contains(fill_area, fill_rect),
-                "{resolution:?}: fill {index} escapes the bar interior: {fill_rect:?} vs {bar_rect:?}"
-            );
-            assert!(
-                (fill_rect.0 - fill_area.0).abs() < LAYOUT_EPSILON,
-                "{resolution:?}: fill {index} does not start at the track inset"
-            );
-            assert!(
-                (fill_rect.2 - fill_area.2 * progress).abs() < LAYOUT_EPSILON,
+                (fill_rect.2 - track * progress).abs() < LAYOUT_EPSILON,
                 "{resolution:?}: fill {index} width {} does not match {progress} progress",
                 fill_rect.2
+            );
+
+            // The fill's left, right, top and bottom edges stay inside the border pixels the
+            // background art draws, on the fill's first, middle and last rows.
+            let (fill_top, fill_bottom) = (fill_rect.1, fill_rect.1 + fill_rect.3);
+            for y in [
+                fill_top + 0.5,
+                fill_top + fill_rect.3 / 2.0,
+                fill_bottom - 0.5,
+            ] {
+                let (left, right) = sheet.interior_columns(&background, bar_rect, y);
+                assert!(
+                    left <= fill_rect.0 + LAYOUT_EPSILON
+                        && fill_rect.0 + fill_rect.2 <= right + LAYOUT_EPSILON,
+                    "{resolution:?}: fill {index} ({progress}) spans {}..{} but the drawn \
+                     border leaves {left}..{right} at y={y}",
+                    fill_rect.0,
+                    fill_rect.0 + fill_rect.2
+                );
+            }
+            let (top, bottom) = sheet.interior_rows(&background, bar_rect, bar_rect.0 + 20.5);
+            assert!(
+                top <= fill_top + LAYOUT_EPSILON && fill_bottom <= bottom + LAYOUT_EPSILON,
+                "{resolution:?}: fill {index} spans rows {fill_top}..{fill_bottom} but the \
+                 drawn border leaves {top}..{bottom}"
             );
         }
     }
@@ -515,6 +544,141 @@ fn rect_in(registry: &FrameRegistry, frame: &Frame, root: u64) -> Option<(f32, f
         parent = up.parent_id;
     }
     None
+}
+
+/// A drawn sheet texture: its rect in the root and its `left, right, top, bottom` UVs.
+struct DrawnPiece {
+    rect: (f32, f32, f32, f32),
+    fdid: u32,
+    uv: [f32; 4],
+}
+
+/// Every visible texture whose name starts with `prefix`, as drawn inside `root`.
+fn drawn_pieces(registry: &FrameRegistry, root: u64, prefix: &str) -> Vec<DrawnPiece> {
+    let pieces: Vec<DrawnPiece> = registry
+        .frames_iter()
+        .filter(|frame| frame.widget_type == WidgetType::Texture && !frame.hidden)
+        .filter(|frame| frame.name.as_deref().is_some_and(|n| n.starts_with(prefix)))
+        .map(|frame| {
+            let Some(WidgetData::Texture(texture)) = frame.widget_data.as_ref() else {
+                panic!("{prefix} piece has no texture");
+            };
+            let TextureSource::FileDataId(fdid) = texture.source else {
+                panic!("{prefix} piece is not sheet art: {:?}", texture.source);
+            };
+            DrawnPiece {
+                rect: rect_in(registry, frame, root).expect("placed piece"),
+                fdid,
+                uv: texture.tex_coords,
+            }
+        })
+        .collect();
+    assert!(!pieces.is_empty(), "no drawn {prefix}");
+    pieces
+}
+
+fn union(pieces: &[DrawnPiece]) -> (f32, f32, f32, f32) {
+    let left = pieces.iter().map(|p| p.rect.0).fold(f32::MAX, f32::min);
+    let top = pieces.iter().map(|p| p.rect.1).fold(f32::MAX, f32::min);
+    let right = pieces
+        .iter()
+        .map(|p| p.rect.0 + p.rect.2)
+        .fold(f32::MIN, f32::max);
+    let bottom = pieces
+        .iter()
+        .map(|p| p.rect.1 + p.rect.3)
+        .fold(f32::MIN, f32::max);
+    (left, top, right - left, bottom - top)
+}
+
+/// The decoded `common-stat-bar-BG` sheet (Forever `UiTextureAtlas` 4189).
+struct BarSheet {
+    fdid: u32,
+    pixels: Vec<u8>,
+    width: u32,
+    height: u32,
+}
+
+impl BarSheet {
+    const FDID: u32 = 8_261_163;
+
+    fn load() -> Self {
+        let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join(format!("../../data/textures/{}.blp", Self::FDID));
+        let bytes = std::fs::read(&path).unwrap_or_else(|error| panic!("{path:?}: {error}"));
+        let image = game_engine_core::blp::decode_rgba(&bytes).unwrap();
+        Self {
+            fdid: Self::FDID,
+            pixels: image.pixels,
+            width: image.width,
+            height: image.height,
+        }
+    }
+
+    /// Whether the drawn art at screen point `(x, y)` is a lit border pixel: opaque and
+    /// brighter than the black track.
+    fn border_at(&self, pieces: &[DrawnPiece], x: f32, y: f32) -> bool {
+        let Some(piece) = pieces.iter().find(|p| {
+            let (left, top, w, h) = p.rect;
+            left <= x && x < left + w && top <= y && y < top + h
+        }) else {
+            return false;
+        };
+        assert_eq!(piece.fdid, self.fdid, "bar background sheet");
+        let (left, top, w, h) = piece.rect;
+        let [u0, u1, v0, v1] = piece.uv;
+        let u = u0 + (x - left) / w * (u1 - u0);
+        let v = v0 + (y - top) / h * (v1 - v0);
+        let column = ((u * self.width as f32) as u32).min(self.width - 1);
+        let row = ((v * self.height as f32) as u32).min(self.height - 1);
+        let at = ((row * self.width + column) * 4) as usize;
+        let [r, g, b, a] = [0, 1, 2, 3].map(|i| u32::from(self.pixels[at + i]));
+        a > 128 && (r + g + b) / 3 > 20
+    }
+
+    /// Screen `[left, right)` between the drawn border's left and right runs on row `y`.
+    fn interior_columns(
+        &self,
+        pieces: &[DrawnPiece],
+        bar: (f32, f32, f32, f32),
+        y: f32,
+    ) -> (f32, f32) {
+        let border: Vec<f32> = (0..bar.2 as u32)
+            .map(|i| bar.0 + i as f32)
+            .filter(|&x| self.border_at(pieces, x + 0.5, y))
+            .collect();
+        interior_between(&border, &format!("row {y}"))
+    }
+
+    /// Screen `[top, bottom)` between the drawn border's top and bottom runs on column `x`.
+    fn interior_rows(
+        &self,
+        pieces: &[DrawnPiece],
+        bar: (f32, f32, f32, f32),
+        x: f32,
+    ) -> (f32, f32) {
+        let border: Vec<f32> = (0..bar.3 as u32)
+            .map(|i| bar.1 + i as f32)
+            .filter(|&y| self.border_at(pieces, x, y + 0.5))
+            .collect();
+        interior_between(&border, &format!("column {x}"))
+    }
+}
+
+/// The gap between the first and last runs of consecutive border pixels.
+fn interior_between(border: &[f32], what: &str) -> (f32, f32) {
+    let first_run_end = border
+        .windows(2)
+        .find(|pair| pair[1] - pair[0] > 1.0)
+        .map(|pair| pair[0])
+        .unwrap_or_else(|| panic!("{what}: one border run, no interior: {border:?}"));
+    let last_run_start = border
+        .windows(2)
+        .rev()
+        .find(|pair| pair[1] - pair[0] > 1.0)
+        .map(|pair| pair[1])
+        .unwrap();
+    (first_run_end + 1.0, last_run_start)
 }
 
 /// Forever keeps the 631-wide frame on the Reputation tab (Camelot/CharacterFrame.lua:

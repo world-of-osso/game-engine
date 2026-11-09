@@ -146,6 +146,10 @@ fn list_layout() -> ListLayout {
 const ENTRY_SPACING: f32 = 3.0;
 /// `ColoredProgressBarTemplate.FillArea` is inset by 6px on both sides (Camelot XML:8-12).
 const FOREVER_FILL_INSET: f32 = 6.0;
+/// `common-stat-bar-BG` `UiTextureAtlasElementSliceData` (Forever 1.60.1 row 378, element
+/// 35755): unscaled 29px left and 14px right caps around a stretched centre, so the 67px
+/// art's border keeps its 5px inner edge, just outside `FillArea`, at any bar width.
+const FOREVER_BAR_CAPS: (f32, f32) = (29.0, 14.0);
 /// A top-level entry's indent (`SetElementIndentCalculator`, RF.lua:34-46).
 const ENTRY_INDENT: f32 = 2.0;
 
@@ -298,12 +302,7 @@ pub(super) fn reputation_bar(
             (children, 10.0)
         }
         ActiveSkin::Forever => {
-            let mut children = atlas(
-                format!("{name}Background"),
-                &resolve_art("common-stat-bar-BG"),
-                rect,
-                WHITE,
-            );
+            let mut children = forever_bar_background(&format!("{name}Background"), rect);
             let fill = resolve_art("common-stat-bar-white");
             let fill_width = (width - 2.0 * FOREVER_FILL_INSET) * row.fill;
             children.extend(texture(
@@ -329,6 +328,51 @@ pub(super) fn reputation_bar(
         "CENTER",
     ));
     children
+}
+
+/// `common-stat-bar-BG` three-sliced over `rect` as `{name}Left`, `Middle` and `Right`.
+fn forever_bar_background(name: &str, rect: (f32, f32, f32, f32)) -> Element {
+    let art = resolve_art("common-stat-bar-BG");
+    let (x, y, width, height) = rect;
+    let (left_cap, right_cap) = FOREVER_BAR_CAPS;
+    let (art_left, art_right, art_top, art_bottom) = art.rect;
+    let (sheet_w, sheet_h) = art.atlas;
+    let center = (width - left_cap - right_cap).max(0.0);
+    [
+        ("Left", 0.0, left_cap, art_left, art_left + left_cap),
+        (
+            "Middle",
+            left_cap,
+            center,
+            art_left + left_cap,
+            art_right - right_cap,
+        ),
+        (
+            "Right",
+            left_cap + center,
+            right_cap,
+            art_right - right_cap,
+            art_right,
+        ),
+    ]
+    .into_iter()
+    .flat_map(|(part, at, span, u0, u1)| {
+        let coords = format!(
+            "{},{},{},{}",
+            u0 / sheet_w,
+            u1 / sheet_w,
+            art_top / sheet_h,
+            art_bottom / sheet_h
+        );
+        texture(
+            format!("{name}{part}"),
+            art.fdid,
+            (x + at, y, span, height),
+            &coords,
+            WHITE,
+        )
+    })
+    .collect()
 }
 
 /// Art the pane draws, for the host to make drawable before it shows.
