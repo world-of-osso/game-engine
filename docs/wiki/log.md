@@ -1,3 +1,7 @@
+## Rubyfps Human model and stale portrait test — 2026-11-09
+
+VERIFIED: private copied-bench roster/replication and an independent engine build keep Rubyfps Human; a fresh Human Warrior also renders FDID1011653. Paired plateau captures at the reported camera remove only non-player meshes and identify the large foreground model as Ruby Scaleguard (drakonid2/4217881), not the player. VERIFIED: the named portrait test retains an October14 expectation superseded by the explicit October30 no-portrait decision; retain pet placement and repair only that stale expectation. Evidence and scope: [[follower-combat-fps#Rubyfps model verification (2026-11-09)]].
+
 ## Fountain moving-camera flash — 2026-11-09
 
 Game-window-only video grids and tracked water crops establish blue-white basin discontinuities. An exact Linux camera-path A/B plus colourless transparent-list perturbation isolates missing authored batch priority. Binding the signed priority reduces the isolated sweep's maximum basin luma step29.168→0.290/255; the source-backed 120-pose raster acceptance passes with zero pixel mismatches. Debug/release `cargo check` both pass with zero warnings; `cargo fmt --check` passes. See [[fountain-camera-flash]].
