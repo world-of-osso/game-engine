@@ -1,3 +1,7 @@
+## Fountain moving-camera flash — 2026-11-09
+
+Game-window-only video grids and tracked water crops establish blue-white basin discontinuities. An exact Linux camera-path A/B plus colourless transparent-list perturbation isolates missing authored priority binding; source-backed raster acceptance is committed before implementation. See [[fountain-camera-flash]].
+
 ## No-install certification poses: 11/11 pass — 2026-11-08
 
 [Shipped assets](../specs/shipped-assets.md#p4-no-install-certification-run) defines the P4 zone/pose table and pass criteria. `scripts/noinstall_certification.py` runs one extracted-only process per pose with the install hidden and records missing-asset and fallback lines. All eleven poses passed after local fixes: 28 Retail M2 receipt gaps, 260 flat Forever WMO roots/groups and the 2959 skybox chain. All observed misses were source-present; none was absent from the build or a wrong-ID request. Evidence `data/diagnostics/noinstall-cert-2026-11-08/REPORT.md`. Bounded poses, not whole-catalog P4 closure.
