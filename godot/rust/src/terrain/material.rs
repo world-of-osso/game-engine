@@ -50,13 +50,18 @@ struct TileBuild {
     bounds: Vec<(usize, Vec3, Vec3)>,
     /// Next root chunk to build.
     next: usize,
+    /// The tile's liquid node once built; `Some(None)` when it has no liquid.
+    water: Option<Option<Gd<Node3D>>>,
 }
 
 impl Drop for TileBuild {
-    /// Frees the bodies of a tile that never spawned: failed, reset or no longer parsed.
+    /// Frees the nodes of a tile that never spawned: failed, reset or no longer parsed.
     fn drop(&mut self) {
         for body in self.collisions.drain(..) {
             body.free();
+        }
+        if let Some(Some(water)) = self.water.take() {
+            water.free();
         }
     }
 }
@@ -262,18 +267,26 @@ impl TerrainMaterials {
             collisions: Vec::new(),
             bounds: Vec::new(),
             next: 0,
+            water: None,
         });
         let gathered = build.next == parsed.root.chunks.len();
-        let Some(build) = self.build_tile_chunks(tile, build, parsed, tex, deadline)? else {
+        let Some(mut build) = self.build_tile_chunks(tile, build, parsed, tex, deadline)? else {
             return Ok(None);
         };
-        // The tile's GPU build is several milliseconds in one step: it opens a frame's
-        // budget instead of running past the deadline the gathering already used.
+        // The liquid build and the tile's GPU build are several milliseconds each: each
+        // opens its own frame's budget instead of running past the deadline the gathering
+        // or the other already used.
         if !gathered {
             self.building = Some(build);
             return Ok(None);
         }
-        self.spawn_tile(tile, parsed, build).map(Some)
+        if build.water.is_none() {
+            let _span = crate::profile::span(|| "terrain.water".to_owned());
+            build.water = Some(self.water.build(&parsed.root, &parsed.liquid_materials)?);
+            self.building = Some(build);
+            return Ok(None);
+        }
+        self.spawn_tile(tile, build).map(Some)
     }
 
     fn build_tile_chunks(
@@ -314,15 +327,7 @@ impl TerrainMaterials {
         Ok(Some(build))
     }
 
-    fn spawn_tile(
-        &mut self,
-        tile: Tile,
-        parsed: &NativeTerrainTile,
-        mut build: TileBuild,
-    ) -> Result<Gd<Node3D>, String> {
-        let span = crate::profile::span(|| "terrain.water".to_owned());
-        let water = self.water.build(&parsed.root, &parsed.liquid_materials)?;
-        drop(span);
+    fn spawn_tile(&mut self, tile: Tile, mut build: TileBuild) -> Result<Gd<Node3D>, String> {
         let hidden = [0; CHUNKS_PER_SIDE * CHUNKS_PER_SIDE];
         let mask = ImageTexture::create_from_image(&hidden_mask(&hidden)?)
             .ok_or("Godot rejected the terrain chunk mask texture")?;
@@ -338,10 +343,10 @@ impl TerrainMaterials {
             Some((mesh, material))
         };
         // Allocate the root only after all fallible resource construction; on an error
-        // `TileBuild` frees its collision bodies.
+        // `TileBuild` frees its collision bodies and liquid.
         let mut root = Node3D::new_alloc();
         root.set_name(&format!("Tile{}_{}", tile.0, tile.1));
-        if let Some(water) = water {
+        if let Some(water) = build.water.take().flatten() {
             root.add_child(&water);
         }
         if let Some((mesh, material)) = built {
