@@ -1,3 +1,7 @@
+## Ruby movement correction design — 2026-11-09
+
+Verified the original stop is an authored62.82° rock face, while a centered entrance line walks. A separate1.2s private-server pause reproduces a correction with0 client collision rejections: normal2cm floor projection is counted as rejection while authority is movement-bank delayed. Added paired native/server acceptance and recorded the approved within-step-height projection rule; no collision constants change. [[ruby-movement-correction]]
+
 ## Fountain moving-camera flash — 2026-11-09
 
 Game-window-only video grids and tracked water crops establish blue-white basin discontinuities. An exact Linux camera-path A/B plus colourless transparent-list perturbation isolates missing authored batch priority. Binding the signed priority reduces the isolated sweep's maximum basin luma step29.168→0.290/255; the source-backed 120-pose raster acceptance passes with zero pixel mismatches. Debug/release `cargo check` both pass with zero warnings; `cargo fmt --check` passes. See [[fountain-camera-flash]].
