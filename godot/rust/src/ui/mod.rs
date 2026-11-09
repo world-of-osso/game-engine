@@ -2733,6 +2733,7 @@ impl RegistryUi {
 
     /// Set attributes of named frames as the screen's attribute diff would, without
     /// rebuilding the screen (art animated every frame); projects only when one changed.
+    /// Frames the screen does not draw (another skin's layout) are skipped.
     pub fn patch_frames(
         &mut self,
         patches: impl IntoIterator<Item = (String, Vec<(&'static str, String)>)>,
@@ -2742,10 +2743,9 @@ impl RegistryUi {
             .as_mut()
             .ok_or("Registry model not initialized")?;
         for (name, attrs) in patches {
-            let id = model
-                .registry
-                .get_by_name(&name)
-                .ok_or_else(|| format!("Missing frame {name}"))?;
+            let Some(id) = model.registry.get_by_name(&name) else {
+                continue;
+            };
             for (attr, value) in attrs {
                 ui_toolkit::attrs::apply_attribute(&mut model.registry, id, attr, &value);
             }
