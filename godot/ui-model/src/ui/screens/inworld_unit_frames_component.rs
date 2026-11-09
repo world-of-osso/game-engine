@@ -730,6 +730,47 @@ fn class_bar(view: Option<&ClassBarView>) -> Element {
     }
 }
 
+/// What the screen state keeps of a class bar: each texture's animated values (position,
+/// alpha, rotation, swipe progress) at rest. A filling, spinning or recharging bar then
+/// leaves the unit-frames state unchanged; the client applies the live values to the
+/// drawn frames with [`class_bar_texture_patch`] instead of rebuilding the screen.
+pub fn class_bar_layout(view: &ClassBarView) -> ClassBarView {
+    let textures = view
+        .textures
+        .iter()
+        .map(|texture| TextureView {
+            rect: (0.0, 0.0, texture.rect.2, texture.rect.3),
+            alpha: 1.0,
+            rotation: 0.0,
+            swipe: texture.swipe.map(|_| 0.0),
+            ..texture.clone()
+        })
+        .collect();
+    ClassBarView {
+        textures,
+        ..view.clone()
+    }
+}
+
+/// The animated attributes of `texture`'s frame, as [`class_bar_texture`] sets them.
+pub fn class_bar_texture_patch(texture: &TextureView) -> Vec<(&'static str, String)> {
+    let (x, y, _, _) = texture.rect;
+    let mut attrs = vec![("pos_x", x.to_string()), ("pos_y", y.to_string())];
+    if texture.swipe.is_some() {
+        attrs.push(("hidden", (!texture.shown).to_string()));
+        return attrs;
+    }
+    let hidden = !texture.shown || texture.alpha <= 0.0;
+    attrs.push(("hidden", hidden.to_string()));
+    attrs.push(("vertex_color", class_bar_vertex_color(texture)));
+    attrs.push(("rotation", texture.rotation.to_string()));
+    attrs
+}
+
+fn class_bar_vertex_color(texture: &TextureView) -> String {
+    format!("1.0,1.0,1.0,{}", texture.alpha)
+}
+
 /// One class bar texture at its alpha, named `prefix` + its name; hidden while not shown
 /// or fully transparent. A Cooldown swipe is an empty frame the client fills with its
 /// radial swipe.
@@ -752,7 +793,7 @@ fn class_bar_texture(prefix: &str, texture: &TextureView) -> Element {
     }
     let (x, y, width, height) = texture.rect;
     let coords = texture.art.tex_coords(1.0);
-    let color = format!("1.0,1.0,1.0,{}", texture.alpha);
+    let color = class_bar_vertex_color(texture);
     let hidden = !texture.shown || texture.alpha <= 0.0;
     rsx! {
         texture {

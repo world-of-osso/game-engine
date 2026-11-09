@@ -14,7 +14,11 @@ The Forever player frame carried the player's auras as `AuraInstance` values wit
 
 `Targeting` step median, 3+3 interleaved runs, master `78a0b50f2` vs fix (load about 31): out of combat 2.38/0.30/1.61 -> 0.19/0.09/0.42 ms, in combat 2.75/0.17/4.23 -> 0.38/0.15/0.68 ms. Run 2 of each had few buffs and little combat. Whole-frame medians were dominated by host load and by how long each fight lasted.
 
-The class bar has the same pattern: `ClassBarView` texture `swipe` progress is computed from the clock. It does not affect a Warrior and is not fixed.
+## Class bars resynced every frame (fixed, 2026-11-09)
+
+A class bar animates from the clock: an Evoker's filling essence pip changes its swipe, alpha, rotation and offset every frame, and a DK's recharging runes change their swipe. `ClassBarView` lived in `InWorldUnitFramesState` (player frame and personal resource display), so the screen rebuilt every frame while a resource recharged. The state now holds each bar at rest (`class_bar_layout`), and the host patches the live attributes onto the existing frames with `RegistryUi::patch_frames` (`class_bar_texture_patch`). Frames the active skin does not draw are skipped: Forever's player frame has no class bar.
+
+Evoker Evofps on the plateau, Modern layout, one run each with field-diff diagnostics (load 30-60): class-bar state changes 801 -> 0, `ui.set_state InWorldUnitFramesState` 817 -> 10 per run, `Targeting` CPU 4.4 -> 2.85 ms per combat frame. The essence pips render the same (screenshots `cb-evo-mm1`/`cb-evo-mf1`). While a pip animates, the patch still makes `projection.sync` lay out and update all 205 unit-frame nodes, about 1.5 ms per frame; a projection pass that updates only render-dirty nodes would remove it. The DK harness character shows no rune bar (its replicated powers have no runes; not investigated).
 
 ## Camera under the ADT terrain (not fixed)
 
