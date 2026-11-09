@@ -270,8 +270,7 @@ pub(crate) fn authored_asset_resolver(
     fdid: u32,
     kind: &str,
 ) -> Result<Arc<CascListfileResolver>, String> {
-    let index = load_asset_index(data_root)?;
-    let receipt = index.receipt(product, fdid, kind)?;
+    let receipt = super::client_receipts::load_or_extract_receipt(data_root, product, fdid, kind)?;
     let key = (
         data_root.to_owned(),
         product.as_str(),

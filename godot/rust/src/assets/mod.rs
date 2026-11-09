@@ -2,6 +2,7 @@
 pub(crate) mod appearance;
 pub(crate) mod attachments;
 pub(crate) mod batch_merge;
+pub(crate) mod client_receipts;
 pub(crate) mod creature;
 pub(crate) mod creature_template;
 pub(crate) mod equipment;
@@ -319,8 +320,7 @@ pub(super) fn dependent_asset_path(
         "wow_classic_beta" => game_engine_core::asset_product::AssetProduct::Forever,
         other => return Err(format!("Unsupported asset product {other}")),
     };
-    let index = creature::load_asset_index(&root)?;
-    Ok(root.join(&index.receipt(product, fdid, kind)?.path))
+    Ok(root.join(client_receipts::load_or_extract_receipt(&root, product, fdid, kind)?.path))
 }
 
 fn primary_skin_path(

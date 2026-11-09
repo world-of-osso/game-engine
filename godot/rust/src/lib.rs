@@ -250,6 +250,10 @@ unsafe impl ExtensionLibrary for GameEngineExtension {
         if stage == godot::init::InitStage::Servers {
             display_options::initialize_ssao_prepass();
         }
+        if stage == godot::init::InitStage::Scene {
+            let dir = ProjectSettings::singleton().globalize_path("user://model-asset-receipts");
+            assets::client_receipts::set_client_dir(std::path::PathBuf::from(dir.to_string()));
+        }
     }
 
     fn on_stage_deinit(stage: godot::init::InitStage) {
