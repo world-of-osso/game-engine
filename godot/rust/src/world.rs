@@ -2178,23 +2178,6 @@ impl WorldUnits {
             .map(|unit| unit.node.clone())
     }
 
-    pub fn controlled_unit_facing(&self) -> Option<f32> {
-        self.controlled_unit
-            .and_then(|id| self.units.get(&id))
-            .or_else(|| self.units.get(&self.local_player_id?))
-            .map(|unit| unit.motion.facing_yaw)
-    }
-
-    pub fn set_controlled_unit_facing(&mut self, yaw: f32) {
-        let id = self
-            .controlled_unit
-            .filter(|id| self.units.contains_key(id))
-            .or(self.local_player_id);
-        if let Some(unit) = id.and_then(|id| self.units.get_mut(&id)) {
-            unit.motion.facing_yaw = yaw;
-        }
-    }
-
     pub fn set_controlled_unit(&mut self, id: Option<u64>) {
         self.controlled_unit = id;
     }
