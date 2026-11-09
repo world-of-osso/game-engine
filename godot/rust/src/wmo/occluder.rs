@@ -2,7 +2,10 @@
 //! one WMO behind another (Stormwind's far interiors pass their doorways but sit behind
 //! nearer districts), so Godot's occlusion buffer gets the opaque batches of every
 //! EXTERIOR group. Interior groups (rooms, dungeons) and blended or alpha-keyed batches,
-//! which have holes, never occlude.
+//! which have holes, never occlude. Every occluder added or removed rebuilds the occlusion
+//! BVH inside the viewport render, so only shells of at least `MIN_OCCLUDER_YARDS` get
+//! one: in Stormwind the 18 such WMOs of 61 hold 84% of the shell triangles and cull the
+//! same draws as all 61.
 
 use godot::{
     classes::{ArrayOccluder3D, OccluderInstance3D},
@@ -11,6 +14,9 @@ use godot::{
 
 /// MOMT blend mode of an opaque batch.
 const OPAQUE_BLEND_MODE: u32 = 0;
+
+/// Smallest bounding-box diagonal (yards) of a shell that gets an occluder.
+const MIN_OCCLUDER_YARDS: f32 = 100.0;
 
 /// Whether a drawn batch of a group with `exterior` set and material `blend_mode`
 /// occludes what lies behind it.
@@ -38,9 +44,23 @@ impl OccluderGeometry {
             .extend(indices.iter().map(|&index| index as i32 + offset));
     }
 
-    /// One occluder instance for the whole shell; `None` without occluding batches.
+    /// Whether the shell's bounding box spans at least `MIN_OCCLUDER_YARDS` diagonally.
+    fn is_large(&self) -> bool {
+        let Some(&first) = self.positions.first() else {
+            return false;
+        };
+        let (min, max) = self
+            .positions
+            .iter()
+            .fold((first, first), |(min, max), &p| {
+                (min.coord_min(p), max.coord_max(p))
+            });
+        (max - min).length() >= MIN_OCCLUDER_YARDS
+    }
+
+    /// One occluder instance for the whole shell; `None` for a small or empty shell.
     pub(super) fn into_node(self) -> Option<Gd<OccluderInstance3D>> {
-        if self.indices.is_empty() {
+        if self.indices.is_empty() || !self.is_large() {
             return None;
         }
         let mut occluder = ArrayOccluder3D::new_gd();
@@ -68,6 +88,23 @@ mod tests {
             !occludes(false, 0),
             "interior rooms and dungeons never occlude"
         );
+    }
+
+    #[test]
+    fn only_shells_spanning_the_minimum_diagonal_are_large() {
+        let mut house = OccluderGeometry::default();
+        house.append(
+            &[[0.0, 0.0, 0.0], [40.0, 0.0, 0.0], [0.0, 30.0, 20.0]],
+            &[0, 1, 2],
+        );
+        assert!(!house.is_large(), "a 54-yard house");
+        let mut district = OccluderGeometry::default();
+        district.append(
+            &[[0.0, 0.0, 0.0], [90.0, 0.0, 0.0], [0.0, 20.0, 50.0]],
+            &[0, 1, 2],
+        );
+        assert!(district.is_large(), "a 105-yard district shell");
+        assert!(!OccluderGeometry::default().is_large());
     }
 
     #[test]
