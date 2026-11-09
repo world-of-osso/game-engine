@@ -64,9 +64,11 @@ pub(crate) struct WmoVisibility {
 /// Portal graph and group volumes of one WMO, in WMO-local engine axes.
 pub(crate) struct WmoPortals {
     groups: Vec<PortalGroup>,
-    /// Per group index: (portal index, destination group).
-    adjacency: Vec<Vec<(usize, u16)>>,
+    /// Per group index: (portal index, destination group, MOPR side of the source group).
+    adjacency: Vec<Vec<(usize, u16, i16)>>,
     portal_vertices: Vec<Vec<Vec3>>,
+    /// Per portal: its MOPT plane through its vertices, WMO-local engine axes.
+    portal_planes: Vec<HalfSpace>,
     /// The last local camera position and the interior group it lies in: the portal
     /// cull and the camera fog ask for the same position each frame, and a still camera
     /// asks again on every frame.
@@ -90,15 +92,26 @@ impl WmoPortals {
             .map(|group| build_portal_group(root, group))
             .collect();
         let adjacency = build_portal_adjacency(root);
-        let portal_vertices = root
+        let portal_vertices: Vec<Vec<Vec3>> = root
             .portals
             .iter()
             .map(|portal| portal.vertices.iter().copied().map(engine_axes).collect())
+            .collect();
+        let portal_planes = root
+            .portals
+            .iter()
+            .zip(&portal_vertices)
+            .map(|(portal, vertices)| {
+                let normal = engine_axes(portal.normal);
+                let d = vertices.first().map_or(0.0, |vertex| -normal.dot(*vertex));
+                HalfSpace { normal, d }
+            })
             .collect();
         Self {
             groups,
             adjacency,
             portal_vertices,
+            portal_planes,
             camera_group: std::cell::Cell::new(None),
         }
     }
@@ -222,7 +235,8 @@ impl WmoPortals {
         let mut windows = Vec::new();
         let mut pending = vec![(group, frustum.to_vec(), vec![group])];
         while let Some((current, planes, path)) = pending.pop() {
-            for &(portal, destination) in self.adjacency.get(current as usize).into_iter().flatten()
+            for &(portal, destination, _) in
+                self.adjacency.get(current as usize).into_iter().flatten()
             {
                 if path.contains(&destination) {
                     continue;
@@ -305,8 +319,9 @@ impl WmoPortals {
     /// Breadth-first from `start` (each seen through `frustum`) through the portals in
     /// view; per group index, whether it was reached. Each crossing narrows the view to
     /// the portal's window, so a portal counts only when it is seen through every portal
-    /// before it (WebWowViewerCpp `drainPortalTraversal`: portal planes per hop, at most
-    /// 8 hops, an almost equal frustum crosses a portal once).
+    /// before it, and only from the side of the group it leaves (WebWowViewerCpp
+    /// `drainPortalTraversal`: MOPR side, portal planes per hop, at most 8 hops, an almost
+    /// equal frustum crosses a portal once).
     fn traverse(
         &self,
         start: &[u16],
@@ -322,13 +337,16 @@ impl WmoPortals {
                 queue.push_back((group, frustum.to_vec(), 0));
             }
         }
+        let local_camera = world_from_local.inverse().transform_point3(camera);
         let mut crossed: Vec<Vec<Vec<HalfSpace>>> = vec![Vec::new(); self.portal_vertices.len()];
         while let Some((current, planes, hops)) = queue.pop_front() {
             if hops == MAX_PORTAL_HOPS {
                 continue;
             }
-            for &(portal, destination) in &self.adjacency[current as usize] {
-                if reached.get(destination as usize).is_none() {
+            for &(portal, destination, side) in &self.adjacency[current as usize] {
+                if reached.get(destination as usize).is_none()
+                    || !self.camera_on_side(portal, side, local_camera)
+                {
                     continue;
                 }
                 let Some(window) = self.portal_window(portal, world_from_local, &planes, camera)
@@ -347,6 +365,21 @@ impl WmoPortals {
             }
         }
         reached
+    }
+
+    /// Whether the local camera is on the `side` (MOPR) of `portal`'s plane, or within
+    /// `PORTAL_NEAR_DISTANCE` of it (WebWowViewerCpp `isInsidePortalThis` and `dotepsilon`).
+    fn camera_on_side(&self, portal: usize, side: i16, local_camera: Vec3) -> bool {
+        let Some(plane) = self.portal_planes.get(portal) else {
+            return true;
+        };
+        let distance = plane.normal.dot(local_camera) + plane.d;
+        distance.abs() <= PORTAL_NEAR_DISTANCE
+            || if side < 0 {
+                distance <= 0.0
+            } else {
+                distance >= 0.0
+            }
     }
 
     /// The view through `portal` from inside `frustum`, if any of it is in view.
@@ -472,24 +505,26 @@ fn collect_group_floor(group: &NativeWmoGroup) -> Vec<[Vec3; 3]> {
         .collect()
 }
 
-fn build_portal_adjacency(root: &wmo::WmoRootData) -> Vec<Vec<(usize, u16)>> {
+fn build_portal_adjacency(root: &wmo::WmoRootData) -> Vec<Vec<(usize, u16, i16)>> {
     let mut groups_by_portal = vec![Vec::new(); root.portals.len()];
     for portal_ref in &root.portal_refs {
         if let Some(groups) = groups_by_portal.get_mut(portal_ref.portal_index as usize) {
-            groups.push(portal_ref.group_index);
+            groups.push((portal_ref.group_index, portal_ref.side));
         }
     }
     let mut adjacency = vec![Vec::new(); root.n_groups as usize];
     for (portal, groups) in groups_by_portal.iter().enumerate() {
-        for &source in groups {
+        for &(source, _) in groups {
             let Some(neighbors) = adjacency.get_mut(source as usize) else {
                 continue;
             };
+            // A group's MOGP portal range lists its portals by the group across them, with
+            // the side of the listing group: the entry naming the destination is the source's.
             neighbors.extend(
                 groups
                     .iter()
-                    .filter(|&&destination| destination != source)
-                    .map(|&destination| (portal, destination)),
+                    .filter(|&&(destination, _)| destination != source)
+                    .map(|&(destination, side)| (portal, destination, side)),
             );
         }
     }
@@ -663,13 +698,14 @@ mod tests {
                     floor,
                 },
             ],
-            adjacency: vec![vec![(0, 1)], vec![(0, 0)]],
+            adjacency: vec![vec![(0, 1, 0)], vec![(0, 0, 0)]],
             portal_vertices: vec![vec![
                 Vec3::new(4.0, 0.0, 0.0),
                 Vec3::new(6.0, 0.0, 0.0),
                 Vec3::new(6.0, 2.0, 0.0),
                 Vec3::new(4.0, 2.0, 0.0),
             ]],
+            portal_planes: Vec::new(),
             camera_group: std::cell::Cell::new(None),
         }
     }
@@ -719,7 +755,7 @@ mod tests {
             next_child: None,
             floor: Vec::new(),
         });
-        portals.adjacency = vec![vec![(0, 1)], vec![(0, 0), (1, 2)], vec![(1, 1)]];
+        portals.adjacency = vec![vec![(0, 1, 0)], vec![(0, 0, 0), (1, 2, 0)], vec![(1, 1, 0)]];
         portals.portal_vertices.push(vec![
             Vec3::new(0.0, 0.0, 10.0),
             Vec3::new(1.0, 0.0, 10.0),
@@ -740,6 +776,40 @@ mod tests {
         assert_eq!(visible(Vec3::new(5.0, 1.0, -20.0)), [0, 1]);
         // From the right the window spans x -2.5..3.5 at z = 10: the doorways line up.
         assert_eq!(visible(Vec3::new(7.25, 1.0, -5.0)), [0, 1, 2]);
+    }
+
+    /// `courtyard_and_two_rooms` plus a back door from room 2 to the courtyard (portal 2,
+    /// x 4..6 in the plane z = 20), with MOPR sides: each portal's plane faces +z, the
+    /// group in front of the camera's approach on its -z side.
+    fn building_with_back_door() -> WmoPortals {
+        let mut portals = courtyard_and_two_rooms();
+        portals.adjacency = vec![
+            vec![(0, 1, -1), (2, 2, 1)],
+            vec![(0, 0, 1), (1, 2, -1)],
+            vec![(1, 1, 1), (2, 0, -1)],
+        ];
+        portals.portal_vertices.push(vec![
+            Vec3::new(4.0, 0.0, 20.0),
+            Vec3::new(6.0, 0.0, 20.0),
+            Vec3::new(6.0, 2.0, 20.0),
+            Vec3::new(4.0, 2.0, 20.0),
+        ]);
+        portals.portal_planes = [0.0, -10.0, -20.0]
+            .map(|d| HalfSpace { normal: Vec3::Z, d })
+            .to_vec();
+        portals
+    }
+
+    #[test]
+    fn a_door_seen_from_behind_does_not_open_its_room() {
+        let portals = building_with_back_door();
+        let visible = |eye: Vec3, forward: Vec3| {
+            drawn_indices(portals.visible_groups(Affine3A::IDENTITY, &view(eye, forward), eye))
+        };
+        // From the front the back door is in view but faces away: room 2 stays hidden.
+        assert_eq!(visible(Vec3::new(5.0, 1.0, -20.0), Vec3::Z), [0, 1]);
+        // From behind, the front door faces away: room 1 stays hidden.
+        assert_eq!(visible(Vec3::new(5.0, 1.0, 40.0), -Vec3::Z), [0, 2]);
     }
 
     #[test]
@@ -853,7 +923,7 @@ mod tests {
             next_child: None,
             floor: Vec::new(),
         });
-        portals.adjacency = vec![vec![(1, 2)], vec![(0, 2)], vec![(0, 1), (1, 0)]];
+        portals.adjacency = vec![vec![(1, 2, 0)], vec![(0, 2, 0)], vec![(0, 1, 0), (1, 0, 0)]];
         portals.portal_vertices[0] = vec![
             Vec3::new(4.0, 0.0, 4.0),
             Vec3::new(6.0, 0.0, 4.0),
@@ -1127,5 +1197,43 @@ mod tests {
         let eye = Vec3::new(105.0, 1.0, 8.0);
         let groups = drawn_indices(portals.visible_groups(placed, &view(eye, Vec3::Z), eye));
         assert_eq!(groups, [1]);
+    }
+
+    /// Neltharus' WMO: a camera above the first floor triangle of each interior group it
+    /// stands in is on that group's MOPR side of the group's portals.
+    #[test]
+    fn a_camera_in_a_room_is_on_its_side_of_the_room_portals() {
+        let data_root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
+        let resolver = osso_asset_resolver::CascListfileResolver::new(
+            osso_asset_resolver::AssetResolverConfig::new()
+                .with_data_root(&data_root)
+                .with_shared_data_root(&data_root),
+        );
+        let bytes = std::fs::read(data_root.join("terrain/4334889.adt")).unwrap();
+        let objects = game_engine_core::adt::parse_obj(&bytes).unwrap();
+        let asset =
+            crate::wmo::assets::read_placement(&resolver, &data_root, &objects.wmos[0]).unwrap();
+        let portals = WmoPortals::new(&asset);
+        let (mut on_side, mut off_side) = (0, 0);
+        for group in portals.groups.iter().filter(|group| !group.exterior) {
+            let Some(floor) = group.floor.first() else {
+                continue;
+            };
+            let camera = (floor[0] + floor[1] + floor[2]) / 3.0 + Vec3::Y;
+            if portals.find_camera_interior_group(camera) != Some(group.index) {
+                continue;
+            }
+            for &(portal, _, side) in &portals.adjacency[group.index as usize] {
+                if portals.camera_on_side(portal, side, camera) {
+                    on_side += 1;
+                } else {
+                    off_side += 1;
+                }
+            }
+        }
+        // With the sides inverted the counts swap: a camera in a room would be behind its
+        // own doorways and the traversal would close them. The two remaining edges belong
+        // to concave rooms whose floor centre lies behind one of their portal planes.
+        assert_eq!((on_side, off_side), (44, 2));
     }
 }
