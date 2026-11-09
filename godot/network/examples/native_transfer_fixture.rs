@@ -35,6 +35,7 @@ const FIRST: [f32; 3] = [-8949.0, 112.87991, 0.0];
 const SECOND: [f32; 3] = [-8940.0, 117.38283, 0.0];
 const STOCKADE: [f32; 3] = [103.0, -34.5, -76.0];
 const TICK: Duration = Duration::from_millis(5);
+const FIXTURE_TIMEOUT: Duration = Duration::from_secs(180);
 
 #[derive(Resource, Default)]
 struct Incoming {
@@ -265,7 +266,7 @@ fn run_fixture(
 ) -> Result<(), String> {
     let mut selected = false;
     let mut phase = 0;
-    let deadline = Instant::now() + Duration::from_secs(90);
+    let deadline = Instant::now() + FIXTURE_TIMEOUT;
     let mut readers = Some(readers);
     while Instant::now() < deadline {
         app.update();

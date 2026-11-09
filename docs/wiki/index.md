@@ -588,7 +588,7 @@ Architecture decisions and feature designs.
 
 - [desktop-disk-exhaustion](investigations/desktop-disk-exhaustion.md) — October 6 observed Windows/WSL exhaustion, completed cache pruning and offline VHD compaction; crash causality and sustained GC behavior unproven.
 
-- [Stormwind loading](investigations/stormwind-loading.md) — Spatial entry gate, rendered per-phase instrumentation and loading-only resource slices; retained distant streaming.
+- [Stormwind loading](investigations/stormwind-loading.md) — Spatial entry gate, rendered per-phase instrumentation and loading-only resource slices; retained distant streaming; reconnect/transfer fixtures wait for settled character-select UI.
 
 - [character-preview-double-free](investigations/character-preview-double-free.md) — exact `gd.rs:911` teardown reproduction, preview-before-UI ownership fix, and process/reconnect free-site audit.
 

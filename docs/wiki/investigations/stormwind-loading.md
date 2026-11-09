@@ -109,6 +109,16 @@ took 5.9 ms and a later one 189 ms. This matches the driver allocating a new GPU
 (inferred, NVIDIA on Linux); the cause is in Godot's allocator, not in the client.
 Evidence: `profile/stream-ur-*.log` (`DIAG_UPLOAD`).
 
+## Character-select process fixture readiness (November 9, 2026)
+
+VERIFIED: On engine `618f5ab01`, `native_reconnect_fixture` reached account state `CharacterSelect` before `CharacterSelectUI`, `CharCard_0` or `EnterWorld` existed, then failed its immediate control assertion. The fixture had treated account state as rendered UI readiness.
+
+VERIFIED: The selected card and Enter World action are present in the Forever product UI. The inspected 1920×1080 capture is `data/diagnostics/charselect-fixtures-2026-11-09/charselect-forever-master.png`; it came from an owned game-server `88959866b4` with protocol `7fa253f` on private UDP 5964.
+
+INFERRED, SOURCE-ONLY: `23c06168e` added `receive_account_during_startup`, which advances authentication state while screen attachment waits for asset initialization. This is a source-history pointer, not a historical runtime bisect; the lead waived that bisect.
+
+The reconnect and transfer fixtures now wait for the expected authenticated roster plus a `CharCard_0` and enabled `EnterWorld` visible in the scene tree. They use the specified 1920×1080 viewport. No product code changed. The real-process GREEN run and final checks are pending in this branch.
+
 ## Proof
 
 Baseline samples, profile summary, argv, server setup and logs: `data/diagnostics/swload-2026-10-05/`. Automated coverage includes dynamic child discovery, moved-player requirements, inclusive boundaries, duplicate completion, tile-edge coverage, and `godot/tests/stormwind_loading.gd` for real private-server entry with nonzero distant pending and eventual drain. Before/after rendered and headless proof must be interpreted separately.

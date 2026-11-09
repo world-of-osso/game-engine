@@ -3,6 +3,7 @@ extends SceneTree
 const FIRST := Vector3(-8949.0, 112.87991, 0.0)
 const SECOND := Vector3(-8940.0, 117.38283, 0.0)
 const ERROR_TEXT := "Transfer Aborted: instance is full"
+const CHARACTER_SELECT_TIMEOUT_MS := 60000
 
 var transfer_requested := false
 var transfer_loading_seen := false
@@ -12,7 +13,7 @@ func _initialize() -> void:
 	call_deferred("run_test")
 
 func run_test() -> void:
-	root.size = Vector2i(1280, 720)
+	root.size = Vector2i(1920, 1080)
 	var server := OS.get_environment("GODOT_TEST_SERVER")
 	if not server.begins_with("127.0.0.1:") or server.ends_with(":0"):
 		fail("Fixture requires its owned ephemeral loopback UDP endpoint")
@@ -24,7 +25,7 @@ func run_test() -> void:
 	if error != "":
 		fail("Fixture connection: " + error)
 		return
-	if not await wait_for_screen(client, "CharacterSelect", 15000):
+	if not await wait_for_character_select(client, CHARACTER_SELECT_TIMEOUT_MS, 1):
 		return
 	var ui = client.get_node_or_null("CharacterSelectUI")
 	var card = ui.find_child("CharCard_0", true, false) if ui != null else null
@@ -175,17 +176,28 @@ func wait_for_water_clock(water: Dictionary) -> bool:
 	fail("Destination Water did not advance with shared material clock")
 	return false
 
-func wait_for_screen(client: Node, wanted: String, timeout_ms: int) -> bool:
+func wait_for_character_select(client: Node, timeout_ms: int, expected_count: int) -> bool:
 	var deadline := Time.get_ticks_msec() + timeout_ms
+	var saw_character_select := false
 	while Time.get_ticks_msec() < deadline:
 		await process_frame
 		var state: Dictionary = client.account_state()
-		if state.screen == wanted:
-			if wanted == "CharacterSelect" and (not state.reply_received or state.character_count != 1):
-				fail("Fixture authentication did not populate character selection: " + str(state))
-				return false
-			return true
-	fail("Timed out waiting for " + wanted + ": " + str(client.account_state()))
+		if state.screen != "CharacterSelect":
+			continue
+		saw_character_select = true
+		if not state.reply_received or state.character_count != expected_count:
+			fail("Fixture authentication did not populate the expected character roster: " + str(state))
+			return false
+		var ui = client.get_node_or_null("CharacterSelectUI")
+		var card = ui.find_child("CharCard_0", true, false) if ui != null else null
+		var enter = ui.find_child("EnterWorld", true, false) if ui != null else null
+		if card is Control and enter is Button:
+			if card.is_visible_in_tree() and enter.is_visible_in_tree() and not enter.disabled:
+				return true
+	if saw_character_select:
+		fail("Timed out waiting for the revealed character card and enabled Enter World: " + str(client.account_state()))
+	else:
+		fail("Timed out waiting for authenticated CharacterSelect: " + str(client.account_state()))
 	return false
 
 func wait_for_world(client: Node, position: Vector3, timeout_ms: int) -> bool:
