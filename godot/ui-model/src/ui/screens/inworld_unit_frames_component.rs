@@ -399,6 +399,7 @@ fn visible_target_of(state: &InWorldUnitFramesState) -> Option<&SmallUnitFrameSt
 }
 
 const UNIT_FRAME_SIZE: (f32, f32) = (UNIT_FRAME_W, UNIT_FRAME_H);
+const FOREVER_CLASS_BAR_GAP: f32 = 4.0;
 
 fn player_frame(
     state: &UnitFrameState,
@@ -411,11 +412,16 @@ fn player_frame(
             aura_state: Some(state),
             ..state.into()
         };
-        flare_frame(&FLARE_PLAYER, Some(unit), !visible, anchor)
+        let class_bar = class_bar(
+            state.class_bar.as_ref(),
+            FLARE_PLAYER.size.0 / 2.0,
+            FLARE_PLAYER.size.1 + FOREVER_CLASS_BAR_GAP,
+        );
+        flare_frame(&FLARE_PLAYER, Some(unit), !visible, anchor, class_bar)
     } else {
         let content = rsx! {
             {unit_frame_contents("Player", state, &PLAYER_SLOTS, HEALTH_BAR)}
-            {class_bar(state.class_bar.as_ref())}
+            {class_bar(state.class_bar.as_ref(), CLASS_BAR_CENTRE_X, CLASS_BAR_TOP)}
             {status_icons(state, skin)}
         };
         art_root(
@@ -451,6 +457,7 @@ fn target_frame(
             }),
             !visible,
             anchor,
+            Element::default(),
         )
     } else {
         let content = target
@@ -706,7 +713,7 @@ fn health_status_bar(tap_denied: bool, spec: BarSpec<'_>) -> Element {
 
 /// Retail `VerticalLayoutMixin` places a centred child at the container top plus its
 /// `topPadding`, shifted right by half its `leftPadding` (LayoutFrame.lua:340,346-348).
-fn class_bar(view: Option<&ClassBarView>) -> Element {
+fn class_bar(view: Option<&ClassBarView>, centre_x: f32, row_top: f32) -> Element {
     let Some(view) = view else {
         return Element::default();
     };
@@ -723,8 +730,8 @@ fn class_bar(view: Option<&ClassBarView>) -> Element {
             width,
             height,
             pos_type: "absolute",
-            pos_x: {CLASS_BAR_CENTRE_X + left_padding / 2.0 - width / 2.0},
-            pos_y: {CLASS_BAR_TOP + top_padding},
+            pos_x: {centre_x + left_padding / 2.0 - width / 2.0},
+            pos_y: {row_top + top_padding},
             {textures}
         }
     }
@@ -869,7 +876,13 @@ fn small_unit_frame(
     skin: ActiveSkin,
 ) -> Element {
     if skin == ActiveSkin::Forever {
-        return flare_frame(spec.flare, state.map(FlareUnit::from), false, anchor);
+        return flare_frame(
+            spec.flare,
+            state.map(FlareUnit::from),
+            false,
+            anchor,
+            Element::default(),
+        );
     }
     let content = state
         .map(|unit| small_unit_contents(&spec, unit, skin))
