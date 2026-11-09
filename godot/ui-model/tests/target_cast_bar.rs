@@ -265,7 +265,7 @@ fn modern_target_cast_moves_below_auras_or_tot_as_retail_does() {
             stacks: 1,
             dispel_color: None,
             large: true,
-            elapsed: None,
+            timed: false,
         },
     ];
     let r = registry(ActiveSkin::Modern, units);
@@ -284,7 +284,7 @@ fn target_aura_state(icon_fdid: u32) -> InWorldUnitFramesState {
             stacks: 1,
             dispel_color: None,
             large: false,
-            elapsed: None,
+            timed: false,
         },
     ];
     units
