@@ -40,7 +40,13 @@ pub(super) fn pet_frame(
     skin: ActiveSkin,
 ) -> Element {
     if skin == ActiveSkin::Forever {
-        return flare_frame(&FLARE_PET, pet.map(FlareUnit::from), false, anchor);
+        return flare_frame(
+            &FLARE_PET,
+            pet.map(FlareUnit::from),
+            false,
+            anchor,
+            Element::default(),
+        );
     }
     let size = (PET_FRAME_W, PET_FRAME_H);
     let content = pet.map(pet_frame_contents).unwrap_or_default();
