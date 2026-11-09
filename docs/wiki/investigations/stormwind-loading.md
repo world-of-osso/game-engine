@@ -117,7 +117,9 @@ VERIFIED: The selected card and Enter World action are present in the Forever pr
 
 INFERRED, SOURCE-ONLY: `23c06168e` added `receive_account_during_startup`, which advances authentication state while screen attachment waits for asset initialization. This is a source-history pointer, not a historical runtime bisect; the lead waived that bisect.
 
-The reconnect and transfer fixtures now wait for the expected authenticated roster plus a `CharCard_0` and enabled `EnterWorld` visible in the scene tree. They use the specified 1920×1080 viewport. No product code changed. The real-process GREEN run and final checks are pending in this branch.
+VERIFIED: The reconnect and transfer fixtures now wait for the expected authenticated roster plus a `CharCard_0` and enabled `EnterWorld` visible in the scene tree. They use the 1920×1080 viewport. No product code changed.
+
+VERIFIED: Both real-process fixtures pass in commit `d631259b9`. Reconnect reaches `RECONNECTED`; transfer completes all phases and receives one `WorldPortAck`. Debug/release workspace checks pass with zero warnings and `cargo fmt --all --check` passes. Evidence, including exact logs and the inspected screenshot, is in `data/diagnostics/charselect-fixtures-2026-11-09/`.
 
 ## Proof
 
