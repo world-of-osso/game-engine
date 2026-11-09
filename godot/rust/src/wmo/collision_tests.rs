@@ -469,6 +469,107 @@ fn camera(yaw: f32, pitch: f32, distance: f32) -> CameraState {
     }
 }
 
+/// Ruby's entrance is on an authored WMO floor, not on the ADT surface 74 yd above it.
+/// Exercise the actual native follow boundary with the same WMO faces used by physics.
+#[test]
+fn ruby_wmo_floor_below_adt_keeps_the_clear_fifteen_yard_camera_orbit() {
+    let player = wow(1386.2, -169.719, 131.0005);
+    let tile = game_engine_core::terrain_height_data::bevy_to_tile_coords(player.x, player.z);
+    let terrain = load("2521", tile, |terrain| {
+        terrain.parsed_tiles.contains_key(&tile)
+    });
+    let adt = terrain.height_at(player.x, player.z).expect("Ruby ADT");
+    assert!(adt > player.y + 70.0, "ADT {adt}, floor {}", player.y);
+    let wmos = || {
+        terrain
+            .parsed_tiles
+            .values()
+            .flat_map(|tile| tile.wmo_floors.iter().map(|(_, wmo)| wmo))
+    };
+    let support = shared::ground::ground_at(player, Some(adt), wmos()).expect("Ruby floor");
+    assert_eq!(support.surface, shared::ground::Surface::Wmo);
+    assert!((support.height - player.y).abs() < 0.02, "{support:?}");
+    let triangles = world_triangles(wmos(), player, 40.0);
+    assert!(!triangles.is_empty(), "Ruby WMO collision is required");
+    let eye = player + Vec3::Y * EYE_HEIGHT;
+    let direction = Vec3::new(0.0, 0.35_f32.sin(), 0.35_f32.cos());
+    assert_eq!(ray_hit(&triangles, eye, direction, 15.0), None);
+    let mut follow = Follow {
+        state: camera(0.0, -0.35_f32.to_degrees(), 15.0),
+        position: eye,
+        terrain: &terrain,
+        triangles: &triangles,
+    };
+    for _ in 0..180 {
+        follow.step(player);
+    }
+    let intended = eye + direction * 15.0;
+    assert!(
+        follow.position.distance(intended) < 0.02,
+        "clear orbit should be {intended}, got {} (ADT {adt})",
+        follow.position
+    );
+}
+
+/// A downward outdoor orbit meets real, finite ADT triangles and retreats before them.
+/// This control must remain true when the ADT half-space approximation is removed.
+#[test]
+fn outdoor_adt_camera_orbit_stops_before_the_actual_terrain_surface() {
+    let horizontal = wow(-8950.0, -120.0, 0.0);
+    let tile =
+        game_engine_core::terrain_height_data::bevy_to_tile_coords(horizontal.x, horizontal.z);
+    let terrain = load("azeroth", tile, |terrain| {
+        terrain.parsed_tiles.contains_key(&tile)
+    });
+    let height = terrain
+        .height_at(horizontal.x, horizontal.z)
+        .expect("outdoor ADT");
+    let player = horizontal.with_y(height);
+    let triangles: Vec<_> = terrain
+        .parsed_tiles
+        .iter()
+        .flat_map(|(&tile, parsed)| {
+            parsed.root.chunks.iter().flat_map(move |chunk| {
+                let mesh = game_engine_core::adt::chunk_geometry(chunk, Some(tile));
+                mesh.indices
+                    .chunks_exact(3)
+                    .map(|face| {
+                        [face[0], face[1], face[2]]
+                            .map(|index| Vec3::from_array(mesh.positions[index as usize]))
+                    })
+                    .collect::<Vec<_>>()
+            })
+        })
+        .filter(|face| face.iter().any(|point| point.distance(player) < 40.0))
+        .collect();
+    let eye = player + Vec3::Y * EYE_HEIGHT;
+    let direction = Vec3::new(0.0, -0.35_f32.sin(), 0.35_f32.cos());
+    let hit = ray_hit(&triangles, eye, direction, 15.0).expect("downward orbit hits ADT");
+    assert!(
+        hit < 12.0,
+        "terrain must obstruct the requested 15 yd orbit"
+    );
+    let mut follow = Follow {
+        state: camera(0.0, 0.35_f32.to_degrees(), 15.0),
+        position: eye,
+        terrain: &terrain,
+        triangles: &triangles,
+    };
+    for _ in 0..180 {
+        follow.step(player);
+    }
+    let distance = follow.position.distance(eye);
+    assert!(
+        distance < hit,
+        "camera {distance} must stop before ADT hit {hit}"
+    );
+    assert!(
+        distance > 0.5,
+        "terrain collision must not collapse the orbit"
+    );
+    assert!(!wall_between(&triangles, eye, follow.position));
+}
+
 /// Stormwind's Stockade entrance stairwell (`sw_magicdistrict` 321999 group 58, on
 /// azeroth_30_48): the player walks from the top step (WoW -8774, 838) to the doorway with the
 /// camera low behind them, the original client's `camera_collision.rs` walk. The stairwell walls

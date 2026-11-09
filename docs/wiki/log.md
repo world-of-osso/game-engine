@@ -1,3 +1,7 @@
+## Dungeon camera below ADT — 2026-11-09
+
+VERIFIED: private-server Forever Ruby entrance reproduction on engine `7b7aea959`: floor 131.0005, ADT 204.6584, camera height 17.97 despite a clear 15 yd physics ray. The decided rule uses finite local collision geometry and removes ADT half-space sampling/clamping; acceptance tests precede implementation. Three other dungeon entrance samples did not reproduce this failure. See [[dungeon-camera-adt]].
+
 ## Fountain moving-camera flash — 2026-11-09
 
 Game-window-only video grids and tracked water crops establish blue-white basin discontinuities. An exact Linux camera-path A/B plus colourless transparent-list perturbation isolates missing authored batch priority. Binding the signed priority reduces the isolated sweep's maximum basin luma step29.168→0.290/255; the source-backed 120-pose raster acceptance passes with zero pixel mismatches. Debug/release `cargo check` both pass with zero warnings; `cargo fmt --check` passes. See [[fountain-camera-flash]].
