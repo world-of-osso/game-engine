@@ -736,6 +736,70 @@ mod tests {
     }
 
     #[test]
+    fn ruby_entrance_floor_following_walks_the_recorded_normal_segment() {
+        let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
+        let assets = crate::terrain::NativeTerrainAssets::new(root.clone());
+        let mut terrain = StreamedTerrain::new(root);
+        terrain.map_wdt = Some(assets.read_map_wdt("2521").unwrap());
+        terrain
+            .parsed_tiles
+            .insert((32, 29), assets.read_tile("2521", 32, 29).unwrap());
+        let faces = wmo_faces(&terrain);
+        let walls = shared::los::LosTile::build(
+            32,
+            29,
+            faces.iter().flatten().copied().collect(),
+            (0..faces.len() as u32)
+                .map(|i| [3 * i, 3 * i + 1, 3 * i + 2])
+                .collect(),
+        );
+        let ground = TerrainGround {
+            terrain: &terrain,
+            walls: &|origin, direction, length| {
+                walls
+                    .first_hit(origin, origin + direction * length)
+                    .map(|fraction| fraction * length)
+            },
+            step_wall_blocked: &|from, to, top| {
+                game_engine_core::step_clearance::step_wall_blocked(
+                    &faces,
+                    from,
+                    to,
+                    top,
+                    shared::ground::min_walkable_normal_y(),
+                )
+            },
+            game_object_floor: &|_| None,
+        };
+        let start = Vec3::new(1387.1538, 131.21161, 167.44788);
+        let direction = Vec3::new(0.90813583, 0.0, 0.41867566);
+        let mut feet = start;
+        let mut movement = crate::gameplay::PlayerMovement::default();
+        for frame in 0..270 {
+            let next = movement.predict(
+                feet,
+                crate::gameplay::MovementFrame {
+                    direction: direction.to_array(),
+                    speed: 7.0,
+                    vertical: 0.0,
+                },
+                false,
+                &ground,
+                &mut |_, to, _| to,
+                1.0 / 60.0,
+            );
+            assert!(
+                ((next - feet).with_y(0.0).length() - 7.0 / 60.0).abs() < 0.001,
+                "Ruby normal movement rejected at frame {frame}: {feet:?} -> {next:?}"
+            );
+            feet = next;
+        }
+        assert!((feet.x - 1415.76).abs() < 0.1, "{feet:?}");
+        assert!((feet.z - 180.64).abs() < 0.1, "{feet:?}");
+        assert!((feet.y - 129.16).abs() < 0.1, "{feet:?}");
+    }
+
+    #[test]
     fn academy_and_murder_row_recorded_steps_admit_movement_on_real_ground() {
         let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
         let mut blocked = Vec::new();

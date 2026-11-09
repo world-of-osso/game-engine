@@ -1,6 +1,9 @@
 ## Dungeon camera below ADT — 2026-11-09
 
 VERIFIED: Ruby's Forever view changed from 16.169 yd and 17.969 yd camera height to 15.000 yd and 6.943 yd after removing ADT height-only collision; the intended 15 yd physics ray is clear. Native camera tests pass 17/17 and core camera tests pass 9/9. Debug and release workspace checks each report 0 warnings and 0 errors; fmt check passes. The outdoor Forever capture and real ADT-triangle collision test pass. Captures: `/syncthing/AgentShared/2026-11-09/dungeon-camera/{ruby-before,ruby-after,outdoor-after}.png`. Neltharus, Halls of Infusion and Azure Vault entrance samples did not reproduce; this does not qualify those full dungeons. See [[dungeon-camera-adt]].
+## Ruby movement correction design — 2026-11-09
+
+Verified the original stop is an authored62.82° rock face, while a centered entrance line walks. A separate1.2s private-server pause reproduces a correction with0 client collision rejections: normal2cm floor projection is counted as rejection while authority is movement-bank delayed. Added paired native/server acceptance and recorded the approved within-step-height projection rule; no collision constants change. [[ruby-movement-correction]]
 
 ## Fountain moving-camera flash — 2026-11-09
 
