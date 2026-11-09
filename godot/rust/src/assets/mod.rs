@@ -2,6 +2,7 @@
 pub(crate) mod appearance;
 pub(crate) mod attachments;
 pub(crate) mod batch_merge;
+pub(crate) mod client_receipts;
 pub(crate) mod creature;
 pub(crate) mod creature_template;
 pub(crate) mod equipment;
