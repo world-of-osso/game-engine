@@ -41,8 +41,8 @@ use inworld_unit_frames_art::{
 };
 use inworld_unit_frames_aura::target_auras;
 pub use inworld_unit_frames_aura::{
-    MAX_TARGET_BUFFS, MAX_TARGET_DEBUFFS, TargetAuraView, set_target_auras, target_aura_icon,
-    target_frame_auras,
+    MAX_TARGET_BUFFS, MAX_TARGET_DEBUFFS, TargetAuraView, aura_elapsed, player_aura_icons,
+    set_target_auras, target_aura_icon, target_frame_auras,
 };
 use inworld_unit_frames_flare::{
     FLARE_FOCUS, FLARE_PLAYER, FLARE_TARGET, FLARE_TARGET_OF_TARGET, FlareFrame, FlareUnit,
@@ -148,7 +148,7 @@ pub struct UnitFrameState {
     pub show_resting_icon: bool,
     /// Forever player-frame auras; harmful entries belong to the local player or pet.
     /// Filled from the same counted-down aura data as BuffFrame.
-    pub player_auras: Vec<crate::aura_display_data::AuraInstance>,
+    pub player_auras: Vec<PlayerAuraIconState>,
     pub target_buffs: Vec<TargetAuraIconState>,
     pub target_debuffs: Vec<TargetAuraIconState>,
     /// Friendly target: buffs lead the aura container, else debuffs do.
@@ -272,9 +272,18 @@ pub struct TargetAuraIconState {
     pub dispel_color: Option<String>,
     /// Cast by the local player: `LargeAuraSize`.
     pub large: bool,
-    /// Elapsed fraction of a timed aura, for the reverse cooldown swipe; `None` when
-    /// permanent.
-    pub elapsed: Option<f32>,
+    /// A timed aura: its `Cooldown` frame shows. The swipe's elapsed fraction changes
+    /// every frame, so the host draws it beside this state (`aura_elapsed`), not in it.
+    pub timed: bool,
+}
+
+/// One Forever player-frame aura as drawn: icon, border and the timer text, which
+/// changes only when its displayed value does.
+#[derive(Clone, Debug, PartialEq)]
+pub struct PlayerAuraIconState {
+    pub icon: TargetAuraIconState,
+    pub is_debuff: bool,
+    pub timer: String,
 }
 
 #[derive(Clone, Debug, PartialEq)]

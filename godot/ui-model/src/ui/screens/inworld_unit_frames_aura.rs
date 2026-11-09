@@ -4,7 +4,7 @@
 use ui_toolkit::rsx;
 use ui_toolkit::widget_def::Element;
 
-use super::{DynName, TargetAuraIconState, UnitFrameState, dyn_name};
+use super::{DynName, PlayerAuraIconState, TargetAuraIconState, UnitFrameState, dyn_name};
 use crate::aura_display_data::AuraInstance;
 
 /// `MAX_TARGET_BUFFS` / `MAX_TARGET_DEBUFFS` (Shared/TargetFrameAuraShared.lua:3-4).
@@ -79,17 +79,43 @@ pub fn target_aura_icon(aura: &AuraInstance) -> TargetAuraIconState {
             .is_debuff
             .then(|| aura.debuff_type.border_color().to_string()),
         large: aura.from_local_player,
-        elapsed: (!aura.is_permanent())
-            .then(|| (1.0 - aura.remaining / aura.duration).clamp(0.0, 1.0)),
+        timed: !aura.is_permanent(),
     }
 }
 
-/// Fill `state`'s target aura rows from the target's displayable auras.
-pub fn set_target_auras(state: &mut UnitFrameState, auras: &[AuraInstance], view: TargetAuraView) {
+/// Elapsed fraction of a timed aura, for its reverse cooldown swipe; `None` when permanent.
+pub fn aura_elapsed(aura: &AuraInstance) -> Option<f32> {
+    (!aura.is_permanent()).then(|| (1.0 - aura.remaining / aura.duration).clamp(0.0, 1.0))
+}
+
+/// Fill `state`'s target aura rows from the target's displayable auras; returns each
+/// buff's and debuff's swipe fraction (`aura_elapsed`), in icon order.
+pub fn set_target_auras(
+    state: &mut UnitFrameState,
+    auras: &[AuraInstance],
+    view: TargetAuraView,
+) -> (Vec<Option<f32>>, Vec<Option<f32>>) {
     let (buffs, debuffs) = target_frame_auras(auras, view);
-    state.target_buffs = buffs.into_iter().map(target_aura_icon).collect();
-    state.target_debuffs = debuffs.into_iter().map(target_aura_icon).collect();
+    state.target_buffs = buffs.iter().copied().map(target_aura_icon).collect();
+    state.target_debuffs = debuffs.iter().copied().map(target_aura_icon).collect();
     state.target_buffs_first = view.friendly;
+    let elapsed = |auras: Vec<&AuraInstance>| auras.into_iter().map(aura_elapsed).collect();
+    (elapsed(buffs), elapsed(debuffs))
+}
+
+/// The Forever player frame's auras (UnitFrames.lua:931-990): every debuff, and buffs
+/// with a duration; permanent buffs are hidden.
+pub fn player_aura_icons(auras: &[AuraInstance]) -> Vec<PlayerAuraIconState> {
+    const MAX_DURATION: f32 = 999_999.0;
+    auras
+        .iter()
+        .filter(|aura| aura.is_debuff || (aura.duration > 0.0 && aura.duration <= MAX_DURATION))
+        .map(|aura| PlayerAuraIconState {
+            icon: target_aura_icon(aura),
+            is_debuff: aura.is_debuff,
+            timer: aura.timer_text(),
+        })
+        .collect()
 }
 
 fn icon_size(icon: &TargetAuraIconState) -> f32 {
@@ -224,13 +250,12 @@ pub(super) fn flare_auras(state: &UnitFrameState, width: f32) -> Element {
 /// Player defaults: Core.lua:283-286, UnitFrames.lua:40,48,812,931-990.
 /// Buffs grow right/up from TOPLEFT; owned debuffs left/up from TOPRIGHT.
 /// The replication boundary selects owned harmful auras; permanent buffs are hidden.
-pub(super) fn flare_player_auras(auras: &[AuraInstance], width: f32) -> Element {
+pub(super) fn flare_player_auras(auras: &[PlayerAuraIconState], width: f32) -> Element {
     const SIZE: f32 = 20.0;
     const SPACING: f32 = 2.0;
     const INSET: f32 = 4.0;
     const GAP: f32 = 4.0;
     const MAX: usize = 10;
-    const MAX_DURATION: f32 = 999_999.0;
     let line_width = (width / 2.0).floor() - INSET - 4.0;
     let columns = ((line_width + SPACING) / (SIZE + SPACING)).floor().max(1.0) as usize;
     [false, true]
@@ -239,9 +264,6 @@ pub(super) fn flare_player_auras(auras: &[AuraInstance], width: f32) -> Element 
             auras
                 .iter()
                 .filter(move |aura| aura.is_debuff == debuff)
-                .filter(|aura| {
-                    aura.is_debuff || (aura.duration > 0.0 && aura.duration <= MAX_DURATION)
-                })
                 .take(MAX)
                 .enumerate()
                 .flat_map(move |(index, aura)| {
@@ -264,7 +286,7 @@ pub(super) fn flare_player_auras(auras: &[AuraInstance], width: f32) -> Element 
 /// centre duration (8pt) and bottom-right stacks (9pt), both Friz/outline/shadow.
 fn flare_player_aura_button(
     index: usize,
-    aura: &AuraInstance,
+    aura: &PlayerAuraIconState,
     (x, y, size): (f32, f32, f32),
 ) -> Element {
     let prefix = if aura.is_debuff {
@@ -273,18 +295,15 @@ fn flare_player_aura_button(
         "PlayerBuff"
     };
     let name = format!("{prefix}Icon{index}");
-    let timer = aura.timer_text();
-    let count = if aura.stacks > 1 {
-        aura.stacks.to_string()
+    let timer = &aura.timer;
+    let count = if aura.icon.stacks > 1 {
+        aura.icon.stacks.to_string()
     } else {
         String::new()
     };
     let border = aura
         .is_debuff
-        .then(|| {
-            let icon = target_aura_icon(aura);
-            dispel_border(&name, &icon, size)
-        })
+        .then(|| dispel_border(&name, &aura.icon, size))
         .unwrap_or_default();
     rsx! {
         r#frame {
@@ -294,7 +313,7 @@ fn flare_player_aura_button(
             texture {
                 name: {dyn_name(format!("{name}Texture"))},
                 width: {size - 2.0}, height: {size - 2.0},
-                texture_fdid: {aura.icon_fdid}, tex_coords: "0.08,0.92,0.08,0.92",
+                texture_fdid: {aura.icon.icon_fdid}, tex_coords: "0.08,0.92,0.08,0.92",
                 pos_type: "absolute", left: 1.0, top: 1.0,
             }
             {border}
@@ -359,12 +378,13 @@ fn aura_button_sized(
 }
 
 fn aura_cooldown_frame(name: &str, icon: &TargetAuraIconState, size: f32) -> Element {
+    let permanent = !icon.timed;
     rsx! {
         r#frame {
             name: {dyn_name(format!("{name}Cooldown"))},
             width: size,
             height: size,
-            hidden: {icon.elapsed.is_none()},
+            hidden: permanent,
             pos_type: "absolute",
             left: 0.0,
             top: 1.0,

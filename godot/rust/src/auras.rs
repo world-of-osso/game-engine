@@ -21,7 +21,7 @@ use game_engine_ui_model::buff_frame_component::{
 use game_engine_ui_model::inworld_unit_frames_component::class_bars::ClassBarView;
 use game_engine_ui_model::inworld_unit_frames_component::inworld_unit_frames_art::AtlasArt;
 use game_engine_ui_model::inworld_unit_frames_component::{
-    TargetAuraIconState, TargetAuraView, UnitFrameState, set_target_auras,
+    TargetAuraIconState, TargetAuraView, UnitFrameState, player_aura_icons, set_target_auras,
 };
 use godot::classes::texture_progress_bar::FillMode;
 use godot::classes::{
@@ -92,6 +92,9 @@ const SWIPE_TEXTURE_SIZE: i32 = 64;
 const SWIPE_NODE: &str = "Swipe";
 const EDGE_NODE: &str = "Edge";
 
+/// TargetFrame icons with their swipe's elapsed fraction.
+type TargetIcons = Vec<(TargetAuraIconState, Option<f32>)>;
+
 #[derive(Default)]
 pub(crate) struct Auras {
     /// When each unit's replicated aura set last changed. Wall time: the server counts
@@ -103,8 +106,9 @@ pub(crate) struct Auras {
     swipe: Option<Gd<ImageTexture>>,
     /// The loaded edge art; `Some(None)` caches art that failed to load.
     edge: Option<Option<Gd<Texture2D>>>,
-    /// The TargetFrame's buff and debuff icons as last shown.
-    target_icons: (Vec<TargetAuraIconState>, Vec<TargetAuraIconState>),
+    /// The TargetFrame's buff and debuff icons as last shown, each with its swipe's
+    /// elapsed fraction (`aura_elapsed`).
+    target_icons: (TargetIcons, TargetIcons),
     /// The class bar's Cooldown swipe crop (a rune `-LevelBar`) as loaded.
     class_bar_swipe: Option<(AtlasArt, Gd<Texture2D>)>,
 }
@@ -327,7 +331,10 @@ impl GameClient {
                     .collect()
             })
             .unwrap_or_default();
-        state.player_auras = select_owned_player_auras(self.unit_auras(player), &pet_aura_ids);
+        state.player_auras = player_aura_icons(&select_owned_player_auras(
+            self.unit_auras(player),
+            &pet_aura_ids,
+        ));
     }
 
     /// TargetFrame aura rows of `target` as the local player sees them.
@@ -344,8 +351,14 @@ impl GameClient {
             hostile_npc: npc && reaction == Reaction::Hostile,
         };
         let auras = self.unit_auras(target);
-        set_target_auras(state, &auras, view);
-        self.auras.target_icons = (state.target_buffs.clone(), state.target_debuffs.clone());
+        let (buff_elapsed, debuff_elapsed) = set_target_auras(state, &auras, view);
+        let paired = |icons: &[TargetAuraIconState], elapsed: Vec<Option<f32>>| {
+            icons.iter().cloned().zip(elapsed).collect()
+        };
+        self.auras.target_icons = (
+            paired(&state.target_buffs, buff_elapsed),
+            paired(&state.target_debuffs, debuff_elapsed),
+        );
     }
 
     /// Swipe and edge over every TargetFrame aura button of `state`.
@@ -356,21 +369,18 @@ impl GameClient {
         let Some(ui) = self.targeting.frame_ui().cloned() else {
             return Ok(());
         };
-        let Some(state) = state else {
+        if state.is_none() {
             self.auras.target_icons = Default::default();
             return Ok(());
-        };
+        }
         let swipe = self.auras.swipe_texture()?;
         let edge = self.auras.edge_texture(&ui.bind());
-        let groups = [
-            ("TargetBuff", &state.target_buffs),
-            ("TargetDebuff", &state.target_debuffs),
-        ];
-        for (prefix, icons) in groups {
-            for (index, icon) in icons.iter().enumerate() {
+        let (buffs, debuffs) = &self.auras.target_icons;
+        for (prefix, icons) in [("TargetBuff", buffs), ("TargetDebuff", debuffs)] {
+            for (index, (_, elapsed)) in icons.iter().enumerate() {
                 let name = format!("{prefix}Icon{index}Cooldown");
                 if let Some(control) = ui.bind().frame_control(&name) {
-                    sync_swipe(control, icon, &swipe, edge.as_ref());
+                    sync_swipe(control, *elapsed, &swipe, edge.as_ref());
                 }
             }
         }
@@ -515,18 +525,18 @@ fn snapshot_buff_buttons(
 
 fn snapshot_target_buttons(
     prefix: &str,
-    icons: &[TargetAuraIconState],
+    icons: &[(TargetAuraIconState, Option<f32>)],
     ui: &Option<Gd<RegistryUi>>,
 ) -> VarArray {
     let mut list = VarArray::new();
-    for (index, icon) in icons.iter().enumerate() {
+    for (index, (icon, elapsed)) in icons.iter().enumerate() {
         let name = format!("{prefix}Icon{index}");
         let rect = ui
             .as_ref()
             .and_then(|ui| ui.bind().frame_rect(&format!("{name}Texture")));
         let mut entry = button_entry(&name, icon.spell_id, rect, ui);
         entry.set("large", icon.large);
-        entry.set("elapsed", icon.elapsed.unwrap_or(-1.0));
+        entry.set("elapsed", elapsed.unwrap_or(-1.0));
         entry.set(
             "swipe",
             ui.as_ref()
@@ -610,7 +620,7 @@ fn sync_class_bar_swipe(mut cooldown: Gd<Control>, art: &Gd<Texture2D>, progress
 
 fn sync_swipe(
     mut cooldown: Gd<Control>,
-    icon: &TargetAuraIconState,
+    elapsed: Option<f32>,
     swipe: &Gd<ImageTexture>,
     edge: Option<&Gd<Texture2D>>,
 ) {
@@ -632,22 +642,21 @@ fn sync_swipe(
             bar
         }
     };
-    let elapsed = icon.elapsed.unwrap_or(0.0);
     bar.set_scale(size / SWIPE_TEXTURE_SIZE as f32);
-    bar.set_value(f64::from(elapsed));
-    bar.set_visible(icon.elapsed.is_some());
+    bar.set_value(f64::from(elapsed.unwrap_or(0.0)));
+    bar.set_visible(elapsed.is_some());
     if let Some(edge) = edge {
-        sync_swipe_edge(&mut cooldown, icon, edge, size);
+        sync_swipe_edge(&mut cooldown, elapsed, edge, size);
     }
 }
 
 fn sync_swipe_edge(
     cooldown: &mut Gd<Control>,
-    icon: &TargetAuraIconState,
+    elapsed: Option<f32>,
     edge: &Gd<Texture2D>,
     size: Vector2,
 ) {
-    let elapsed = icon.elapsed.unwrap_or(0.0);
+    let fraction = elapsed.unwrap_or(0.0);
     let mut hand = match cooldown.get_node_or_null(EDGE_NODE) {
         Some(node) => node.cast::<TextureRect>(),
         None => {
@@ -663,9 +672,6 @@ fn sync_swipe_edge(
     };
     hand.set_size(size);
     hand.set_pivot_offset(size / 2.0);
-    hand.set_rotation(elapsed * TAU);
-    hand.set_visible(
-        icon.elapsed
-            .is_some_and(|elapsed| elapsed > 0.0 && elapsed < 1.0),
-    );
+    hand.set_rotation(fraction * TAU);
+    hand.set_visible(elapsed.is_some_and(|elapsed| elapsed > 0.0 && elapsed < 1.0));
 }
