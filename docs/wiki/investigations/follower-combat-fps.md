@@ -24,14 +24,21 @@ Evoker Evofps on the plateau, Modern layout, one run each with field-diff diagno
 
 Ruby's entrance WMO floor is below its ADT terrain; the 2026-11-09 private Forever capture measured floor 131.0005 and ADT 204.6584. Before the fix, a clear 15 yd orbit sat 16.169 yd from the eye and 17.969 yd above the player. The camera now checks only actual local geometry along the eye-to-camera ray. The matched after capture restores the full 15 yd orbit at 6.943 yd above the player; see [the camera investigation](dungeon-camera-adt.md) for tests, outdoor control and proof.
 
+## Particle update re-read static transforms (fixed, 2026-11-09)
+
+`cull.particles` cost about 3 ms per frame on the plateau (Evoker run, wall time): world doodads 2.0-2.5 ms, units 0.3-0.6 ms, game objects up to 0.5 ms. In the doodad loop, 160 visible doodads ran 413 emitters. Per frame they spent 251 us probing each node's parent chain for a bone attachment (`current_model_transform`), 382 us reading every emitter's bone pose through `Skeleton3D::get_bone_global_pose`, 137 us reading animation playback, 476 us simulating and 491 us writing quads. No two emitters shared a bone.
+
+A doodad's node never moves, and its bones change only when its `WowAnimationPlayer` writes a pose. A doodad placement now holds its emitter transforms (`PlacedParticles::hold_pose`) and re-reads them only when the player's `pose_writes` count changes. Units, items and game objects still re-read every update. In the same view, 2 placements (6 emitters) re-read per frame, in 13 us instead of about 630 us. Interleaved whole-span A/B timings were inconclusive: host load varied from 11 to 35 ms main-thread CPU per frame. `particle_debug_screen.gd` checks that a held placement matches a re-reading one through 60 animation steps of each debug model; the portal's emitters move on 59 of them.
+
 ## Remaining costs
 
-`Culling` stays at 2-3 ms in both states; with profiling, `cull.particles` (M2 particle update for world objects, units and game objects) cost about 3 ms per frame. The render thread rises about 3 ms in combat.
+`Culling` stays at 2-3 ms in both states. In `cull.particles`, simulation and quad writing remain (about 1 ms for the plateau view). The render thread rises about 3 ms in combat.
 
 ## Sources
 
 - [Auras host](../../../godot/rust/src/auras.rs) — player-frame and target-aura state, swipe pass.
 - [Unit frame auras](../../../godot/ui-model/src/ui/screens/inworld_unit_frames_aura.rs) — `player_aura_icons`, `aura_elapsed`, `set_target_auras`.
+- [Particles](../../../godot/rust/src/particles.rs) — placed emitters, held emitter transforms.
 - [Camera follow](../../../godot/core/src/camera_follow_data.rs) — terrain-sampled orbit and ground clamp.
 - Evidence: `data/diagnostics/fps-120-close-2026-11-06/profile/combat-{probe*,diag*,ab-*}.log` and `*-shots/`.
 
