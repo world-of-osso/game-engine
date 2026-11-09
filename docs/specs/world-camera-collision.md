@@ -25,7 +25,7 @@ The in-world orbit camera must use the geometry around the player and camera. Na
 
 ## Known gaps (current cycle)
 
-- [ ] Ruby regression is reproduced; geometric correction and final gates pending.
+- [ ] Ruby and outdoor regression tests, rendered before/after captures, and debug/release zero-warning checks are pending.
 
 ## Out of scope
 

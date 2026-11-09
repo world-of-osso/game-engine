@@ -3693,13 +3693,8 @@ impl GameClient {
         };
         let mut parent = self.to_gd().upcast::<Node3D>();
         self.world_camera.configure(&self.client_options.camera);
-        self.world_camera.sync(
-            &mut parent,
-            &player,
-            &self.terrain,
-            delta,
-            self.world.local_player_epoch(),
-        )
+        self.world_camera
+            .sync(&mut parent, &player, delta, self.world.local_player_epoch())
     }
 
     /// Release the process-wide resources a map built. The stream and object caches are

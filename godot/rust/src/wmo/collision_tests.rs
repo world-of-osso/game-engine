@@ -439,7 +439,6 @@ fn wall_between(triangles: &[[Vec3; 3]], eye: Vec3, camera: Vec3) -> bool {
 struct Follow<'a> {
     state: CameraState,
     position: Vec3,
-    terrain: &'a StreamedTerrain,
     triangles: &'a [[Vec3; 3]],
 }
 
@@ -451,7 +450,6 @@ impl Follow<'_> {
             self.position,
             player,
             1.0 / 60.0,
-            self.terrain,
             |origin, direction, length| ray_hit(triangles, origin, direction, length),
         );
         self.position = pose.position;
@@ -497,7 +495,6 @@ fn ruby_wmo_floor_below_adt_keeps_the_clear_fifteen_yard_camera_orbit() {
     let mut follow = Follow {
         state: camera(0.0, -0.35_f32.to_degrees(), 15.0),
         position: eye,
-        terrain: &terrain,
         triangles: &triangles,
     };
     for _ in 0..180 {
@@ -552,7 +549,6 @@ fn outdoor_adt_camera_orbit_stops_before_the_actual_terrain_surface() {
     let mut follow = Follow {
         state: camera(0.0, 0.35_f32.to_degrees(), 15.0),
         position: eye,
-        terrain: &terrain,
         triangles: &triangles,
     };
     for _ in 0..180 {
@@ -648,7 +644,6 @@ fn stockade_interior_walls_keep_the_camera_in_sight_at_every_yaw() {
         let mut follow = Follow {
             state: camera(yaw as f32, 20.0, 15.0),
             position: player + Vec3::Y * 2.0,
-            terrain: &terrain,
             triangles: &triangles,
         };
         let mut position = follow.position;
