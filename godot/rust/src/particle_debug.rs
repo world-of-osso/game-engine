@@ -420,6 +420,48 @@ impl WowParticleDebug {
         crate::particle_composite::pool_instances(&pool)
     }
 
+    /// Fixture: two placements of the shown model, one holding its pose (`hold_pose`)
+    /// and one re-reading it, through `frames` animation steps of 1/30 s. `mismatched`
+    /// counts steps whose emitter transforms differ, `moved` steps that moved them.
+    #[func]
+    fn held_pose_parity(&mut self, frames: i64) -> VarDictionary {
+        const STEP_S: f32 = 1.0 / 30.0;
+        let mut result = VarDictionary::new();
+        let Some((node, particles)) = self
+            .shown
+            .as_ref()
+            .and_then(|shown| Some((shown.node.clone(), shown.particles.clone()?)))
+        else {
+            result.set("error", "no shown model with particles");
+            return result;
+        };
+        let (mut held, _) = self.pools.place(&particles, &node, PARTICLE_SEED);
+        held.hold_pose();
+        let (mut fresh, _) = self.pools.place(&particles, &node, PARTICLE_SEED);
+        let mut player =
+            node.try_get_node_as::<crate::animation::WowAnimationPlayer>("M2Animation");
+        let view = view_basis(Transform3D::IDENTITY);
+        let (mut mismatched, mut moved) = (0_i64, 0_i64);
+        let mut last: Vec<Transform3D> = Vec::new();
+        for _ in 0..frames {
+            if let Some(player) = &mut player {
+                player
+                    .bind_mut()
+                    .advance_time_ms(f64::from(STEP_S) * 1000.0);
+            }
+            self.pools.begin_frame();
+            held.update_and_draw(&node, STEP_S, 1.0, &view, &mut self.pools);
+            fresh.update_and_draw(&node, STEP_S, 1.0, &view, &mut self.pools);
+            self.pools.end_frame();
+            mismatched += i64::from(held.emitter_transforms() != fresh.emitter_transforms());
+            moved += i64::from(!last.is_empty() && last != fresh.emitter_transforms());
+            last = fresh.emitter_transforms().to_vec();
+        }
+        result.set("mismatched", mismatched);
+        result.set("moved", moved);
+        result
+    }
+
     /// The shown model, its emitters and this frame's drawn particles, for fixtures.
     #[func]
     fn debug_state(&self) -> VarDictionary {

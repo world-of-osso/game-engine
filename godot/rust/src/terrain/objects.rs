@@ -1389,11 +1389,12 @@ impl TerrainObjects {
             built.rigid_without_attachments && built.particles.is_none() && built.ribbons.is_none(),
         );
         if let (Some(pools), Some(particles)) = (&mut self.particles, &built.particles) {
-            let (placed, errors) = pools.place(particles, &doodad.node, unique_id);
+            let (mut placed, errors) = pools.place(particles, &doodad.node, unique_id);
             for error in errors {
                 self.failures += 1;
                 godot_error!("{}: {error}", self.name);
             }
+            placed.hold_pose();
             doodad.particles = Some(placed);
         }
         if self.particles.is_some()
