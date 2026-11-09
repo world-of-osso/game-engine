@@ -400,8 +400,14 @@ impl UiProjection {
         super::hud_edit_layout::apply_active_placements(registry, &mut bounds);
         drop(span);
         let created = std::cell::Cell::new(0);
-        let nodes_span =
-            crate::profile::span(|| format!("projection.nodes {} created", created.get()));
+        let updated = std::cell::Cell::new(0);
+        let nodes_span = crate::profile::span(|| {
+            format!(
+                "projection.nodes {} created {} updated",
+                created.get(),
+                updated.get()
+            )
+        });
         let current: HashSet<u64> = registry.frames_iter().map(|frame| frame.id).collect();
         for id in self.nodes.keys().copied().collect::<Vec<_>>() {
             if !current.contains(&id) {
@@ -436,6 +442,7 @@ impl UiProjection {
             if self.node_outdated(frame, registry, &moved) {
                 let frame = frame.clone();
                 self.project_frame(&frame, rect, &bounds, registry, &created)?;
+                updated.set(updated.get() + 1);
                 self.z_indices.remove(&id);
             }
             if self.z_indices.insert(id, z) != Some(z) {
