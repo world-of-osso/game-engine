@@ -91,6 +91,24 @@ Linux debug, 3 profiled interleaved runs each, main-thread on-CPU ms: worst repl
 1 frame (at most 13). Remaining >50 ms frames are terrain tile finishing and single WMO texture
 uploads. Evidence: `data/diagnostics/fps-120-close-2026-11-06/profile/stream-up-*`, `stream-ua-*`.
 
+## Terrain tile finishing (November 9, 2026)
+
+After the gathering, a tile finished in one frame: 256 `Chunk{x}_{y}` collision bodies
+(~15 ms on Linux debug), the liquid (5-9 ms) and the material, alpha atlas and mesh (10-23 ms).
+The bodies are now allocated with their chunk inside the gathering budget, and the liquid builds
+in its own frame before the material/mesh frame. Linux debug, Lakeshire -> Trade District
+teleport, profiled (6 runs master `71329b5e1`, 3 runs `5ca673411`): largest `Terrain materials`
+step 31-50 -> 9-14 ms; frames over 33 ms CPU 12-24 -> 4-9 per run. Attached tiles, bodies,
+collision faces and liquid blocks match master; no orphan nodes. Evidence:
+`data/diagnostics/fps-120-close-2026-11-06/profile/stream-{tc-m*,tw-t*,st-*}.log`.
+
+Not fixed: a single object texture upload sometimes takes 40-190 ms. It is kernel time inside
+`ImageTexture::create_from_image` (`sys` 40-56 ms, no page faults), not the texture: the same
+2048x2048 DXT5 texture takes 3.6 ms in another run, and in one run the first 2048x2048 upload
+took 5.9 ms and a later one 189 ms. This matches the driver allocating a new GPU memory block
+(inferred, NVIDIA on Linux); the cause is in Godot's allocator, not in the client.
+Evidence: `profile/stream-ur-*.log` (`DIAG_UPLOAD`).
+
 ## Proof
 
 Baseline samples, profile summary, argv, server setup and logs: `data/diagnostics/swload-2026-10-05/`. Automated coverage includes dynamic child discovery, moved-player requirements, inclusive boundaries, duplicate completion, tile-edge coverage, and `godot/tests/stormwind_loading.gd` for real private-server entry with nonzero distant pending and eventual drain. Before/after rendered and headless proof must be interpreted separately.
