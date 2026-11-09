@@ -13,16 +13,8 @@ fn camera_at(distance: f32) -> CameraState {
     }
 }
 
-fn step(
-    camera: &mut CameraState,
-    current: Vec3,
-    target: Vec3,
-    dt: f32,
-    terrain: Option<&mut dyn FnMut(f32, f32) -> Option<f32>>,
-    hit: Option<f32>,
-    ground: Option<f32>,
-) -> Vec3 {
-    follow_camera(camera, current, target, dt, terrain, |_, _| hit, |_| ground).position
+fn step(camera: &mut CameraState, current: Vec3, target: Vec3, dt: f32, hit: Option<f32>) -> Vec3 {
+    follow_camera(camera, current, target, dt, |_, _| hit).position
 }
 
 #[test]
@@ -87,9 +79,7 @@ fn zoom_follow_and_yxz_orbit_produce_original_pose() {
         Vec3::ZERO,
         Vec3::new(8.0, 100.0, 0.0),
         0.025,
-        None,
         |_, _| None,
-        |_| None,
     );
     assert_eq!(camera.distance, 6.0); // 8 * 0.025 of the five-yard zoom gap
     let eye = Vec3::new(8.0, 101.8, 0.0);
@@ -101,41 +91,29 @@ fn zoom_follow_and_yxz_orbit_produce_original_pose() {
 }
 
 #[test]
-fn clear_terrain_preserves_distance_and_samples_full_segment() {
+fn clear_mesh_segment_preserves_orbit_distance() {
     let mut camera = camera_at(12.0);
-    let mut count = 0;
-    let mut terrain = |_: f32, _: f32| {
-        count += 1;
-        Some(0.0)
-    };
     let position = step(
         &mut camera,
         Vec3::new(0.0, 2.0, 12.0),
         Vec3::new(0.0, 0.2, 0.0),
         0.1,
-        Some(&mut terrain),
         None,
-        Some(0.0),
     );
-    assert_eq!(count, 24);
     assert!(position.abs_diff_eq(Vec3::new(0.0, 2.0, 12.0), 1e-5));
     assert_eq!(camera.collision_distance, None);
 }
 
 #[test]
-fn hill_pulls_forward_with_clearance_and_first_sample_rule() {
+fn actual_mesh_hit_pulls_camera_forward_with_collision_clearance() {
     let mut camera = camera_at(12.0);
-    let mut terrain = |_: f32, z: f32| if z >= 5.0 { Some(1.81) } else { None };
     let position = step(
         &mut camera,
         Vec3::new(0.0, 2.0, 12.0),
         Vec3::new(0.0, 0.2, 0.0),
         0.1,
-        Some(&mut terrain),
-        None,
-        None,
+        Some(5.0),
     );
-    // First blocking sample z=5.0; 5.0 - 0.3 collision offset.
     assert!(position.abs_diff_eq(Vec3::new(0.0, 2.0, 4.7), 1e-5));
     assert!(camera.collision_distance.is_some());
 }
@@ -148,15 +126,7 @@ fn mesh_near_far_and_tiny_hits_keep_original_distance_policy() {
         (Some(0.2), 0.5, true),
     ] {
         let mut camera = camera_at(15.0);
-        let position = step(
-            &mut camera,
-            Vec3::new(0.0, 1.8, 15.0),
-            Vec3::ZERO,
-            0.1,
-            None,
-            hit,
-            None,
-        );
+        let position = step(&mut camera, Vec3::new(0.0, 1.8, 15.0), Vec3::ZERO, 0.1, hit);
         assert!(
             (position.z - expected).abs() < 1e-5,
             "hit {hit:?}: {position:?}"
@@ -173,23 +143,13 @@ fn collision_recovery_resumes_from_pulled_in_distance_and_clears_near_target() {
         Vec3::new(0.0, 1.8, 10.0),
         Vec3::ZERO,
         0.1,
-        None,
         Some(4.5),
-        None,
     );
     assert!(camera.collision_distance.is_some());
-    let recovered = step(
-        &mut camera,
-        Vec3::new(0.0, 1.8, 4.2),
-        Vec3::ZERO,
-        0.1,
-        None,
-        None,
-        None,
-    );
+    let recovered = step(&mut camera, Vec3::new(0.0, 1.8, 4.2), Vec3::ZERO, 0.1, None);
     assert!((recovered.z - 7.1).abs() < 1e-5);
     assert!(camera.collision_distance.is_some());
-    let finished = step(&mut camera, recovered, Vec3::ZERO, 0.2, None, None, None);
+    let finished = step(&mut camera, recovered, Vec3::ZERO, 0.2, None);
     assert!((finished.z - 10.0).abs() < 1e-5);
     assert_eq!(camera.collision_distance, None);
 }
@@ -209,7 +169,7 @@ fn collision_recovery_keeps_following_a_player_running_away() {
     let mut current = Vec3::new(0.0, 1.8, 10.0);
     let mut run = |camera: &mut CameraState, current: &mut Vec3, hit: Option<f32>| {
         target.z -= RUN_SPEED * DT;
-        *current = step(camera, *current, target, DT, None, hit, None);
+        *current = step(camera, *current, target, DT, hit);
         current.distance(target + Vec3::Y * 1.8)
     };
     for _ in 0..60 {
@@ -231,14 +191,17 @@ fn collision_recovery_keeps_following_a_player_running_away() {
 }
 
 #[test]
-fn ground_floor_and_wmo_only_no_floor_are_caller_selected() {
-    let mut camera = camera_at(10.0);
-    let current = Vec3::new(0.0, -17.5, 10.0);
-    let target = Vec3::new(0.0, -19.3, 0.0);
-    let no_floor = step(&mut camera, current, target, 0.1, None, None, None);
-    assert!((no_floor.y - (-19.3 + 1.8)).abs() < 1e-5);
-    let floor = step(&mut camera, current, target, 0.1, None, None, Some(0.0));
-    assert!((floor.y - 0.5).abs() < 1e-5);
+fn camera_orbit_below_overhead_terrain_is_not_clamped_without_a_ray_hit() {
+    let mut camera = CameraState {
+        pitch: -0.35,
+        ..camera_at(15.0)
+    };
+    let feet = Vec3::new(1386.2, 131.0005, -169.719);
+    let eye = feet + Vec3::Y * 1.8;
+    let current = eye + Vec3::new(0.0, 16.2, 0.1);
+    let position = step(&mut camera, current, feet, 0.1, None);
+    let intended = eye + Vec3::new(0.0, 0.35_f32.sin(), 0.35_f32.cos()) * 15.0;
+    assert!(position.abs_diff_eq(intended, 1e-4), "{position}");
 }
 
 #[test]

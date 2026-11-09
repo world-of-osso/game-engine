@@ -15,7 +15,7 @@ use godot::{
 };
 
 use crate::{
-    terrain::{doodad_collision::DOODAD_LAYER, streaming::StreamedTerrain},
+    terrain::doodad_collision::DOODAD_LAYER,
     wmo::collision::{TERRAIN_LAYER, WMO_LAYER},
 };
 
@@ -132,7 +132,6 @@ impl WorldCamera {
         &mut self,
         parent: &mut Gd<Node3D>,
         player: &Gd<Node3D>,
-        terrain: &StreamedTerrain,
         delta: f32,
         epoch: Option<u32>,
     ) -> Result<(), String> {
@@ -161,7 +160,6 @@ impl WorldCamera {
             translated,
             [target.x, target.y, target.z].into(),
             delta,
-            terrain,
             |origin, direction, length| {
                 raycast_solid(
                     &mut space,
@@ -194,20 +192,12 @@ pub(crate) fn follow_pose(
     current: glam::Vec3,
     target: glam::Vec3,
     delta: f32,
-    terrain: &StreamedTerrain,
     mut solid_hit: impl FnMut(glam::Vec3, glam::Vec3, f32) -> Option<f32>,
 ) -> CameraPose {
     let ray_length = state.distance.max(state.target_distance);
-    let mut height_at = |x, z| terrain.height_at(x, z);
-    let pose = follow_camera(
-        state,
-        current,
-        target,
-        delta,
-        Some(&mut height_at),
-        |origin, direction| solid_hit(origin, direction, ray_length),
-        |point| camera_ground(terrain, point.x, point.z),
-    );
+    let pose = follow_camera(state, current, target, delta, |origin, direction| {
+        solid_hit(origin, direction, ray_length)
+    });
     let sight = pose.position.distance(pose.eye_target);
     CameraPose {
         position: keep_in_sight(pose.eye_target, pose.position, |origin, direction| {
@@ -226,18 +216,6 @@ fn spawn_camera(parent: &mut Gd<Node3D>, far_clip: f32) -> Gd<Camera3D> {
     camera.set_far(far_clip);
     parent.add_child(&camera);
     camera
-}
-
-fn camera_ground(terrain: &StreamedTerrain, x: f32, z: f32) -> Option<f32> {
-    if terrain
-        .map_wdt
-        .as_ref()
-        .is_some_and(|map| map.global_wmo.is_some())
-    {
-        return None;
-    }
-    // Preserve the original camera's ground plane outside loaded height grids.
-    Some(terrain.height_at(x, z).unwrap_or(0.0))
 }
 
 /// Nearest hit on visible terrain, on WMO collision, which is solid whether or not the WMO

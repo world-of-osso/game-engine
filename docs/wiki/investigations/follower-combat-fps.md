@@ -20,9 +20,9 @@ A class bar animates from the clock: an Evoker's filling essence pip changes its
 
 Evoker Evofps on the plateau, Modern layout, one run each with field-diff diagnostics (load 30-60): class-bar state changes 801 -> 0, `ui.set_state InWorldUnitFramesState` 817 -> 10 per run, `Targeting` CPU 4.4 -> 2.85 ms per combat frame. The essence pips render the same (screenshots `cb-evo-mm1`/`cb-evo-mf1`). While a pip animates, the patch still makes `projection.sync` lay out and update all 205 unit-frame nodes, about 1.5 ms per frame; a projection pass that updates only render-dirty nodes would remove it. The DK harness character shows no rune bar (its replicated powers have no runes; not investigated).
 
-## Camera under the ADT terrain (not fixed)
+## Camera under the ADT terrain (fixed)
 
-Ruby's lower level (entrance at WoW 1386, -170, 131) is a WMO floor 70-200 yd below the tile's ADT terrain. `follow_camera` samples the ADT height along the orbit and pulls the camera in to 0.5 yd; its ground clamp then lifts it to the first mesh overhead. Every view there is top-down from 18-19 yd above the player. The plateau measurement avoids it.
+Ruby's entrance WMO floor is below its ADT terrain; the 2026-11-09 private Forever capture measured floor 131.0005 and ADT 204.6584. Before the fix, a clear 15 yd orbit sat 16.169 yd from the eye and 17.969 yd above the player. The camera now checks only actual local geometry along the eye-to-camera ray. The matched after capture restores the full 15 yd orbit at 6.943 yd above the player; see [the camera investigation](dungeon-camera-adt.md) for tests, outdoor control and proof.
 
 ## Remaining costs
 

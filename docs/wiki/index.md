@@ -1,3 +1,4 @@
+- [Dungeon camera below ADT](investigations/dungeon-camera-adt.md) — VERIFIED generic mesh-ray correction: Ruby's 15 yd Forever view is restored; outdoor terrain collision remains. Native camera tests pass17/17, core camera tests pass9/9, and debug/release checks have zero warnings.
 - [Fountain camera flash](investigations/fountain-camera-flash.md) — moving-camera blue-white water flips; authored priority binding fixes controlled transparent-list A/B, passes the 120-pose raster acceptance, and passes debug/release checks with zero warnings.
 - [Client map-cache retention and UDP double framing](investigations/client-map-cache-and-udp-framing-2026-11-08.md) — per-map resource retention and UDP double framing fixes; Ruby's collision-only M2 empty bounds caused unbounded visible-surface indexing, fixed and verified at 4.99 GiB peak RSS after 180 s.
 - [Offline BLS shader research](reference/bls-shaders.md) — exact GXSH extraction, SM5 assembly, declared slots and liquid t5 candidates; no runtime loading.
@@ -589,7 +590,7 @@ Architecture decisions and feature designs.
 - [desktop-disk-exhaustion](investigations/desktop-disk-exhaustion.md) — October 6 observed Windows/WSL exhaustion, completed cache pruning and offline VHD compaction; crash causality and sustained GC behavior unproven.
 
 - [Stormwind loading](investigations/stormwind-loading.md) — Spatial entry gate, rendered per-phase instrumentation and loading-only resource slices; retained distant streaming; reconnect/transfer fixtures wait for settled character-select UI.
-- [Follower combat FPS](investigations/follower-combat-fps.md) — Ruby Life Pools combat vs out-of-combat cost; unit frames resynced every frame under a timed aura (fixed); camera under ADT terrain on Ruby's lower level.
+- [Follower combat FPS](investigations/follower-combat-fps.md) — Ruby Life Pools combat performance; timed-aura frame resync and lower-level camera bugs are fixed.
 - [Stormwind loading](investigations/stormwind-loading.md) — Spatial entry gate, rendered per-phase instrumentation and loading-only resource slices; retained distant streaming.
 
 - [character-preview-double-free](investigations/character-preview-double-free.md) — exact `gd.rs:911` teardown reproduction, preview-before-UI ownership fix, and process/reconnect free-site audit.
