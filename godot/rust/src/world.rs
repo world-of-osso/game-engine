@@ -129,6 +129,7 @@ struct UnitNode {
     /// A player's mount (replicated `Mounted`), which its visual rides.
     mount: Option<mount::UnitMount>,
     passenger: Option<mount::UnitPassenger>,
+    driver_movement: Option<shared::components::VehicleDriverMovement>,
 }
 
 /// A unit visual's model node with the merged bounds of its mesh children, in model
@@ -425,6 +426,7 @@ fn spawn_unit(
         foot_ik: Default::default(),
         mount: None,
         passenger: None,
+        driver_movement: None,
     }
 }
 
@@ -1453,6 +1455,9 @@ impl WorldUnits {
         unit.node.set_scale(Vector3::ONE * scale);
         unit.is_player = snapshot.has::<Player>();
         unit.player_motion = snapshot.get::<PlayerMotion>().copied();
+        unit.driver_movement = snapshot
+            .get::<shared::components::VehicleDriverMovement>()
+            .copied();
         unit.life_state = snapshot.get::<DeathState>().copied();
         unit.in_combat = snapshot
             .get::<CombatStatus>()
@@ -1748,8 +1753,23 @@ impl WorldUnits {
     }
 
     pub fn advance(&mut self, delta: f32) {
+        self.adopt_local_mover();
+        let mover = self.local_mover_id();
+        let driver_control = self
+            .local_player_id
+            .and_then(|id| self.units.get(&id))
+            .and_then(|unit| unit.motion.control);
         for (id, unit) in &mut self.units {
-            advance_unit_transform(unit, self.local_player_id == Some(*id), delta);
+            if mover == Some(*id) && self.local_player_id != mover {
+                // The NPC predicts input under its rider's epoch. The seated body
+                // still follows the server and its visual follows the M2 attachment.
+                unit.motion.control = driver_control.map(|control| MovementControl {
+                    controlled: false,
+                    ..control
+                });
+            }
+            let local = self.local_player_id == Some(*id) || mover == Some(*id);
+            advance_unit_transform(unit, local, delta);
             mount::seat_rider(unit);
         }
         if self.units.values().all(|unit| unit.passenger.is_none()) {
@@ -2158,23 +2178,6 @@ impl WorldUnits {
             .map(|unit| unit.node.clone())
     }
 
-    pub fn controlled_unit_facing(&self) -> Option<f32> {
-        self.controlled_unit
-            .and_then(|id| self.units.get(&id))
-            .or_else(|| self.units.get(&self.local_player_id?))
-            .map(|unit| unit.motion.facing_yaw)
-    }
-
-    pub fn set_controlled_unit_facing(&mut self, yaw: f32) {
-        let id = self
-            .controlled_unit
-            .filter(|id| self.units.contains_key(id))
-            .or(self.local_player_id);
-        if let Some(unit) = id.and_then(|id| self.units.get_mut(&id)) {
-            unit.motion.facing_yaw = yaw;
-        }
-    }
-
     pub fn set_controlled_unit(&mut self, id: Option<u64>) {
         self.controlled_unit = id;
     }
@@ -2298,6 +2301,78 @@ impl WorldUnits {
         if let Some(unit) = self.local_player_id.and_then(|id| self.units.get_mut(&id)) {
             unit.motion.facing_yaw = yaw;
         }
+    }
+
+    /// The input mover is the source NPC only while its controlling seat is owned.
+    pub fn local_mover_id(&self) -> Option<u64> {
+        self.local_vehicle_id()
+            .or_else(|| {
+                self.controlled_unit
+                    .filter(|id| self.units.contains_key(id))
+            })
+            .or(self.local_player_id)
+    }
+
+    fn local_vehicle_id(&self) -> Option<u64> {
+        let rider = self.units.get(&self.local_player_id?)?;
+        rider.driver_movement?;
+        let control = rider.motion.control?;
+        if !control.controlled {
+            return None;
+        }
+        let passenger = rider.passenger.as_ref()?;
+        let host = self.units.get(&passenger.state.driver)?;
+        host.motion.target.yaw?;
+        (!host.is_player).then_some(passenger.state.driver)
+    }
+
+    /// Take over the newest authoritative NPC pose once per rider control epoch.
+    pub fn adopt_local_mover(&mut self) {
+        let Some(epoch) = self.local_player_server_epoch() else {
+            return;
+        };
+        let Some(id) = self.local_vehicle_id() else {
+            return;
+        };
+        let unit = self.units.get_mut(&id).expect("Validated local NPC mover");
+        if unit.motion.adopted_epoch == Some(epoch) {
+            return;
+        }
+        let target = unit.motion.target;
+        let yaw = target
+            .yaw
+            .expect("Local NPC mover requires source Rotation");
+        unit.node.set_position(Vector3::new(
+            target.position.x,
+            target.position.y,
+            target.position.z,
+        ));
+        unit.node.set_rotation(Vector3::new(0.0, yaw, 0.0));
+        unit.motion.facing_yaw = yaw;
+        unit.motion.adopted_epoch = Some(epoch);
+    }
+
+    pub fn local_mover_node(&self) -> Option<Gd<Node3D>> {
+        Some(self.units.get(&self.local_mover_id()?)?.node.clone())
+    }
+
+    pub fn local_mover_facing(&self) -> Option<f32> {
+        Some(self.units.get(&self.local_mover_id()?)?.motion.facing_yaw)
+    }
+
+    pub fn set_local_mover_facing(&mut self, yaw: f32) {
+        if let Some(unit) = self.local_mover_id().and_then(|id| self.units.get_mut(&id)) {
+            unit.motion.facing_yaw = yaw;
+        }
+    }
+
+    pub fn local_vehicle_movement(&self) -> Option<shared::components::VehicleDriverMovement> {
+        self.local_vehicle_id()?;
+        self.units.get(&self.local_player_id?)?.driver_movement
+    }
+
+    pub fn local_input_blocked(&self) -> bool {
+        self.local_player_controlled() && self.local_vehicle_movement().is_none()
     }
 
     pub fn local_player_controlled(&self) -> bool {

@@ -32,6 +32,13 @@ The Godot client predicts the local player's movement and reports each moved pos
 - An airborne player descends to the supporting surface before becoming grounded. The 0.3 yd grounded step-snap threshold does not end a jump early.
 - A flat jump at 60 Hz reaches contact in approximately 0.82 s. While airborne, JumpStart leads into Jump. At contact, JumpEnd or forward-running JumpLandRun starts immediately, even if JumpStart is unfinished. Crossfades retain the 150 ms minimum. Source: 12340-era `solarityclient` `crates/systems/src/movement/unit_animation.rs`, `resolve_unit_landing_animation` (commit `00cde39d`); this is not direct current-Retail proof.
 
+### NPC vehicle driver
+- A controlling seat's replicated `VehicleDriverMovement` selects the NPC named by `VehiclePassenger.driver` as the input/prediction mover; the seated player's body remains server-controlled.
+- Driver reports use the rider's adopted movement epoch and the NPC's logical position/facing. No seat-height body position is reported as the vehicle position.
+- Source NPC walk/run speeds, Vehicle Flags and TurnSpeed govern gait, no-strafe/no-jump/fixed-position constraints and turn rate. NPC visuals retain their existing M2 alignment.
+- Non-controlling passengers remain held. Exit/removal restores ordinary body input; existing teleport, modal-stop and mount-owner behavior stay unchanged.
+- Server-channel, native input, synthetic attachments and actual-model/both-skin pixels require separate proof.
+
 ### Stop input
 - [x] The first idle frame after a moving or jumping input sends exactly one `PlayerInput` with no direction, no jump, the final predicted position and the adopted epoch; later idle frames in that epoch send nothing.
 - [x] Adopting a new teleport epoch reports current movement intent once even while stationary; a stop reported under the previous epoch cannot establish the new epoch's stopped state.

@@ -68,6 +68,7 @@ impl TeleportGroundWait {
 
 pub(crate) struct PlayerMovement {
     pub running: bool,
+    vehicle: Option<shared::components::VehicleDriverMovement>,
     pub autorun: bool,
     pub jumping: bool,
     pub swimming: bool,
@@ -112,6 +113,8 @@ pub(crate) struct PlayerMovement {
     server_speed: Option<f32>,
     /// `unmodified_speed` of the newest input reported to the server.
     reported_speed: f32,
+    /// Last body gait before boarding; the body retains that replicated speed while seated.
+    body_reported_speed: f32,
     /// Whether the newest reported input moved or jumped, so a release reports one stop.
     reported_motion: bool,
     /// Facing of the newest reported input (or of the first idle frame); a turn in place
@@ -150,6 +153,7 @@ impl Default for PlayerMovement {
     fn default() -> Self {
         Self {
             running: true,
+            vehicle: None,
             autorun: false,
             jumping: false,
             swimming: false,
@@ -174,6 +178,7 @@ impl Default for PlayerMovement {
             server_speed: None,
             // The server spawns players with `MovementSpeed(RUN_SPEED)`.
             reported_speed: RUN_SPEED,
+            body_reported_speed: RUN_SPEED,
             reported_motion: false,
             reported_yaw: None,
             reported_epoch: None,
@@ -215,7 +220,60 @@ fn pitch_forward(direction: Vec3, yaw: f32, pitch: f32) -> Vec3 {
     lateral + (forward * pitch.cos() + Vec3::Y * pitch.sin()) * along
 }
 
+const VEHICLE_NO_STRAFE: u32 = 0x00000001;
+const VEHICLE_NO_JUMPING: u32 = 0x00000002;
+const VEHICLE_FIXED_POSITION: u32 = 0x00200000;
+
 impl PlayerMovement {
+    fn adopt_vehicle(&mut self, vehicle: Option<shared::components::VehicleDriverMovement>) {
+        if self.vehicle == vehicle {
+            return;
+        }
+        if self.vehicle.is_none() {
+            self.body_reported_speed = self.reported_speed;
+        }
+        self.stop();
+        self.vehicle = vehicle;
+        self.swimming = false;
+        self.set_can_fly(false);
+        self.set_can_adv_fly(false);
+        self.vertical_velocity = 0.0;
+        self.grounded = true;
+        self.server_speed = None;
+        self.speed_modifier = 1.0;
+        // Boarding publishes the run gait; exiting restores the body's last
+        // reported gait, which need not match the current run/walk toggle.
+        self.reported_speed = vehicle.map_or(self.body_reported_speed, |state| state.run_speed);
+    }
+
+    fn restrict_vehicle_direction(&mut self, direction: Vec3, yaw: f32) -> Vec3 {
+        let Some(vehicle) = self.vehicle else {
+            return direction;
+        };
+        if vehicle.flags & VEHICLE_FIXED_POSITION != 0 {
+            self.direction = MoveDirection::None;
+            return Vec3::ZERO;
+        }
+        if vehicle.flags & VEHICLE_NO_STRAFE == 0 {
+            return direction;
+        }
+        if matches!(self.direction, MoveDirection::Left | MoveDirection::Right) {
+            self.direction = MoveDirection::None;
+        }
+        let forward = Vec3::new(yaw.sin(), 0.0, yaw.cos());
+        forward * direction.dot(forward)
+    }
+
+    fn restrict_vehicle_yaw(&self, current: f32, wanted: f32, delta: f32) -> f32 {
+        let Some(vehicle) = self.vehicle else {
+            return wanted;
+        };
+        let turn = (wanted - current + std::f32::consts::PI).rem_euclid(std::f32::consts::TAU)
+            - std::f32::consts::PI;
+        let limit = vehicle.turn_speed * delta;
+        current + turn.clamp(-limit, limit)
+    }
+
     fn animation_id(&mut self, facing: f32) -> u16 {
         let previous = self.previous_facing.replace(facing);
         let locomotion = direction_to_anim_id(self.direction, self.running, self.swimming);
@@ -271,6 +329,7 @@ impl PlayerMovement {
         } else {
             0.0
         };
+        let direction = self.restrict_vehicle_direction(direction, yaw);
         MovementFrame {
             direction: direction.to_array(),
             speed: self.unmodified_speed() * self.speed_modifier,
@@ -320,7 +379,13 @@ impl PlayerMovement {
     /// The server's speed for the current state without auras (game-server
     /// `compute_movement_speed`): flight, swim, run or walk base × the direction multiplier.
     fn unmodified_speed(&self) -> f32 {
-        let base = if self.flying {
+        let base = if let Some(vehicle) = self.vehicle {
+            if self.running {
+                vehicle.run_speed
+            } else {
+                vehicle.walk_speed
+            }
+        } else if self.flying {
             FLIGHT_SPEED
         } else if self.swimming {
             SWIM_SPEED
@@ -850,6 +915,7 @@ impl crate::GameClient {
         {
             return Ok(());
         }
+        self.world.adopt_local_mover();
         self.adopt_server_speed();
         let viewport = self
             .base()
@@ -867,7 +933,7 @@ impl crate::GameClient {
             && !viewport
                 .gui_get_focus_owner()
                 .is_some_and(|focus| focus.is_class("LineEdit") || focus.is_class("TextEdit"));
-        let Some(facing) = self.world.controlled_unit_facing() else {
+        let Some(facing) = self.world.local_mover_facing() else {
             self.halt_player_movement();
             return Ok(());
         };
@@ -907,8 +973,11 @@ impl crate::GameClient {
         let yaw = waypoint_yaw
             .or(step.and_then(|step| step.facing_yaw))
             .unwrap_or(yaw);
-        self.world.set_controlled_unit_facing(yaw);
-        if self.world.local_player_controlled() {
+        let yaw = self
+            .player_movement
+            .restrict_vehicle_yaw(facing, yaw, delta);
+        self.world.set_local_mover_facing(yaw);
+        if self.world.local_input_blocked() {
             self.halt_player_movement();
             return Ok(());
         }
@@ -923,8 +992,13 @@ impl crate::GameClient {
             .client_options
             .bindings
             .is_just_pressed(InputAction::Jump, &input);
-        let jump = self.dispatch_jump_action(&frame, jump)?;
-        if !self.player_movement.swimming
+        let jump = if let Some(vehicle) = self.player_movement.vehicle {
+            jump && vehicle.flags & VEHICLE_NO_JUMPING == 0
+        } else {
+            self.dispatch_jump_action(&frame, jump)?
+        };
+        if self.player_movement.vehicle.is_none()
+            && !self.player_movement.swimming
             && !self.player_movement.flying
             && self
                 .client_options
@@ -986,8 +1060,8 @@ impl crate::GameClient {
         use godot::prelude::*;
         let mut player = self
             .world
-            .controlled_unit_node()
-            .ok_or("Selected player vanished during input")?;
+            .local_mover_node()
+            .ok_or("Selected mover vanished during input")?;
         let current = player.get_position();
         let space = player
             .get_world_3d()
@@ -1034,6 +1108,10 @@ impl crate::GameClient {
                 after: next.to_array(),
                 input_direction,
                 input_speed,
+                unmodified_speed: self.player_movement.unmodified_speed(),
+                speed_modifier: self.player_movement.speed_modifier,
+                server_speed: self.player_movement.server_speed,
+                reported_speed: self.player_movement.reported_speed,
                 input_vertical,
                 input_jump: jump,
                 input_yaw: yaw,
@@ -1048,7 +1126,13 @@ impl crate::GameClient {
             });
         }
         player.set_position(Vector3::new(next.x, next.y, next.z));
-        player.set_rotation(Vector3::new(0.0, yaw - std::f32::consts::FRAC_PI_2, 0.0));
+        // NPC visuals already carry the M2 alignment under their logical root.
+        let root_yaw = if self.player_movement.vehicle.is_some() {
+            yaw
+        } else {
+            yaw - std::f32::consts::FRAC_PI_2
+        };
+        player.set_rotation(Vector3::new(0.0, root_yaw, 0.0));
         if self.player_movement.take_takeoff_request() {
             self.cast_spell(SKYWARD_ASCENT)
                 .map_err(|error| format!("Skyward Ascent takeoff: {error}"))?;
@@ -1063,7 +1147,7 @@ impl crate::GameClient {
 
     pub(super) fn send_player_input(&mut self) -> Result<(), crate::frame_error::FrameError> {
         if !self.gameplay_input_allowed()
-            || self.world.local_player_controlled()
+            || self.world.local_input_blocked()
             || !self.transport_ready()
             || self.teleport_ground.waiting()
             || self.world.local_player_epoch() != self.world.local_player_server_epoch()
@@ -1071,8 +1155,8 @@ impl crate::GameClient {
             return Ok(());
         }
         let (Some(yaw), Some(node), Some(epoch)) = (
-            self.world.controlled_unit_facing(),
-            self.world.controlled_unit_node(),
+            self.world.local_mover_facing(),
+            self.world.local_mover_node(),
             self.world.local_player_epoch(),
         ) else {
             return Ok(());
@@ -1124,9 +1208,11 @@ impl crate::GameClient {
     /// The local player's replicated `MovementSpeed`, as the aura speed multiplier, and
     /// whether its `PlayerMotion` lets it fly and skyride.
     fn adopt_server_speed(&mut self) {
+        self.player_movement
+            .adopt_vehicle(self.world.local_vehicle_movement());
         let Some(unit) = self
             .world
-            .local_player_id()
+            .local_mover_id()
             .and_then(|id| self.replica.unit(id))
         else {
             return;
@@ -1474,6 +1560,64 @@ mod tests {
             (swim - shared::movement::SWIM_SPEED * 0.5).abs() < 1e-5,
             "{swim}"
         );
+    }
+
+    #[test]
+    fn vehicle_driver_uses_authored_gaits_turn_limit_and_no_strafe() {
+        let mut movement = PlayerMovement::default();
+        movement.adopt_vehicle(Some(shared::components::VehicleDriverMovement {
+            flags: 1594726007,
+            turn_speed: 1.04719758,
+            walk_speed: 3.0,
+            run_speed: 0.98571 * 7.0,
+        }));
+        assert!((resolve_speed(&mut movement, &[BindingKey::KeyW]) - 6.89997).abs() < 0.00001);
+        let packet = movement.network_input(0.0, FEET, 12).unwrap();
+        assert_eq!(packet.epoch, 12);
+        assert!(!packet.jumping && !packet.swimming && !packet.flying);
+        movement.running = false;
+        assert_eq!(resolve_speed(&mut movement, &[BindingKey::KeyW]), 3.0);
+        assert!((resolve_speed(&mut movement, &[BindingKey::KeyS]) - 1.8).abs() < 0.00001);
+        let mut keys = PhysicalInput::default();
+        keys.set_key(BindingKey::KeyD, true);
+        let frame = movement.resolve(&InputBindingsData::default(), &keys, 0.0, 0.0, false);
+        assert_eq!(frame.direction, [0.0; 3]);
+        assert_eq!(
+            movement.network_input(0.0, FEET, 12).unwrap().direction,
+            [0.0; 3]
+        );
+        let turn = movement.restrict_vehicle_yaw(0.0, 2.0, 0.1);
+        assert!((turn - 0.104719758).abs() < 0.000001);
+        let wrapped = movement.restrict_vehicle_yaw(3.12, -3.12, 0.1);
+        assert!((wrapped - (std::f32::consts::TAU - 3.12)).abs() < 0.000001);
+        movement.adopt_vehicle(None);
+        movement.running = true;
+        assert_eq!(resolve_speed(&mut movement, &[BindingKey::KeyW]), 7.0);
+        assert_eq!(movement.restrict_vehicle_yaw(0.0, 2.0, 0.1), 2.0);
+    }
+
+    #[test]
+    fn vehicle_boarding_and_exit_pair_speed_with_each_movers_last_gait() {
+        let mut movement = PlayerMovement::default();
+        movement.running = false;
+        assert_eq!(resolve_speed(&mut movement, &[BindingKey::KeyW]), 2.5);
+        movement.network_input(0.0, FEET, 1).unwrap();
+        let capabilities = shared::components::VehicleDriverMovement {
+            flags: 1594726007,
+            turn_speed: 1.04719758,
+            walk_speed: 3.0,
+            run_speed: 0.98571 * 7.0,
+        };
+        movement.adopt_vehicle(Some(capabilities));
+        // Boarding publishes the NPC run gait, regardless of the rider's walk toggle.
+        movement.adopt_server_speed(capabilities.run_speed);
+        assert_eq!(resolve_speed(&mut movement, &[BindingKey::KeyW]), 3.0);
+        movement.running = true;
+        movement.network_input(0.0, FEET, 2).unwrap();
+        movement.adopt_vehicle(None);
+        // The body still publishes its last pre-boarding walk gait, not the NPC run.
+        movement.adopt_server_speed(2.5);
+        assert_eq!(resolve_speed(&mut movement, &[BindingKey::KeyW]), 7.0);
     }
 
     /// Unsnared swimming uses the server's swim speed, not run speed.

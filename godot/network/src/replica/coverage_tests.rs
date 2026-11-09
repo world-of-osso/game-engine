@@ -164,6 +164,34 @@ fn real_signature_mapping_with_no_local_match_equals_stock_client() {
 }
 
 #[test]
+fn area_trigger_visual_change_is_reported_after_vehicle_codec_registration() {
+    let mut session = Session::start(9195);
+    let visual = shared::AreaTriggerVisual {
+        spell_id: 123,
+        visual_id: 456,
+        radius: 3.0,
+        duration: 10.0,
+        pulse: 1,
+    };
+    let entity = session.spawn((position(5.0), visual));
+    session.until("area trigger visual", entity, |unit| {
+        unit.and_then(|unit| unit.get::<shared::AreaTriggerVisual>()) == Some(&visual)
+    });
+    let changes = session.replica.drain_changes();
+    assert!(changes.iter().any(|change| match change {
+        UnitChange::Changed {
+            server_id,
+            components,
+        } if *server_id == entity.to_bits() => {
+            session
+                .replica
+                .changed::<shared::AreaTriggerVisual>(*components)
+        }
+        _ => false,
+    }));
+}
+
+#[test]
 fn visibility_regain_before_draining_changes_emits_one_current_change() {
     let mut session = Session::start(9193);
     let entity = session.spawn((player("Visibility"), position(5.0), UnitLevel(7)));
