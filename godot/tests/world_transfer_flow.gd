@@ -29,7 +29,7 @@ func run_test() -> void:
 	var ui = client.get_node_or_null("CharacterSelectUI")
 	var card = ui.find_child("CharCard_0", true, false) if ui != null else null
 	var enter = ui.find_child("EnterWorld", true, false) if ui != null else null
-	if not card is Control or not enter is Button or not card.visible or not enter.visible:
+	if not card is Control or not enter is Button or not card.is_visible_in_tree() or not enter.is_visible_in_tree() or enter.disabled:
 		fail("Authenticated character card and Enter World action missing")
 		return
 	await click_control(card)
