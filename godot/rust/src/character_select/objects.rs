@@ -46,18 +46,24 @@ impl ObjectSelection for CampsiteSelection {
             .collect()
     }
 
-    fn doodad(&self, doodad: &DoodadPlacement, model: Option<&str>, tile: (u32, u32)) -> bool {
+    fn doodad(
+        &self,
+        doodad: &DoodadPlacement,
+        model: impl FnOnce() -> Option<String>,
+        tile: (u32, u32),
+    ) -> bool {
+        let model = model();
         if tile == self.primary {
             is_primary_campsite_doodad(
                 doodad,
-                model,
+                model.as_deref(),
                 tile.0,
                 tile.1,
                 self.focus,
                 CAMPSITE_PROP_RADIUS,
             )
         } else {
-            is_supplemental_campsite_doodad(model)
+            is_supplemental_campsite_doodad(model.as_deref())
         }
     }
 

@@ -102,7 +102,14 @@ type Tile = (u32, u32);
 pub(crate) trait ObjectSelection {
     /// Parsed tiles to spawn from, in order; empty while prerequisites load.
     fn tiles(&self, terrain: &StreamedTerrain) -> Vec<Tile>;
-    fn doodad(&self, doodad: &DoodadPlacement, model: Option<&str>, tile: Tile) -> bool;
+    /// `model` resolves the doodad's model path, which can query the listfile cache:
+    /// call it only when the decision needs the path.
+    fn doodad(
+        &self,
+        doodad: &DoodadPlacement,
+        model: impl FnOnce() -> Option<String>,
+        tile: Tile,
+    ) -> bool;
     fn wmo(&self, wmo: &WmoPlacement, tile: Tile) -> bool;
 }
 
@@ -114,7 +121,7 @@ impl ObjectSelection for AllObjects {
         terrain.parsed_tiles.keys().copied().collect()
     }
 
-    fn doodad(&self, _: &DoodadPlacement, _: Option<&str>, _: Tile) -> bool {
+    fn doodad(&self, _: &DoodadPlacement, _: impl FnOnce() -> Option<String>, _: Tile) -> bool {
         true
     }
 
@@ -228,6 +235,12 @@ struct WmoSpawn {
     product: AssetProduct,
     doodad_sets: Vec<u16>,
     build: WmoBuild,
+    /// Every batch is built.
+    built: bool,
+    /// The build ran out of budget at least once: a WMO this large is placed (liquids,
+    /// culling, attach; up to ~10 ms) at the start of the next frame's budget instead of
+    /// past this one's. Smaller WMOs place in the same frame.
+    spans_frames: bool,
     /// `WMO_MODEL_META` for the placed root.
     model: String,
 }
@@ -500,7 +513,12 @@ impl ObjectSelection for PreviewObjects {
             .collect()
     }
 
-    fn doodad(&self, doodad: &DoodadPlacement, _: Option<&str>, tile: Tile) -> bool {
+    fn doodad(
+        &self,
+        doodad: &DoodadPlacement,
+        _: impl FnOnce() -> Option<String>,
+        tile: Tile,
+    ) -> bool {
         let position = doodad_position(doodad, tile.0, tile.1);
         position.distance_squared(self.center) <= self.radius * self.radius
     }
@@ -1106,8 +1124,7 @@ impl TerrainObjects {
             };
             let queued = self.pending.len();
             for (index, doodad) in objects.doodads.iter().enumerate() {
-                let model = self.doodad_model_path(doodad);
-                if selection.doodad(doodad, model.as_deref(), tile) {
+                if selection.doodad(doodad, || self.doodad_model_path(doodad), tile) {
                     let pending = Pending::Doodad(tile, index);
                     let position = doodad_position(doodad, tile.0, tile.1);
                     self.nearby.add(pending, position, position);
@@ -1206,6 +1223,8 @@ impl TerrainObjects {
                     product,
                     doodad_sets,
                     build,
+                    built: false,
+                    spans_frames: false,
                     model: wmo_model_label(&self.resolver, root_fdid, wmo.name_set),
                 });
                 Ok(())
@@ -1227,17 +1246,20 @@ impl TerrainObjects {
         let (tile, index) = (spawn.tile, spawn.index);
         let _span =
             crate::profile::span(|| format!("objects.wmo_step tile={tile:?} index={index}"));
-        let done = spawn.build.step(
-            &spawn.asset,
-            &spawn.resolver,
-            &self.data_root,
-            Some(spawn.product),
-            self.light.as_ref(),
-            || Instant::now() >= deadline,
-        );
-        if !done {
-            self.building = Some(spawn);
-            return false;
+        if !spawn.built {
+            spawn.built = spawn.build.step(
+                &spawn.asset,
+                &spawn.resolver,
+                &self.data_root,
+                Some(spawn.product),
+                self.light.as_ref(),
+                || Instant::now() >= deadline,
+            );
+            if !spawn.built || spawn.spans_frames {
+                spawn.spans_frames = true;
+                self.building = Some(spawn);
+                return false;
+            }
         }
         let pending = Pending::Wmo(spawn.tile, spawn.index);
         let Some(objects) = terrain

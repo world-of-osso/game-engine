@@ -109,6 +109,28 @@ took 5.9 ms and a later one 189 ms. This matches the driver allocating a new GPU
 (inferred, NVIDIA on Linux); the cause is in Godot's allocator, not in the client.
 Evidence: `profile/stream-ur-*.log` (`DIAG_UPLOAD`).
 
+## Object queueing and WMO finishing (November 9, 2026)
+
+Two object-streaming steps ran past the 8-ms in-world budget after the Lakeshire -> Trade
+District teleport (Linux debug, main-thread CPU):
+
+- `WorldObjects.queue_tiles` (up to 25 ms): queueing a tile resolved every doodad's model path,
+  and each fdid the listfile had not cached yet was a SQLite query on the main thread (1700-2450
+  doodads per tile). Only the character-select campsite selection reads the path; the path is
+  now resolved only when a selection asks for it.
+- `objects.wmo_step` (up to 26 ms): after the last batch, a WMO built all its merged batch
+  nodes at once (59-134 for the large Trade District WMOs, 5-12 ms), then placed itself
+  (liquids, culling, attach; 2-12 ms) in the same frame. Merged nodes now build under the step
+  budget, and a WMO whose build already spanned frames is placed at the start of the next
+  frame. Smaller WMOs still place in the frame they are built, so loading slices are unchanged.
+
+Interleaved profiled runs (3 master `618f5ab01`, 3 branch; host load 60-110): largest
+`queue_tiles` 6-18 -> 0-1.4 ms, largest `wmo_step` 17-23 -> 8.0-8.8 ms. The node tree after
+streaming (each WMO's child names and mesh count, terrain tiles, 89 WMO nodes, 8036 other object
+nodes, no orphans) is identical in every run that finished; WMO arrival times match master.
+Remaining `World objects` spikes are the texture-upload stall above. Evidence:
+`profile/stream-{hd,oh}-*.log`, `fps120close-tools/objhitch-summary.py`.
+
 ## Proof
 
 Baseline samples, profile summary, argv, server setup and logs: `data/diagnostics/swload-2026-10-05/`. Automated coverage includes dynamic child discovery, moved-player requirements, inclusive boundaries, duplicate completion, tile-edge coverage, and `godot/tests/stormwind_loading.gd` for real private-server entry with nonzero distant pending and eventual drain. Before/after rendered and headless proof must be interpreted separately.
