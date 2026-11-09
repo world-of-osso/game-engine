@@ -27,6 +27,8 @@ use crate::frame_error::report_once;
 
 #[path = "font_string_markup.rs"]
 mod font_string_markup;
+#[path = "projection_parity_fixture.rs"]
+mod projection_parity_fixture;
 #[path = "text_markup_fixture.rs"]
 mod text_markup_fixture;
 
@@ -180,6 +182,8 @@ pub struct UiProjection {
     arrived: u64,
     /// Skin the projected visuals were drawn under.
     skin: atlas::ActiveSkin,
+    /// Z index last set on each frame's node.
+    z_indices: HashMap<u64, i32>,
     assisted_elapsed: HashMap<u64, f64>,
 }
 
@@ -201,6 +205,7 @@ impl UiProjection {
             waiting: HashSet::new(),
             arrived: 0,
             skin: atlas::thread_skin(),
+            z_indices: HashMap::new(),
             assisted_elapsed: HashMap::new(),
         }
     }
@@ -395,12 +400,19 @@ impl UiProjection {
         super::hud_edit_layout::apply_active_placements(registry, &mut bounds);
         drop(span);
         let created = std::cell::Cell::new(0);
-        let nodes_span =
-            crate::profile::span(|| format!("projection.nodes {} created", created.get()));
+        let updated = std::cell::Cell::new(0);
+        let nodes_span = crate::profile::span(|| {
+            format!(
+                "projection.nodes {} created {} updated",
+                created.get(),
+                updated.get()
+            )
+        });
         let current: HashSet<u64> = registry.frames_iter().map(|frame| frame.id).collect();
         for id in self.nodes.keys().copied().collect::<Vec<_>>() {
             if !current.contains(&id) {
                 self.visuals.remove(&id);
+                self.z_indices.remove(&id);
                 if let Some(mut node) = self.nodes.remove(&id) {
                     // Detach now: a queued node keeps its name until the frame ends, so a
                     // replacement frame of the same name would be renamed by Godot.
@@ -412,35 +424,35 @@ impl UiProjection {
                 }
             }
         }
-        let mut frames: Vec<_> = registry.frames_iter().cloned().collect();
-        frames.sort_by_key(|frame| (depth(registry, frame.id), frame.id));
-        for frame in &frames {
-            let rect = &bounds[&frame.id];
-            let parent = frame
-                .parent_id
-                .and_then(|id| self.nodes.get(&id))
-                .cloned()
-                .unwrap_or_else(|| self.root.clone());
-            if self.replace_font_string_node(frame, registry, &parent)? {
-                crate::rebuild_guard::count(crate::rebuild_guard::Rebuild::UiTree, 1);
-                created.set(created.get() + 1);
+        let mut order: Vec<_> = registry.frames_iter().map(|frame| frame.id).collect();
+        order.sort_by_cached_key(|&id| (depth(registry, id), id));
+        // Frames whose rect or an ancestor's rect moved; parents come before children.
+        let mut moved = HashSet::new();
+        for id in order {
+            let rect = &bounds[&id];
+            let frame = registry.get(id).expect("ordered frame");
+            if frame.layout_rect.as_ref() != Some(rect)
+                || frame
+                    .parent_id
+                    .is_some_and(|parent| moved.contains(&parent))
+            {
+                moved.insert(id);
             }
-            if !self.nodes.contains_key(&frame.id) {
-                let node = self.create_node(frame, registry)?;
-                parent
-                    .clone()
-                    .upcast::<godot::classes::Node>()
-                    .add_child(&node);
-                self.nodes.insert(frame.id, node);
-                created.set(created.get() + 1);
+            let z = super::projection_order::native_z(&layers, frame);
+            if self.node_outdated(frame, registry, &moved) {
+                let frame = frame.clone();
+                self.project_frame(&frame, rect, &bounds, registry, &created)?;
+                updated.set(updated.get() + 1);
+                self.z_indices.remove(&id);
             }
-            self.update_node(frame, rect, &bounds, registry)?;
-            self.nodes
-                .get_mut(&frame.id)
-                .expect("projected frame")
-                .set_z_index(super::projection_order::native_z(&layers, frame));
+            if self.z_indices.insert(id, z) != Some(z) {
+                self.nodes
+                    .get_mut(&id)
+                    .expect("projected frame")
+                    .set_z_index(z);
+            }
             registry
-                .set_computed_layout(frame.id, rect.clone())
+                .set_computed_layout(id, rect.clone())
                 .map_err(str::to_owned)?;
         }
         drop(nodes_span);
@@ -451,6 +463,49 @@ impl UiProjection {
         registry.rect_dirty.clear();
         registry.drain_removed_frames();
         Ok(())
+    }
+
+    /// Whether `frame`'s node must be drawn again: what `update_node` reads changed.
+    /// Besides the frame itself that is its rect and its ancestors' (`moved`), and its
+    /// parent's button state (highlight layers, stepper arrows). A frame without a
+    /// projected visual is new or lost its art (skin, scale or arrived files).
+    fn node_outdated(&self, frame: &Frame, registry: &FrameRegistry, moved: &HashSet<u64>) -> bool {
+        registry.render_dirty.contains(&frame.id)
+            || moved.contains(&frame.id)
+            || !self.visuals.contains_key(&frame.id)
+            || frame
+                .parent_id
+                .is_some_and(|parent| registry.render_dirty.contains(&parent))
+    }
+
+    /// Create, replace or update the node of `frame` laid out at `rect`.
+    fn project_frame(
+        &mut self,
+        frame: &Frame,
+        rect: &LayoutRect,
+        bounds: &HashMap<u64, LayoutRect>,
+        registry: &FrameRegistry,
+        created: &std::cell::Cell<usize>,
+    ) -> Result<(), String> {
+        let parent = frame
+            .parent_id
+            .and_then(|id| self.nodes.get(&id))
+            .cloned()
+            .unwrap_or_else(|| self.root.clone());
+        if self.replace_font_string_node(frame, registry, &parent)? {
+            crate::rebuild_guard::count(crate::rebuild_guard::Rebuild::UiTree, 1);
+            created.set(created.get() + 1);
+        }
+        if !self.nodes.contains_key(&frame.id) {
+            let node = self.create_node(frame, registry)?;
+            parent
+                .clone()
+                .upcast::<godot::classes::Node>()
+                .add_child(&node);
+            self.nodes.insert(frame.id, node);
+            created.set(created.get() + 1);
+        }
+        self.update_node(frame, rect, bounds, registry)
     }
 
     /// Nodes are appended as frames are created; a rebuild can insert or reorder
