@@ -23,6 +23,7 @@ use osso_asset_resolver::CascListfileResolver;
 
 use super::assets::{NativeWmoAsset, group_casts_shadow};
 use super::merge::{MergeKey, MergedBatch};
+use super::occluder::{OccluderGeometry, occludes};
 use crate::lighting::TerrainLight;
 
 const SHADER_PATH: &str = "res://shaders/wmo.gdshader";
@@ -184,6 +185,8 @@ pub(crate) struct WmoBuild {
     /// Exterior batches merged so far, in first-seen order, with their material.
     merged: Vec<(MergeKey, MergedBatch, Gd<ShaderMaterial>)>,
     merged_index: HashMap<MergeKey, usize>,
+    /// The drawn opaque batches of exterior groups, for occlusion culling.
+    occluder: OccluderGeometry,
 }
 
 /// Node metadata of a merged batch: the indices of the groups it draws.
@@ -208,6 +211,7 @@ impl WmoBuild {
             batch_errors: Vec::new(),
             merged: Vec::new(),
             merged_index: HashMap::new(),
+            occluder: OccluderGeometry::default(),
         })
     }
 
@@ -251,7 +255,15 @@ impl WmoBuild {
                 &prepared.mesh,
                 &prepared.streams,
             );
+            let occluding = occludes(
+                group.group.header.group_flags.exterior,
+                prepared.material.blend_mode,
+            );
             if let Some(&slot) = key.as_ref().and_then(|key| self.merged_index.get(key)) {
+                if occluding {
+                    self.occluder
+                        .append(&prepared.mesh.positions, &prepared.mesh.indices);
+                }
                 let (_, merged, _) = &mut self.merged[slot];
                 merged.append(&prepared.mesh, &prepared.streams, prepared.group_index);
                 continue;
@@ -275,6 +287,10 @@ impl WmoBuild {
                     continue;
                 }
             };
+            if occluding {
+                self.occluder
+                    .append(&prepared.mesh.positions, &prepared.mesh.indices);
+            }
             if let Some(key) = key {
                 self.merged_index.insert(key, self.merged.len());
                 let merged =
@@ -292,6 +308,9 @@ impl WmoBuild {
             self.root.add_child(&instance);
         }
         self.add_merged_batches();
+        if let Some(occluder) = std::mem::take(&mut self.occluder).into_node() {
+            self.root.add_child(&occluder);
+        }
         true
     }
 
