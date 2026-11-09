@@ -37,7 +37,7 @@ fn aura(spell_id: u32) -> TargetAuraIconState {
         stacks: 1,
         dispel_color: None,
         large: true,
-        elapsed: None,
+        timed: false,
     }
 }
 fn units(reaction: Reaction) -> FrameRegistry {

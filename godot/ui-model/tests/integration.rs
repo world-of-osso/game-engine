@@ -109,6 +109,7 @@ mod ui_error_hold_fidelity;
 mod ui_errors;
 mod unit_dead_text;
 mod unit_frame_atlas;
+mod unit_frame_aura_state;
 mod vigor_bar;
 mod window_tiling;
 mod world_map_quest_panel;

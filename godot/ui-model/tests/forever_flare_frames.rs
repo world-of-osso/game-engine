@@ -279,9 +279,11 @@ fn forevergaps_live_player_auras_grow_outward_above_both_corners_with_timers() {
         debuff_type: DebuffType::Magic,
     };
     let mut player = unit("Fbflare", PowerType::Mana);
-    player.player_auras = (0..12).map(|id| aura(id, false, 60.0)).collect();
-    player.player_auras.insert(0, aura(100, false, 0.0));
-    player.player_auras.push(aura(101, true, 60.0));
+    let mut auras: Vec<_> = (0..12).map(|id| aura(id, false, 60.0)).collect();
+    auras.insert(0, aura(100, false, 0.0));
+    auras.push(aura(101, true, 60.0));
+    player.player_auras =
+        game_engine_ui_model::inworld_unit_frames_component::player_aura_icons(&auras);
     let registry = unit_frames_with_player(ActiveSkin::Forever, player.clone());
     assert_eq!(
         fixed_rect(&registry, "PlayerBuffIcon0"),
