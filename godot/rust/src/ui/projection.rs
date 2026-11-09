@@ -425,7 +425,7 @@ impl UiProjection {
             }
         }
         let mut order: Vec<_> = registry.frames_iter().map(|frame| frame.id).collect();
-        order.sort_by_key(|&id| (depth(registry, id), id));
+        order.sort_by_cached_key(|&id| (depth(registry, id), id));
         // Frames whose rect or an ancestor's rect moved; parents come before children.
         let mut moved = HashSet::new();
         for id in order {
