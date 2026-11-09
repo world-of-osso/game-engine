@@ -589,7 +589,6 @@ fn camera_walking_down_the_stockade_stairs_stays_inside_the_stairwell() {
     let mut follow = Follow {
         state: camera(-50.0, 10.0, 10.0),
         position: top + Vec3::Y * 2.0,
-        terrain: &terrain,
         triangles: &triangles,
     };
     for _ in 0..300 {
