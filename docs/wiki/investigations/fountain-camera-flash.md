@@ -22,12 +22,12 @@ WebWowViewerCpp1a8cccbeffc46231c6497e6b3f5bfbf3507d8071's `SortMeshes` compares 
 
 ## Acceptance and proof status
 
-The committed `m2_transparent_priority.gd` test loads real366804 geometry/textures and freezes material time at700ms. It compares rendered basin pixels at120 yaw/pitch poses with an independent raw-skin priority reference, including128 colourless transparent draws. It also requires visible blue water, so an empty render cannot pass. The first run was RED at88/120 poses, worst3501 basin pixels. The production material now binds the resolved signed priority when it is created; post-fix raster and compiler gates are pending.
+The committed `m2_transparent_priority.gd` test loads real366804 geometry/textures and freezes material time at700ms. It compares rendered basin pixels at120 yaw/pitch poses with an independent raw-skin priority reference, including128 colourless transparent draws. It also requires visible blue water, so an empty render cannot pass. RED was88/120 poses, worst3501 basin pixels; after the production material bound the resolved signed priority at creation, GREEN was120/120, zero mismatched pixels. The same240-pose isolated camera path fell from29.168/255 maximum and17.431/255 p95 basin luma step to0.290/255 maximum and0.212/255 p95. Baseline repeat and explicit priority A/B matched. Debug/release `cargo check` gates are pending.
 
 ## Sources
 
-- Evidence/scripts/JSON: `/home/osso/.worktrees/game-engine-s2/data/diagnostics/fountain-flash-2-2026-11-09/` (`water-events.json`, `pts.json`, `near/`, `stress/`, `stress-analysis.json`). The initial eased-camera and distant-roof sweeps are exploratory only, not clean A/B proof.
-- User-facing crop sheets: `/syncthing/AgentShared/2026-11-09/fountain-flash/`.
+- Evidence/scripts/JSON: `/home/osso/.worktrees/game-engine-s2/data/diagnostics/fountain-flash-2-2026-11-09/` (`water-events.json`, `pts.json`, `near/`, `stress/`, `postfix-stress/`, `stress-analysis.json`, `postfix-analysis.json`, `acceptance-red.log`, `acceptance-green.log`). The initial eased-camera and distant-roof sweeps are exploratory only, not clean A/B proof.
+- User-facing crop sheets: `/syncthing/AgentShared/2026-11-09/fountain-flash/`, including `linux-before-after-camera-sweep.png`.
 - Local WebWowViewerCpp1a8cccb: `wowViewerLib/src/gapi/interface/sortLambda.h`, `engine/objects/m2/m2Object.cpp`, `m2Helpers/M2MeshBufferUpdater.cpp`.
 - Native material binding: `godot/rust/src/assets/material.rs`; model bounds: `godot/rust/src/assets/mod.rs`.
 

@@ -4,9 +4,9 @@ M2 batches must retain the authored priority plane when the native renderer draw
 
 ## What it must do
 
-- [ ] Preserve each batch's signed authored priority plane in its rendered composition, including negative and positive values.
-- [ ] Keep fountain water composition equal to the source-ordered reference across camera yaw and pitch sweeps, even when unrelated transparent draws change the sort list.
-- [ ] Leave texture animation, shader equations, opacity and depth/cull state unchanged.
+- [x] Preserve each batch's signed authored priority plane in its rendered composition, including negative and positive values.
+- [x] Keep fountain water composition equal to the source-ordered reference across camera yaw and pitch sweeps, even when unrelated transparent draws change the sort list.
+- [x] Leave texture animation, shader equations, opacity and depth/cull state unchanged.
 
 ## How it works
 
@@ -24,7 +24,7 @@ M2 batches must retain the authored priority plane when the native renderer draw
 
 ## Known gaps (current cycle)
 
-- [ ] Run the committed camera-sweep raster acceptance after binding the authored priority; update the requirements only after it passes.
+- [ ] Run final debug and release `cargo check` with zero warnings.
 
 ## Out of scope
 
