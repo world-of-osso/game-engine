@@ -44,14 +44,23 @@ Logs, diagnostic scripts and the independently built extension's SHA-256 are in 
 
 VERIFIED: `forever_unit_reference::pet_is_below_player_right_with_retail_player_portrait` fails with `missing PlayerPortrait` on `7b7aea959` (one case run). Its October 14 expectation, committed in `6c7f55451`, was superseded by the user's October 30 no-player-portrait decision in `847843192`. That removal updated the product, [HUD specification](../../specs/hud-edit-mode.md) and [item-appearance specification](../../specs/item-definition-sources.md), but missed this test. Keep Forever portrait-free and retain the pet size/position assertions; correct only this stale portrait expectation. The existing committed failure is the RED acceptance case; do not invent a model failure or restore the obsolete portrait.
 
+## Particle update re-read static transforms (fixed, 2026-11-09)
+
+Windows receipt (same session as master 87d82cc38): indoor 294.55/235.40 vs 282.09/226.45, outdoor 299.67/237.81 vs 303.77/235.63 (median/1% low); passes the reference rule. See `data/diagnostics/fps-receipt-e3b50db0b-benchadc-2026-11-09/README.md`.
+
+`cull.particles` cost about 3 ms per frame on the plateau (Evoker run, wall time): world doodads 2.0-2.5 ms, units 0.3-0.6 ms, game objects up to 0.5 ms. In the doodad loop, 160 visible doodads ran 413 emitters. Per frame they spent 251 us probing each node's parent chain for a bone attachment (`current_model_transform`), 382 us reading every emitter's bone pose through `Skeleton3D::get_bone_global_pose`, 137 us reading animation playback, 476 us simulating and 491 us writing quads. No two emitters shared a bone.
+
+A doodad's node never moves, and its bones change only when its `WowAnimationPlayer` writes a pose. A doodad placement now holds its emitter transforms (`PlacedParticles::hold_pose`) and re-reads them only when the player's `pose_writes` count changes. Units, items and game objects still re-read every update. In the same view, 2 placements (6 emitters) re-read per frame, in 13 us instead of about 630 us. Interleaved whole-span A/B timings were inconclusive: host load varied from 11 to 35 ms main-thread CPU per frame. `particle_debug_screen.gd` checks that a held placement matches a re-reading one through 60 animation steps of each debug model; the portal's emitters move on 59 of them.
+
 ## Remaining costs
 
-`Culling` stays at 2-3 ms in both states; with profiling, `cull.particles` (M2 particle update for world objects, units and game objects) cost about 3 ms per frame. The render thread rises about 3 ms in combat.
+`Culling` stays at 2-3 ms in both states. In `cull.particles`, simulation and quad writing remain (about 1 ms for the plateau view). The render thread rises about 3 ms in combat.
 
 ## Sources
 
 - [Auras host](../../../godot/rust/src/auras.rs) — player-frame and target-aura state, swipe pass.
 - [Unit frame auras](../../../godot/ui-model/src/ui/screens/inworld_unit_frames_aura.rs) — `player_aura_icons`, `aura_elapsed`, `set_target_auras`.
+- [Particles](../../../godot/rust/src/particles.rs) — placed emitters, held emitter transforms.
 - [Camera follow](../../../godot/core/src/camera_follow_data.rs) — terrain-sampled orbit and ground clamp.
 - [Player model chain](../../../godot/core/src/player_model_data.rs) and [world appearance selection](../../../godot/rust/src/world.rs) — body FDIDs and replicated display overrides.
 - [Forever reference test](../../../godot/ui-model/tests/forever_unit_reference.rs) — the stale portrait assertion and retained pet geometry.

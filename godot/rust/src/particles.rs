@@ -450,6 +450,12 @@ pub(crate) struct PlacedParticles {
     density: f32,
     owed_seconds: f32,
     drawn: usize,
+    /// Each emitter's transform to world space, read on the latest update.
+    emitter_to_world: Vec<Transform3D>,
+    /// While held (`hold_pose`), the animation's pose writes when `emitter_to_world`
+    /// was read; `None` re-reads it every update.
+    held_pose: Option<Option<u64>>,
+    holds_pose: bool,
 }
 
 /// BoneAttachment3D updates its node transform after animation processing. Read the
@@ -483,34 +489,22 @@ impl PlacedParticles {
         let dt = self.owed_seconds + delta;
         self.owed_seconds = 0.0;
         self.drawn = 0;
-        let world_from_model = current_model_transform(root);
-        let playback = self
+        let (playback, pose_writes) = self
             .player
             .as_ref()
             .filter(|player| player.is_instance_valid())
-            .and_then(|player| {
+            .map(|player| {
                 let player = player.bind();
-                Some((player.playback()?, player.global_ms()?))
-            });
-        for placed in &mut self.emitters {
+                let playback = player.playback().zip(player.global_ms());
+                (playback, Some(player.pose_writes()))
+            })
+            .unwrap_or_default();
+        if self.held_pose != Some(pose_writes) {
+            self.read_emitter_transforms(root);
+            self.held_pose = self.holds_pose.then_some(pose_writes);
+        }
+        for (placed, &emitter_to_world) in self.emitters.iter_mut().zip(&self.emitter_to_world) {
             let emitter = &self.model.emitters[placed.emitter].1;
-            let bone = self
-                .skeleton
-                .as_ref()
-                .filter(|_| self.animated)
-                .and_then(|skeleton| {
-                    let index = i32::from(emitter.bone_index);
-                    (index < skeleton.get_bone_count()).then(|| {
-                        let pivot = self.model.pivots[index as usize];
-                        skeleton.get_bone_global_pose(index)
-                            * Transform3D::IDENTITY.translated(-pivot)
-                    })
-                })
-                .unwrap_or(Transform3D::IDENTITY);
-            let emitter_to_world = world_from_model
-                * bone
-                * Transform3D::IDENTITY.translated(wow_vector(emitter.position))
-                * generator_axes();
             let density = if emitter.flags & m2_particles::FLAG_NO_GLOBAL_SCALE != 0 {
                 1.0
             } else {
@@ -535,6 +529,42 @@ impl PlacedParticles {
             );
             self.drawn += placed.output.draw(&placed.sim, emitter, view, fade, pools);
         }
+    }
+
+    /// Each emitter's transform to world space on the latest update.
+    pub(crate) fn emitter_transforms(&self) -> &[Transform3D] {
+        &self.emitter_to_world
+    }
+
+    /// The placement's node never moves and only its animation's pose writes change its
+    /// bones, so updates reuse the emitter transforms until the animation writes a pose.
+    pub fn hold_pose(&mut self) {
+        self.holds_pose = true;
+    }
+
+    fn read_emitter_transforms(&mut self, root: &Gd<Node3D>) {
+        let world_from_model = current_model_transform(root);
+        let skeleton = self.skeleton.as_ref().filter(|_| self.animated);
+        let model = &self.model;
+        self.emitter_to_world.clear();
+        self.emitter_to_world
+            .extend(self.emitters.iter().map(|placed| {
+                let emitter = &model.emitters[placed.emitter].1;
+                let bone = skeleton
+                    .and_then(|skeleton| {
+                        let index = i32::from(emitter.bone_index);
+                        (index < skeleton.get_bone_count()).then(|| {
+                            let pivot = model.pivots[index as usize];
+                            skeleton.get_bone_global_pose(index)
+                                * Transform3D::IDENTITY.translated(-pivot)
+                        })
+                    })
+                    .unwrap_or(Transform3D::IDENTITY);
+                world_from_model
+                    * bone
+                    * Transform3D::IDENTITY.translated(wow_vector(emitter.position))
+                    * generator_axes()
+            }));
     }
 
     /// Time passes while the placement is not updated; the next update replays it,
@@ -646,6 +676,9 @@ impl ParticlePools {
             density: self.density,
             owed_seconds: 0.0,
             drawn: 0,
+            emitter_to_world: Vec::new(),
+            held_pose: None,
+            holds_pose: false,
         };
         (placed, errors)
     }

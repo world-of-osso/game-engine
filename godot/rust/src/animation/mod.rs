@@ -892,6 +892,9 @@ pub struct WowAnimationPlayer {
     participation: std::cell::Cell<Option<(u64, bool)>>,
     /// The pose last written to each bone; an unchanged component is not written again.
     written: Vec<BonePose>,
+    /// Poses written to the skeleton so far; a reader holding bone poses re-reads them
+    /// when it changes.
+    pose_writes: u64,
 }
 
 #[godot_api]
@@ -912,6 +915,7 @@ impl INode for WowAnimationPlayer {
             leg_rig: None,
             participation: std::cell::Cell::new(None),
             written: Vec::new(),
+            pose_writes: 0,
         }
     }
 
@@ -995,6 +999,7 @@ impl WowAnimationPlayer {
             leg_rig: detect_leg_rig(model),
             participation: std::cell::Cell::new(None),
             written: Vec::new(),
+            pose_writes: 0,
         });
         player.set_name("WowAnimationPlayer");
         player.bind_mut().write_poses();
@@ -1345,7 +1350,12 @@ impl WowAnimationPlayer {
             billboards.apply(&poses, skeleton);
         }
         self.written = poses;
+        self.pose_writes += 1;
         self.apply_sequence_bounds();
+    }
+
+    pub(crate) fn pose_writes(&self) -> u64 {
+        self.pose_writes
     }
 
     fn write_attachment_gates(&mut self) {
