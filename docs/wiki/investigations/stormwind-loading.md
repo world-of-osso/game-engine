@@ -57,6 +57,25 @@ Headless dummy rendering avoids real uploads/rendering and advances the same sma
 
 Evidence and exact argv: `data/diagnostics/swload2-2026-10-06/` (`before3.log`, `after.log`, `before-profile.json`, `after-profile.json`, `headless2.log`, targeted test logs and proof ledger).
 
+## In-world budget regression (November 9, 2026)
+
+`9a10e8154` (2026-11-05) gave offline previews a loading focus and, with it, set the object
+loading focus to the local player on every frame, InWorld included. In-world object streaming
+then spent the 64-ms loading slice each frame instead of `WORLD_OBJECT_BUDGET` (8 ms). After an
+online teleport from Lakeshire (-9226, -2155) into the Trade District (51 WMOs streamed in), the
+Linux profile showed the `World objects` step at about 75 ms per frame for 177 frames. The focus
+follows the player only on the loading screen again (`loading::object_loading_focus`); previews
+keep theirs.
+
+Windows release, 6 interleaved runs each, 40 s after the teleport (means, master `fca0c3ac9`
+vs fix `d43504260`): frames over 50 ms 60.7 -> 2.7, worst frame median 226 -> 135 ms, p99.9
+88 -> 32 ms, total time over 8.33 ms 5.07 -> 3.45 s. Streaming spreads out as the spec intends:
+the last WMO enters after 7.1 s instead of 5.1 s, and frames over 8.33 ms rise 125 -> 463.
+Remaining: one unit-replication frame (NPC models built synchronously as units arrive) and
+terrain tile finishing after the per-chunk gathering. Evidence:
+`data/diagnostics/fps-120-close-2026-11-06/windows-diag-stream/win-sb-*` and
+`profile/stream-prof-{o2a,b1a}.log`.
+
 ## Proof
 
 Baseline samples, profile summary, argv, server setup and logs: `data/diagnostics/swload-2026-10-05/`. Automated coverage includes dynamic child discovery, moved-player requirements, inclusive boundaries, duplicate completion, tile-edge coverage, and `godot/tests/stormwind_loading.gd` for real private-server entry with nonzero distant pending and eventual drain. Before/after rendered and headless proof must be interpreted separately.
