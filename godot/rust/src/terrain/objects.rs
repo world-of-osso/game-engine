@@ -764,6 +764,13 @@ impl TerrainObjects {
     fn index_surface_cells(&mut self) {
         for index in self.surface_cells_len..self.doodads.len() {
             let (min, max) = self.doodads[index].scenery.world_bounds();
+            if (max - min).max_element() > 512.0 {
+                eprintln!(
+                    "SURFACE_INDEX_DOODAD index={index} name={} id={} min={min:?} max={max:?}",
+                    self.doodads[index].node.get_name(),
+                    self.doodads[index].unique_id
+                );
+            }
             for x in surface_cell(min.x)..=surface_cell(max.x) {
                 for z in surface_cell(min.z)..=surface_cell(max.z) {
                     self.surface_cells
@@ -784,6 +791,11 @@ impl TerrainObjects {
         for index in self.surface_wmo_len..self.wmos.len() {
             for (group, (min, max)) in &self.wmos[index].group_boxes {
                 let (min, max, group) = (*min, *max, *group);
+                if (max - min).max_element() > 512.0 {
+                    eprintln!(
+                        "SURFACE_INDEX_WMO index={index} group={group} min={min:?} max={max:?}"
+                    );
+                }
                 for x in surface_cell(min.x)..=surface_cell(max.x) {
                     for z in surface_cell(min.z)..=surface_cell(max.z) {
                         self.surface_wmo_cells
