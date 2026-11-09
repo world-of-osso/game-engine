@@ -43,7 +43,7 @@ pub(crate) fn set_client_dir(dir: PathBuf) {
 }
 
 /// The receipt of `fdid`.`kind` for `product` under `data_root`.
-pub(crate) fn asset_receipt(
+pub(crate) fn load_or_extract_receipt(
     data_root: &Path,
     product: AssetProduct,
     fdid: u32,
@@ -51,10 +51,10 @@ pub(crate) fn asset_receipt(
 ) -> Result<ModelAssetReceipt, String> {
     let mode = super::creature::local_resolver(data_root).runtime_mode();
     let client_dir = CLIENT_DIR.get().map(PathBuf::as_path);
-    receipt_in(data_root, client_dir, mode, product, fdid, kind)
+    load_or_extract_receipt_in(data_root, client_dir, mode, product, fdid, kind)
 }
 
-pub(super) fn receipt_in(
+pub(super) fn load_or_extract_receipt_in(
     data_root: &Path,
     client_dir: Option<&Path>,
     mode: AssetRuntimeMode,
@@ -72,11 +72,11 @@ pub(super) fn receipt_in(
     }
     let client_dir = client_dir.ok_or_else(|| format!("{missing}; no client receipt directory"))?;
     let fragment = client_dir.join(format!("model-asset-receipts-{}.json", product.as_str()));
-    client_receipt(data_root, &fragment, product, fdid, kind)
+    load_or_extract_client_receipt(data_root, &fragment, product, fdid, kind)
         .map_err(|error| format!("{missing}; local CASC: {error}"))
 }
 
-fn client_receipt(
+fn load_or_extract_client_receipt(
     data_root: &Path,
     fragment: &Path,
     product: AssetProduct,
@@ -95,12 +95,12 @@ fn client_receipt(
     }
     // Extract outside the lock: other workers keep resolving meanwhile.
     let receipt = extract_verified(data_root, product, fdid, kind)?;
-    record(fragment, product, receipt)
+    persist_receipt(fragment, product, receipt)
 }
 
 /// Add `receipt` to the fragment on disk, keeping receipts another client process wrote
 /// since this one read it.
-fn record(
+fn persist_receipt(
     fragment: &Path,
     product: AssetProduct,
     receipt: ModelAssetReceipt,
@@ -171,7 +171,7 @@ fn extract_verified(
     kind: &str,
 ) -> Result<ModelAssetReceipt, String> {
     let install = osso_asset_resolver::wow_install_path().ok_or("WoW install not found")?;
-    let build = active_build(install, product)?;
+    let build = read_active_build(install, product)?;
     let identity = AssetIdentity::new(product.as_str(), &build.key)?;
     let resolver = CascListfileResolver::new(
         AssetResolverConfig::new()
@@ -190,7 +190,7 @@ fn extract_verified(
         ));
     }
     let bytes = fs::read(&path).map_err(|error| format!("{}: {error}", path.display()))?;
-    let content_key = root_content_key(install, &identity, fdid)?;
+    let content_key = read_root_content_key(install, &identity, fdid)?;
     if Md5::digest(&bytes)[..] != content_key {
         return Err(format!(
             "{} differs from {} build {} root content key {}",
@@ -224,7 +224,7 @@ struct ActiveBuild {
 }
 
 /// The product's unique active `.build.info` row: the build local CASC extracts from.
-fn active_build(install: &Path, product: AssetProduct) -> Result<ActiveBuild, String> {
+fn read_active_build(install: &Path, product: AssetProduct) -> Result<ActiveBuild, String> {
     let path = install.join(".build.info");
     let text = fs::read_to_string(&path).map_err(|error| format!("{}: {error}", path.display()))?;
     let mut lines = text
@@ -274,7 +274,7 @@ fn active_build(install: &Path, product: AssetProduct) -> Result<ActiveBuild, St
 
 /// `fdid`'s content key in `identity`'s root. The resolver's install resolution cache
 /// must be that build's: its directory is `<cache>/casc/<product>/<build key>/schema-N`.
-fn root_content_key(
+fn read_root_content_key(
     install: &Path,
     identity: &AssetIdentity,
     fdid: u32,

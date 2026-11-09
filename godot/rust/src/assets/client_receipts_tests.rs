@@ -11,7 +11,7 @@ use md5::Md5;
 use osso_asset_resolver::AssetRuntimeMode;
 use sha2::{Digest, Sha256};
 
-use super::receipt_in;
+use super::load_or_extract_receipt_in;
 
 /// A level-90 gear texture (the Bgremain outfit closure) absent from the empty shared index.
 const FDID: u32 = 7807764;
@@ -48,7 +48,7 @@ fn local_casc(
     root: &Path,
     client: &Path,
 ) -> Result<game_engine_core::model_asset_index::ModelAssetReceipt, String> {
-    receipt_in(
+    load_or_extract_receipt_in(
         root,
         Some(client),
         AssetRuntimeMode::LocalCasc,
@@ -105,7 +105,7 @@ fn local_casc_miss_records_a_verified_client_receipt_and_rejects_other_bytes() {
 fn extracted_only_miss_keeps_its_error_and_writes_nothing() {
     let root = empty_data_root("extracted");
     let client = root.join("client");
-    let error = receipt_in(
+    let error = load_or_extract_receipt_in(
         &root,
         Some(&client),
         AssetRuntimeMode::ExtractedOnly,
