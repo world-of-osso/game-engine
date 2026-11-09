@@ -15,13 +15,16 @@ use game_engine_core::{
 };
 use game_engine_network::replica::{Replica, Unit};
 use game_engine_session::SessionScreen;
-use game_engine_ui_model::inworld_unit_frames_component::class_bars::ClassBarAnimator;
+use game_engine_ui_model::inworld_unit_frames_component::class_bars::{
+    ClassBarAnimator, ClassBarView,
+};
 use game_engine_ui_model::inworld_unit_frames_component::personal_resource_display::{
     self, PersonalResourceDisplayState,
 };
 use game_engine_ui_model::inworld_unit_frames_component::{
     InWorldUnitFramesState, PetFrameState, PowerBarState, SmallUnitFrameState, UnitFrameMenuState,
-    UnitFrameState, format_value_text, fraction, target_level_text,
+    UnitFrameState, class_bar_layout, class_bar_texture_patch, format_value_text, fraction,
+    target_level_text,
 };
 use game_engine_ui_model::status::{ClassBarPlayer, ClassBarResource};
 use game_engine_ui_model::status_text_data::{StatusBarText, StatusTextDisplay, TextStatusBar};
@@ -963,8 +966,13 @@ impl GameClient {
         {
             self.fill_player_frame_auras(state, id);
         }
-        let class_bar = player.as_ref().and_then(|player| player.class_bar.clone());
-        let personal_resource = self
+        // The state keeps each class bar at rest; its live animation is patched below.
+        let class_bar = player.as_mut().and_then(|player| {
+            let live = player.class_bar.take()?;
+            player.class_bar = Some(class_bar_layout(&live));
+            Some(live)
+        });
+        let mut personal_resource = self
             .world
             .local_player_id()
             .and_then(|id| self.replica.unit(id))
@@ -978,9 +986,12 @@ impl GameClient {
                     texts.hovered.as_deref(),
                 )
             });
-        let personal_class_bar = personal_resource
-            .as_ref()
-            .and_then(|display| display.class_frame.as_ref()?.bar.clone());
+        let personal_class_bar = personal_resource.as_mut().and_then(|display| {
+            let bar = &mut display.class_frame.as_mut()?.bar;
+            let live = bar.take()?;
+            *bar = Some(class_bar_layout(&live));
+            Some(live)
+        });
         let pet_id = self.local_pet_id();
         let pet_reaction = pet_id.map(|id| self.reaction_to(id));
         let mut pet = pet_id
@@ -1016,12 +1027,38 @@ impl GameClient {
             self.targeting.frame_ui = Some(ui);
         }
         self.sync_target_aura_swipes(target_state.as_ref())?;
+        let bars = [
+            ("", class_bar.as_ref()),
+            (
+                personal_resource_display::FRAME_PREFIX,
+                personal_class_bar.as_ref(),
+            ),
+        ];
+        self.patch_class_bars(bars)?;
         self.sync_class_bar_swipes("", class_bar.as_ref())?;
         self.sync_class_bar_swipes(
             personal_resource_display::FRAME_PREFIX,
             personal_class_bar.as_ref(),
         )?;
         self.sync_unit_portraits()
+    }
+
+    /// Live animated values of the class bars drawn from their at-rest state.
+    fn patch_class_bars(&mut self, bars: [(&str, Option<&ClassBarView>); 2]) -> Result<(), String> {
+        let Some(ui) = self.targeting.frame_ui.as_mut() else {
+            return Ok(());
+        };
+        let patches = bars.into_iter().flat_map(|(prefix, view)| {
+            view.into_iter()
+                .flat_map(|view| &view.textures)
+                .map(move |texture| {
+                    (
+                        format!("{prefix}{}", texture.name),
+                        class_bar_texture_patch(texture),
+                    )
+                })
+        });
+        ui.bind_mut().patch_frames(patches)
     }
 
     /// Bevy `handle_inworld_escape`: with no window open, Escape clears the target

@@ -2731,6 +2731,38 @@ impl RegistryUi {
             .sync(&mut model.registry)
     }
 
+    /// Set attributes of named frames as the screen's attribute diff would, without
+    /// rebuilding the screen (art animated every frame); projects only when one changed.
+    pub fn patch_frames(
+        &mut self,
+        patches: impl IntoIterator<Item = (String, Vec<(&'static str, String)>)>,
+    ) -> Result<(), String> {
+        let model = self
+            .model
+            .as_mut()
+            .ok_or("Registry model not initialized")?;
+        for (name, attrs) in patches {
+            let id = model
+                .registry
+                .get_by_name(&name)
+                .ok_or_else(|| format!("Missing frame {name}"))?;
+            for (attr, value) in attrs {
+                ui_toolkit::attrs::apply_attribute(&mut model.registry, id, attr, &value);
+            }
+        }
+        model.registry.resolve_pending_writes();
+        if !model
+            .registry
+            .projection_outdated(model.registry.frame_count())
+        {
+            return Ok(());
+        }
+        self.projection
+            .as_mut()
+            .ok_or("Native projection not initialized")?
+            .sync(&mut model.registry)
+    }
+
     /// A frame's last laid-out rect `[x, y, w, h]` in viewport pixels.
     pub fn frame_viewport_rect(&self, name: &str) -> Option<[f32; 4]> {
         let registry = &self.model.as_ref()?.registry;
