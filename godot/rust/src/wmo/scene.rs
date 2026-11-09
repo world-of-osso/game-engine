@@ -184,6 +184,9 @@ pub(crate) struct WmoBuild {
     batch_errors: Vec<String>,
     /// Exterior batches merged so far, in first-seen order, with their material.
     merged: Vec<(MergeKey, MergedBatch, Gd<ShaderMaterial>)>,
+    /// Merged batches whose node is added: they are built after the last batch, some
+    /// at a time like the batches (a large WMO has over a hundred, ~10 ms).
+    merged_added: usize,
     merged_index: HashMap<MergeKey, usize>,
     /// The drawn opaque batches of exterior groups, for occlusion culling.
     occluder: OccluderGeometry,
@@ -210,6 +213,7 @@ impl WmoBuild {
             black,
             batch_errors: Vec::new(),
             merged: Vec::new(),
+            merged_added: 0,
             merged_index: HashMap::new(),
             occluder: OccluderGeometry::default(),
         })
@@ -307,20 +311,28 @@ impl WmoBuild {
             }
             self.root.add_child(&instance);
         }
-        self.add_merged_batches();
+        if !self.add_merged_batches(&stop) {
+            return false;
+        }
         if let Some(occluder) = std::mem::take(&mut self.occluder).into_node() {
             self.root.add_child(&occluder);
         }
         true
     }
 
-    /// One node per merged key, after the last batch, named by its first group.
-    fn add_merged_batches(&mut self) {
-        for (index, (key, merged, material)) in self.merged.drain(..).enumerate() {
+    /// One node per merged key, after the last batch, named by its first group, until
+    /// `stop` asks to; `true` once every merged node is added.
+    fn add_merged_batches(&mut self, stop: &impl Fn() -> bool) -> bool {
+        while let Some((key, merged, material)) = self.merged.get(self.merged_added) {
+            if stop() {
+                return false;
+            }
+            let index = self.merged_added;
+            self.merged_added += 1;
             let mut instance = MeshInstance3D::new_alloc();
             instance.set_name(&format!("Group{}_Merged{index}", merged.groups[0]));
             instance.set_mesh(&build_mesh(&merged.mesh, &merged.streams));
-            instance.set_surface_override_material(0, &material);
+            instance.set_surface_override_material(0, material);
             if !key.casts_shadow() {
                 instance.set_cast_shadows_setting(ShadowCastingSetting::OFF);
             }
@@ -329,7 +341,9 @@ impl WmoBuild {
             instance.set_meta(MERGED_GROUPS_META, &groups.to_variant());
             self.root.add_child(&instance);
         }
+        self.merged.clear();
         self.merged_index.clear();
+        true
     }
 
     /// The built node, unplaced; the caller owns it from here.

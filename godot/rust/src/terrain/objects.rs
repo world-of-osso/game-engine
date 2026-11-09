@@ -235,6 +235,12 @@ struct WmoSpawn {
     product: AssetProduct,
     doodad_sets: Vec<u16>,
     build: WmoBuild,
+    /// Every batch is built.
+    built: bool,
+    /// The build ran out of budget at least once: a WMO this large is placed (liquids,
+    /// culling, attach; up to ~10 ms) at the start of the next frame's budget instead of
+    /// past this one's. Smaller WMOs place in the same frame.
+    spans_frames: bool,
     /// `WMO_MODEL_META` for the placed root.
     model: String,
 }
@@ -1217,6 +1223,8 @@ impl TerrainObjects {
                     product,
                     doodad_sets,
                     build,
+                    built: false,
+                    spans_frames: false,
                     model: wmo_model_label(&self.resolver, root_fdid, wmo.name_set),
                 });
                 Ok(())
@@ -1238,17 +1246,20 @@ impl TerrainObjects {
         let (tile, index) = (spawn.tile, spawn.index);
         let _span =
             crate::profile::span(|| format!("objects.wmo_step tile={tile:?} index={index}"));
-        let done = spawn.build.step(
-            &spawn.asset,
-            &spawn.resolver,
-            &self.data_root,
-            Some(spawn.product),
-            self.light.as_ref(),
-            || Instant::now() >= deadline,
-        );
-        if !done {
-            self.building = Some(spawn);
-            return false;
+        if !spawn.built {
+            spawn.built = spawn.build.step(
+                &spawn.asset,
+                &spawn.resolver,
+                &self.data_root,
+                Some(spawn.product),
+                self.light.as_ref(),
+                || Instant::now() >= deadline,
+            );
+            if !spawn.built || spawn.spans_frames {
+                spawn.spans_frames = true;
+                self.building = Some(spawn);
+                return false;
+            }
         }
         let pending = Pending::Wmo(spawn.tile, spawn.index);
         let Some(objects) = terrain
