@@ -1737,6 +1737,10 @@ impl GameClient {
             &(self.world.visuals_pending() as i64).to_variant(),
         );
         state.set(
+            "game_object_visuals_pending",
+            &(self.game_objects.visuals_pending() as i64).to_variant(),
+        );
+        state.set(
             "local_player_position",
             &local_transform
                 .map(|transform| transform.origin.to_variant())
@@ -2836,6 +2840,15 @@ impl GameClient {
             ("Unit visuals", |c, _| {
                 c.world.attach_loaded_visuals(&c.replica);
                 Ok(())
+            }),
+            ("Game object visuals", |c, _| {
+                let mut parent = c.to_gd().upcast::<Node3D>();
+                let errors = c.game_objects.attach_loaded_visuals(&mut parent);
+                if errors.is_empty() {
+                    Ok(())
+                } else {
+                    Err(errors.join("; ").into())
+                }
             }),
             ("Logout", |c, d| Ok(c.update_logout(f64::from(d))?)),
             ("Character preview", |c, d| {
