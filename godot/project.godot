@@ -37,9 +37,12 @@ renderer/rendering_method="forward_plus"
 driver/depth_prepass/enable=false
 ; WMO exterior shells occlude what portal culling cannot (wmo/occluder.rs): 2460 -> ~1480
 ; outdoor Stormwind draws. The buffer has rays x logical cores pixels (3072 on 24 cores);
-; the default 512 rays cost ~6x the worker CPU for 5% more culled draws.
+; the default 512 rays cost ~6x the worker CPU for 5% more culled draws. Every occluder added
+; or removed by streaming rebuilds the BVH inside the viewport render: Low build quality keeps
+; that near the no-occluder frame time (High stalled 20-60 ms per WMO on the bench host).
 occlusion_culling/use_occlusion_culling=true
 occlusion_culling/occlusion_rays_per_thread=128
+occlusion_culling/bvh_build_quality=0
 textures/default_filters/use_nearest_mipmap_filter=false
 ; Retail textureFilteringMode default 5 = 16x anisotropy (12.1.5.70688); the saved
 ; graphics option anisotropicFiltering overrides this per viewport at startup.
