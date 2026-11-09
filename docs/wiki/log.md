@@ -4,6 +4,9 @@ VERIFIED: Ruby's Forever view changed from 16.169 yd and 17.969 yd camera height
 ## Ruby movement correction design — 2026-11-09
 
 Verified the original stop is an authored62.82° rock face, while a centered entrance line walks. A separate1.2s private-server pause reproduces a correction with0 client collision rejections: normal2cm floor projection is counted as rejection while authority is movement-bank delayed. Added paired native/server acceptance and recorded the approved within-step-height projection rule; no collision constants change. [[ruby-movement-correction]]
+## Rubyfps Human model and stale portrait test — 2026-11-09
+
+VERIFIED: private copied-bench roster/replication and an independent engine build keep Rubyfps Human; a fresh Human Warrior also renders FDID1011653. Paired plateau captures at the reported camera remove only non-player meshes and identify the large foreground model as Ruby Scaleguard (drakonid2/4217881), not the player. VERIFIED: the named portrait test retains an October14 expectation superseded by the explicit October30 no-portrait decision; retain pet placement and repair only that stale expectation. Evidence and scope: [[follower-combat-fps#Rubyfps model verification (2026-11-09)]].
 
 ## Fountain moving-camera flash — 2026-11-09
 

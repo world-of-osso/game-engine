@@ -591,7 +591,7 @@ Architecture decisions and feature designs.
 - [desktop-disk-exhaustion](investigations/desktop-disk-exhaustion.md) — October 6 observed Windows/WSL exhaustion, completed cache pruning and offline VHD compaction; crash causality and sustained GC behavior unproven.
 
 - [Stormwind loading](investigations/stormwind-loading.md) — Spatial entry gate, rendered per-phase instrumentation and loading-only resource slices; retained distant streaming; reconnect/transfer fixtures wait for settled character-select UI.
-- [Follower combat FPS](investigations/follower-combat-fps.md) — Ruby Life Pools combat performance; timed-aura frame resync and lower-level camera bugs are fixed.
+- [Follower combat FPS](investigations/follower-combat-fps.md) — Ruby Life Pools combat performance; timed-aura frame resync and lower-level camera bugs are fixed; the apparent wrong Human model is a foreground Ruby Scaleguard, with matched player-only captures.
 - [Stormwind loading](investigations/stormwind-loading.md) — Spatial entry gate, rendered per-phase instrumentation and loading-only resource slices; retained distant streaming.
 
 - [character-preview-double-free](investigations/character-preview-double-free.md) — exact `gd.rs:911` teardown reproduction, preview-before-UI ownership fix, and process/reconnect free-site audit.

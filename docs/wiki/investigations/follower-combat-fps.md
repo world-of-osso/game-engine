@@ -24,6 +24,26 @@ Evoker Evofps on the plateau, Modern layout, one run each with field-diff diagno
 
 Ruby's entrance WMO floor is below its ADT terrain; the 2026-11-09 private Forever capture measured floor 131.0005 and ADT 204.6584. Before the fix, a clear 15 yd orbit sat 16.169 yd from the eye and 17.969 yd above the player. The camera now checks only actual local geometry along the eye-to-camera ray. The matched after capture restores the full 15 yd orbit at 6.943 yd above the player; see [the camera investigation](dungeon-camera-adt.md) for tests, outdoor control and proof.
 
+## Rubyfps model verification (2026-11-09)
+
+VERIFIED on a private copy of bench `adcb9dd81` at loopback UDP 5976: `fb_ruby`'s character 31 `Rubyfps` is a level-70 Human Warrior, race 1, class 1, sex 0. All seven legacy appearance indices are zero, `customization_choices` is empty and `visage` is absent. The authenticated roster and replicated `Player`/`CharacterVisual` agree; no `ModelDisplay` override is present. A fresh private database's `fb_humanmodel` / `Humanproof` has the same race, sex and appearance.
+
+VERIFIED with an independently built engine `7b7aea959` and shared-protocol `7fa253f`: both characters render Human body FDID `1011653` in Forever. Ruby's real follower admission and the same staging point, WoW `(1450, -295, 330)`, retain that Human body. The large foreground figure is the nearby **Ruby Scaleguard**, `creature/drakonid2/drakonid2.m2`, FDID `4217881`, at client `(1449.43, 330.111, 299.977)`; Ruby is at `(1450, 330.0121, 295)`. The nearby Ruby Keeper uses `dragonspawn2.m2`, FDID `4183015`.
+
+VERIFIED paired diagnostic captures at the report's yaw `0`, pitch `-0.35`, distance `15`: hiding only non-player meshes removes the large dragon-like figure and leaves the Human player unchanged. INFERRED: the original screenshot report mistook this foreground NPC for the player. This is not a race/display-resolution defect in the reproduced scene; no model-selection change is needed. These are source/visual checks, not an FPS receipt or a combat-throughput test.
+
+PNG evidence under `/syncthing/AgentShared/2026-11-09/human-model/`:
+- `humanproof-front.png` — fresh Human Warrior on the private server.
+- `rubyfps-front.png` — copied bench character, without the dungeon scene.
+- `rubyfps-party-reported-view.png` and `rubyfps-party-reported-view-player-only.png` — same plateau and camera, all units versus only the player's meshes.
+- `rubyfps-party-player-only-front.png` — the same staged Human from the front.
+
+Logs, diagnostic scripts and the independently built extension's SHA-256 are in `/home/osso/.worktrees/logs/human-model-wrong-2026-11-09/` (`ruby-roster-replication.log`, `fresh-roster-replication.log`, `ruby-party-attribution-client.log`). All owned servers and clients were stopped after capture. The protected server ports were not used.
+
+### Portrait-test rule
+
+VERIFIED: `forever_unit_reference::pet_is_below_player_right_with_retail_player_portrait` fails with `missing PlayerPortrait` on `7b7aea959` (one case run). Its October 14 expectation, committed in `6c7f55451`, was superseded by the user's October 30 no-player-portrait decision in `847843192`. That removal updated the product, [HUD specification](../../specs/hud-edit-mode.md) and [item-appearance specification](../../specs/item-definition-sources.md), but missed this test. Keep Forever portrait-free and retain the pet size/position assertions; correct only this stale portrait expectation. The existing committed failure is the RED acceptance case; do not invent a model failure or restore the obsolete portrait.
+
 ## Remaining costs
 
 `Culling` stays at 2-3 ms in both states; with profiling, `cull.particles` (M2 particle update for world objects, units and game objects) cost about 3 ms per frame. The render thread rises about 3 ms in combat.
@@ -33,7 +53,10 @@ Ruby's entrance WMO floor is below its ADT terrain; the 2026-11-09 private Forev
 - [Auras host](../../../godot/rust/src/auras.rs) — player-frame and target-aura state, swipe pass.
 - [Unit frame auras](../../../godot/ui-model/src/ui/screens/inworld_unit_frames_aura.rs) — `player_aura_icons`, `aura_elapsed`, `set_target_auras`.
 - [Camera follow](../../../godot/core/src/camera_follow_data.rs) — terrain-sampled orbit and ground clamp.
-- Evidence: `data/diagnostics/fps-120-close-2026-11-06/profile/combat-{probe*,diag*,ab-*}.log` and `*-shots/`.
+- [Player model chain](../../../godot/core/src/player_model_data.rs) and [world appearance selection](../../../godot/rust/src/world.rs) — body FDIDs and replicated display overrides.
+- [Forever reference test](../../../godot/ui-model/tests/forever_unit_reference.rs) — the stale portrait assertion and retained pet geometry.
+
+FPS evidence: `data/diagnostics/fps-120-close-2026-11-06/profile/combat-{probe*,diag*,ab-*}.log` and `*-shots/`.
 
 ## See Also
 
