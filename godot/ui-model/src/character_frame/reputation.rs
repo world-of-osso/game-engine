@@ -144,6 +144,8 @@ fn list_layout() -> ListLayout {
 
 /// `elementSpacing` (RF.lua:68, CRF.lua:71).
 const ENTRY_SPACING: f32 = 3.0;
+/// `ColoredProgressBarTemplate.FillArea` is inset by 6px on both sides (Camelot XML:8-12).
+const FOREVER_FILL_INSET: f32 = 6.0;
 /// A top-level entry's indent (`SetElementIndentCalculator`, RF.lua:34-46).
 const ENTRY_INDENT: f32 = 2.0;
 
@@ -303,10 +305,16 @@ pub(super) fn reputation_bar(
                 WHITE,
             );
             let fill = resolve_art("common-stat-bar-white");
+            let fill_width = (width - 2.0 * FOREVER_FILL_INSET) * row.fill;
             children.extend(texture(
                 format!("{name}Fill"),
                 fill.fdid,
-                (x, y + (height - 15.0) / 2.0, fill_w, 15.0),
+                (
+                    x + FOREVER_FILL_INSET,
+                    y + (height - 15.0) / 2.0,
+                    fill_width,
+                    15.0,
+                ),
                 &fill.tex_coords(row.fill),
                 row.color,
             ));

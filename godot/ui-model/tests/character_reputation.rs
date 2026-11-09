@@ -17,6 +17,13 @@ use ui_toolkit::layout_values::Val;
 use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::screen::{Screen, SharedContext};
 
+/// Camelot `ColoredProgressBarTemplate.FillArea` inset (`ColoredProgressBar.xml:8-12`).
+const BAR_FILL_INSET: f32 = 6.0;
+/// Camelot entry template's right-anchor gap between the name and bar.
+const NAME_BAR_GAP: f32 = 10.0;
+/// Float tolerance for pixel-coordinate comparisons.
+const LAYOUT_EPSILON: f32 = 0.01;
+
 fn entry(
     faction_id: u32,
     faction_name: &str,
@@ -58,7 +65,11 @@ fn view(tab: CharacterTab, standings: &[ReputationEntrySnapshot]) -> CharacterFr
 }
 
 fn build(view: CharacterFrameView) -> FrameRegistry {
-    let mut registry = FrameRegistry::new(1920.0, 1080.0);
+    build_at(view, (1920.0, 1080.0))
+}
+
+fn build_at(view: CharacterFrameView, resolution: (f32, f32)) -> FrameRegistry {
+    let mut registry = FrameRegistry::new(resolution.0, resolution.1);
     let mut shared = SharedContext::new();
     let tab = view.tab;
     shared.insert(view);
@@ -200,6 +211,92 @@ fn the_reputation_tab_swaps_the_paper_doll_for_the_faction_standings_in_both_pre
         assert!(empty.get_by_name("ReputationEntry1Name").is_none());
     }
     set_thread_skin(ActiveSkin::Modern);
+}
+
+#[test]
+fn forever_reputation_bars_fit_rows_borders_and_frame_at_both_resolutions() {
+    game_engine_ui_model::paths::set_data_root(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    set_thread_skin(ActiveSkin::Forever);
+    let long_name = "The Long-Named Celestial Expedition of the Eastern Kingdoms";
+    let standings = [
+        entry(1341, long_name, "Friendly", 6_000),
+        entry(72, "Stormwind", "Exalted", 42_000),
+    ];
+
+    for resolution in [(1920.0, 1080.0), (3440.0, 1440.0)] {
+        let registry = build_at(view(CharacterTab::Reputation, &standings), resolution);
+        let root = registry.get_by_name("CharacterFrame").unwrap();
+        let root_frame = registry.get(root).unwrap();
+        let frame_rect = (0.0, 0.0, fixed(root_frame.width), fixed(root_frame.height));
+
+        for (index, progress) in [(1, 0.5_f32), (2, 1.0)] {
+            let row = registry
+                .get_by_name(&format!("ReputationEntry{index}"))
+                .unwrap();
+            let row_rect = rect_in(&registry, registry.get(row).unwrap(), root).unwrap();
+            assert!(
+                rect_contains(frame_rect, row_rect),
+                "{resolution:?}: row {index} exceeds the frame: {row_rect:?}"
+            );
+
+            let bar = registry
+                .get_by_name(&format!("ReputationEntry{index}ReputationBarBackground"))
+                .unwrap();
+            let bar_rect = rect_in(&registry, registry.get(bar).unwrap(), root).unwrap();
+            assert!(
+                rect_contains(row_rect, bar_rect),
+                "{resolution:?}: bar {index} exceeds its row: {bar_rect:?} vs {row_rect:?}"
+            );
+
+            let name = registry
+                .get_by_name(&format!("ReputationEntry{index}Name"))
+                .unwrap();
+            let name_rect = rect_in(&registry, registry.get(name).unwrap(), root).unwrap();
+            assert!(
+                name_rect.0 + name_rect.2 + NAME_BAR_GAP <= bar_rect.0 + LAYOUT_EPSILON,
+                "{resolution:?}: name {index} overlaps its bar"
+            );
+            if index == 1 {
+                assert_eq!(text(&registry, "ReputationEntry1Name"), long_name);
+            }
+
+            let standing = registry
+                .get_by_name(&format!("ReputationEntry{index}ReputationBarBarText"))
+                .unwrap();
+            let standing_rect = rect_in(&registry, registry.get(standing).unwrap(), root).unwrap();
+            assert!(
+                rect_contains(bar_rect, standing_rect),
+                "{resolution:?}: standing text {index} exceeds its bar"
+            );
+
+            let fill = registry
+                .get_by_name(&format!("ReputationEntry{index}ReputationBarFill"))
+                .unwrap();
+            let fill_rect = rect_in(&registry, registry.get(fill).unwrap(), root).unwrap();
+            let fill_area = (
+                bar_rect.0 + BAR_FILL_INSET,
+                bar_rect.1 + BAR_FILL_INSET,
+                bar_rect.2 - 2.0 * BAR_FILL_INSET,
+                bar_rect.3 - 2.0 * BAR_FILL_INSET,
+            );
+            assert!(
+                rect_contains(fill_area, fill_rect),
+                "{resolution:?}: fill {index} escapes the bar interior: {fill_rect:?} vs {bar_rect:?}"
+            );
+            assert!(
+                (fill_rect.0 - fill_area.0).abs() < LAYOUT_EPSILON,
+                "{resolution:?}: fill {index} does not start at the track inset"
+            );
+            assert!(
+                (fill_rect.2 - fill_area.2 * progress).abs() < LAYOUT_EPSILON,
+                "{resolution:?}: fill {index} width {} does not match {progress} progress",
+                fill_rect.2
+            );
+        }
+    }
 }
 
 #[test]
@@ -365,6 +462,21 @@ fn capped_and_hated_standings_use_retail_bar_values() {
     assert_eq!(rows[1].color, "0.8,0.13,0.13,1.0");
     assert_eq!(rows[0].color, rows[2].color);
     assert_ne!(rows[0].color, rows[1].color);
+}
+
+fn rect_contains(outer: (f32, f32, f32, f32), inner: (f32, f32, f32, f32)) -> bool {
+    let outer_right = outer.0 + outer.2;
+    let outer_bottom = outer.1 + outer.3;
+    let inner_right = inner.0 + inner.2;
+    let inner_bottom = inner.1 + inner.3;
+    [
+        inner.0 >= outer.0,
+        inner.1 >= outer.1,
+        inner_right <= outer_right,
+        inner_bottom <= outer_bottom,
+    ]
+    .into_iter()
+    .all(|inside| inside)
 }
 
 fn fixed(value: Dimension) -> f32 {
