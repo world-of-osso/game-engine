@@ -11,6 +11,9 @@ use shared::movement::{MAX_SLOPE_ANGLE, is_swimming};
 
 use crate::terrain::streaming::StreamedTerrain;
 
+/// Height slack of the M2 tile bounds prefilter over the BVH's own slab test.
+const M2_BOUNDS_SLACK: f32 = 0.01;
+
 pub(crate) struct TerrainGround<'a> {
     pub terrain: &'a StreamedTerrain,
     /// Distance to the first WMO wall on a ray `(origin, direction, length)`.
@@ -84,6 +87,20 @@ impl TerrainGround<'_> {
     }
 
     fn m2_ground(&self, feet: Vec3, walkable_only: bool) -> Option<Ground> {
+        // A tile whose root bounds miss the column cannot pass its BVH root test; skipping
+        // it here saves the traversal setup for the many tiles around the column.
+        let low = feet.y - FLOOR_SEARCH_DEPTH;
+        let high = feet.y + STEP_UP_HEIGHT;
+        let over_column = |tile: &&shared::los::LosTile| {
+            tile.bounds().is_some_and(|(min, max)| {
+                feet.x >= min.x
+                    && feet.x <= max.x
+                    && feet.z >= min.z
+                    && feet.z <= max.z
+                    && low <= max.y + M2_BOUNDS_SLACK
+                    && high >= min.y - M2_BOUNDS_SLACK
+            })
+        };
         let walkable = self
             .terrain
             .map_wdt
@@ -96,6 +113,7 @@ impl TerrainGround<'_> {
                     .values()
                     .flat_map(|tile| &tile.m2_floors),
             )
+            .filter(over_column)
             .filter_map(|tile| tile.floor_height(feet));
         let solid = self
             .terrain
@@ -109,7 +127,8 @@ impl TerrainGround<'_> {
                     .values()
                     .flat_map(|tile| &tile.m2_solids),
             )
-            .filter_map(|tile| (!walkable_only).then(|| tile.solid_height(feet)).flatten());
+            .filter(|tile| !walkable_only && over_column(tile))
+            .filter_map(|tile| tile.solid_height(feet));
         walkable
             .chain(solid)
             .max_by(f32::total_cmp)
