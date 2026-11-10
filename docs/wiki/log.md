@@ -1,3 +1,7 @@
+## Godot audio bus-details cleanup — 2026-11-10
+
+VERIFIED: the pinned Godot erased retired playback bus details one by one from a SafeList, quadratic in playing 3D sounds; in the 40-player Battle Shout crowd `AudioServer::_cleanup_lists` was 12.7-24.2 % of main-thread samples. Patched pin `-audiobus` retires them per update in O(n), deleting each one update later as before. Headless A/B, interleaved: 200 players 5.1-5.7 -> 1.4-1.7 ms main-thread CPU per frame, 400 players 16-22 -> 2.7-4.8 ms. See [[godot-audio-bus-graveyard]].
+
 ## Crowded combat: draping off the freeze — 2026-11-10
 
 VERIFIED: master 4d4a5e7ab runs the 40-warrior Battle Shout phase at 319-493 frames per 20 s (p50 28.3-48.6 ms) where 94224f08d froze 9-24 s; main-thread draping is 0.95-1.97 ms per frame. Every step kept the 25 field-dump hashes and bytes. Cuts: drape cache, render-surface query, footprint floors, one copy per M2 LOS file (each column walked the same tile up to nine times), WMO batches once per column, cached batch streams, worker-thread draping with kits hidden until draped. Retail default settings show all 40 shouts (R19). See [[crowd-combat-fps]].
