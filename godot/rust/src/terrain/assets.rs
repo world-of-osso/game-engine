@@ -127,8 +127,8 @@ pub(crate) struct NativeMapWdt {
     pub flags: wdt::MphdFlags,
     pub tiles: wdt::WdtTiles,
     pub global_wmo: Option<PlacedWmo>,
-    pub m2_floors: Vec<shared::los::LosTile>,
-    pub m2_solids: Vec<shared::los::LosTile>,
+    pub m2_floors: Vec<Arc<shared::los::LosTile>>,
+    pub m2_solids: Vec<Arc<shared::los::LosTile>>,
     pub lighting: Arc<LightingCatalog>,
 }
 
@@ -149,8 +149,8 @@ pub(crate) struct NativeTerrainTile {
     /// Authored M2 hulls by LOS file, including the neighbouring centroid tiles. Loaded on
     /// the worker before ground prediction, independent of render-node spawning/culling.
     /// The stream keeps each file in the first parsed tile that loaded it.
-    pub m2_floors: Vec<(PathBuf, shared::los::LosTile)>,
-    pub m2_solids: Vec<(PathBuf, shared::los::LosTile)>,
+    pub m2_floors: Vec<(PathBuf, Arc<shared::los::LosTile>)>,
+    pub m2_solids: Vec<(PathBuf, Arc<shared::los::LosTile>)>,
     pub wmo_surfaces: Vec<(WmoSurfaceBounds, FootstepSurface)>,
     /// Liquid material of each MH2O `(liquid_type, liquid_object)` on the tile.
     pub liquid_materials: BTreeMap<(u16, u16), Result<Arc<NativeLiquidMaterial>, String>>,
@@ -285,7 +285,7 @@ impl NativeTerrainAssets {
         map_id: u32,
         tile: Option<(u32, u32)>,
         solid: bool,
-    ) -> Result<Vec<(PathBuf, shared::los::LosTile)>, String> {
+    ) -> Result<Vec<(PathBuf, Arc<shared::los::LosTile>)>, String> {
         let directory = if solid { "m2-solid" } else { "m2" };
         let dir = self.data_root.join(format!("los/{map_id}/{directory}"));
         if solid && !dir.is_dir() && self.data_root.join(format!("los/{map_id}/m2")).is_dir() {
@@ -323,7 +323,7 @@ impl NativeTerrainAssets {
                 Ok(bytes) => {
                     let tile = shared::los::LosTile::from_bytes(&bytes)
                         .map_err(|error| format!("{}: {error}", path.display()))?;
-                    floors.push((path, tile));
+                    floors.push((path, Arc::new(tile)));
                 }
                 // An absent companion provides no baked floor; never substitute render faces.
                 Err(error) if error.kind() == std::io::ErrorKind::NotFound => continue,

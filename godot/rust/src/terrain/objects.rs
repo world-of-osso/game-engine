@@ -47,7 +47,6 @@ mod surface_cell_tests {
 use std::{
     collections::{BTreeSet, HashMap, VecDeque},
     path::{Path, PathBuf},
-    rc::Rc,
     sync::Arc,
     time::{Duration, Instant},
 };
@@ -606,7 +605,7 @@ pub(crate) struct TerrainObjects {
     /// Doodads already in `surface_cells`; the vector only grows between resets.
     surface_cells_len: usize,
     /// Per doodad index, its render surface once a column query first reached it.
-    doodad_surfaces: Vec<Option<Option<Rc<game_engine_core::render_surface::RenderSurface>>>>,
+    doodad_surfaces: Vec<Option<Option<Arc<game_engine_core::render_surface::RenderSurface>>>>,
     /// Per WMO placement (same index as `wmos`), its batches' render surfaces.
     wmo_surface_batches: Vec<WmoSurfaceBatches>,
     /// Counts column queries, so a batch shared by several groups is tested once per query.
@@ -1872,7 +1871,7 @@ struct WmoSurfaceBatches {
     by_group: HashMap<u16, Vec<u32>>,
     nodes: Vec<Gd<Node3D>>,
     /// Per batch, its render surface once a column query first reached it.
-    surfaces: Vec<Option<Option<Rc<game_engine_core::render_surface::RenderSurface>>>>,
+    surfaces: Vec<Option<Option<Arc<game_engine_core::render_surface::RenderSurface>>>>,
     /// Per batch, the last column query that tested it.
     tested: Vec<u64>,
 }

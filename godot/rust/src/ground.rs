@@ -5,6 +5,8 @@ use game_engine_core::player_physics_data::{
     validate_movement_slope,
 };
 use game_engine_core::terrain_height_data::bevy_to_tile_coords;
+use std::sync::Arc;
+
 use glam::{Vec2, Vec3};
 use shared::ground::{FLOOR_SEARCH_DEPTH, Ground, STEP_UP_HEIGHT, Surface, WmoCollision};
 use shared::los::LosTile;
@@ -18,10 +20,10 @@ const M2_BOUNDS_SLACK: f32 = 0.01;
 /// The static collision columns inside one XZ footprint can reach: the WMO groups and M2
 /// tiles whose bounds overlap it. A column inside the footprint samples the same floor
 /// through it as through all loaded collision, testing fewer groups and tiles.
-pub(crate) struct FootprintFloors<'a> {
+pub(crate) struct FootprintFloors {
     wmos: Vec<WmoCollision>,
-    m2_floors: Vec<&'a LosTile>,
-    m2_solids: Vec<&'a LosTile>,
+    m2_floors: Vec<Arc<LosTile>>,
+    m2_solids: Vec<Arc<LosTile>>,
 }
 
 pub(crate) struct TerrainGround<'a> {
@@ -90,7 +92,7 @@ impl TerrainGround<'_> {
             )
     }
 
-    fn m2_floor_tiles(&self) -> impl Iterator<Item = &LosTile> {
+    fn m2_floor_tiles(&self) -> impl Iterator<Item = &Arc<LosTile>> {
         self.terrain
             .map_wdt
             .as_ref()
@@ -104,7 +106,7 @@ impl TerrainGround<'_> {
             )
     }
 
-    fn m2_solid_tiles(&self) -> impl Iterator<Item = &LosTile> {
+    fn m2_solid_tiles(&self) -> impl Iterator<Item = &Arc<LosTile>> {
         self.terrain
             .map_wdt
             .as_ref()
@@ -119,7 +121,7 @@ impl TerrainGround<'_> {
     }
 
     /// The collision whose XZ bounds overlap `[min, max]`; see [`FootprintFloors`].
-    pub fn footprint_floors(&self, min: Vec2, max: Vec2) -> FootprintFloors<'_> {
+    pub fn footprint_floors(&self, min: Vec2, max: Vec2) -> FootprintFloors {
         let overlaps = |low: Vec2, high: Vec2| {
             low.x <= max.x && high.x >= min.x && low.y <= max.y && high.y >= min.y
         };
@@ -140,14 +142,22 @@ impl TerrainGround<'_> {
                 (!groups.is_empty()).then(|| WmoCollision::new(world_from_local, groups))
             })
             .collect();
-        let tile_overlaps = |tile: &&LosTile| {
+        let tile_overlaps = |tile: &&Arc<LosTile>| {
             tile.bounds()
                 .is_some_and(|(low, high)| overlaps(xz(low), xz(high)))
         };
         FootprintFloors {
             wmos,
-            m2_floors: self.m2_floor_tiles().filter(tile_overlaps).collect(),
-            m2_solids: self.m2_solid_tiles().filter(tile_overlaps).collect(),
+            m2_floors: self
+                .m2_floor_tiles()
+                .filter(tile_overlaps)
+                .cloned()
+                .collect(),
+            m2_solids: self
+                .m2_solid_tiles()
+                .filter(tile_overlaps)
+                .cloned()
+                .collect(),
         }
     }
 
@@ -172,8 +182,8 @@ impl TerrainGround<'_> {
         self.m2_ground_over(
             feet,
             walkable_only,
-            self.m2_floor_tiles(),
-            self.m2_solid_tiles(),
+            self.m2_floor_tiles().map(|tile| &**tile),
+            self.m2_solid_tiles().map(|tile| &**tile),
         )
     }
 
@@ -245,7 +255,7 @@ impl TerrainGround<'_> {
     }
 
     /// [`Self::collision_floor`] for a `point` inside `footprint`'s bounds.
-    pub fn collision_floor_in(&self, footprint: &FootprintFloors<'_>, point: Vec3) -> Option<f32> {
+    pub fn collision_floor_in(&self, footprint: &FootprintFloors, point: Vec3) -> Option<f32> {
         let object = (self.game_object_floor)(point).map(|height| Ground {
             height,
             surface: Surface::M2,
@@ -253,8 +263,8 @@ impl TerrainGround<'_> {
         let m2 = self.m2_ground_over(
             point,
             false,
-            footprint.m2_floors.iter().copied(),
-            footprint.m2_solids.iter().copied(),
+            footprint.m2_floors.iter().map(|tile| &**tile),
+            footprint.m2_solids.iter().map(|tile| &**tile),
         );
         self.static_ground_over(point, false, footprint.wmos.iter())
             .into_iter()
@@ -841,11 +851,21 @@ mod tests {
         data.wmo_liquids.push(stacked);
         data.m2_floors.push((
             PathBuf::from("lower.los"),
-            shared::los::LosTile::build(tile.0, tile.1, triangle(-42.0).to_vec(), vec![[0, 1, 2]]),
+            Arc::new(shared::los::LosTile::build(
+                tile.0,
+                tile.1,
+                triangle(-42.0).to_vec(),
+                vec![[0, 1, 2]],
+            )),
         ));
         data.m2_floors.push((
             PathBuf::from("upper.los"),
-            shared::los::LosTile::build(tile.0, tile.1, triangle(-35.0).to_vec(), vec![[0, 1, 2]]),
+            Arc::new(shared::los::LosTile::build(
+                tile.0,
+                tile.1,
+                triangle(-35.0).to_vec(),
+                vec![[0, 1, 2]],
+            )),
         ));
         terrain.parsed_tiles.insert(tile, data);
         let ground = TerrainGround {
@@ -1333,8 +1353,8 @@ mod tests {
                 chunk_surfaces: Default::default(),
                 wmo_floors: Vec::new(),
                 wmo_liquids: Vec::new(),
-                m2_floors: vec![(PathBuf::from("m2/32_32.los"), floor)],
-                m2_solids: vec![(PathBuf::from("m2-solid/32_32.los"), solid)],
+                m2_floors: vec![(PathBuf::from("m2/32_32.los"), Arc::new(floor))],
+                m2_solids: vec![(PathBuf::from("m2-solid/32_32.los"), Arc::new(solid))],
                 wmo_surfaces: Vec::new(),
                 liquid_materials: Default::default(),
             },
@@ -1412,8 +1432,8 @@ mod tests {
                 wmo_floors: Vec::new(),
                 wmo_liquids: Vec::new(),
                 m2_floors: vec![
-                    (PathBuf::from("upper.los"), upper),
-                    (PathBuf::from("lower.los"), lower),
+                    (PathBuf::from("upper.los"), Arc::new(upper)),
+                    (PathBuf::from("lower.los"), Arc::new(lower)),
                 ],
                 m2_solids: Vec::new(),
                 wmo_surfaces: Vec::new(),

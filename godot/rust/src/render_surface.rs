@@ -8,7 +8,7 @@
 //!
 //! Movement, the server and the navmesh never read this.
 
-use std::{collections::HashMap, rc::Rc};
+use std::{collections::HashMap, rc::Rc, sync::Arc};
 
 use game_engine_core::render_surface::RenderSurface;
 use glam::{Affine3A, Vec3};
@@ -38,7 +38,7 @@ pub(crate) struct MeshTriangles {
 #[derive(Default)]
 pub(crate) struct RenderSurfaceCache {
     meshes: HashMap<InstanceId, Option<Rc<MeshTriangles>>>,
-    roots: HashMap<InstanceId, Option<Rc<RenderSurface>>>,
+    roots: HashMap<InstanceId, Option<Arc<RenderSurface>>>,
 }
 
 impl RenderSurfaceCache {
@@ -52,12 +52,12 @@ impl RenderSurfaceCache {
     ///
     /// A mesh on a skeleton is skipped: it draws the animated pose, not the authored
     /// vertices these arrays hold.
-    pub(crate) fn root_surface(&mut self, root: &Gd<Node3D>) -> Option<Rc<RenderSurface>> {
+    pub(crate) fn root_surface(&mut self, root: &Gd<Node3D>) -> Option<Arc<RenderSurface>> {
         let key = root.instance_id();
         if let Some(cached) = self.roots.get(&key) {
             return cached.clone();
         }
-        let surface = self.build_root(root).map(Rc::new);
+        let surface = self.build_root(root).map(Arc::new);
         self.roots.insert(key, surface.clone());
         surface
     }
