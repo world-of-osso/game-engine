@@ -30,6 +30,7 @@ mod death_flow;
 mod debug_character;
 mod display_options;
 mod drape_batch;
+mod drape_worker;
 mod encounter;
 mod entrance_bar;
 #[path = "game/equipment/equipment_appearance_data.rs"]
@@ -235,6 +236,8 @@ struct GameEngineExtension;
 
 /// Main-thread time per frame for in-world ADT object loading.
 const WORLD_OBJECT_BUDGET: std::time::Duration = std::time::Duration::from_millis(8);
+/// Threads draping spell ground batches; a kit's batches drape in parallel.
+const DRAPE_WORKERS: usize = 2;
 
 // SAFETY: Godot owns extension initialization and all exposed objects use gdext's bindings.
 #[gdextension]
@@ -358,6 +361,9 @@ pub struct GameClient {
     drape_cache: combat_visuals::DrapeCache,
     /// Vertex streams of spell batch meshes, read once per source mesh.
     batch_arrays: drape_batch::BatchArraysCache,
+    /// Kits hidden while their ground batches drape off the main thread.
+    drape_flights: combat_visuals::DrapeFlights,
+    drape_workers: drape_worker::DrapeWorkers,
     physical_input: input::PhysicalInput,
     client_options: ClientOptionsFile,
     /// Ctrl+R (`TOGGLEFPS`) flips the saved FPS overlay preference for this session.
@@ -544,6 +550,8 @@ impl INode3D for GameClient {
             area_trigger_visuals: area_trigger_visuals::AreaTriggerVisuals::default(),
             drape_cache: combat_visuals::DrapeCache::default(),
             batch_arrays: drape_batch::BatchArraysCache::default(),
+            drape_flights: combat_visuals::DrapeFlights::default(),
+            drape_workers: drape_worker::DrapeWorkers::new(DRAPE_WORKERS),
             physical_input: input::PhysicalInput::default(),
             client_options,
             framerate_toggled: false,

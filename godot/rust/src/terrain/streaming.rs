@@ -1,10 +1,12 @@
 //! Async local-CASC parsing for one native map and its requested terrain tiles.
 
 use godot::global::godot_warn;
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::path::PathBuf;
 use std::sync::mpsc::{self, Receiver, Sender, TryRecvError};
 use std::thread::{self, JoinHandle};
+
+use game_engine_core::adt::ChunkHeightGrid;
 
 use super::assets::{NativeMapWdt, NativeTerrainAssets, NativeTerrainTile};
 
@@ -181,22 +183,57 @@ impl StreamedTerrain {
     }
 
     pub fn height_at(&self, x: f32, z: f32) -> Option<f32> {
-        use game_engine_core::terrain_height_data::{
-            bevy_to_chunk_coords, located_quad, sample_located_chunk_height,
-        };
-        let (tile, (index_x, index_y)) = bevy_to_chunk_coords(x, z);
+        let (tile, index) = game_engine_core::terrain_height_data::bevy_to_chunk_coords(x, z);
+        let (grid, chunk) = self.chunk_heights(tile, index)?;
+        let hole_at = |row, col| chunk.is_some_and(|chunk| chunk.hole_at(row, col));
+        located_height(grid, hole_at, x, z)
+    }
+
+    /// Chunk `index` of parsed tile `tile`: its height grid and, when authored, its holes.
+    fn chunk_heights(
+        &self,
+        tile: (u32, u32),
+        (index_x, index_y): (u32, u32),
+    ) -> Option<(&ChunkHeightGrid, Option<&game_engine_core::adt::Chunk>)> {
         let root = &self.parsed_tiles.get(&tile)?.root;
         let grid = root
             .height_grids
             .iter()
             .find(|grid| grid.index_x == index_x && grid.index_y == index_y)?;
-        let (row, col) = located_quad(grid, x, z);
-        let hole = root
+        let chunk = root
             .chunks
             .iter()
-            .find(|chunk| chunk.index_x == index_x && chunk.index_y == index_y)
-            .is_some_and(|chunk| chunk.hole_at(row, col));
-        (!hole).then(|| sample_located_chunk_height(grid, x, z))
+            .find(|chunk| chunk.index_x == index_x && chunk.index_y == index_y);
+        Some((grid, chunk))
+    }
+
+    /// The terrain heights under the XZ rectangle `[min, max]`, copied so `height_at` can be
+    /// answered off the main thread exactly as here.
+    pub fn heights_snapshot(&self, min: glam::Vec2, max: glam::Vec2) -> TerrainHeights {
+        use game_engine_core::terrain_height_data::bevy_to_chunk_coords;
+        // Global chunk indices grow with z along rows and with -x along columns.
+        let global = |x: f32, z: f32| {
+            let ((row, col), (index_x, index_y)) = bevy_to_chunk_coords(x, z);
+            (row * 16 + index_x, col * 16 + index_y)
+        };
+        let (row_low, col_high) = global(min.x, min.y);
+        let (row_high, col_low) = global(max.x, max.y);
+        let mut chunks = HashMap::new();
+        for row in row_low..=row_high {
+            for col in col_low..=col_high {
+                let (tile, index) = ((row / 16, col / 16), (row % 16, col % 16));
+                if let Some((grid, chunk)) = self.chunk_heights(tile, index) {
+                    let mut holes = [[false; 8]; 8];
+                    for (quad_row, line) in holes.iter_mut().enumerate() {
+                        for (quad_col, hole) in line.iter_mut().enumerate() {
+                            *hole = chunk.is_some_and(|chunk| chunk.hole_at(quad_row, quad_col));
+                        }
+                    }
+                    chunks.insert((tile, index), (grid.clone(), holes));
+                }
+            }
+        }
+        TerrainHeights { chunks }
     }
 
     pub fn area_id_at(&self, x: f32, z: f32) -> Option<u32> {
@@ -547,6 +584,32 @@ impl StreamedTerrain {
         parsed.m2_floors.retain(|(path, _)| !held.contains(path));
         parsed.m2_solids.retain(|(path, _)| !held.contains(path));
     }
+}
+
+/// Terrain heights of a few chunks, copied from the stream for a query off the main thread.
+pub(crate) struct TerrainHeights {
+    chunks: HashMap<((u32, u32), (u32, u32)), (ChunkHeightGrid, [[bool; 8]; 8])>,
+}
+
+impl TerrainHeights {
+    /// [`StreamedTerrain::height_at`] for a point inside the snapshot's rectangle.
+    pub fn height_at(&self, x: f32, z: f32) -> Option<f32> {
+        let key = game_engine_core::terrain_height_data::bevy_to_chunk_coords(x, z);
+        let (grid, holes) = self.chunks.get(&key)?;
+        located_height(grid, |row, col| holes[row][col], x, z)
+    }
+}
+
+/// Height of (x, z) in `grid`, `None` in a hole of its located quad.
+fn located_height(
+    grid: &ChunkHeightGrid,
+    hole_at: impl Fn(usize, usize) -> bool,
+    x: f32,
+    z: f32,
+) -> Option<f32> {
+    use game_engine_core::terrain_height_data::{located_quad, sample_located_chunk_height};
+    let (row, col) = located_quad(grid, x, z);
+    (!hole_at(row, col)).then(|| sample_located_chunk_height(grid, x, z))
 }
 
 fn panic_message(panic: Box<dyn std::any::Any + Send>) -> String {

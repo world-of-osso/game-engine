@@ -13,13 +13,20 @@ extends SceneTree
 #
 # Each point is then cast again where it stood. While the ground is unchanged the recast
 # must come from the drape cache (`drape_cache_hits` grows) and its batches must hash
-# exactly like the fresh drape; it prints `DRAPE_RECAST <point> hits=<n>`. A recast after
+# exactly like the fresh drape; it prints `DRAPE_RECAST <point> hits=<n>`.
+#
+# Every cast must show its kit only once its batches are draped, within MAX_DRAPE_FRAMES
+# frames and MAX_DRAPE_MS; it prints `DRAPE_LATENCY <point> frames=<n> ms=<t>`. A recast after
 # late streaming changed the ground drapes afresh; it becomes the reference for the next.
 
 const SHOUT_VISUAL := 190617
 const SHOUT_KIT := 279043
 const SHOUT_SPELL := 6673
 const RECAST_ATTEMPTS := 5
+const MAX_DRAPE_FRAMES := 30
+const MAX_DRAPE_MS := 500
+## The cast base's five source batches hold 28 vertices; a draped one holds hundreds.
+const FLAT_BATCH_VERTICES := 28
 const POINTS := {
 	"flat": Vector3(-8590.0, 96.9, -770.0),
 	"rug": Vector3(-8550.4, 108.76, -720.9),
@@ -47,7 +54,7 @@ func run() -> void:
 		var point: Vector3 = POINTS[label]
 		if not await load_world(point):
 			return
-		var meshes := await spawn_draped(point)
+		var meshes := await spawn_draped(label, point)
 		if closed:
 			return
 		if meshes.is_empty():
@@ -65,7 +72,7 @@ func run() -> void:
 ## Casts the kit again at `point` and checks it reused the cached drape byte for byte.
 func recast_matches(label: String, point: Vector3, fresh: Array[String], attempts: int) -> bool:
 	var hits_before: int = client.spell_visuals_state().drape_cache_hits
-	var meshes := await spawn_draped(point)
+	var meshes := await spawn_draped(label, point)
 	if closed:
 		return false
 	var hits: int = client.spell_visuals_state().drape_cache_hits - hits_before
@@ -109,7 +116,7 @@ func objects_idle() -> bool:
 
 ## Spawns the kit, freezes its animation, and returns its batches once their draped
 ## geometry stopped changing for 30 frames.
-func spawn_draped(point: Vector3) -> Array[MeshInstance3D]:
+func spawn_draped(label: String, point: Vector3) -> Array[MeshInstance3D]:
 	var deadline := Time.get_ticks_msec() + 120000
 	var error := "preparing"
 	while error != "" and Time.get_ticks_msec() < deadline:
@@ -117,6 +124,8 @@ func spawn_draped(point: Vector3) -> Array[MeshInstance3D]:
 		error = client.preview_spell_kit(SHOUT_VISUAL, SHOUT_KIT, SHOUT_SPELL, point)
 	if error != "":
 		fail("spell kit: " + error)
+		return []
+	if not await shown_draped(label):
 		return []
 	var stable := 0
 	var last := ""
@@ -131,6 +140,26 @@ func spawn_draped(point: Vector3) -> Array[MeshInstance3D]:
 			return meshes
 	fail("the kit's batches never settled")
 	return []
+
+## Waits for the cast's kit to show, and checks it shows draped, never flat.
+func shown_draped(label: String) -> bool:
+	var started := Time.get_ticks_msec()
+	for frames in range(1, MAX_DRAPE_FRAMES + 1):
+		await process_frame
+		var meshes := kit_meshes()
+		if meshes.is_empty() or not meshes.all(func(mesh: MeshInstance3D): return mesh.is_visible_in_tree()):
+			continue
+		if meshes.any(func(mesh: MeshInstance3D): return vertex_count(mesh) <= FLAT_BATCH_VERTICES):
+			fail("%s: the kit showed before its batches were draped" % label)
+			return false
+		var elapsed := Time.get_ticks_msec() - started
+		print("DRAPE_LATENCY %s frames=%d ms=%d" % [label, frames, elapsed])
+		if elapsed > MAX_DRAPE_MS:
+			fail("%s: the kit showed draped after %d ms" % [label, elapsed])
+			return false
+		return true
+	fail("%s: the kit did not show draped within %d frames" % [label, MAX_DRAPE_FRAMES])
+	return false
 
 func kit_meshes() -> Array[MeshInstance3D]:
 	var meshes: Array[MeshInstance3D] = []

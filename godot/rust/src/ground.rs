@@ -171,56 +171,16 @@ impl TerrainGround<'_> {
         walkable_only: bool,
         wmos: impl Iterator<Item = &'w WmoCollision>,
     ) -> Option<Ground> {
-        if walkable_only {
-            shared::ground::ground_at(feet, self.terrain_height(feet), wmos)
-        } else {
-            shared::ground::collision_height(feet, self.terrain_height(feet), wmos)
-        }
+        static_ground_in(feet, self.terrain_height(feet), walkable_only, wmos)
     }
 
     fn m2_ground(&self, feet: Vec3, walkable_only: bool) -> Option<Ground> {
-        self.m2_ground_over(
+        m2_ground_in(
             feet,
             walkable_only,
             self.m2_floor_tiles().map(|tile| &**tile),
             self.m2_solid_tiles().map(|tile| &**tile),
         )
-    }
-
-    fn m2_ground_over<'t>(
-        &self,
-        feet: Vec3,
-        walkable_only: bool,
-        floors: impl Iterator<Item = &'t LosTile>,
-        solids: impl Iterator<Item = &'t LosTile>,
-    ) -> Option<Ground> {
-        // A tile whose root bounds miss the column cannot pass its BVH root test; skipping
-        // it here saves the traversal setup for the many tiles around the column.
-        let low = feet.y - FLOOR_SEARCH_DEPTH;
-        let high = feet.y + STEP_UP_HEIGHT;
-        let over_column = |tile: &&LosTile| {
-            tile.bounds().is_some_and(|(min, max)| {
-                feet.x >= min.x
-                    && feet.x <= max.x
-                    && feet.z >= min.z
-                    && feet.z <= max.z
-                    && low <= max.y + M2_BOUNDS_SLACK
-                    && high >= min.y - M2_BOUNDS_SLACK
-            })
-        };
-        let walkable = floors
-            .filter(over_column)
-            .filter_map(|tile| tile.floor_height(feet));
-        let solid = solids
-            .filter(|tile| !walkable_only && over_column(tile))
-            .filter_map(|tile| tile.solid_height(feet));
-        walkable
-            .chain(solid)
-            .max_by(f32::total_cmp)
-            .map(|height| Ground {
-                height,
-                surface: Surface::M2,
-            })
     }
 
     fn sample(&self, feet: Vec3) -> Option<Ground> {
@@ -256,22 +216,13 @@ impl TerrainGround<'_> {
 
     /// [`Self::collision_floor`] for a `point` inside `footprint`'s bounds.
     pub fn collision_floor_in(&self, footprint: &FootprintFloors, point: Vec3) -> Option<f32> {
-        let object = (self.game_object_floor)(point).map(|height| Ground {
-            height,
-            surface: Surface::M2,
-        });
-        let m2 = self.m2_ground_over(
-            point,
-            false,
-            footprint.m2_floors.iter().map(|tile| &**tile),
-            footprint.m2_solids.iter().map(|tile| &**tile),
-        );
-        self.static_ground_over(point, false, footprint.wmos.iter())
-            .into_iter()
-            .chain(m2)
-            .chain(object)
-            .max_by(|a, b| a.height.total_cmp(&b.height))
-            .map(|ground| ground.height)
+        let object = (self.game_object_floor)(point);
+        footprint.collision_floor(point, self.terrain_height(point), object)
+    }
+
+    /// Whether this map is one global WMO, whose terrain does not count as ground.
+    pub fn global_wmo_map(&self) -> bool {
+        self.is_global_wmo()
     }
 
     /// Describe the selected ground and its WMO group for an enabled diagnostic trace.
@@ -673,6 +624,85 @@ impl TerrainGround<'_> {
             None if self.terrain.height_at(proposed.x, proposed.z).is_some() => current,
             None => proposed,
         }
+    }
+}
+
+/// The WMO collision ground under `feet` among `wmos`, over `terrain_height`.
+fn static_ground_in<'w>(
+    feet: Vec3,
+    terrain_height: Option<f32>,
+    walkable_only: bool,
+    wmos: impl Iterator<Item = &'w WmoCollision>,
+) -> Option<Ground> {
+    if walkable_only {
+        shared::ground::ground_at(feet, terrain_height, wmos)
+    } else {
+        shared::ground::collision_height(feet, terrain_height, wmos)
+    }
+}
+
+/// The M2 collision ground under `feet` among the `floors` and `solids` LOS tiles.
+fn m2_ground_in<'t>(
+    feet: Vec3,
+    walkable_only: bool,
+    floors: impl Iterator<Item = &'t LosTile>,
+    solids: impl Iterator<Item = &'t LosTile>,
+) -> Option<Ground> {
+    // A tile whose root bounds miss the column cannot pass its BVH root test; skipping
+    // it here saves the traversal setup for the many tiles around the column.
+    let low = feet.y - FLOOR_SEARCH_DEPTH;
+    let high = feet.y + STEP_UP_HEIGHT;
+    let over_column = |tile: &&LosTile| {
+        tile.bounds().is_some_and(|(min, max)| {
+            feet.x >= min.x
+                && feet.x <= max.x
+                && feet.z >= min.z
+                && feet.z <= max.z
+                && low <= max.y + M2_BOUNDS_SLACK
+                && high >= min.y - M2_BOUNDS_SLACK
+        })
+    };
+    let walkable = floors
+        .filter(over_column)
+        .filter_map(|tile| tile.floor_height(feet));
+    let solid = solids
+        .filter(|tile| !walkable_only && over_column(tile))
+        .filter_map(|tile| tile.solid_height(feet));
+    walkable
+        .chain(solid)
+        .max_by(f32::total_cmp)
+        .map(|height| Ground {
+            height,
+            surface: Surface::M2,
+        })
+}
+
+impl FootprintFloors {
+    /// [`TerrainGround::collision_floor`] for a `point` inside the footprint, given the
+    /// ground's terrain height under it (`None` on a global-WMO map) and the game-object
+    /// floor under it.
+    pub fn collision_floor(
+        &self,
+        point: Vec3,
+        terrain_height: Option<f32>,
+        object: Option<f32>,
+    ) -> Option<f32> {
+        let object = object.map(|height| Ground {
+            height,
+            surface: Surface::M2,
+        });
+        let m2 = m2_ground_in(
+            point,
+            false,
+            self.m2_floors.iter().map(|tile| &**tile),
+            self.m2_solids.iter().map(|tile| &**tile),
+        );
+        static_ground_in(point, terrain_height, false, self.wmos.iter())
+            .into_iter()
+            .chain(m2)
+            .chain(object)
+            .max_by(|a, b| a.height.total_cmp(&b.height))
+            .map(|ground| ground.height)
     }
 }
 

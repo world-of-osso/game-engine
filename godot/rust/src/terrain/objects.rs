@@ -817,6 +817,84 @@ impl TerrainObjects {
         found
     }
 
+    /// The render surfaces a column inside the XZ rectangle `[min, max]` can reach, built
+    /// now (on the main thread) so [`SurfaceSnapshot::visible_surface`] answers off it
+    /// exactly as [`Self::visible_surface`] would.
+    pub fn surface_snapshot(&mut self, min: glam::Vec2, max: glam::Vec2) -> SurfaceSnapshot {
+        self.index_surface_cells();
+        self.index_surface_wmo_cells();
+        let overlaps = |low: Vec3, high: Vec3| {
+            low.x <= max.x && high.x >= min.x && low.z <= max.y && high.z >= min.y
+        };
+        let cells: Vec<(i32, i32)> = (surface_cell(min.x)..=surface_cell(max.x))
+            .flat_map(|x| (surface_cell(min.y)..=surface_cell(max.y)).map(move |z| (x, z)))
+            .collect();
+        let doodad_indices: BTreeSet<u32> = cells
+            .iter()
+            .flat_map(|cell| self.surface_cells.get(cell).into_iter().flatten().copied())
+            .collect();
+        let mut doodads = Vec::new();
+        for index in doodad_indices {
+            let doodad = &self.doodads[index as usize];
+            let (low, high) = doodad.scenery.world_bounds();
+            if !overlaps(low, high) {
+                continue;
+            }
+            let surface = self.doodad_surfaces[index as usize]
+                .get_or_insert_with(|| self.render_surface.root_surface(&doodad.node));
+            if let Some(surface) = surface {
+                doodads.push(((low, high), surface.clone()));
+            }
+        }
+        let group_keys: BTreeSet<(u32, u16)> = cells
+            .iter()
+            .flat_map(|cell| {
+                self.surface_wmo_cells
+                    .get(cell)
+                    .into_iter()
+                    .flatten()
+                    .copied()
+            })
+            .collect();
+        let mut groups = Vec::new();
+        let mut batches = Vec::new();
+        let mut batch_ids: HashMap<(u32, u32), u32> = HashMap::new();
+        for (placement, group) in group_keys {
+            let Some(&(low, high)) = self.wmos[placement as usize].group_boxes.get(&group) else {
+                continue;
+            };
+            if !overlaps(low, high) {
+                continue;
+            }
+            let WmoSurfaceBatches {
+                by_group,
+                nodes,
+                surfaces,
+                ..
+            } = &mut self.wmo_surface_batches[placement as usize];
+            let mut ids = Vec::new();
+            for &batch in by_group.get(&group).into_iter().flatten() {
+                let surface = surfaces[batch as usize].get_or_insert_with(|| {
+                    self.render_surface.root_surface(&nodes[batch as usize])
+                });
+                let Some(surface) = surface else {
+                    continue;
+                };
+                let id = *batch_ids.entry((placement, batch)).or_insert_with(|| {
+                    batches.push(surface.clone());
+                    batches.len() as u32 - 1
+                });
+                ids.push(id);
+            }
+            groups.push(((low, high), ids));
+        }
+        SurfaceSnapshot {
+            doodads,
+            groups,
+            batches,
+        }
+    }
+
     /// Buckets the doodads spawned since the last call by the `(x, z)` cells their world
     /// bounds cover. Placements are appended and only cleared by `reset`, and their bounds
     /// are fixed at spawn, so each one is indexed once.
@@ -1864,6 +1942,76 @@ fn disable_shadows(model: &Gd<Node3D>) {
 /// `Group{g}_Liquid` names.
 /// The WMO's batch meshes by group (`Group{g}_Batch{i}`), and its merged exterior
 /// batches with the groups they draw.
+/// The visible render surfaces over one XZ rectangle: the doodads and WMO groups whose
+/// bounds overlap it, with their surfaces. Shared with a drape worker.
+pub(crate) struct SurfaceSnapshot {
+    doodads: Vec<(
+        (Vec3, Vec3),
+        Arc<game_engine_core::render_surface::RenderSurface>,
+    )>,
+    /// Each WMO group's box and its batches (indices into `batches`).
+    groups: Vec<((Vec3, Vec3), Vec<u32>)>,
+    batches: Vec<Arc<game_engine_core::render_surface::RenderSurface>>,
+}
+
+impl SurfaceSnapshot {
+    /// [`TerrainObjects::visible_surface`] for a column inside the snapshot's rectangle;
+    /// `scratch` marks the batches each query tested.
+    pub fn visible_surface(
+        &self,
+        scratch: &mut SurfaceScratch,
+        terrain_height: Option<f32>,
+        x: f32,
+        z: f32,
+        floor: f32,
+        window: f32,
+    ) -> Option<f32> {
+        let ceiling = floor + window;
+        let mut found: Option<f32> = None;
+        let mut consider = |height: f32| {
+            if (floor..=ceiling).contains(&height) {
+                found = Some(found.map_or(height, |high: f32| high.max(height)));
+            }
+        };
+        if let Some(height) = terrain_height {
+            consider(height);
+        }
+        for ((min, max), surface) in &self.doodads {
+            if !column_meets(x, z, floor, ceiling, *min, *max) {
+                continue;
+            }
+            if let Some(height) = surface.highest_upward_below(x, z, ceiling, floor) {
+                consider(height);
+            }
+        }
+        scratch.query += 1;
+        scratch.tested.resize(self.batches.len(), 0);
+        for ((min, max), ids) in &self.groups {
+            if !column_meets(x, z, floor, ceiling, *min, *max) {
+                continue;
+            }
+            for &id in ids {
+                let id = id as usize;
+                if std::mem::replace(&mut scratch.tested[id], scratch.query) == scratch.query {
+                    continue;
+                }
+                if let Some(height) = self.batches[id].highest_upward_below(x, z, ceiling, floor) {
+                    consider(height);
+                }
+            }
+        }
+        found
+    }
+}
+
+/// Per-caller state of [`SurfaceSnapshot::visible_surface`] queries.
+#[derive(Default)]
+pub(crate) struct SurfaceScratch {
+    query: u32,
+    /// Per snapshot batch, the last query that tested it.
+    tested: Vec<u32>,
+}
+
 /// One WMO placement's batch render surfaces, each built and tested once per column query
 /// however many of the placement's groups draw it.
 struct WmoSurfaceBatches {
