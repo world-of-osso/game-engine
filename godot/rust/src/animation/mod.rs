@@ -27,6 +27,7 @@ mod mount_special;
 mod parent;
 #[cfg(test)]
 mod parent_tests;
+mod pose_writer;
 #[cfg(test)]
 mod replacement_tests;
 mod sequence_plan;
@@ -1384,6 +1385,7 @@ impl WowAnimationPlayer {
                 rig.legs[1].lower,
             ]
         });
+        let mut writer = pose_writer::PoseWriter::new(skeleton);
         for (index, pose) in poses.iter().enumerate() {
             let bone = index as i32;
             let last = self
@@ -1391,13 +1393,13 @@ impl WowAnimationPlayer {
                 .get(index)
                 .filter(|_| !solved.is_some_and(|bones| bones.contains(&index)));
             if last.is_none_or(|last| last.position != pose.position) {
-                skeleton.set_bone_pose_position(bone, pose.position);
+                writer.position(bone, pose.position);
             }
             if last.is_none_or(|last| last.rotation != pose.rotation) {
-                skeleton.set_bone_pose_rotation(bone, pose.rotation);
+                writer.rotation(bone, pose.rotation);
             }
             if last.is_none_or(|last| last.scale != pose.scale) {
-                skeleton.set_bone_pose_scale(bone, pose.scale);
+                writer.scale(bone, pose.scale);
             }
         }
         if let Some(billboards) = &self.billboards {
