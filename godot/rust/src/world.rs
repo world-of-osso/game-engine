@@ -2074,6 +2074,11 @@ impl WorldUnits {
         }
     }
 
+    /// The unit visual models, whose templates a map release drops.
+    pub(crate) fn models_mut(&mut self) -> &mut WorldModels {
+        &mut self.models
+    }
+
     pub fn reset(&mut self) {
         self.discard_staged();
         self.light = None;

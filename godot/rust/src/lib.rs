@@ -3719,10 +3719,8 @@ impl GameClient {
     /// Release the process-wide resources a map built. The stream and object caches are
     /// per-map, but meshes, textures, scenery materials and parsed models are shared for the
     /// whole session, so a map change must clear them or the session keeps every map alive.
-    fn release_map_resource_caches(&self) {
-        assets::material::clear_world_resource_caches();
-        assets::clear_shared_meshes();
-        assets::creature::clear_model_caches();
+    fn release_map_resource_caches(&mut self) {
+        assets::release_map_resource_caches(Some(self.world.models_mut()));
     }
 
     fn reset_world(&mut self) -> Result<(), String> {

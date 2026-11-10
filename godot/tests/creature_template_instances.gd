@@ -7,7 +7,8 @@ extends SceneTree
 # sword where a guard built drawn holds it; the world's request for it is answered by the
 # template at once, without a worker load. A Dark Iron dwarf (display 8803) animates a
 # shown material on global sequences only: its second visual makes no material either, and
-# its material animation still animates the materials it shares.
+# its material animation still animates the materials it shares. After a map change
+# releases the map's resources, the guard builds again with its animation players.
 const DISPLAY := 3167
 const ANIMATED_DISPLAY := 8803
 const SIZE := Vector2i(256, 320)
@@ -79,8 +80,40 @@ func run() -> void:
 	if difference > TOLERANCE:
 		fail("the instance draws other pixels: max channel difference %.4f" % difference)
 		return
+	if not check_after_map_release(loader):
+		return
 	print("CREATURE_TEMPLATE_PASS")
 	quit(0)
+
+## After a map change released the parsed models its template was made from, the world's
+## request for the guard is not answered by that template (it would fail: "Model ... is
+## not parsed"); the guard builds again, animated, and makes a new template that answers
+## the next request at once.
+func check_after_map_release(loader) -> bool:
+	loader.release_map_resources()
+	var released: Dictionary = loader.request_world_creature_display(DISPLAY, ITEMS, UNARMED)
+	if released.has("error"):
+		fail("after a map release: " + str(released.error))
+		return false
+	if released.ready:
+		fail("a template made before the map release answered the request")
+		return false
+	var built: Dictionary = loader.load_world_creature_display(DISPLAY, ITEMS, UNARMED)
+	if built.has("error"):
+		fail("after a map release: " + str(built.error))
+		return false
+	var again: Dictionary = loader.request_world_creature_display(DISPLAY, ITEMS, UNARMED)
+	if again.has("error") or not again.ready:
+		fail("the new template did not answer: " + str(again.get("error", "not ready")))
+		return false
+	var players: int = again.node.find_children("*", "WowAnimationPlayer", true, false).size()
+	print("CREATURE_TEMPLATE_AFTER_RELEASE players=%d" % players)
+	if players == 0:
+		fail("the guard built after a map release has no animation player")
+		return false
+	built.node.free()
+	again.node.free()
+	return true
 
 ## Whether a texture matrix of `visual`'s materials changes when the material clock runs
 ## and the visual's material animation samples it

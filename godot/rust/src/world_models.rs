@@ -741,6 +741,11 @@ impl WorldModels {
         Ok(())
     }
 
+    /// Drop every creature template (`assets::release_map_resource_caches`).
+    pub fn release_templates(&mut self) {
+        self.templates.get_mut().clear();
+    }
+
     /// Whether `parts` is a creature visual no template makes yet: its first visual
     /// is built in parts (`start_build`) before it becomes the template.
     pub fn needs_build(&self, parts: &VisualParts) -> bool {
