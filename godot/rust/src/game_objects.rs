@@ -927,6 +927,17 @@ impl FloorRays {
         }
     }
 
+    /// Whether a floor ray at a column inside the XZ rectangle `[min, max]` can be cast:
+    /// some body's bounds, with the ray slack, overlap it.
+    pub(crate) fn can_cast_within(&self, min: glam::Vec2, max: glam::Vec2) -> bool {
+        self.bounds.iter().any(|(low, high)| {
+            low.x - FLOOR_RAY_BOUNDS_SLACK <= max.x
+                && high.x + FLOOR_RAY_BOUNDS_SLACK >= min.x
+                && low.z - FLOOR_RAY_BOUNDS_SLACK <= max.y
+                && high.z + FLOOR_RAY_BOUNDS_SLACK >= min.y
+        })
+    }
+
     /// `floor_hit` for `feet`.
     pub(crate) fn floor(&mut self, feet: glam::Vec3) -> Option<f32> {
         let (from, to) = floor_ray(feet);
