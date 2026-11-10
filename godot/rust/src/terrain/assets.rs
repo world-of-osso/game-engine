@@ -146,10 +146,11 @@ pub(crate) struct NativeTerrainTile {
     /// tile is parsed, before any WMO node spawns. A WMO spanning tiles is in each tile's list.
     pub wmo_floors: Vec<(u32, WmoCollision)>,
     pub wmo_liquids: Vec<crate::wmo::placement::PlacedLiquid>,
-    /// Authored M2 hulls, including the neighbouring centroid tiles. Loaded on the
-    /// worker before ground prediction, independent of render-node spawning/culling.
-    pub m2_floors: Vec<shared::los::LosTile>,
-    pub m2_solids: Vec<shared::los::LosTile>,
+    /// Authored M2 hulls by LOS file, including the neighbouring centroid tiles. Loaded on
+    /// the worker before ground prediction, independent of render-node spawning/culling.
+    /// The stream keeps each file in the first parsed tile that loaded it.
+    pub m2_floors: Vec<(PathBuf, shared::los::LosTile)>,
+    pub m2_solids: Vec<(PathBuf, shared::los::LosTile)>,
     pub wmo_surfaces: Vec<(WmoSurfaceBounds, FootstepSurface)>,
     /// Liquid material of each MH2O `(liquid_type, liquid_object)` on the tile.
     pub liquid_materials: BTreeMap<(u16, u16), Result<Arc<NativeLiquidMaterial>, String>>,
@@ -212,10 +213,11 @@ impl NativeTerrainAssets {
             })
             .transpose()?;
         let (m2_floors, m2_solids) = if global_wmo.is_some() {
-            (
-                self.read_m2_tiles(identity.id, None, false)?,
-                self.read_m2_tiles(identity.id, None, true)?,
-            )
+            let tiles = |solid| {
+                self.read_m2_tiles(identity.id, None, solid)
+                    .map(|tiles| tiles.into_iter().map(|(_, tile)| tile).collect())
+            };
+            (tiles(false)?, tiles(true)?)
         } else {
             (Vec::new(), Vec::new())
         };
@@ -283,7 +285,7 @@ impl NativeTerrainAssets {
         map_id: u32,
         tile: Option<(u32, u32)>,
         solid: bool,
-    ) -> Result<Vec<shared::los::LosTile>, String> {
+    ) -> Result<Vec<(PathBuf, shared::los::LosTile)>, String> {
         let directory = if solid { "m2-solid" } else { "m2" };
         let dir = self.data_root.join(format!("los/{map_id}/{directory}"));
         if solid && !dir.is_dir() && self.data_root.join(format!("los/{map_id}/m2")).is_dir() {
@@ -318,10 +320,11 @@ impl NativeTerrainAssets {
             .filter(|path| path.extension().is_some_and(|ext| ext == "los"))
         {
             match fs::read(&path) {
-                Ok(bytes) => floors.push(
-                    shared::los::LosTile::from_bytes(&bytes)
-                        .map_err(|error| format!("{}: {error}", path.display()))?,
-                ),
+                Ok(bytes) => {
+                    let tile = shared::los::LosTile::from_bytes(&bytes)
+                        .map_err(|error| format!("{}: {error}", path.display()))?;
+                    floors.push((path, tile));
+                }
                 // An absent companion provides no baked floor; never substitute render faces.
                 Err(error) if error.kind() == std::io::ErrorKind::NotFound => continue,
                 Err(error) => return Err(format!("{}: {error}", path.display())),

@@ -516,7 +516,8 @@ impl StreamedTerrain {
             } if generation == self.generation => {
                 self.pending_tiles.remove(&tile);
                 match result {
-                    Ok(parsed) => {
+                    Ok(mut parsed) => {
+                        self.drop_held_m2_tiles(&mut parsed);
                         self.parsed_tiles.insert(tile, parsed);
                         self.data_epoch = self.data_epoch.wrapping_add(1);
                     }
@@ -528,6 +529,23 @@ impl StreamedTerrain {
             _ => {}
         }
         Ok(())
+    }
+}
+
+impl StreamedTerrain {
+    /// Drops the M2 LOS files of `parsed` that a parsed tile already holds. Each tile loads
+    /// its whole neighbourhood, so without this every file under a column is held, and
+    /// sampled, once per parsed neighbour. Parsed tiles are only dropped together (`reset`),
+    /// so the held files keep covering every parsed tile's neighbourhood.
+    fn drop_held_m2_tiles(&self, parsed: &mut NativeTerrainTile) {
+        let held: BTreeSet<&PathBuf> = self
+            .parsed_tiles
+            .values()
+            .flat_map(|tile| tile.m2_floors.iter().chain(&tile.m2_solids))
+            .map(|(path, _)| path)
+            .collect();
+        parsed.m2_floors.retain(|(path, _)| !held.contains(path));
+        parsed.m2_solids.retain(|(path, _)| !held.contains(path));
     }
 }
 

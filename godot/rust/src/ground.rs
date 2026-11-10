@@ -100,7 +100,7 @@ impl TerrainGround<'_> {
                 self.terrain
                     .parsed_tiles
                     .values()
-                    .flat_map(|tile| &tile.m2_floors),
+                    .flat_map(|tile| tile.m2_floors.iter().map(|(_, los)| los)),
             )
     }
 
@@ -114,7 +114,7 @@ impl TerrainGround<'_> {
                 self.terrain
                     .parsed_tiles
                     .values()
-                    .flat_map(|tile| &tile.m2_solids),
+                    .flat_map(|tile| tile.m2_solids.iter().map(|(_, los)| los)),
             )
     }
 
@@ -839,17 +839,13 @@ mod tests {
             liquid_type: 13,
         });
         data.wmo_liquids.push(stacked);
-        data.m2_floors.push(shared::los::LosTile::build(
-            tile.0,
-            tile.1,
-            triangle(-42.0).to_vec(),
-            vec![[0, 1, 2]],
+        data.m2_floors.push((
+            PathBuf::from("lower.los"),
+            shared::los::LosTile::build(tile.0, tile.1, triangle(-42.0).to_vec(), vec![[0, 1, 2]]),
         ));
-        data.m2_floors.push(shared::los::LosTile::build(
-            tile.0,
-            tile.1,
-            triangle(-35.0).to_vec(),
-            vec![[0, 1, 2]],
+        data.m2_floors.push((
+            PathBuf::from("upper.los"),
+            shared::los::LosTile::build(tile.0, tile.1, triangle(-35.0).to_vec(), vec![[0, 1, 2]]),
         ));
         terrain.parsed_tiles.insert(tile, data);
         let ground = TerrainGround {
@@ -1337,8 +1333,8 @@ mod tests {
                 chunk_surfaces: Default::default(),
                 wmo_floors: Vec::new(),
                 wmo_liquids: Vec::new(),
-                m2_floors: vec![floor],
-                m2_solids: vec![solid],
+                m2_floors: vec![(PathBuf::from("m2/32_32.los"), floor)],
+                m2_solids: vec![(PathBuf::from("m2-solid/32_32.los"), solid)],
                 wmo_surfaces: Vec::new(),
                 liquid_materials: Default::default(),
             },
@@ -1415,7 +1411,10 @@ mod tests {
                 chunk_surfaces: Default::default(),
                 wmo_floors: Vec::new(),
                 wmo_liquids: Vec::new(),
-                m2_floors: vec![upper, lower],
+                m2_floors: vec![
+                    (PathBuf::from("upper.los"), upper),
+                    (PathBuf::from("lower.los"), lower),
+                ],
                 m2_solids: Vec::new(),
                 wmo_surfaces: Vec::new(),
                 liquid_materials: Default::default(),
@@ -1611,6 +1610,67 @@ mod tests {
     fn m2_floor_northshire_stonepyre_stands_and_walks_before_render_spawns() {
         let terrain = load_floor_map("Azeroth", (32, 48));
         stand_and_walk(&terrain, Vec3::new(-8922.681, 87.57, 139.566), 87.57, 0.8);
+    }
+
+    #[test]
+    fn parsed_tiles_hold_each_m2_los_file_once_and_cover_every_neighbourhood() {
+        let data_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
+        let mut terrain = StreamedTerrain::new(data_root.clone());
+        terrain.request_map("Azeroth".into(), (32, 48)).unwrap();
+        let deadline = Instant::now() + Duration::from_secs(240);
+        loop {
+            terrain.poll().expect("terrain worker alive");
+            let state = terrain.state();
+            if !state.pending_map
+                && state.pending_tiles.is_empty()
+                && !state.parsed_tiles.is_empty()
+            {
+                break;
+            }
+            assert!(
+                Instant::now() < deadline,
+                "Azeroth (32, 48) square never parsed"
+            );
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        assert!(terrain.parsed_tiles.len() > 1, "neighbouring tiles parsed");
+        for directory in ["m2", "m2-solid"] {
+            let held: Vec<&PathBuf> = terrain
+                .parsed_tiles
+                .values()
+                .flat_map(|tile| tile.m2_floors.iter().chain(&tile.m2_solids))
+                .map(|(path, _)| path)
+                .filter(|path| path.parent().is_some_and(|dir| dir.ends_with(directory)))
+                .collect();
+            let unique: std::collections::BTreeSet<&PathBuf> = held.iter().copied().collect();
+            assert_eq!(
+                held.len(),
+                unique.len(),
+                "{directory}: a LOS file is held twice"
+            );
+            let dir = data_root.join(format!("los/0/{directory}"));
+            let neighbourhoods: std::collections::BTreeSet<PathBuf> = terrain
+                .parsed_tiles
+                .keys()
+                .flat_map(|&(row, col)| {
+                    (row - 1..=row + 1).flat_map(move |r| (col - 1..=col + 1).map(move |c| (r, c)))
+                })
+                .map(|tile| dir.join(shared::los::tile_file_name(tile)))
+                .filter(|path| path.is_file())
+                .collect();
+            assert!(
+                !neighbourhoods.is_empty(),
+                "{directory}: the square has M2 LOS files"
+            );
+            assert_eq!(
+                unique
+                    .into_iter()
+                    .cloned()
+                    .collect::<std::collections::BTreeSet<_>>(),
+                neighbourhoods,
+                "{directory}: every neighbourhood file is held"
+            );
+        }
     }
 
     #[test]
