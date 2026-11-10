@@ -5,14 +5,24 @@ use game_engine_core::player_physics_data::{
     validate_movement_slope,
 };
 use game_engine_core::terrain_height_data::bevy_to_tile_coords;
-use glam::Vec3;
-use shared::ground::{FLOOR_SEARCH_DEPTH, Ground, STEP_UP_HEIGHT, Surface};
+use glam::{Vec2, Vec3};
+use shared::ground::{FLOOR_SEARCH_DEPTH, Ground, STEP_UP_HEIGHT, Surface, WmoCollision};
+use shared::los::LosTile;
 use shared::movement::{MAX_SLOPE_ANGLE, is_swimming};
 
 use crate::terrain::streaming::StreamedTerrain;
 
 /// Height slack of the M2 tile bounds prefilter over the BVH's own slab test.
 const M2_BOUNDS_SLACK: f32 = 0.01;
+
+/// The static collision columns inside one XZ footprint can reach: the WMO groups and M2
+/// tiles whose bounds overlap it. A column inside the footprint samples the same floor
+/// through it as through all loaded collision, testing fewer groups and tiles.
+pub(crate) struct FootprintFloors<'a> {
+    wmos: Vec<WmoCollision>,
+    m2_floors: Vec<&'a LosTile>,
+    m2_solids: Vec<&'a LosTile>,
+}
 
 pub(crate) struct TerrainGround<'a> {
     pub terrain: &'a StreamedTerrain,
@@ -65,9 +75,8 @@ impl TerrainGround<'_> {
                 .is_some_and(|ground| ground.height > feet.y)
     }
 
-    fn static_ground(&self, feet: Vec3, walkable_only: bool) -> Option<Ground> {
-        let wmos = self
-            .terrain
+    fn wmos(&self) -> impl Iterator<Item = &WmoCollision> {
+        self.terrain
             .map_wdt
             .as_ref()
             .and_then(|map| map.global_wmo.as_ref())
@@ -78,7 +87,80 @@ impl TerrainGround<'_> {
                     .parsed_tiles
                     .values()
                     .flat_map(|tile| tile.wmo_floors.iter().map(|(_, wmo)| wmo)),
-            );
+            )
+    }
+
+    fn m2_floor_tiles(&self) -> impl Iterator<Item = &LosTile> {
+        self.terrain
+            .map_wdt
+            .as_ref()
+            .into_iter()
+            .flat_map(|map| &map.m2_floors)
+            .chain(
+                self.terrain
+                    .parsed_tiles
+                    .values()
+                    .flat_map(|tile| tile.m2_floors.iter().map(|(_, los)| los)),
+            )
+    }
+
+    fn m2_solid_tiles(&self) -> impl Iterator<Item = &LosTile> {
+        self.terrain
+            .map_wdt
+            .as_ref()
+            .into_iter()
+            .flat_map(|map| &map.m2_solids)
+            .chain(
+                self.terrain
+                    .parsed_tiles
+                    .values()
+                    .flat_map(|tile| tile.m2_solids.iter().map(|(_, los)| los)),
+            )
+    }
+
+    /// The collision whose XZ bounds overlap `[min, max]`; see [`FootprintFloors`].
+    pub fn footprint_floors(&self, min: Vec2, max: Vec2) -> FootprintFloors<'_> {
+        let overlaps = |low: Vec2, high: Vec2| {
+            low.x <= max.x && high.x >= min.x && low.y <= max.y && high.y >= min.y
+        };
+        let wmos = self
+            .wmos()
+            .filter_map(|wmo| {
+                let world_from_local = wmo.world_from_local();
+                let groups: Vec<_> = wmo
+                    .groups()
+                    .iter()
+                    .filter(|group| {
+                        let (low, high) = group.local_bounds();
+                        let (low, high) = world_xz_bounds(world_from_local, low, high);
+                        overlaps(low, high)
+                    })
+                    .cloned()
+                    .collect();
+                (!groups.is_empty()).then(|| WmoCollision::new(world_from_local, groups))
+            })
+            .collect();
+        let tile_overlaps = |tile: &&LosTile| {
+            tile.bounds()
+                .is_some_and(|(low, high)| overlaps(xz(low), xz(high)))
+        };
+        FootprintFloors {
+            wmos,
+            m2_floors: self.m2_floor_tiles().filter(tile_overlaps).collect(),
+            m2_solids: self.m2_solid_tiles().filter(tile_overlaps).collect(),
+        }
+    }
+
+    fn static_ground(&self, feet: Vec3, walkable_only: bool) -> Option<Ground> {
+        self.static_ground_over(feet, walkable_only, self.wmos())
+    }
+
+    fn static_ground_over<'w>(
+        &self,
+        feet: Vec3,
+        walkable_only: bool,
+        wmos: impl Iterator<Item = &'w WmoCollision>,
+    ) -> Option<Ground> {
         if walkable_only {
             shared::ground::ground_at(feet, self.terrain_height(feet), wmos)
         } else {
@@ -87,11 +169,26 @@ impl TerrainGround<'_> {
     }
 
     fn m2_ground(&self, feet: Vec3, walkable_only: bool) -> Option<Ground> {
+        self.m2_ground_over(
+            feet,
+            walkable_only,
+            self.m2_floor_tiles(),
+            self.m2_solid_tiles(),
+        )
+    }
+
+    fn m2_ground_over<'t>(
+        &self,
+        feet: Vec3,
+        walkable_only: bool,
+        floors: impl Iterator<Item = &'t LosTile>,
+        solids: impl Iterator<Item = &'t LosTile>,
+    ) -> Option<Ground> {
         // A tile whose root bounds miss the column cannot pass its BVH root test; skipping
         // it here saves the traversal setup for the many tiles around the column.
         let low = feet.y - FLOOR_SEARCH_DEPTH;
         let high = feet.y + STEP_UP_HEIGHT;
-        let over_column = |tile: &&shared::los::LosTile| {
+        let over_column = |tile: &&LosTile| {
             tile.bounds().is_some_and(|(min, max)| {
                 feet.x >= min.x
                     && feet.x <= max.x
@@ -101,32 +198,10 @@ impl TerrainGround<'_> {
                     && high >= min.y - M2_BOUNDS_SLACK
             })
         };
-        let walkable = self
-            .terrain
-            .map_wdt
-            .as_ref()
-            .into_iter()
-            .flat_map(|map| &map.m2_floors)
-            .chain(
-                self.terrain
-                    .parsed_tiles
-                    .values()
-                    .flat_map(|tile| &tile.m2_floors),
-            )
+        let walkable = floors
             .filter(over_column)
             .filter_map(|tile| tile.floor_height(feet));
-        let solid = self
-            .terrain
-            .map_wdt
-            .as_ref()
-            .into_iter()
-            .flat_map(|map| &map.m2_solids)
-            .chain(
-                self.terrain
-                    .parsed_tiles
-                    .values()
-                    .flat_map(|tile| &tile.m2_solids),
-            )
+        let solid = solids
             .filter(|tile| !walkable_only && over_column(tile))
             .filter_map(|tile| tile.solid_height(feet));
         walkable
@@ -167,6 +242,26 @@ impl TerrainGround<'_> {
             .chain(self.m2_ground(feet, false))
             .chain(object)
             .max_by(|a, b| a.height.total_cmp(&b.height))
+    }
+
+    /// [`Self::collision_floor`] for a `point` inside `footprint`'s bounds.
+    pub fn collision_floor_in(&self, footprint: &FootprintFloors<'_>, point: Vec3) -> Option<f32> {
+        let object = (self.game_object_floor)(point).map(|height| Ground {
+            height,
+            surface: Surface::M2,
+        });
+        let m2 = self.m2_ground_over(
+            point,
+            false,
+            footprint.m2_floors.iter().copied(),
+            footprint.m2_solids.iter().copied(),
+        );
+        self.static_ground_over(point, false, footprint.wmos.iter())
+            .into_iter()
+            .chain(m2)
+            .chain(object)
+            .max_by(|a, b| a.height.total_cmp(&b.height))
+            .map(|ground| ground.height)
     }
 
     /// Describe the selected ground and its WMO group for an enabled diagnostic trace.
@@ -571,6 +666,28 @@ impl TerrainGround<'_> {
     }
 }
 
+/// XZ bounds of the local box `[low, high]` placed by `world_from_local`.
+fn world_xz_bounds(world_from_local: glam::Affine3A, low: Vec3, high: Vec3) -> (Vec2, Vec2) {
+    (0..8)
+        .map(|corner| {
+            let pick = |bit: usize, low: f32, high: f32| if corner & bit == 0 { low } else { high };
+            Vec3::new(
+                pick(1, low.x, high.x),
+                pick(2, low.y, high.y),
+                pick(4, low.z, high.z),
+            )
+        })
+        .map(|corner| xz(world_from_local.transform_point3(corner)))
+        .fold(
+            (Vec2::splat(f32::MAX), Vec2::splat(f32::MIN)),
+            |(min, max), corner| (min.min(corner), max.max(corner)),
+        )
+}
+
+fn xz(point: Vec3) -> Vec2 {
+    Vec2::new(point.x, point.z)
+}
+
 fn ground_sample(ground: Ground) -> GroundSample {
     GroundSample {
         height: ground.height,
@@ -722,17 +839,13 @@ mod tests {
             liquid_type: 13,
         });
         data.wmo_liquids.push(stacked);
-        data.m2_floors.push(shared::los::LosTile::build(
-            tile.0,
-            tile.1,
-            triangle(-42.0).to_vec(),
-            vec![[0, 1, 2]],
+        data.m2_floors.push((
+            PathBuf::from("lower.los"),
+            shared::los::LosTile::build(tile.0, tile.1, triangle(-42.0).to_vec(), vec![[0, 1, 2]]),
         ));
-        data.m2_floors.push(shared::los::LosTile::build(
-            tile.0,
-            tile.1,
-            triangle(-35.0).to_vec(),
-            vec![[0, 1, 2]],
+        data.m2_floors.push((
+            PathBuf::from("upper.los"),
+            shared::los::LosTile::build(tile.0, tile.1, triangle(-35.0).to_vec(), vec![[0, 1, 2]]),
         ));
         terrain.parsed_tiles.insert(tile, data);
         let ground = TerrainGround {
@@ -1220,8 +1333,8 @@ mod tests {
                 chunk_surfaces: Default::default(),
                 wmo_floors: Vec::new(),
                 wmo_liquids: Vec::new(),
-                m2_floors: vec![floor],
-                m2_solids: vec![solid],
+                m2_floors: vec![(PathBuf::from("m2/32_32.los"), floor)],
+                m2_solids: vec![(PathBuf::from("m2-solid/32_32.los"), solid)],
                 wmo_surfaces: Vec::new(),
                 liquid_materials: Default::default(),
             },
@@ -1298,7 +1411,10 @@ mod tests {
                 chunk_surfaces: Default::default(),
                 wmo_floors: Vec::new(),
                 wmo_liquids: Vec::new(),
-                m2_floors: vec![upper, lower],
+                m2_floors: vec![
+                    (PathBuf::from("upper.los"), upper),
+                    (PathBuf::from("lower.los"), lower),
+                ],
                 m2_solids: Vec::new(),
                 wmo_surfaces: Vec::new(),
                 liquid_materials: Default::default(),
@@ -1494,6 +1610,119 @@ mod tests {
     fn m2_floor_northshire_stonepyre_stands_and_walks_before_render_spawns() {
         let terrain = load_floor_map("Azeroth", (32, 48));
         stand_and_walk(&terrain, Vec3::new(-8922.681, 87.57, 139.566), 87.57, 0.8);
+    }
+
+    #[test]
+    fn parsed_tiles_hold_each_m2_los_file_once_and_cover_every_neighbourhood() {
+        let data_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
+        let mut terrain = StreamedTerrain::new(data_root.clone());
+        terrain.request_map("Azeroth".into(), (32, 48)).unwrap();
+        let deadline = Instant::now() + Duration::from_secs(240);
+        loop {
+            terrain.poll().expect("terrain worker alive");
+            let state = terrain.state();
+            if !state.pending_map
+                && state.pending_tiles.is_empty()
+                && !state.parsed_tiles.is_empty()
+            {
+                break;
+            }
+            assert!(
+                Instant::now() < deadline,
+                "Azeroth (32, 48) square never parsed"
+            );
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        assert!(terrain.parsed_tiles.len() > 1, "neighbouring tiles parsed");
+        for directory in ["m2", "m2-solid"] {
+            let held: Vec<&PathBuf> = terrain
+                .parsed_tiles
+                .values()
+                .flat_map(|tile| tile.m2_floors.iter().chain(&tile.m2_solids))
+                .map(|(path, _)| path)
+                .filter(|path| path.parent().is_some_and(|dir| dir.ends_with(directory)))
+                .collect();
+            let unique: std::collections::BTreeSet<&PathBuf> = held.iter().copied().collect();
+            assert_eq!(
+                held.len(),
+                unique.len(),
+                "{directory}: a LOS file is held twice"
+            );
+            let dir = data_root.join(format!("los/0/{directory}"));
+            let neighbourhoods: std::collections::BTreeSet<PathBuf> = terrain
+                .parsed_tiles
+                .keys()
+                .flat_map(|&(row, col)| {
+                    (row - 1..=row + 1).flat_map(move |r| (col - 1..=col + 1).map(move |c| (r, c)))
+                })
+                .map(|tile| dir.join(shared::los::tile_file_name(tile)))
+                .filter(|path| path.is_file())
+                .collect();
+            assert!(
+                !neighbourhoods.is_empty(),
+                "{directory}: the square has M2 LOS files"
+            );
+            assert_eq!(
+                unique
+                    .into_iter()
+                    .cloned()
+                    .collect::<std::collections::BTreeSet<_>>(),
+                neighbourhoods,
+                "{directory}: every neighbourhood file is held"
+            );
+        }
+    }
+
+    #[test]
+    fn footprint_floors_sample_the_same_floor_as_all_collision() {
+        let terrain = load_floor_map("Azeroth", (32, 48));
+        let ground = TerrainGround {
+            terrain: &terrain,
+            walls: &|_, _, _| None,
+            step_wall_blocked: &|_, _, _| false,
+            game_object_floor: &|_| None,
+        };
+        // The Northshire stonepyre's M2 floor and every WMO placed on the tile.
+        let centres: Vec<Vec2> = std::iter::once(Vec2::new(-8922.681, 139.566))
+            .chain(
+                terrain.parsed_tiles[&(32, 48)]
+                    .wmo_floors
+                    .iter()
+                    .map(|(_, wmo)| {
+                        let origin = wmo.world_from_local().translation;
+                        Vec2::new(origin.x, origin.z)
+                    }),
+            )
+            .collect();
+        assert!(centres.len() > 1, "the tile places WMOs");
+        let mut off_terrain = 0;
+        for centre in centres {
+            let half = Vec2::splat(6.0);
+            let footprint = ground.footprint_floors(centre - half, centre + half);
+            for step_x in 0..=48 {
+                for step_z in 0..=48 {
+                    let x = centre.x - half.x + step_x as f32 * 0.25;
+                    let z = centre.y - half.y + step_z as f32 * 0.25;
+                    let Some(height) = terrain.height_at(x, z) else {
+                        continue;
+                    };
+                    let point = Vec3::new(x, height + 1.0, z);
+                    let all = ground.collision_floor(point);
+                    assert_eq!(
+                        ground
+                            .collision_floor_in(&footprint, point)
+                            .map(f32::to_bits),
+                        all.map(f32::to_bits),
+                        "{point}"
+                    );
+                    off_terrain += usize::from(all.is_some_and(|floor| floor != height));
+                }
+            }
+        }
+        assert!(
+            off_terrain > 100,
+            "{off_terrain} columns stand on WMO or M2 floors"
+        );
     }
 
     #[test]

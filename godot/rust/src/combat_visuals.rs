@@ -156,23 +156,6 @@ impl GameClient {
             }
             let anchor = candidate.node.get_global_position();
             let anchor = glam::Vec3::new(anchor.x, anchor.y, anchor.z);
-            let ground = crate::ground::TerrainGround {
-                terrain: &self.terrain,
-                walls: &|_, _, _| None,
-                step_wall_blocked: &|_, _, _| false,
-                game_object_floor: &|feet| {
-                    rays.as_ref().and_then(|rays| rays.borrow_mut().floor(feet))
-                },
-            };
-            let floor_at = |x: f32, z: f32| {
-                self.terrain
-                    .height_at(x, z)
-                    .into_iter()
-                    .chain(ground.collision_floor(glam::Vec3::new(x, anchor.y, z)))
-                    .max_by(f32::total_cmp)
-            };
-            let ground_y = floor_at(anchor.x, anchor.z).unwrap_or(anchor.y);
-            let mut retry = false;
             // A kit model node can be the mesh itself or wrap its batches.
             let mut instances: Vec<Gd<godot::classes::MeshInstance3D>> = candidate
                 .node
@@ -191,6 +174,25 @@ impl GameClient {
                     .iter_shared()
                     .filter_map(|node| node.try_cast::<godot::classes::MeshInstance3D>().ok()),
             );
+            let ground = crate::ground::TerrainGround {
+                terrain: &self.terrain,
+                walls: &|_, _, _| None,
+                step_wall_blocked: &|_, _, _| false,
+                game_object_floor: &|feet| {
+                    rays.as_ref().and_then(|rays| rays.borrow_mut().floor(feet))
+                },
+            };
+            let (low, high) = drape_footprint(anchor, &instances);
+            let footprint = ground.footprint_floors(low, high);
+            let floor_at = |x: f32, z: f32| {
+                self.terrain
+                    .height_at(x, z)
+                    .into_iter()
+                    .chain(ground.collision_floor_in(&footprint, glam::Vec3::new(x, anchor.y, z)))
+                    .max_by(f32::total_cmp)
+            };
+            let ground_y = floor_at(anchor.x, anchor.z).unwrap_or(anchor.y);
+            let mut retry = false;
             for mut instance in instances {
                 let Some(mesh) = instance
                     .get_mesh()
@@ -418,6 +420,45 @@ fn drape_mesh(
     let flip_normals = winding_normals_are_inward(&positions, &indices, normals.as_deref());
     install_draped(instance, &draped_mesh(&draped, flip_normals));
     DrapeOutcome::Draped
+}
+
+/// Margin of a kit's floor footprint over its batch bounds: covers the rounding between
+/// Godot's transformed bounds and the drape's own world points.
+const DRAPE_FOOTPRINT_MARGIN: f32 = 0.5;
+
+/// XZ bounds of every column a kit's drape samples: its anchor and its batches' world
+/// bounds, widened by [`DRAPE_FOOTPRINT_MARGIN`].
+fn drape_footprint(
+    anchor: glam::Vec3,
+    instances: &[Gd<godot::classes::MeshInstance3D>],
+) -> (glam::Vec2, glam::Vec2) {
+    let corners = instances.iter().flat_map(|instance| {
+        let transform = instance.get_global_transform();
+        let bounds = instance
+            .get_mesh()
+            .map(|mesh| mesh.get_aabb())
+            .unwrap_or_default();
+        (0..8).map(move |corner: usize| {
+            let pick = |bit: usize, size: f32| if corner & bit == 0 { 0.0 } else { size };
+            let local = bounds.position
+                + Vector3::new(
+                    pick(1, bounds.size.x),
+                    pick(2, bounds.size.y),
+                    pick(4, bounds.size.z),
+                );
+            let point = transform * local;
+            glam::Vec2::new(point.x, point.z)
+        })
+    });
+    let (low, high) = corners.fold(
+        (
+            glam::Vec2::new(anchor.x, anchor.z),
+            glam::Vec2::new(anchor.x, anchor.z),
+        ),
+        |(low, high), corner| (low.min(corner), high.max(corner)),
+    );
+    let margin = glam::Vec2::splat(DRAPE_FOOTPRINT_MARGIN);
+    (low - margin, high + margin)
 }
 
 /// Shows `draped` on `instance` as the static ground decal it now is.
