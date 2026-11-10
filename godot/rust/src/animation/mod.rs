@@ -29,6 +29,7 @@ mod parent;
 mod parent_tests;
 #[cfg(test)]
 mod replacement_tests;
+mod sequence_plan;
 pub(crate) use action::ActionPriority;
 pub(crate) mod lod;
 
@@ -79,6 +80,13 @@ const POSE_CLIPS: [PoseClips; 3] = [
 
 fn pose_clips(matches: impl Fn(&PoseClips) -> bool) -> Option<&'static PoseClips> {
     POSE_CLIPS.iter().find(|clips| matches(clips))
+}
+
+fn constant_or<T: Copy>(component: sequence_plan::Component<T>, sample: impl FnOnce() -> T) -> T {
+    match component {
+        sequence_plan::Component::Constant(value) => value,
+        sequence_plan::Component::Sampled => sample(),
+    }
 }
 
 fn wow_vec3(value: [f32; 3]) -> Vector3 {
@@ -185,6 +193,8 @@ fn keyframed<T>(track: &m2_anim::AnimTrack<T>, sequence: usize) -> bool {
 pub struct AnimationState {
     sequences: Vec<m2::Sequence>,
     tracks: std::sync::Arc<Vec<m2::BoneAnimTracks>>,
+    /// Per own sequence: the bone components that do not depend on time.
+    plans: std::sync::Arc<sequence_plan::SequencePlans>,
     parent: Option<parent::ParentBank>,
     material_tracks: MaterialTracks,
     material_snapshot: MaterialSnapshot,
@@ -290,6 +300,7 @@ impl AnimationState {
             material_snapshot,
             sequences,
             tracks: model.bone_tracks.clone(),
+            plans: sequence_plan::SequencePlans::shared(&model.bone_tracks, model.sequences.len()),
             parent,
             global_sequences: model.global_sequences.clone(),
             global_ms: 0.0,
@@ -406,29 +417,68 @@ impl AnimationState {
         {
             return parent.sample(index, time_ms, self.global_ms);
         }
+        let Some(plans) = self.plans.sequence(index) else {
+            return self.sample_unplanned(index, time_ms);
+        };
         self.tracks
             .iter()
             .zip(&self.local_pivots)
-            .map(|(track, &pivot)| {
-                let (timeline, time) = self.track_time(&track.translation, index, time_ms);
-                let translation = m2_anim::evaluate_vec3_track(&track.translation, timeline, time)
-                    .map(wow_vec3)
-                    .unwrap_or(Vector3::ZERO);
-                let (timeline, time) = self.track_time(&track.rotation, index, time_ms);
-                let rotation = m2_anim::evaluate_rotation_track(&track.rotation, timeline, time)
-                    .map(|q| Quaternion::new(q[0], q[1], q[2], q[3]).normalized())
-                    .unwrap_or(Quaternion::IDENTITY);
-                let (timeline, time) = self.track_time(&track.scale, index, time_ms);
-                let scale = m2_anim::evaluate_vec3_track(&track.scale, timeline, time)
-                    .map(|s| Vector3::new(s[0], s[2], s[1]))
-                    .unwrap_or(Vector3::ONE);
-                BonePose {
-                    position: pivot + translation,
-                    rotation,
-                    scale,
-                }
+            .zip(plans)
+            .map(|((track, &pivot), plan)| BonePose {
+                position: pivot
+                    + constant_or(plan.translation, || {
+                        self.sample_translation(track, index, time_ms)
+                    }),
+                rotation: constant_or(plan.rotation, || {
+                    self.sample_rotation(track, index, time_ms)
+                }),
+                scale: constant_or(plan.scale, || self.sample_scale(track, index, time_ms)),
             })
             .collect()
+    }
+
+    /// A sequence without a plan (one the model does not own) samples every track.
+    fn sample_unplanned(&self, index: usize, time_ms: f64) -> Vec<BonePose> {
+        self.tracks
+            .iter()
+            .zip(&self.local_pivots)
+            .map(|(track, &pivot)| BonePose {
+                position: pivot + self.sample_translation(track, index, time_ms),
+                rotation: self.sample_rotation(track, index, time_ms),
+                scale: self.sample_scale(track, index, time_ms),
+            })
+            .collect()
+    }
+
+    fn sample_translation(
+        &self,
+        track: &m2::BoneAnimTracks,
+        index: usize,
+        time_ms: f64,
+    ) -> Vector3 {
+        let (timeline, time) = self.track_time(&track.translation, index, time_ms);
+        m2_anim::evaluate_vec3_track(&track.translation, timeline, time)
+            .map(wow_vec3)
+            .unwrap_or(Vector3::ZERO)
+    }
+
+    fn sample_rotation(
+        &self,
+        track: &m2::BoneAnimTracks,
+        index: usize,
+        time_ms: f64,
+    ) -> Quaternion {
+        let (timeline, time) = self.track_time(&track.rotation, index, time_ms);
+        m2_anim::evaluate_rotation_track(&track.rotation, timeline, time)
+            .map(|q| Quaternion::new(q[0], q[1], q[2], q[3]).normalized())
+            .unwrap_or(Quaternion::IDENTITY)
+    }
+
+    fn sample_scale(&self, track: &m2::BoneAnimTracks, index: usize, time_ms: f64) -> Vector3 {
+        let (timeline, time) = self.track_time(&track.scale, index, time_ms);
+        m2_anim::evaluate_vec3_track(&track.scale, timeline, time)
+            .map(|s| Vector3::new(s[0], s[2], s[1]))
+            .unwrap_or(Vector3::ONE)
     }
 
     fn sampled_poses(&self) -> Vec<BonePose> {
@@ -1628,6 +1678,8 @@ mod npc_locomotion_tests;
 
 #[cfg(test)]
 mod npc_pose_tests;
+#[cfg(test)]
+mod sequence_plan_tests;
 #[cfg(test)]
 mod stand_pose_tests;
 
