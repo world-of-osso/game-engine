@@ -42,6 +42,9 @@ pub struct RenderSurface {
     vertices: Vec<Vec3>,
     /// In BVH leaf order.
     triangles: Vec<[u32; 3]>,
+    /// Whether each triangle (same order) faces up: fixed per triangle, so column queries
+    /// read it instead of normalising every face they cross.
+    upward: Vec<bool>,
     nodes: Vec<Node>,
 }
 
@@ -71,9 +74,14 @@ impl RenderSurface {
             .iter()
             .map(|&index| kept[index as usize])
             .collect::<Vec<_>>();
+        let upward = triangles
+            .iter()
+            .map(|triangle| faces_up(triangle.map(|index| vertices[index as usize])))
+            .collect();
         Some(Self {
             vertices,
             triangles,
+            upward,
             nodes,
         })
     }
@@ -134,29 +142,37 @@ impl RenderSurface {
         let dir = Vec3::new(0.0, bottom - ceiling - 2.0 * MARGIN, 0.0);
         // Most surfaces a column query visits miss the column at their root: answer those
         // before allocating the traversal stack.
+        let column = Column::new(top, dir);
         let root = self.nodes[0];
-        if !column_hits(root.min, root.max, top, dir) {
+        if !column.hits(root.min, root.max) {
             return None;
         }
         let mut found: Option<f32> = None;
-        let mut stack = Vec::with_capacity(MAX_DEPTH);
-        stack.push(0usize);
-        while let Some(index) = stack.pop() {
-            let node = self.nodes[index];
-            if !column_hits(node.min, node.max, top, dir) {
+        // A node's children are pushed only after it passes, so the stack never holds more
+        // than one pending sibling per level plus the two children of the deepest node.
+        let mut stack = [0usize; MAX_DEPTH + 2];
+        let mut pending = 1;
+        while pending > 0 {
+            pending -= 1;
+            let node = self.nodes[stack[pending]];
+            if !column.hits(node.min, node.max) {
                 continue;
             }
             if node.count == 0 {
-                stack.push(node.start as usize);
-                stack.push(node.start as usize + 1);
+                stack[pending] = node.start as usize;
+                stack[pending + 1] = node.start as usize + 1;
+                pending += 2;
                 continue;
             }
-            for triangle in &self.triangles[node.start as usize..(node.start + node.count) as usize]
+            let range = node.start as usize..(node.start + node.count) as usize;
+            for (triangle, &upward) in self.triangles[range.clone()]
+                .iter()
+                .zip(&self.upward[range])
             {
-                let corners = triangle.map(|index| self.vertices[index as usize]);
-                if !faces_up(corners) {
+                if !upward {
                     continue;
                 }
+                let corners = triangle.map(|index| self.vertices[index as usize]);
                 if let Some(t) = segment_triangle(top, dir, corners) {
                     let height = top.y + dir.y * t;
                     if (bottom..=ceiling).contains(&height) {
@@ -242,10 +258,29 @@ fn faces_up(corners: [Vec3; 3]) -> bool {
     normal.y >= MIN_UP_NORMAL_Y
 }
 
-/// Slab test for the vertical segment `origin`..`origin + dir`.
-fn column_hits(min: Vec3, max: Vec3, origin: Vec3, dir: Vec3) -> bool {
-    let safe = Vec3::select(dir.abs().cmplt(Vec3::splat(1e-30)), Vec3::splat(1e-30), dir);
-    let inv = safe.recip();
+/// The segment `origin`..`origin + dir` of one column query, with the direction's
+/// reciprocal every slab test of the query shares.
+struct Column {
+    origin: Vec3,
+    inv: Vec3,
+}
+
+impl Column {
+    fn new(origin: Vec3, dir: Vec3) -> Self {
+        let safe = Vec3::select(dir.abs().cmplt(Vec3::splat(1e-30)), Vec3::splat(1e-30), dir);
+        Self {
+            origin,
+            inv: safe.recip(),
+        }
+    }
+
+    fn hits(&self, min: Vec3, max: Vec3) -> bool {
+        slab_hits(min, max, self.origin, self.inv)
+    }
+}
+
+/// Slab test for the segment from `origin` whose direction has reciprocal `inv`.
+fn slab_hits(min: Vec3, max: Vec3, origin: Vec3, inv: Vec3) -> bool {
     let mut low = (min.x - origin.x) * inv.x;
     let mut high = (max.x - origin.x) * inv.x;
     if low > high {
