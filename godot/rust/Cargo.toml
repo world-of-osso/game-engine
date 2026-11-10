@@ -9,7 +9,9 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 # Godot 4.7 GDExtension ABI and native scene/resource APIs replace Bevy rendering.
-godot = { version = "0.5.5", features = ["api-4-7"] }
+# Release builds skip the per-call liveness check (an ObjectDB lookup under a global
+# lock, 6-8% of crowd main-thread time); dev and debug builds keep their checks.
+godot = { version = "0.5.5", features = ["api-4-7", "safeguards-release-disengaged"] }
 game-engine-core = { path = "../core" }
 # Shared equipment slots retain the original persisted transform-config representation.
 serde = { version = "1", features = ["derive"] }
