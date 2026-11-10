@@ -96,9 +96,11 @@ and `src/`. One change, in `src/meta/signature.rs` (and its two readers): `CallC
 keeps the `ClassId` and reads the class name only when the context is displayed or turned
 into a call error. With the default balanced safeguards `RawGd::check_rtti` builds a context
 for every `bind()`, `bind_mut()`, `clone()` and `ffi_cast()`, and `ClassId::to_cow_str` locks
-the global class-id cache each time: `ClassIdCache::lock` and `to_cow_str` were 4.3% of the
-main thread's self time in a 40-player crowd release profile
-(`docs/wiki/investigations/crowd-combat-fps.md`). The checks and their messages are unchanged.
+the global class-id cache each time. In 8 s main-thread profiles of the 40-player Battle Shout
+crowd (symbolized release template and extension, `profile/crowd-ctx-*` under
+`data/diagnostics/fps-120-close-2026-11-06/`) `ClassIdCache::lock` plus `to_cow_str` fell from
+7.2-8.6% of samples to 0.10-0.13%, and the extension's share from 45% to 38.5-39.5%; casts
+still take the lock through `is_dynamic_class`. The checks and their messages are unchanged.
 
 Retire the patch when upstream godot-rust releases an equivalent fix.
 
