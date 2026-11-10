@@ -29,6 +29,7 @@ mod damage_meter;
 mod death_flow;
 mod debug_character;
 mod display_options;
+mod drape_batch;
 mod encounter;
 mod entrance_bar;
 #[path = "game/equipment/equipment_appearance_data.rs"]
@@ -355,6 +356,8 @@ pub struct GameClient {
     area_trigger_visuals: area_trigger_visuals::AreaTriggerVisuals,
     /// Draped spell ground batches by their inputs, while the ground is unchanged.
     drape_cache: combat_visuals::DrapeCache,
+    /// Vertex streams of spell batch meshes, read once per source mesh.
+    batch_arrays: drape_batch::BatchArraysCache,
     physical_input: input::PhysicalInput,
     client_options: ClientOptionsFile,
     /// Ctrl+R (`TOGGLEFPS`) flips the saved FPS overlay preference for this session.
@@ -540,6 +543,7 @@ impl INode3D for GameClient {
             world_camera: camera::WorldCamera::new(quality.far_clip),
             area_trigger_visuals: area_trigger_visuals::AreaTriggerVisuals::default(),
             drape_cache: combat_visuals::DrapeCache::default(),
+            batch_arrays: drape_batch::BatchArraysCache::default(),
             physical_input: input::PhysicalInput::default(),
             client_options,
             framerate_toggled: false,

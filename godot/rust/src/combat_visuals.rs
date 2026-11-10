@@ -8,6 +8,7 @@ use godot::prelude::*;
 
 use crate::GameClient;
 use crate::account::CombatMessage;
+use crate::drape_batch::{BatchArrays, Drape};
 use crate::frame_error::FrameError;
 
 impl GameClient {
@@ -205,9 +206,10 @@ impl GameClient {
                     install_draped(&mut instance, &draped);
                     continue;
                 }
+                let arrays = self.batch_arrays.read(&mesh);
                 let outcome = drape_mesh(
                     &mut instance,
-                    &mesh,
+                    arrays.as_deref(),
                     &drape,
                     ground_y,
                     window,
@@ -340,7 +342,7 @@ enum DrapeOutcome {
 #[allow(clippy::too_many_arguments)]
 fn drape_mesh(
     instance: &mut Gd<godot::classes::MeshInstance3D>,
-    mesh: &Gd<godot::classes::ArrayMesh>,
+    arrays: Option<&BatchArrays>,
     drape: &game_engine_core::ground_drape::GroundDrape,
     ground_y: f32,
     window: f32,
@@ -349,77 +351,32 @@ fn drape_mesh(
     terrain: &crate::terrain::streaming::StreamedTerrain,
     floor_at: &dyn Fn(f32, f32) -> Option<f32>,
 ) -> DrapeOutcome {
-    use game_engine_core::ground_drape::BatchMesh;
-    if mesh.get_surface_count() != 1 {
-        return DrapeOutcome::NotGround;
-    }
-    let arrays = mesh.surface_get_arrays(0);
-    let array = |kind: godot::classes::mesh::ArrayType| arrays.get(kind.ord() as usize);
-    let Some(positions) = array(godot::classes::mesh::ArrayType::VERTEX)
-        .and_then(|value| value.try_to::<PackedVector3Array>().ok())
-    else {
+    let Some(arrays) = arrays else {
         return DrapeOutcome::NotGround;
     };
-    let Some(uvs) = array(godot::classes::mesh::ArrayType::TEX_UV)
-        .and_then(|value| value.try_to::<PackedVector2Array>().ok())
-    else {
-        return DrapeOutcome::NotGround;
-    };
-    let positions: Vec<[f32; 3]> = positions
-        .as_slice()
-        .iter()
-        .map(|point| [point.x, point.y, point.z])
-        .collect();
-    let uvs: Vec<[f32; 2]> = uvs.as_slice().iter().map(|uv| [uv.x, uv.y]).collect();
-    let uvs2: Option<Vec<[f32; 2]>> = array(godot::classes::mesh::ArrayType::TEX_UV2)
-        .and_then(|value| value.try_to::<PackedVector2Array>().ok())
-        .map(|uvs| uvs.as_slice().iter().map(|uv| [uv.x, uv.y]).collect());
-    let colors: Option<Vec<[f32; 4]>> = array(godot::classes::mesh::ArrayType::COLOR)
-        .and_then(|value| value.try_to::<PackedColorArray>().ok())
-        .map(|colors| {
-            colors
-                .as_slice()
-                .iter()
-                .map(|color| [color.r, color.g, color.b, color.a])
-                .collect()
-        });
-    let indices: Vec<u32> = array(godot::classes::mesh::ArrayType::INDEX)
-        .and_then(|value| value.try_to::<PackedInt32Array>().ok())
-        .filter(|indices| !indices.is_empty())
-        .map(|indices| {
-            indices
-                .as_slice()
-                .iter()
-                .filter_map(|index| (*index >= 0).then_some(*index as u32))
-                .collect()
-        })
-        .unwrap_or_else(|| (0..positions.len() as u32).collect());
-    let batch = BatchMesh {
-        positions: &positions,
-        uvs: &uvs,
-        uvs2: uvs2.as_deref(),
-        colors: colors.as_deref(),
-        indices: &indices,
-    };
-    let normals: Option<Vec<[f32; 3]>> = array(godot::classes::mesh::ArrayType::NORMAL)
-        .and_then(|value| value.try_to::<PackedVector3Array>().ok())
-        .map(|normals| normals.as_slice().iter().map(|n| [n.x, n.y, n.z]).collect());
     let placement = crate::render_surface::affine(instance.get_global_transform());
     let mut surface = |x: f32, z: f32, ceiling: f32, floor: f32| {
         surfaces.visible_surface(terrain.height_at(x, z), x, z, floor, ceiling - floor, frame)
     };
-    let Some(draped) =
-        drape.drape_batch(&batch, placement, ground_y, window, floor_at, &mut surface)
-    else {
-        return DrapeOutcome::NotGround;
-    };
-    if draped.dropped == 0 {
-        return DrapeOutcome::NoSurface;
+    let result = arrays.drape(drape, placement, ground_y, window, floor_at, &mut surface);
+    apply_drape(instance, placement, result)
+}
+
+/// Installs a drape `result` on `instance` (placed by `placement` when draped).
+fn apply_drape(
+    instance: &mut Gd<godot::classes::MeshInstance3D>,
+    placement: glam::Affine3A,
+    result: Drape,
+) -> DrapeOutcome {
+    match result {
+        Drape::NotGround => DrapeOutcome::NotGround,
+        Drape::NoSurface => DrapeOutcome::NoSurface,
+        Drape::Draped(draped, flip_normals) => {
+            log_draped_batch(instance, placement, &draped);
+            install_draped(instance, &draped_mesh(&draped, flip_normals));
+            DrapeOutcome::Draped
+        }
     }
-    log_draped_batch(&instance, placement, &draped);
-    let flip_normals = winding_normals_are_inward(&positions, &indices, normals.as_deref());
-    install_draped(instance, &draped_mesh(&draped, flip_normals));
-    DrapeOutcome::Draped
 }
 
 /// Margin of a kit's floor footprint over its batch bounds: covers the rounding between
@@ -648,34 +605,6 @@ fn draped_mesh(
 }
 
 /// Area-weighted vertex normals, so the draped surface keeps a lit, unbroken shading.
-/// Whether the mesh's winding normals point into the surface. The drawn meshes carry
-/// Godot's front-face winding, so a rebuilt mesh must negate them to keep the authored
-/// lighting; the mesh's own normal stream decides, so a source that already agrees stays.
-fn winding_normals_are_inward(
-    positions: &[[f32; 3]],
-    indices: &[u32],
-    normals: Option<&[[f32; 3]]>,
-) -> bool {
-    let Some(normals) = normals else {
-        return true;
-    };
-    let mut agreement = 0.0f32;
-    for triangle in indices.chunks_exact(3).take(64) {
-        let corners = [
-            glam::Vec3::from_array(positions[triangle[0] as usize]),
-            glam::Vec3::from_array(positions[triangle[1] as usize]),
-            glam::Vec3::from_array(positions[triangle[2] as usize]),
-        ];
-        let winding = (corners[1] - corners[0]).cross(corners[2] - corners[0]);
-        let authored = triangle
-            .iter()
-            .map(|&index| glam::Vec3::from_array(normals[index as usize]))
-            .sum::<glam::Vec3>();
-        agreement += winding.dot(authored);
-    }
-    agreement < 0.0
-}
-
 fn draped_normals(positions: &[[f32; 3]], indices: &[u32], flip: bool) -> Vec<Vector3> {
     let mut normals = vec![glam::Vec3::ZERO; positions.len()];
     for triangle in indices.chunks_exact(3) {
