@@ -16,7 +16,7 @@ use crate::builtin::Variant;
 use crate::meta::error::{CallError, CallResult, ConvertError, ErrorToGodot};
 use crate::meta::param_tuple::TupleFromGodot;
 use crate::meta::{
-    EngineFromGodot, EngineToGodot, FromGodot, GodotConvert, GodotType, InParamTuple,
+    ClassId, EngineFromGodot, EngineToGodot, FromGodot, GodotConvert, GodotType, InParamTuple,
     MethodParamOrReturnInfo, OutParamTuple, ParamTuple, ToGodot,
 };
 use crate::obj::{GodotClass, ValidatedObject};
@@ -656,15 +656,24 @@ pub(crate) async fn resolve_gdscript_coroutine<Ret: FromGodot>(
 #[derive(Clone)]
 #[doc(hidden)] // currently exposed in godot::meta
 pub struct CallContext<'a> {
-    pub(crate) class_name: Cow<'a, str>,
+    class_name: CallClass<'a>,
     pub(crate) function_name: &'a str,
+}
+
+/// The class of a call. `Gd` method contexts keep the `ClassId` and read its name only when
+/// it is displayed: reading it locks the global class-id cache, and `check_rtti` builds a
+/// context for every `bind()`, `clone()` or cast even though it is shown only on a panic.
+#[derive(Clone)]
+enum CallClass<'a> {
+    Name(Cow<'a, str>),
+    Id(ClassId),
 }
 
 impl<'a> CallContext<'a> {
     /// Call from Godot into a user-defined #[func] function.
     pub const fn func(class_name: &'a str, function_name: &'a str) -> Self {
         Self {
-            class_name: Cow::Borrowed(class_name),
+            class_name: CallClass::Name(Cow::Borrowed(class_name)),
             function_name,
         }
     }
@@ -672,7 +681,7 @@ impl<'a> CallContext<'a> {
     /// Call from Godot into a custom Callable.
     pub const fn custom_callable(function_name: &'a str) -> Self {
         Self {
-            class_name: Cow::Borrowed("<Callable>"),
+            class_name: CallClass::Name(Cow::Borrowed("<Callable>")),
             function_name,
         }
     }
@@ -680,7 +689,7 @@ impl<'a> CallContext<'a> {
     /// Outbound call from Rust into the engine, class/builtin APIs.
     pub const fn outbound(class_name: &'a str, function_name: &'a str) -> Self {
         Self {
-            class_name: Cow::Borrowed(class_name),
+            class_name: CallClass::Name(Cow::Borrowed(class_name)),
             function_name,
         }
     }
@@ -688,15 +697,23 @@ impl<'a> CallContext<'a> {
     /// Outbound call from Rust into the engine, via Gd methods.
     pub fn gd<T: GodotClass>(function_name: &'a str) -> Self {
         Self {
-            class_name: T::class_id().to_cow_str(),
+            class_name: CallClass::Id(T::class_id()),
             function_name,
+        }
+    }
+
+    /// The class name; a `Gd` method context reads it from the class-id cache.
+    pub(crate) fn class_name(&self) -> Cow<'_, str> {
+        match &self.class_name {
+            CallClass::Name(name) => Cow::Borrowed(name),
+            CallClass::Id(id) => id.to_cow_str(),
         }
     }
 }
 
 impl fmt::Display for CallContext<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}::{}", self.class_name, self.function_name)
+        write!(f, "{}::{}", self.class_name(), self.function_name)
     }
 }
 
@@ -730,7 +747,7 @@ pub mod trace {
         // println!("trace::push [{th:?}] - inbound: {inbound}, ptrcall: {ptrcall}, ctx: {call_ctx}");
 
         let report = CallReport {
-            class: call_ctx.class_name.to_string(),
+            class: call_ctx.class_name().to_string(),
             method: call_ctx.function_name.to_string(),
             is_inbound: inbound,
             is_ptrcall: ptrcall,

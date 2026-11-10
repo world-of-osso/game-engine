@@ -348,7 +348,7 @@ impl CallError {
         source: Option<ConvertError>,
     ) -> Self {
         let inner = InnerCallError {
-            class_name: call_ctx.class_name.to_string(),
+            class_name: call_ctx.class_name().to_string(),
             function_name: call_ctx.function_name.to_string(),
             call_expr: format!("{call_ctx}()"),
             reason: reason.into(),
