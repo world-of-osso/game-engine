@@ -168,12 +168,13 @@ fn exec_godot(root: &Path, godot: &Path, args: Vec<OsString>) -> Result<i32, Str
     Err(format!("cannot launch Godot {}: {error}", godot.display()))
 }
 
-const GODOT_VERSION: &str = "4.7.2-pr123946-pr123546-pr123391-matlist-bonepose-present";
+const GODOT_VERSION: &str = "4.7.2-pr123946-pr123546-pr123391-matlist-bonepose-present-audiobus";
 const GODOT_BUILD_SCRIPT: &str = "scripts/godot/build-patched-godot.sh";
 /// Official 4.7.2 plus upstream Godot PRs #123946, #123546 and #123391, and the local
-/// glyph-atlas, material update-list and Skeleton3D full-override patches in scripts/godot/.
+/// glyph-atlas, material update-list, Skeleton3D full-override, Vulkan present-thread and
+/// audio bus-details patches in scripts/godot/.
 const GODOT_SHA512: &str = include_str!(
-    "../../scripts/godot/godot-4.7.2-pr123946-pr123546-pr123391-matlist-bonepose-present.sha512"
+    "../../scripts/godot/godot-4.7.2-pr123946-pr123546-pr123391-matlist-bonepose-present-audiobus.sha512"
 );
 
 /// Pinned patched Godot under the user cache, checksum-verified on every launch.

@@ -1,0 +1,68 @@
+diff --git a/servers/audio/audio_server.cpp b/servers/audio/audio_server.cpp
+index 98bb2ce..b69d0d4 100644
+--- a/servers/audio/audio_server.cpp
++++ b/servers/audio/audio_server.cpp
+@@ -1366,7 +1366,8 @@ void AudioServer::set_playback_bus_volumes_linear(Ref<AudioStreamPlayback> p_pla
+ 		old_bus_details = playback_node->bus_details.load();
+ 	} while (!playback_node->bus_details.compare_exchange_strong(old_bus_details, new_bus_details));
+ 
+-	bus_details_graveyard.insert(old_bus_details);
++	MutexLock lock(bus_details_graveyard_mutex);
++	bus_details_graveyard.push_back(old_bus_details);
+ }
+ 
+ void AudioServer::set_playback_all_bus_volumes_linear(Ref<AudioStreamPlayback> p_playback, Vector<AudioFrame> p_volumes) {
+@@ -1629,14 +1630,11 @@ void AudioServer::_cleanup_lists() {
+ 	listener_changed_callback_list.maybe_cleanup();
+ 	playback_list.maybe_cleanup();
+ 	for (AudioStreamPlaybackBusDetails *bus_details : bus_details_graveyard_frame_old) {
+-		bus_details_graveyard_frame_old.erase(bus_details, [](AudioStreamPlaybackBusDetails *d) { delete d; });
++		delete bus_details;
+ 	}
+-	for (AudioStreamPlaybackBusDetails *bus_details : bus_details_graveyard) {
+-		bus_details_graveyard_frame_old.insert(bus_details);
+-		bus_details_graveyard.erase(bus_details);
+-	}
+-	bus_details_graveyard.maybe_cleanup();
+-	bus_details_graveyard_frame_old.maybe_cleanup();
++	bus_details_graveyard_frame_old.clear();
++	MutexLock lock(bus_details_graveyard_mutex);
++	SWAP(bus_details_graveyard_frame_old, bus_details_graveyard);
+ }
+ 
+ void AudioServer::load_default_bus_layout() {
+diff --git a/servers/audio/audio_server.h b/servers/audio/audio_server.h
+index efb0a58..10e1c5e 100644
+--- a/servers/audio/audio_server.h
++++ b/servers/audio/audio_server.h
+@@ -31,6 +31,8 @@
+ #pragma once
+ 
+ #include "core/math/audio_frame.h"
++#include "core/os/mutex.h"
++#include "core/templates/local_vector.h"
+ #include "core/templates/safe_list.h"
+ #include "core/variant/variant.h"
+ #include "servers/audio/audio_effect.h"
+@@ -309,14 +311,18 @@ private:
+ 	};
+ 
+ 	SafeList<AudioStreamPlaybackListNode *> playback_list;
+-	SafeList<AudioStreamPlaybackBusDetails *> bus_details_graveyard;
++	// Bus details replaced since the last update(), freed one update later: the mix may
++	// still read them. A vector, not a SafeList, so retiring k entries per update costs
++	// O(k): SafeList::erase scans from the head, which made the cleanup quadratic.
++	BinaryMutex bus_details_graveyard_mutex;
++	LocalVector<AudioStreamPlaybackBusDetails *> bus_details_graveyard;
+ 	void _delete_stream_playback(Ref<AudioStreamPlayback> p_playback);
+ 	void _delete_stream_playback_list_node(AudioStreamPlaybackListNode *p_node);
+ 
+ 	void _cleanup_lists();
+ 
+-	// TODO document if this is necessary.
+-	SafeList<AudioStreamPlaybackBusDetails *> bus_details_graveyard_frame_old;
++	// Bus details retired by the previous update(), deleted by the next one.
++	LocalVector<AudioStreamPlaybackBusDetails *> bus_details_graveyard_frame_old;
+ 
+ 	Vector<Vector<AudioFrame>> temp_buffer; //temp_buffer for each level
+ 	Vector<AudioFrame> mix_buffer;
