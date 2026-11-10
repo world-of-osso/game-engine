@@ -138,7 +138,7 @@ impl WowAssetLoader {
     /// screen and world transfer).
     #[func]
     fn release_map_resources(&mut self) {
-        release_map_resource_caches();
+        release_map_resource_caches(self.world.as_mut());
     }
 
     /// `display_id` holding `items` placed for `sheath`, through the world's visual request
@@ -928,10 +928,14 @@ fn shared_batch_mesh(
     Ok(mesh)
 }
 
-/// Release the process-wide resources a map built: meshes, textures, scenery materials
-/// and parsed models are shared for the whole session, so a map change must clear them
-/// or the session keeps every map alive.
-pub(crate) fn release_map_resource_caches() {
+/// Release the resources a map built: meshes, textures, scenery materials and parsed
+/// models are shared for the whole session, so a map change must clear them or the
+/// session keeps every map alive. `models`' creature templates go with them: they hold
+/// the map's meshes and instantiate from the parsed models cleared here.
+pub(crate) fn release_map_resource_caches(models: Option<&mut crate::world_models::WorldModels>) {
+    if let Some(models) = models {
+        models.release_templates();
+    }
     material::clear_world_resource_caches();
     clear_shared_meshes();
     creature::clear_model_caches();
