@@ -607,10 +607,10 @@ pub(crate) struct TerrainObjects {
     surface_cells_len: usize,
     /// Per doodad index, its render surface once a column query first reached it.
     doodad_surfaces: Vec<Option<Option<Rc<game_engine_core::render_surface::RenderSurface>>>>,
-    /// Per WMO `(placement, group)`, its batches' render surfaces once a column query first
-    /// reached the group.
-    wmo_group_surfaces:
-        HashMap<(u32, u16), Vec<Rc<game_engine_core::render_surface::RenderSurface>>>,
+    /// Per WMO placement (same index as `wmos`), its batches' render surfaces.
+    wmo_surface_batches: Vec<WmoSurfaceBatches>,
+    /// Counts column queries, so a batch shared by several groups is tested once per query.
+    surface_query: u64,
     /// Drawn WMO `(placement, group)` pairs by the `(x, z)` cells their world bounds cover,
     /// so a column query tests the groups over the column instead of every spawned group.
     surface_wmo_cells: HashMap<(i32, i32), Vec<(u32, u16)>>,
@@ -673,7 +673,8 @@ impl TerrainObjects {
             surface_cells: HashMap::new(),
             surface_cells_len: 0,
             doodad_surfaces: Vec::new(),
-            wmo_group_surfaces: HashMap::new(),
+            wmo_surface_batches: Vec::new(),
+            surface_query: 0,
             surface_wmo_cells: HashMap::new(),
             surface_wmo_len: 0,
             surface_epoch: 0,
@@ -761,9 +762,12 @@ impl TerrainObjects {
             surface_cells,
             doodad_surfaces,
             surface_wmo_cells,
-            wmo_group_surfaces,
+            wmo_surface_batches,
+            surface_query,
             ..
         } = self;
+        *surface_query += 1;
+        let query = *surface_query;
         for &index in surface_cells.get(&cell).into_iter().flatten() {
             let doodad = &doodads[index as usize];
             let (min, max) = doodad.scenery.world_bounds();
@@ -787,18 +791,25 @@ impl TerrainObjects {
             if !column_meets(x, z, floor, ceiling, *min, *max) {
                 continue;
             }
-            let surfaces = wmo_group_surfaces
-                .entry((placement, group))
-                .or_insert_with(|| {
-                    wmo.groups
-                        .get(&group)
-                        .into_iter()
-                        .flatten()
-                        .filter_map(|batch| render_surface.root_surface(batch))
-                        .collect()
-                });
-            for surface in surfaces.iter() {
-                if let Some(height) = surface.highest_upward_below(x, z, ceiling, floor) {
+            let WmoSurfaceBatches {
+                by_group,
+                nodes,
+                surfaces,
+                tested,
+            } = &mut wmo_surface_batches[placement as usize];
+            for &batch in by_group.get(&group).into_iter().flatten() {
+                let batch = batch as usize;
+                // A merged exterior batch belongs to many groups; one test answers them all.
+                if tested[batch] == query {
+                    continue;
+                }
+                tested[batch] = query;
+                let surface = surfaces[batch]
+                    .get_or_insert_with(|| render_surface.root_surface(&nodes[batch]));
+                if let Some(height) = surface
+                    .as_ref()
+                    .and_then(|surface| surface.highest_upward_below(x, z, ceiling, floor))
+                {
                     consider(height);
                 }
             }
@@ -836,6 +847,8 @@ impl TerrainObjects {
     /// are fixed once their nodes are placed, so each group is indexed once.
     fn index_surface_wmo_cells(&mut self) {
         for index in self.surface_wmo_len..self.wmos.len() {
+            self.wmo_surface_batches
+                .push(WmoSurfaceBatches::new(&self.wmos[index].groups));
             for (group, (min, max)) in &self.wmos[index].group_boxes {
                 let (min, max, group) = (*min, *max, *group);
                 for x in surface_cell(min.x)..=surface_cell(max.x) {
@@ -1822,7 +1835,7 @@ impl TerrainObjects {
         self.surface_cells.clear();
         self.surface_cells_len = 0;
         self.doodad_surfaces.clear();
-        self.wmo_group_surfaces.clear();
+        self.wmo_surface_batches.clear();
         self.surface_wmo_cells.clear();
         self.surface_wmo_len = 0;
         self.surface_epoch = self.surface_epoch.wrapping_add(1);
@@ -1852,6 +1865,47 @@ fn disable_shadows(model: &Gd<Node3D>) {
 /// `Group{g}_Liquid` names.
 /// The WMO's batch meshes by group (`Group{g}_Batch{i}`), and its merged exterior
 /// batches with the groups they draw.
+/// One WMO placement's batch render surfaces, each built and tested once per column query
+/// however many of the placement's groups draw it.
+struct WmoSurfaceBatches {
+    /// Per group, indices into `nodes` of the batches holding its geometry.
+    by_group: HashMap<u16, Vec<u32>>,
+    nodes: Vec<Gd<Node3D>>,
+    /// Per batch, its render surface once a column query first reached it.
+    surfaces: Vec<Option<Option<Rc<game_engine_core::render_surface::RenderSurface>>>>,
+    /// Per batch, the last column query that tested it.
+    tested: Vec<u64>,
+}
+
+impl WmoSurfaceBatches {
+    fn new(groups: &HashMap<u16, Vec<Gd<Node3D>>>) -> Self {
+        let mut ids: HashMap<godot::obj::InstanceId, u32> = HashMap::new();
+        let mut nodes = Vec::new();
+        let by_group = groups
+            .iter()
+            .map(|(&group, batches)| {
+                let indices = batches
+                    .iter()
+                    .map(|batch| {
+                        *ids.entry(batch.instance_id()).or_insert_with(|| {
+                            nodes.push(batch.clone());
+                            nodes.len() as u32 - 1
+                        })
+                    })
+                    .collect();
+                (group, indices)
+            })
+            .collect();
+        let count = nodes.len();
+        Self {
+            by_group,
+            nodes,
+            surfaces: vec![None; count],
+            tested: vec![0; count],
+        }
+    }
+}
+
 fn group_batches(wmo: &Gd<Node3D>) -> GroupBatches {
     let mut groups: HashMap<u16, Vec<Gd<Node3D>>> = HashMap::new();
     let mut merged = Vec::new();
