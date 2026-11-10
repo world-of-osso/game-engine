@@ -1,3 +1,7 @@
+## Crowded combat: draping off the freeze — 2026-11-10
+
+VERIFIED: master 4d4a5e7ab runs the 40-warrior Battle Shout phase at 319-493 frames per 20 s (p50 28.3-48.6 ms) where 94224f08d froze 9-24 s; main-thread draping is 0.95-1.97 ms per frame. Every step kept the 25 field-dump hashes and bytes. Cuts: drape cache, render-surface query, footprint floors, one copy per M2 LOS file (each column walked the same tile up to nine times), WMO batches once per column, cached batch streams, worker-thread draping with kits hidden until draped. Retail default settings show all 40 shouts (R19). See [[crowd-combat-fps]].
+
 ## Dungeon camera below ADT — 2026-11-09
 
 VERIFIED: Ruby's Forever view changed from 16.169 yd and 17.969 yd camera height to 15.000 yd and 6.943 yd after removing ADT height-only collision; the intended 15 yd physics ray is clear. Native camera tests pass 17/17 and core camera tests pass 9/9. Debug and release workspace checks each report 0 warnings and 0 errors; fmt check passes. The outdoor Forever capture and real ADT-triangle collision test pass. Captures: `/syncthing/AgentShared/2026-11-09/dungeon-camera/{ruby-before,ruby-after,outdoor-after}.png`. Neltharus, Halls of Infusion and Azure Vault entrance samples did not reproduce; this does not qualify those full dungeons. See [[dungeon-camera-adt]].
