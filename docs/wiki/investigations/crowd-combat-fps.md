@@ -1,6 +1,6 @@
 # Crowded combat FPS
 
-Client frame cost with 40 geared player characters fighting at once. Melee alone is affordable; spell ground kits are not: every Battle Shout cast drapes a five-batch ground effect synchronously on the main thread, and 40 casters create the work faster than one frame can finish it.
+Client frame cost with 40 geared player characters fighting at once. Melee alone is affordable. Spell ground kits were not: every Battle Shout cast draped a five-batch ground effect synchronously on the main thread, and 40 casters made the work faster than a frame could finish it, so the client froze for 9-62 s. Since master 4d4a5e7ab the drapes are cheaper, cached and run on worker threads; draping costs about 1-2 ms of main-thread time per frame during Battle Shout spam.
 
 ## Scene and method
 
@@ -24,9 +24,35 @@ Per draped batch on master 6cae39789: 72 ms (floor queries 41.7 ms over about 15
 
 Crowd A/B (master vs 94224f08d, matched pair): drape cost 29.2 -> 17.2 ms per batch; Slam-only frame p50 27.4 -> 22.1 ms; with Battle Shout one 62 s frame -> four frames at a 3.2 s median. Logs: `data/diagnostics/fps-120-close-2026-11-06/profile/crowd-ab-*.log`; report `crowd-combat.md` beside them.
 
+## Later cuts (2026-11-09/10)
+
+Each kept the 25 field-dump hashes and bytes of master; costs are per kit (five batches, 7663 columns), warm, Linux debug build under load 30-50.
+
+- Drape cache (`f85c66af5`): draped meshes by source mesh, exact world-transform bits and kit anchor, cleared on any ground-epoch change (terrain data, drawn doodads/WMOs, colliding game objects; shared with foot IK). It hits for a caster recasting in place; a caster that moved 5 cm misses, and rounding the key would change output.
+- Render-surface column query (`e15edeac8`): per-triangle up-facing flag at build, one direction reciprocal per query, a fixed traversal stack. City surface 233 -> 165 ms.
+- Footprint floors (`82902ade7`): each kit samples collision through the WMO groups and M2 tiles whose bounds overlap its batches. Training-ground floor 62/43 -> 23/19 ms.
+- One copy per M2 LOS file (`2a042d08b`): each parsed tile loaded its 3 x 3 neighbourhood of `.los` files, so with nine parsed tiles a column walked the same tile BVH up to nine times per kind and memory held about 63 MiB of duplicates around Azeroth (32, 48). M2 floor 14-29 -> 2-3 ms.
+- WMO batches once per column (`a69fecae2`): a WMO group's box spans the merged exterior batches it belongs to, so a city column tested the same batch surface once per member group (about 660 tests for about 77 groups). City surface 153-215 -> 47-72 ms.
+- Batch vertex streams once per source mesh (`aa322e26a`): reading them from Godot cost 0.5 ms per batch per drape.
+- Worker draping (`51148fdfd`, `d3897514f`): a kit's uncached batches drape on two `ground-drape` threads over a main-thread copy of what their columns read (footprint floors, terrain chunk heights, render surfaces over the footprint). The kit is hidden until all its batches are back and drops them if it ended meanwhile. A surface not built yet travels as its meshes and is built on the worker, then adopted into the caches. A footprint a game-object floor ray can reach drapes on the main thread as before. The field dump also requires every cast to show draped (never flat) within 30 frames and 500 ms: first sight 3-18 frames (32-96 ms), cache hits the next frame. Main-thread snapshot per kit: 0.2-0.75 ms warm; 22-108 ms at first sight of a location, almost all of it Godot mesh reads for new surfaces.
+
+## Crowd results
+
+Shout phase, timing builds, matched runs (`profile/crowd-r2-*`, `crowd-r3-*`):
+
+| build | load | frames in 20 s | p50 / p95 ms | worst-frame Spell visuals | main-thread drape per frame |
+|---|---|---|---|---|---|
+| 94224f08d | 36-54 | 1 | 9-24 s freeze | 6.6-17 s | synchronous, 16-29 ms per batch |
+| 7232e52d4 | 24-28 | 431-497 | 23.5-27.4 / 105-147 | 711-836 ms | 5-13 ms |
+| 4d4a5e7ab | 28-46 | 319-493 | 28.3-48.6 / 55.5-114 | 1.6-37.5 ms | 0.95-1.97 ms |
+
+## Retail reference
+
+DB2 (12.1.5.70448) confirms the kit plays for every cast: kit 279043 has no density filter, fallback or flag that would hide it. Retail's spell-clutter system (`SpellClutter.cpp`, Retail 70688 behaviour handoff R19) rejects other players' kits by a random draw only at effective `spellClutter` levels 1-3. The default `spellClutter` is 4 (rejection off), the Spell Density dropdown writes `graphicsSpellDensity` (density filters, default Full), and the raid side (`RAIDspellClutter` 2) applies only with `RAIDsettingsEnabled` on, default off. At default settings Retail shows all 40 shouts, so this client does not thin them. Neither `SpellVisualKitModelAttach.Flags` bit (4, 8) means draping.
+
 ## Open
 
-With 40 casters about 50 batches per second still need more main-thread time than a second has, so the frame time keeps growing during Battle Shout spam. A per-frame drape budget would show undraped kits for some frames (not accepted); draping off the main thread needs the surface caches out of `Rc`.
+First sight of a location still costs 22-108 ms of main-thread mesh reads for the render surfaces under a kit's footprint (`RenderSurfaceCache::root_inputs`); reading triangles from the parsed model assets instead of Godot would remove it, but the arrays must first be proven identical.
 
 ## See Also
 
