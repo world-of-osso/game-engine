@@ -1,8 +1,8 @@
 # Patched crates
 
 `ktx2-rw` and `taffy` are copied from `world-of-osso/bevy-patches` at fork commit
-`ad6dd31447a48082bcdcc783f4a4951c9d47e4ba`; `godot-ffi` is the crates.io 0.5.5 package.
-No sibling checkout is required. Only these three are patched; Bevy dependencies remain
+`ad6dd31447a48082bcdcc783f4a4951c9d47e4ba`; `godot-ffi` and `godot-core` are the crates.io
+0.5.5 packages. No sibling checkout is required. Only these four are patched; Bevy dependencies remain
 registry crates.
 Sources, examples, tests, authorship and license declarations are retained.
 Neither imported package contained separate LICENSE files.
@@ -87,3 +87,27 @@ Benchmark (Godot 4.7.2 release template, Linux, Stormwind indoor pose, 1920x1080
 - interleaved A/B, 4 pairs per build (`data/diagnostics/fps-measure-2026-11-06/close-2`):
   main-thread CPU 15.73 → 15.05 ms per frame (−0.68 ms), client process 10.54 → 9.78 ms,
   p99 frame 47.2 → 38.5 ms.
+
+## godot-core (MPL-2.0)
+
+The crates.io `godot-core` 0.5.5 package (gdext commit
+`e7b3a4a7dc9678a5502dc8432c258c702ff89429`), with its normalized `Cargo.toml`, `build.rs`
+and `src/`. One change, in `src/meta/signature.rs` (and its two readers): `CallContext::gd`
+keeps the `ClassId` and reads the class name only when the context is displayed or turned
+into a call error. With the default balanced safeguards `RawGd::check_rtti` builds a context
+for every `bind()`, `bind_mut()`, `clone()` and `ffi_cast()`, and `ClassId::to_cow_str` locks
+the global class-id cache each time. In 8 s main-thread profiles of the 40-player Battle Shout
+crowd (symbolized release template and extension, `profile/crowd-ctx-*` under
+`data/diagnostics/fps-120-close-2026-11-06/`) `ClassIdCache::lock` plus `to_cow_str` fell from
+7.2-8.6% of samples to 0.10-0.13%, and the extension's share from 45% to 38.5-39.5%; casts
+still take the lock through `is_dynamic_class`. The checks and their messages are unchanged.
+
+Retire the patch when upstream godot-rust releases an equivalent fix.
+
+### Upstream patch note
+
+Title: `CallContext::gd`: resolve the class name lazily.
+
+`check_rtti` runs on every `Gd` bind/clone in balanced mode and only shows the context on a
+panic; storing `ClassId` (`Copy`, resolved through a per-type `OnceLock`) instead of
+`to_cow_str()` avoids a global mutex and a string clone per call.
