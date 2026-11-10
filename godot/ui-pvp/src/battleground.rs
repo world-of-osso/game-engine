@@ -1033,28 +1033,20 @@ fn score_rows(
                 .iter()
                 .find(|change| change.character_id == player.character_id)
         });
-        // Combat counters remain uninstrumented. Dashes mean unknown, not measured zero.
-        let combat_value = |value: u64| {
-            if bg.arena.is_some() {
-                value.to_string()
-            } else {
-                "—".into()
-            }
-        };
         let base = [
             (String::new(), player.name.clone()),
-            ("KB".into(), combat_value(u64::from(player.killing_blows))),
+            ("KB".into(), player.killing_blows.to_string()),
             (
                 "HK".into(),
                 player.honorable_kills.map_or("—".into(), |n| n.to_string()),
             ),
-            ("Deaths".into(), combat_value(u64::from(player.deaths))),
+            ("Deaths".into(), player.deaths.to_string()),
             (
                 "Honor".into(),
                 player.honor_level.map_or("—".into(), |n| n.to_string()),
             ),
-            ("Damage".into(), combat_value(player.damage_done)),
-            ("Healing".into(), combat_value(player.healing_done)),
+            ("Damage".into(), player.damage_done.to_string()),
+            ("Healing".into(), player.healing_done.to_string()),
         ];
         let objectives = stats.iter().map(|stat| {
             (
