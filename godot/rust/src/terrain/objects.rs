@@ -47,6 +47,7 @@ mod surface_cell_tests {
 use std::{
     collections::{BTreeSet, HashMap, VecDeque},
     path::{Path, PathBuf},
+    rc::Rc,
     sync::Arc,
     time::{Duration, Instant},
 };
@@ -604,6 +605,12 @@ pub(crate) struct TerrainObjects {
     surface_cells: HashMap<(i32, i32), Vec<u32>>,
     /// Doodads already in `surface_cells`; the vector only grows between resets.
     surface_cells_len: usize,
+    /// Per doodad index, its render surface once a column query first reached it.
+    doodad_surfaces: Vec<Option<Option<Rc<game_engine_core::render_surface::RenderSurface>>>>,
+    /// Per WMO `(placement, group)`, its batches' render surfaces once a column query first
+    /// reached the group.
+    wmo_group_surfaces:
+        HashMap<(u32, u16), Vec<Rc<game_engine_core::render_surface::RenderSurface>>>,
     /// Drawn WMO `(placement, group)` pairs by the `(x, z)` cells their world bounds cover,
     /// so a column query tests the groups over the column instead of every spawned group.
     surface_wmo_cells: HashMap<(i32, i32), Vec<(u32, u16)>>,
@@ -665,6 +672,8 @@ impl TerrainObjects {
             surface_columns: HashMap::new(),
             surface_cells: HashMap::new(),
             surface_cells_len: 0,
+            doodad_surfaces: Vec::new(),
+            wmo_group_surfaces: HashMap::new(),
             surface_wmo_cells: HashMap::new(),
             surface_wmo_len: 0,
             surface_epoch: 0,
@@ -743,45 +752,52 @@ impl TerrainObjects {
             consider(height);
         }
         self.index_surface_cells();
-        let candidates = self
-            .surface_cells
-            .get(&(surface_cell(x), surface_cell(z)))
-            .cloned()
-            .unwrap_or_default();
-        for index in candidates {
-            let (min, max) = self.doodads[index as usize].scenery.world_bounds();
+        self.index_surface_wmo_cells();
+        let cell = (surface_cell(x), surface_cell(z));
+        let Self {
+            doodads,
+            wmos,
+            render_surface,
+            surface_cells,
+            doodad_surfaces,
+            surface_wmo_cells,
+            wmo_group_surfaces,
+            ..
+        } = self;
+        for &index in surface_cells.get(&cell).into_iter().flatten() {
+            let doodad = &doodads[index as usize];
+            let (min, max) = doodad.scenery.world_bounds();
             if !column_meets(x, z, floor, ceiling, min, max) {
                 continue;
             }
-            let node = self.doodads[index as usize].node.clone();
-            let Some(surface) = self.render_surface.root_surface(&node) else {
-                continue;
-            };
-            if let Some(height) = surface.highest_upward_below(x, z, ceiling, floor) {
+            let surface = doodad_surfaces[index as usize]
+                .get_or_insert_with(|| render_surface.root_surface(&doodad.node));
+            if let Some(height) = surface
+                .as_ref()
+                .and_then(|surface| surface.highest_upward_below(x, z, ceiling, floor))
+            {
                 consider(height);
             }
         }
-        self.index_surface_wmo_cells();
-        let groups = self
-            .surface_wmo_cells
-            .get(&(surface_cell(x), surface_cell(z)))
-            .cloned()
-            .unwrap_or_default();
-        for (wmo, group) in groups {
-            let wmo = &self.wmos[wmo as usize];
+        for &(placement, group) in surface_wmo_cells.get(&cell).into_iter().flatten() {
+            let wmo = &wmos[placement as usize];
             let Some((min, max)) = wmo.group_boxes.get(&group) else {
                 continue;
             };
             if !column_meets(x, z, floor, ceiling, *min, *max) {
                 continue;
             }
-            let Some(batches) = wmo.groups.get(&group) else {
-                continue;
-            };
-            for batch in batches {
-                let Some(surface) = self.render_surface.root_surface(batch) else {
-                    continue;
-                };
+            let surfaces = wmo_group_surfaces
+                .entry((placement, group))
+                .or_insert_with(|| {
+                    wmo.groups
+                        .get(&group)
+                        .into_iter()
+                        .flatten()
+                        .filter_map(|batch| render_surface.root_surface(batch))
+                        .collect()
+                });
+            for surface in surfaces.iter() {
                 if let Some(height) = surface.highest_upward_below(x, z, ceiling, floor) {
                     consider(height);
                 }
@@ -811,6 +827,7 @@ impl TerrainObjects {
             }
         }
         self.surface_cells_len = self.doodads.len();
+        self.doodad_surfaces.resize(self.doodads.len(), None);
     }
 
     /// Buckets the WMO groups of placements adopted since the last call by the `(x, z)`
@@ -1804,6 +1821,8 @@ impl TerrainObjects {
         self.surface_columns.clear();
         self.surface_cells.clear();
         self.surface_cells_len = 0;
+        self.doodad_surfaces.clear();
+        self.wmo_group_surfaces.clear();
         self.surface_wmo_cells.clear();
         self.surface_wmo_len = 0;
         self.surface_epoch = self.surface_epoch.wrapping_add(1);
