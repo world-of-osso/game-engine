@@ -429,9 +429,13 @@ impl AnimationState {
                     + constant_or(plan.translation, || {
                         self.sample_translation(track, index, time_ms)
                     }),
-                rotation: constant_or(plan.rotation, || {
-                    self.sample_rotation(track, index, time_ms)
-                }),
+                rotation: match &plan.rotation {
+                    sequence_plan::RotationPlan::Constant(rotation) => *rotation,
+                    sequence_plan::RotationPlan::Keyed(keys) => keys.sample(time_ms as u32),
+                    sequence_plan::RotationPlan::Sampled => {
+                        self.sample_rotation(track, index, time_ms)
+                    }
+                },
                 scale: constant_or(plan.scale, || self.sample_scale(track, index, time_ms)),
             })
             .collect()
