@@ -102,7 +102,12 @@ crowd (symbolized release template and extension, `profile/crowd-ctx-*` under
 7.2-8.6% of samples to 0.10-0.13%, and the extension's share from 45% to 38.5-39.5%; casts
 still take the lock through `is_dynamic_class`. The checks and their messages are unchanged.
 
-Retire the patch when upstream godot-rust releases an equivalent fix.
+Release builds enable `safeguards-release-disengaged`. Upstream 0.5.5 then warns about code
+that only feeds `balanced_assert!` (the `current` bindings in `src/classes/class_runtime.rs`,
+`Base::is_valid` in `src/obj/base.rs`); those items carry the same
+`#[cfg(safeguards_balanced)]` as the assertion.
+
+Retire the patches when upstream godot-rust releases equivalent fixes.
 
 ### Upstream patch note
 

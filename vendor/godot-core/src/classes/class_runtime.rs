@@ -249,6 +249,7 @@ where
     // The pointer from global_get_singleton() is only valid while T's init level is loaded. After it unloads, Godot frees the singleton but keeps
     // a dangling map entry, so dereferencing that pointer would be UB. Validate (balanced+ safeguards). Not a problem _before_ the singleton is
     // loaded: Godot correctly returns null then, which from_obj_sys turns into a panic.
+    #[cfg(safeguards_balanced)] #[cfg_attr(published_docs, doc(cfg(safeguards_balanced)))]
     if let Some(current) = crate::init::current_init_level() {
         sys::balanced_assert!(
             current >= T::INIT_LEVEL,
@@ -335,6 +336,7 @@ where
     // The pointer from global_get_singleton() is only valid while T's init level is loaded. After it unloads, Godot frees the singleton but
     // keeps a dangling map entry, so dereferencing that pointer would be UB. Validate except for safeguards-disengaged. This is not a problem
     // _before_ singleton is loaded; Godot correctly returns null.
+    #[cfg(safeguards_balanced)] #[cfg_attr(published_docs, doc(cfg(safeguards_balanced)))]
     if let Some(current) = current {
         sys::balanced_assert!(
             current >= T::INIT_LEVEL,

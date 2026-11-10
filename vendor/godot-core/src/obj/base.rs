@@ -72,6 +72,7 @@ impl<T: GodotClass> Base<T> {
     }
 
     /// Checks if this base points to a live object.
+    #[cfg(safeguards_balanced)] #[cfg_attr(published_docs, doc(cfg(safeguards_balanced)))]
     pub(crate) fn is_valid(base: &Base<T>) -> bool {
         base.obj.is_instance_valid()
     }
