@@ -145,6 +145,10 @@ impl GameClient {
             .and_then(|node| node.get_world_3d())
             .and_then(|world| world.get_direct_space_state());
         let mut pending = self.spell_effects.take_drape_pending();
+        if pending.is_empty() {
+            return;
+        }
+        let rays = space.map(|space| std::cell::RefCell::new(self.game_objects.floor_rays(space)));
         for mut candidate in pending.drain(..) {
             if !candidate.node.is_instance_valid() {
                 continue;
@@ -156,9 +160,7 @@ impl GameClient {
                 walls: &|_, _, _| None,
                 step_wall_blocked: &|_, _, _| false,
                 game_object_floor: &|feet| {
-                    space
-                        .as_ref()
-                        .and_then(|space| crate::game_objects::floor_hit(space, feet))
+                    rays.as_ref().and_then(|rays| rays.borrow_mut().floor(feet))
                 },
             };
             let floor_at = |x: f32, z: f32| {
