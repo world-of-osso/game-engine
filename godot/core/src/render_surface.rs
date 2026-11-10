@@ -132,6 +132,12 @@ impl RenderSurface {
         let bottom = floor - FLOOR_TOLERANCE;
         let top = Vec3::new(x, ceiling + MARGIN, z);
         let dir = Vec3::new(0.0, bottom - ceiling - 2.0 * MARGIN, 0.0);
+        // Most surfaces a column query visits miss the column at their root: answer those
+        // before allocating the traversal stack.
+        let root = self.nodes[0];
+        if !column_hits(root.min, root.max, top, dir) {
+            return None;
+        }
         let mut found: Option<f32> = None;
         let mut stack = Vec::with_capacity(MAX_DEPTH);
         stack.push(0usize);
