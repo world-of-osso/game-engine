@@ -22,7 +22,10 @@ use game_engine_core::{
 use game_engine_network::replica::Unit;
 use game_engine_ui_model::wow_cursor_data::ActiveWowCursor;
 use godot::{
-    classes::{Node3D, PhysicsDirectSpaceState3D, PhysicsRayQueryParameters3D, StaticBody3D},
+    classes::{
+        CollisionShape3D, ConcavePolygonShape3D, Node3D, PhysicsDirectSpaceState3D,
+        PhysicsRayQueryParameters3D, PhysicsServer3D, StaticBody3D, physics_server_3d::BodyState,
+    },
     prelude::*,
 };
 use shared::components::{Position, Rotation};
@@ -40,6 +43,8 @@ use std::{
     time::{Duration, Instant},
 };
 
+#[path = "game_objects/floor_ray_parity_fixture.rs"]
+mod floor_ray_parity_fixture;
 pub(crate) mod transport_wmo;
 
 /// Separate from baked scenery: only these live meshes follow GO collision state.
@@ -119,6 +124,8 @@ pub(crate) struct GameObjects {
     /// Bumped whenever a colliding object's placement changes, so a ground sample taken
     /// before the change is not reused after it.
     collision_epoch: u64,
+    /// Model-space bounds of each collision shape's faces, by shape instance.
+    shape_bounds: HashMap<InstanceId, (glam::Vec3, glam::Vec3)>,
     transports: HashMap<u64, crate::transport_motion::TransportView>,
     light: Option<TerrainLight>,
     particles: Option<ParticlePools>,
@@ -251,6 +258,7 @@ impl GameObjects {
             animation_fallbacks: None,
             objects: HashMap::new(),
             colliding: 0,
+            shape_bounds: HashMap::new(),
             collision_epoch: 0,
             transports: HashMap::new(),
             light: None,
@@ -757,6 +765,21 @@ impl GameObjects {
         self.colliding > 0
     }
 
+    /// Game-object floor rays for one pass of client-side ground queries, bounded by the
+    /// game-object-layer bodies as the physics space holds them now.
+    pub(crate) fn floor_rays(&mut self, space: Gd<PhysicsDirectSpaceState3D>) -> FloorRays {
+        let bodies = self
+            .objects
+            .values()
+            .filter(|object| object.collision)
+            .filter_map(|object| {
+                object
+                    .node
+                    .try_get_node_as::<StaticBody3D>("GameObjectModel/M2Collision")
+            });
+        FloorRays::new(space, bodies, &mut self.shape_bounds)
+    }
+
     /// Changes whenever a colliding object's placement can have moved the floor it draws.
     pub(crate) fn collision_epoch(&self) -> u64 {
         self.collision_epoch
@@ -824,19 +847,145 @@ fn walkable_floor_hit(
     space: &Gd<PhysicsDirectSpaceState3D>,
     feet: glam::Vec3,
 ) -> Option<VarDictionary> {
-    let from =
-        Vector3::from_array((feet + glam::Vec3::Y * shared::ground::STEP_UP_HEIGHT).to_array());
-    let to =
-        Vector3::from_array((feet - glam::Vec3::Y * shared::ground::FLOOR_SEARCH_DEPTH).to_array());
+    let (from, to) = floor_ray(feet);
     let mut query = PhysicsRayQueryParameters3D::create(from, to)
         .expect("Godot could not allocate game-object floor ray parameters");
     query.set_collision_mask(GAME_OBJECT_LAYER);
-    let hit = space.clone().intersect_ray(&query);
+    walkable(space.clone().intersect_ray(&query))
+}
+
+/// The floor ray's ends: from a step above `feet` down to the floor search depth.
+fn floor_ray(feet: glam::Vec3) -> (Vector3, Vector3) {
+    (
+        Vector3::from_array((feet + glam::Vec3::Y * shared::ground::STEP_UP_HEIGHT).to_array()),
+        Vector3::from_array((feet - glam::Vec3::Y * shared::ground::FLOOR_SEARCH_DEPTH).to_array()),
+    )
+}
+
+/// `hit` when it is a walkable floor.
+fn walkable(hit: VarDictionary) -> Option<VarDictionary> {
     let normal = hit.get("normal")?.to::<Vector3>();
     if normal.y < shared::ground::min_walkable_normal_y() {
         return None;
     }
     Some(hit)
+}
+
+/// Bounds slack over the physics engine's own triangle tests.
+const FLOOR_RAY_BOUNDS_SLACK: f32 = 0.01;
+
+/// Game-object floor rays sharing one query object; a ray whose column no game-object-layer
+/// body's bounds meet cannot hit and is not cast.
+pub(crate) struct FloorRays {
+    space: Gd<PhysicsDirectSpaceState3D>,
+    query: Gd<PhysicsRayQueryParameters3D>,
+    bounds: Vec<(glam::Vec3, glam::Vec3)>,
+    /// Rays actually cast.
+    casts: usize,
+}
+
+impl FloorRays {
+    /// Rays over `space`, bounded by those of `bodies` on the game-object layer; `shapes`
+    /// keeps each collision shape's model-space bounds across passes.
+    pub(crate) fn new(
+        space: Gd<PhysicsDirectSpaceState3D>,
+        bodies: impl IntoIterator<Item = Gd<StaticBody3D>>,
+        shapes: &mut HashMap<InstanceId, (glam::Vec3, glam::Vec3)>,
+    ) -> Self {
+        let physics = PhysicsServer3D::singleton();
+        let mut bounds = Vec::new();
+        for body in bodies {
+            if body.get_collision_layer() & GAME_OBJECT_LAYER == 0 {
+                continue;
+            }
+            let rid = body.get_rid();
+            let placement = physics
+                .body_get_state(rid, BodyState::TRANSFORM)
+                .to::<Transform3D>();
+            for (index, shape) in body
+                .get_children()
+                .iter_shared()
+                .filter_map(|child| child.try_cast::<CollisionShape3D>().ok())
+                .filter_map(|node| node.get_shape())
+                .filter_map(|shape| shape.try_cast::<ConcavePolygonShape3D>().ok())
+                .enumerate()
+            {
+                let local = *shapes
+                    .entry(shape.instance_id())
+                    .or_insert_with(|| faces_bounds(&shape.get_faces()));
+                let transform = placement * physics.body_get_shape_transform(rid, index as i32);
+                bounds.push(world_box(transform, local));
+            }
+        }
+        let mut query = PhysicsRayQueryParameters3D::new_gd();
+        query.set_collision_mask(GAME_OBJECT_LAYER);
+        Self {
+            space,
+            query,
+            bounds,
+            casts: 0,
+        }
+    }
+
+    /// `floor_hit` for `feet`.
+    pub(crate) fn floor(&mut self, feet: glam::Vec3) -> Option<f32> {
+        let (from, to) = floor_ray(feet);
+        let meets = |(min, max): &(glam::Vec3, glam::Vec3)| {
+            feet.x >= min.x - FLOOR_RAY_BOUNDS_SLACK
+                && feet.x <= max.x + FLOOR_RAY_BOUNDS_SLACK
+                && feet.z >= min.z - FLOOR_RAY_BOUNDS_SLACK
+                && feet.z <= max.z + FLOOR_RAY_BOUNDS_SLACK
+                && to.y <= max.y + FLOOR_RAY_BOUNDS_SLACK
+                && from.y >= min.y - FLOOR_RAY_BOUNDS_SLACK
+        };
+        if !self.bounds.iter().any(meets) {
+            return None;
+        }
+        self.casts += 1;
+        self.query.set_from(from);
+        self.query.set_to(to);
+        Some(
+            walkable(self.space.intersect_ray(&self.query))?
+                .get("position")?
+                .to::<Vector3>()
+                .y,
+        )
+    }
+}
+
+/// Bounds of a face list (corners in model space).
+fn faces_bounds(faces: &PackedVector3Array) -> (glam::Vec3, glam::Vec3) {
+    faces.as_slice().iter().fold(
+        (
+            glam::Vec3::splat(f32::INFINITY),
+            glam::Vec3::splat(f32::NEG_INFINITY),
+        ),
+        |(min, max), corner| {
+            let corner = glam::Vec3::new(corner.x, corner.y, corner.z);
+            (min.min(corner), max.max(corner))
+        },
+    )
+}
+
+/// World bounds of a model-space box placed by `transform`.
+fn world_box(
+    transform: Transform3D,
+    (min, max): (glam::Vec3, glam::Vec3),
+) -> (glam::Vec3, glam::Vec3) {
+    let mut low = glam::Vec3::splat(f32::INFINITY);
+    let mut high = glam::Vec3::splat(f32::NEG_INFINITY);
+    for corner in 0..8 {
+        let local = Vector3::new(
+            if corner & 1 == 0 { min.x } else { max.x },
+            if corner & 2 == 0 { min.y } else { max.y },
+            if corner & 4 == 0 { min.z } else { max.z },
+        );
+        let world = transform * local;
+        let world = glam::Vec3::new(world.x, world.y, world.z);
+        low = low.min(world);
+        high = high.max(world);
+    }
+    (low, high)
 }
 
 fn apply_object_collision(object: &mut ObjectNode, enabled: bool) {
