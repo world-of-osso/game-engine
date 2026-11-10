@@ -353,6 +353,8 @@ pub struct GameClient {
     world_camera: camera::WorldCamera,
     /// Pulse bookkeeping for replicated spell area triggers.
     area_trigger_visuals: area_trigger_visuals::AreaTriggerVisuals,
+    /// Draped spell ground batches by their inputs, while the ground is unchanged.
+    drape_cache: combat_visuals::DrapeCache,
     physical_input: input::PhysicalInput,
     client_options: ClientOptionsFile,
     /// Ctrl+R (`TOGGLEFPS`) flips the saved FPS overlay preference for this session.
@@ -537,6 +539,7 @@ impl INode3D for GameClient {
             line_of_sight: line_of_sight::LineOfSight::new(&data_root),
             world_camera: camera::WorldCamera::new(quality.far_clip),
             area_trigger_visuals: area_trigger_visuals::AreaTriggerVisuals::default(),
+            drape_cache: combat_visuals::DrapeCache::default(),
             physical_input: input::PhysicalInput::default(),
             client_options,
             framerate_toggled: false,

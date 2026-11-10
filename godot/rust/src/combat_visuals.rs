@@ -2,7 +2,7 @@
 //! `WorldUnits` clips (`world_combat`), `SpellEffects` kits and melee sounds, per-frame
 //! cast holds, kit lifetimes, missiles and particles, and automation state.
 
-use std::time::Instant;
+use std::{collections::HashMap, time::Instant};
 
 use godot::prelude::*;
 
@@ -144,6 +144,7 @@ impl GameClient {
             .local_player_node()
             .and_then(|node| node.get_world_3d())
             .and_then(|world| world.get_direct_space_state());
+        let storable = self.drape_cache.observe(self.ground_epoch(frame), frame);
         let mut pending = self.spell_effects.take_drape_pending();
         if pending.is_empty() {
             return;
@@ -197,7 +198,12 @@ impl GameClient {
                 else {
                     continue;
                 };
-                match drape_mesh(
+                let key = drape_key(&mesh, &instance, anchor);
+                if let Some(draped) = self.drape_cache.get(&key) {
+                    install_draped(&mut instance, &draped);
+                    continue;
+                }
+                let outcome = drape_mesh(
                     &mut instance,
                     &mesh,
                     &drape,
@@ -207,7 +213,16 @@ impl GameClient {
                     &mut self.world_objects,
                     &self.terrain,
                     &floor_at,
-                ) {
+                );
+                match outcome {
+                    DrapeOutcome::Draped if storable => {
+                        if let Some(draped) = instance
+                            .get_mesh()
+                            .and_then(|mesh| mesh.try_cast::<godot::classes::ArrayMesh>().ok())
+                        {
+                            self.drape_cache.insert(key, draped);
+                        }
+                    }
                     DrapeOutcome::Draped | DrapeOutcome::NotGround => {}
                     DrapeOutcome::NoSurface => retry = true,
                 }
@@ -245,6 +260,7 @@ impl GameClient {
             active.push(&entry.to_variant());
         }
         state.set("active", &active);
+        state.set("drape_cache_hits", self.drape_cache.hits as i64);
         state.set("missiles", self.spell_effects.missile_count() as i64);
         let mut flights = VarArray::new();
         for flight in self.spell_effects.flights() {
@@ -399,14 +415,94 @@ fn drape_mesh(
         return DrapeOutcome::NoSurface;
     }
     log_draped_batch(&instance, placement, &draped);
-    let skinned = !instance.get_skeleton_path().is_empty();
     let flip_normals = winding_normals_are_inward(&positions, &indices, normals.as_deref());
-    instance.set_mesh(&draped_mesh(&draped, flip_normals));
+    install_draped(instance, &draped_mesh(&draped, flip_normals));
+    DrapeOutcome::Draped
+}
+
+/// Shows `draped` on `instance` as the static ground decal it now is.
+fn install_draped(
+    instance: &mut Gd<godot::classes::MeshInstance3D>,
+    draped: &Gd<godot::classes::ArrayMesh>,
+) {
+    let skinned = !instance.get_skeleton_path().is_empty();
+    instance.set_mesh(draped);
     if skinned {
         // The draped geometry is measured in the instance's space, not the animated pose.
         instance.set_skeleton_path(&NodePath::from(""));
     }
-    DrapeOutcome::Draped
+}
+
+/// Everything a draped batch depends on besides the ground: its shared source mesh, its
+/// world placement and the kit anchor whose floor sets the drape height, as exact bits.
+type DrapeKey = (InstanceId, [u32; 12], [u32; 3]);
+
+fn drape_key(
+    mesh: &Gd<godot::classes::ArrayMesh>,
+    instance: &Gd<godot::classes::MeshInstance3D>,
+    anchor: glam::Vec3,
+) -> DrapeKey {
+    let transform = instance.get_global_transform();
+    let basis = transform.basis;
+    let rows = [
+        basis.rows[0],
+        basis.rows[1],
+        basis.rows[2],
+        transform.origin,
+    ];
+    let placement = rows
+        .iter()
+        .flat_map(|row| [row.x, row.y, row.z])
+        .map(f32::to_bits)
+        .collect::<Vec<_>>()
+        .try_into()
+        .expect("twelve transform components");
+    (
+        mesh.instance_id(),
+        placement,
+        anchor.to_array().map(f32::to_bits),
+    )
+}
+
+/// Most draped batches this cache keeps; reached, it starts over.
+const DRAPE_CACHE_CAPACITY: usize = 256;
+
+/// Draped batches by their inputs while the ground epoch is unchanged: a caster recasting
+/// where it stands gets the same draped mesh back instead of draping again.
+#[derive(Default)]
+pub(crate) struct DrapeCache {
+    epoch: Option<u64>,
+    /// The first frame that saw `epoch`. A game object moved in that frame may not have
+    /// reached the physics space yet, so batches draped in it are not stored.
+    since: u64,
+    meshes: HashMap<DrapeKey, Gd<godot::classes::ArrayMesh>>,
+    hits: u64,
+}
+
+impl DrapeCache {
+    /// Records frame `frame`'s ground `epoch`; returns whether batches draped in this frame
+    /// may be stored.
+    fn observe(&mut self, epoch: u64, frame: u64) -> bool {
+        if self.epoch != Some(epoch) {
+            self.epoch = Some(epoch);
+            self.since = frame;
+            self.meshes.clear();
+        }
+        frame > self.since
+    }
+
+    fn get(&mut self, key: &DrapeKey) -> Option<Gd<godot::classes::ArrayMesh>> {
+        let draped = self.meshes.get(key).cloned();
+        self.hits += u64::from(draped.is_some());
+        draped
+    }
+
+    fn insert(&mut self, key: DrapeKey, draped: Gd<godot::classes::ArrayMesh>) {
+        if self.meshes.len() >= DRAPE_CACHE_CAPACITY {
+            self.meshes.clear();
+        }
+        self.meshes.insert(key, draped);
+    }
 }
 
 /// Logs one draped batch's real geometry, for capture-run proof.
