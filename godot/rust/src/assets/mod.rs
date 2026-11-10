@@ -134,6 +134,13 @@ impl WowAssetLoader {
         }
     }
 
+    /// Release the map's shared resources as a map change does (`GameClient`'s loading
+    /// screen and world transfer).
+    #[func]
+    fn release_map_resources(&mut self) {
+        release_map_resource_caches();
+    }
+
     /// `display_id` holding `items` placed for `sheath`, through the world's visual request
     /// (`WorldModels::request` then `poll` in the same call): `ready` is whether it was
     /// ready at once, which only a template's answer is (a worker load arrives in a later
@@ -919,6 +926,15 @@ fn shared_batch_mesh(
     let mesh = build_batch_mesh(model, sub)?;
     MESHES.with_borrow_mut(|meshes| meshes.insert(key, mesh.clone()));
     Ok(mesh)
+}
+
+/// Release the process-wide resources a map built: meshes, textures, scenery materials
+/// and parsed models are shared for the whole session, so a map change must clear them
+/// or the session keeps every map alive.
+pub(crate) fn release_map_resource_caches() {
+    material::clear_world_resource_caches();
+    clear_shared_meshes();
+    creature::clear_model_caches();
 }
 
 pub(crate) fn clear_shared_meshes() {
