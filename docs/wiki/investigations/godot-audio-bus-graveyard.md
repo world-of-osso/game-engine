@@ -25,5 +25,25 @@ swaps the current one in. An entry is still deleted one `update()` after it was 
 as before, so the mix never reads freed details and every bus volume the mix applies is
 the same: audio output is unchanged.
 
+## Measurement
+
+`godot/tests/_diag_audio_players.gd` (diagnostic, uncommitted): N looping
+`AudioStreamPlayer3D` nodes, 20 fps, main-thread CPU per frame from
+`/proc/thread-self/schedstat`, headless, old (`-present`) and new (`-audiobus`) editor
+interleaved, host load 18-32 (`data/diagnostics/fps-120-close-2026-11-06/audio-bus-ab.txt`):
+
+| players | old ms per frame | new ms per frame |
+|---|---|---|
+| 200 | 5.14-5.68 | 1.38-1.74 |
+| 400 | 16.1-21.9 | 2.65-4.76 |
+
+Doubling the players multiplies the old cost by about 3.5 and the new one by about 2.3.
+The ground drape field dump on the new editor keeps all 25 hashes and array bytes.
+The 40-player crowd A/B (11 interleaved runs, `profile/crowd-audio-*`) is dominated by host
+load (20-152): Battle Shout main-thread CPU spans 25-51 ms on the old editor and 23-81 ms on
+the new one, and the extension's own animation timer, which the patch cannot change, moves
+6-40 ms with it. Relative to that timer the main thread does less elsewhere on the new
+editor (median ratio about 2.6 against 3.5), but the crowd runs alone do not prove the gain.
+
 Retire the patch with the pin once an official Godot release removes the quadratic
 cleanup.
