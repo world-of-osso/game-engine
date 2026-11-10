@@ -817,9 +817,10 @@ impl TerrainObjects {
         found
     }
 
-    /// The render surfaces a column inside the XZ rectangle `[min, max]` can reach, built
-    /// now (on the main thread) so [`SurfaceSnapshot::visible_surface`] answers off it
-    /// exactly as [`Self::visible_surface`] would.
+    /// The render surfaces a column inside the XZ rectangle `[min, max]` can reach, so
+    /// [`SurfaceSnapshot::visible_surface`] answers off the main thread exactly as
+    /// [`Self::visible_surface`] would. A surface not built yet carries its meshes, read now,
+    /// and is built where a column first reaches it; [`Self::adopt_surfaces`] keeps it.
     pub fn surface_snapshot(&mut self, min: glam::Vec2, max: glam::Vec2) -> SurfaceSnapshot {
         self.index_surface_cells();
         self.index_surface_wmo_cells();
@@ -840,11 +841,16 @@ impl TerrainObjects {
             if !overlaps(low, high) {
                 continue;
             }
-            let surface = self.doodad_surfaces[index as usize]
-                .get_or_insert_with(|| self.render_surface.root_surface(&doodad.node));
-            if let Some(surface) = surface {
-                doodads.push(((low, high), surface.clone()));
-            }
+            let surface = match &self.doodad_surfaces[index as usize] {
+                Some(None) => continue,
+                Some(Some(surface)) => LazySurface::built(surface.clone()),
+                None => LazySurface::pending(
+                    SurfaceSlot::Doodad(index),
+                    &doodad.node,
+                    &mut self.render_surface,
+                ),
+            };
+            doodads.push(((low, high), surface));
         }
         let group_keys: BTreeSet<(u32, u16)> = cells
             .iter()
@@ -874,14 +880,17 @@ impl TerrainObjects {
             } = &mut self.wmo_surface_batches[placement as usize];
             let mut ids = Vec::new();
             for &batch in by_group.get(&group).into_iter().flatten() {
-                let surface = surfaces[batch as usize].get_or_insert_with(|| {
-                    self.render_surface.root_surface(&nodes[batch as usize])
-                });
-                let Some(surface) = surface else {
-                    continue;
+                let surface = match &surfaces[batch as usize] {
+                    Some(None) => continue,
+                    Some(Some(surface)) => LazySurface::built(surface.clone()),
+                    None => LazySurface::pending(
+                        SurfaceSlot::WmoBatch(placement, batch),
+                        &nodes[batch as usize],
+                        &mut self.render_surface,
+                    ),
                 };
                 let id = *batch_ids.entry((placement, batch)).or_insert_with(|| {
-                    batches.push(surface.clone());
+                    batches.push(surface);
                     batches.len() as u32 - 1
                 });
                 ids.push(id);
@@ -892,6 +901,40 @@ impl TerrainObjects {
             doodads,
             groups,
             batches,
+        }
+    }
+
+    /// Keeps the surfaces `snapshot` built, unless their node was replaced meanwhile.
+    pub fn adopt_surfaces(&mut self, snapshot: &SurfaceSnapshot) {
+        let lazies = snapshot
+            .doodads
+            .iter()
+            .map(|(_, lazy)| lazy)
+            .chain(&snapshot.batches);
+        for lazy in lazies {
+            let (Some((slot, root)), Some(surface)) = (lazy.slot, lazy.surface.get()) else {
+                continue;
+            };
+            let node = match slot {
+                SurfaceSlot::Doodad(index) => {
+                    self.doodads.get(index as usize).map(|doodad| &doodad.node)
+                }
+                SurfaceSlot::WmoBatch(placement, batch) => self
+                    .wmo_surface_batches
+                    .get(placement as usize)
+                    .and_then(|batches| batches.nodes.get(batch as usize)),
+            };
+            if node.is_none_or(|node| node.instance_id() != root) {
+                continue;
+            }
+            let cached = match slot {
+                SurfaceSlot::Doodad(index) => &mut self.doodad_surfaces[index as usize],
+                SurfaceSlot::WmoBatch(placement, batch) => {
+                    &mut self.wmo_surface_batches[placement as usize].surfaces[batch as usize]
+                }
+            };
+            cached.get_or_insert_with(|| surface.clone());
+            self.render_surface.adopt_root(root, surface.clone());
         }
     }
 
@@ -1945,13 +1988,65 @@ fn disable_shadows(model: &Gd<Node3D>) {
 /// The visible render surfaces over one XZ rectangle: the doodads and WMO groups whose
 /// bounds overlap it, with their surfaces. Shared with a drape worker.
 pub(crate) struct SurfaceSnapshot {
-    doodads: Vec<(
-        (Vec3, Vec3),
-        Arc<game_engine_core::render_surface::RenderSurface>,
-    )>,
+    doodads: Vec<((Vec3, Vec3), LazySurface)>,
     /// Each WMO group's box and its batches (indices into `batches`).
     groups: Vec<((Vec3, Vec3), Vec<u32>)>,
-    batches: Vec<Arc<game_engine_core::render_surface::RenderSurface>>,
+    batches: Vec<LazySurface>,
+}
+
+/// Where a snapshot surface is cached in [`TerrainObjects`].
+#[derive(Clone, Copy)]
+enum SurfaceSlot {
+    Doodad(u32),
+    WmoBatch(u32, u32),
+}
+
+type SharedSurface = Option<Arc<game_engine_core::render_surface::RenderSurface>>;
+
+/// A snapshot's render surface, built on first use when it was not built yet.
+struct LazySurface {
+    surface: std::sync::OnceLock<SharedSurface>,
+    /// For a surface not built when the snapshot was taken: its cache slot and root node.
+    slot: Option<(SurfaceSlot, godot::obj::InstanceId)>,
+    inputs: Option<crate::render_surface::RootInputs>,
+}
+
+impl LazySurface {
+    fn built(surface: Arc<game_engine_core::render_surface::RenderSurface>) -> Self {
+        Self {
+            surface: std::sync::OnceLock::from(Some(surface)),
+            slot: None,
+            inputs: None,
+        }
+    }
+
+    fn pending(
+        slot: SurfaceSlot,
+        node: &Gd<Node3D>,
+        cache: &mut crate::render_surface::RenderSurfaceCache,
+    ) -> Self {
+        // A node another query built already only needs its cached surface.
+        let (surface, inputs) = match cache.built_root(node) {
+            Some(surface) => (std::sync::OnceLock::from(surface), None),
+            None => (std::sync::OnceLock::new(), Some(cache.root_inputs(node))),
+        };
+        Self {
+            surface,
+            slot: Some((slot, node.instance_id())),
+            inputs,
+        }
+    }
+
+    fn get(&self) -> Option<&Arc<game_engine_core::render_surface::RenderSurface>> {
+        self.surface
+            .get_or_init(|| {
+                self.inputs
+                    .as_ref()
+                    .and_then(|inputs| inputs.build())
+                    .map(Arc::new)
+            })
+            .as_ref()
+    }
 }
 
 impl SurfaceSnapshot {
@@ -1980,7 +2075,10 @@ impl SurfaceSnapshot {
             if !column_meets(x, z, floor, ceiling, *min, *max) {
                 continue;
             }
-            if let Some(height) = surface.highest_upward_below(x, z, ceiling, floor) {
+            if let Some(height) = surface
+                .get()
+                .and_then(|surface| surface.highest_upward_below(x, z, ceiling, floor))
+            {
                 consider(height);
             }
         }
@@ -1995,7 +2093,10 @@ impl SurfaceSnapshot {
                 if std::mem::replace(&mut scratch.tested[id], scratch.query) == scratch.query {
                     continue;
                 }
-                if let Some(height) = self.batches[id].highest_upward_below(x, z, ceiling, floor) {
+                if let Some(height) = self.batches[id]
+                    .get()
+                    .and_then(|surface| surface.highest_upward_below(x, z, ceiling, floor))
+                {
                     consider(height);
                 }
             }

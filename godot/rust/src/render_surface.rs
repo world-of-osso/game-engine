@@ -8,7 +8,7 @@
 //!
 //! Movement, the server and the navmesh never read this.
 
-use std::{collections::HashMap, rc::Rc, sync::Arc};
+use std::{collections::HashMap, sync::Arc};
 
 use game_engine_core::render_surface::RenderSurface;
 use glam::{Affine3A, Vec3};
@@ -37,7 +37,7 @@ pub(crate) struct MeshTriangles {
 /// Mesh triangle sets and per-root world surfaces, built on first use.
 #[derive(Default)]
 pub(crate) struct RenderSurfaceCache {
-    meshes: HashMap<InstanceId, Option<Rc<MeshTriangles>>>,
+    meshes: HashMap<InstanceId, Option<Arc<MeshTriangles>>>,
     roots: HashMap<InstanceId, Option<Arc<RenderSurface>>>,
 }
 
@@ -57,12 +57,24 @@ impl RenderSurfaceCache {
         if let Some(cached) = self.roots.get(&key) {
             return cached.clone();
         }
-        let surface = self.build_root(root).map(Arc::new);
+        let surface = self.root_inputs(root).build().map(Arc::new);
         self.roots.insert(key, surface.clone());
         surface
     }
 
-    fn build_root(&mut self, root: &Gd<Node3D>) -> Option<RenderSurface> {
+    /// `root`'s surface when it was built already: `None` when not built yet.
+    pub(crate) fn built_root(&self, root: &Gd<Node3D>) -> Option<Option<Arc<RenderSurface>>> {
+        self.roots.get(&root.instance_id()).cloned()
+    }
+
+    /// Records the surface built elsewhere from `root`'s [`RootInputs`].
+    pub(crate) fn adopt_root(&mut self, root: InstanceId, surface: Option<Arc<RenderSurface>>) {
+        self.roots.entry(root).or_insert(surface);
+    }
+
+    /// What `root`'s surface is built from: its drawn meshes' triangles, read from Godot
+    /// once per mesh, and their world placements.
+    pub(crate) fn root_inputs(&mut self, root: &Gd<Node3D>) -> RootInputs {
         // A WMO batch node is itself the mesh; a doodad wraps its meshes as children.
         let mut instances: Vec<Gd<MeshInstance3D>> = root
             .clone()
@@ -78,8 +90,7 @@ impl RenderSurfaceCache {
                 .iter_shared()
                 .filter_map(|node| node.try_cast::<MeshInstance3D>().ok()),
         );
-        let mut vertices: Vec<Vec3> = Vec::new();
-        let mut triangles: Vec<[u32; 3]> = Vec::new();
+        let mut parts = Vec::new();
         for instance in &instances {
             if !instance.get_skeleton_path().is_empty() {
                 continue;
@@ -93,7 +104,35 @@ impl RenderSurfaceCache {
             let Some(local) = self.mesh_triangles(&mesh) else {
                 continue;
             };
-            let world_from_mesh = affine(instance.get_global_transform());
+            parts.push((local, affine(instance.get_global_transform())));
+        }
+        RootInputs { parts }
+    }
+
+    /// The triangles of a mesh as authored, in the mesh's own space, read once.
+    fn mesh_triangles(&mut self, mesh: &Gd<ArrayMesh>) -> Option<Arc<MeshTriangles>> {
+        let key = mesh.instance_id();
+        if let Some(cached) = self.meshes.get(&key) {
+            return cached.clone();
+        }
+        let extracted = extract_mesh(mesh).map(Arc::new);
+        self.meshes.insert(key, extracted.clone());
+        extracted
+    }
+}
+
+/// A root node's drawn meshes, in mesh space, with their world placements: everything its
+/// render surface is built from, so the build can run off the main thread.
+pub(crate) struct RootInputs {
+    parts: Vec<(Arc<MeshTriangles>, Affine3A)>,
+}
+
+impl RootInputs {
+    /// The world-space surface of these meshes; `None` without a usable triangle.
+    pub(crate) fn build(&self) -> Option<RenderSurface> {
+        let mut vertices: Vec<Vec3> = Vec::new();
+        let mut triangles: Vec<[u32; 3]> = Vec::new();
+        for (local, world_from_mesh) in &self.parts {
             let base = vertices.len() as u32;
             vertices.extend(
                 local
@@ -109,17 +148,6 @@ impl RenderSurfaceCache {
             );
         }
         RenderSurface::build(vertices, triangles)
-    }
-
-    /// The triangles of a mesh as authored, in the mesh's own space, read once.
-    fn mesh_triangles(&mut self, mesh: &Gd<ArrayMesh>) -> Option<Rc<MeshTriangles>> {
-        let key = mesh.instance_id();
-        if let Some(cached) = self.meshes.get(&key) {
-            return cached.clone();
-        }
-        let extracted = extract_mesh(mesh).map(Rc::new);
-        self.meshes.insert(key, extracted.clone());
-        extracted
     }
 }
 

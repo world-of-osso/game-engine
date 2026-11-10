@@ -319,6 +319,7 @@ impl GameClient {
             KitFlight {
                 candidate,
                 shown,
+                inputs,
                 batches,
                 epoch: self.drape_cache.epoch,
                 storable,
@@ -340,6 +341,8 @@ impl GameClient {
             let Some(mut flight) = self.drape_flights.kits.remove(&done.kit) else {
                 continue;
             };
+            // Surfaces the workers built for this kit serve every later query.
+            self.world_objects.adopt_surfaces(&flight.inputs.surfaces);
             if !flight.candidate.node.is_instance_valid() {
                 continue;
             }
@@ -620,6 +623,7 @@ struct KitFlight {
     candidate: crate::spell_effects::DrapeCandidate,
     /// The kit's visibility before it was hidden.
     shown: bool,
+    inputs: std::sync::Arc<DrapeInputs>,
     batches: Vec<FlightBatch>,
     /// The cache's ground epoch at submission; a result drawn from another is not stored.
     epoch: Option<u64>,
