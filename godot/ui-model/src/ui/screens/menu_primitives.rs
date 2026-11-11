@@ -234,7 +234,7 @@ fn dropdown_text(props: DropdownButton<'_>, state: DropdownState<'_>) -> Element
         width: {rect.2}, height: {rect.3}, text: {props.text},
         font: GameFont::FrizQuadrata, font_size: 12.0, font_color: color,
         shadow_color: "0.0,0.0,0.0,1.0", shadow_offset: "1,-1",
-        justify_h: justify, justify_v: "MIDDLE", word_wrap: false, max_lines: 1,
+        justify_h: justify, word_wrap: false, max_lines: 1,
         pos_type: "absolute", left: {rect.0}, top: {rect.1},
     } }
 }
