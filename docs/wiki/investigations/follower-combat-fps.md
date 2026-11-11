@@ -77,3 +77,4 @@ FPS evidence: `data/diagnostics/fps-120-close-2026-11-06/profile/combat-{probe*,
 - [[rebuild-guard]] — per-frame UI rebuilds must be change-driven.
 - [[follower-dungeons]] — follower admission and staging.
 - [[godot-stormwind-fps]] — idle city costs.
+- [[release-fps-reprofile-2026-11-11]] — release profile at Ruby out of combat and A/B limits.

@@ -501,6 +501,7 @@ fn build_mesh(batch: &wmo::WmoMeshBatch, streams: &RetailWmoStreams) -> Gd<Array
     mesh.add_surface_from_arrays_ex(mesh::PrimitiveType::TRIANGLES, &arrays)
         .flags(flags)
         .done();
+    crate::render_surface::store_render_surface_arrays(&mut mesh, &arrays);
     mesh
 }
 

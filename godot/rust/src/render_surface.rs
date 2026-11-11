@@ -2,8 +2,8 @@
 //! geometry, as they are drawn.
 //!
 //! Collision keeps the MOPY collision-only WMO faces, so render stairs and carpets can sit
-//! above the collision floor. This cache reads the mesh arrays of spawned nodes once, keeps
-//! their triangles in the mesh's own space and builds one BVH per root node in world space.
+//! above the collision floor. M2 and WMO builders retain packed vertex/index streams; this
+//! cache converts them once and builds one BVH per root node in world space.
 //! Terrain heights join the same query in `TerrainObjects::visible_surface`.
 //!
 //! Movement, the server and the navmesh never read this.
@@ -16,6 +16,32 @@ use godot::{
     classes::{ArrayMesh, MeshInstance3D, Node3D, mesh},
     prelude::*,
 };
+
+const RENDER_SURFACE_ARRAYS_META: &str = "world_render_surface_arrays";
+
+/// Retains the exact vertex and index streams used to build this mesh surface.
+pub(crate) fn store_render_surface_arrays(mesh: &mut Gd<ArrayMesh>, arrays: &VarArray) {
+    let mut surfaces = if mesh.has_meta(RENDER_SURFACE_ARRAYS_META) {
+        mesh.get_meta(RENDER_SURFACE_ARRAYS_META).to::<VarArray>()
+    } else {
+        VarArray::new()
+    };
+    let positions = arrays
+        .get(mesh::ArrayType::VERTEX.ord() as usize)
+        .and_then(|value| value.try_to::<PackedVector3Array>().ok());
+    let indices = arrays
+        .get(mesh::ArrayType::INDEX.ord() as usize)
+        .and_then(|value| value.try_to::<PackedInt32Array>().ok());
+    match positions {
+        Some(positions) => surfaces.push(&positions.to_variant()),
+        None => surfaces.push(&Variant::nil()),
+    }
+    match indices {
+        Some(indices) => surfaces.push(&indices.to_variant()),
+        None => surfaces.push(&Variant::nil()),
+    }
+    mesh.set_meta(RENDER_SURFACE_ARRAYS_META, &surfaces.to_variant());
+}
 
 /// `Transform3D` to the `glam` affine the client already uses for doodad placement.
 pub(crate) fn affine(transform: Transform3D) -> Affine3A {
@@ -72,8 +98,7 @@ impl RenderSurfaceCache {
         self.roots.entry(root).or_insert(surface);
     }
 
-    /// What `root`'s surface is built from: its drawn meshes' triangles, read from Godot
-    /// once per mesh, and their world placements.
+    /// What `root`'s surface is built from: stored mesh triangles and their world placements.
     pub(crate) fn root_inputs(&mut self, root: &Gd<Node3D>) -> RootInputs {
         // A WMO batch node is itself the mesh; a doodad wraps its meshes as children.
         let mut instances: Vec<Gd<MeshInstance3D>> = root
@@ -151,50 +176,69 @@ impl RootInputs {
     }
 }
 
-/// Reads every surface of `mesh`: positions and indices, merged into one triangle list.
+/// Builds one triangle list from the position/index streams stored on `mesh`.
 fn extract_mesh(mesh: &Gd<ArrayMesh>) -> Option<MeshTriangles> {
+    let Some(surfaces) = mesh
+        .get_meta(RENDER_SURFACE_ARRAYS_META)
+        .try_to::<VarArray>()
+        .ok()
+    else {
+        godot_error!("ArrayMesh is missing stored render-surface arrays");
+        return None;
+    };
+    if surfaces.len() % 2 != 0 {
+        godot_error!("ArrayMesh has malformed stored render-surface arrays");
+        return None;
+    }
+
     let mut vertices = Vec::new();
     let mut triangles = Vec::new();
-    for surface in 0..mesh.get_surface_count() {
-        let arrays = mesh.surface_get_arrays(surface);
-        let Some(positions) = arrays
-            .get(mesh::ArrayType::VERTEX.ord() as usize)
+    for surface in (0..surfaces.len()).step_by(2) {
+        let Some(positions) = surfaces
+            .get(surface)
             .and_then(|value| value.try_to::<PackedVector3Array>().ok())
         else {
             continue;
         };
-        let base = vertices.len() as u32;
-        vertices.extend(
-            positions
-                .as_slice()
-                .iter()
-                .map(|vertex| Vec3::new(vertex.x, vertex.y, vertex.z)),
-        );
-        let indices = arrays
-            .get(mesh::ArrayType::INDEX.ord() as usize)
+        let indices = surfaces
+            .get(surface + 1)
             .and_then(|value| value.try_to::<PackedInt32Array>().ok())
             .filter(|indices| !indices.is_empty());
-        let source: Vec<u32> = match indices {
-            Some(indices) => indices
-                .as_slice()
-                .iter()
-                .filter_map(|index| (*index >= 0).then_some(*index as u32))
-                .collect(),
-            None => (0..positions.len() as u32).collect(),
-        };
-        triangles.extend(
-            complete_triangles(source.as_slice(), positions.len())
-                .into_iter()
-                // The drawn meshes carry Godot's front-face winding, so their geometric
-                // normal points into the surface. Reverse it once here: every query in
-                // `RenderSurface` then sees an outward normal (+y on an upward floor).
-                .map(|triangle| [base + triangle[0], base + triangle[2], base + triangle[1]]),
-        );
+        append_surface_triangles(&positions, indices, &mut vertices, &mut triangles);
     }
     (!triangles.is_empty()).then_some(MeshTriangles {
         vertices,
         triangles,
     })
+}
+
+/// Appends one surface, reversing Godot's front-face winding for upward-floor queries.
+fn append_surface_triangles(
+    positions: &PackedVector3Array,
+    indices: Option<PackedInt32Array>,
+    vertices: &mut Vec<Vec3>,
+    triangles: &mut Vec<[u32; 3]>,
+) {
+    let base = vertices.len() as u32;
+    vertices.extend(
+        positions
+            .as_slice()
+            .iter()
+            .map(|vertex| Vec3::new(vertex.x, vertex.y, vertex.z)),
+    );
+    let source: Vec<u32> = match indices {
+        Some(indices) => indices
+            .as_slice()
+            .iter()
+            .filter_map(|index| (*index >= 0).then_some(*index as u32))
+            .collect(),
+        None => (0..positions.len() as u32).collect(),
+    };
+    triangles.extend(
+        complete_triangles(source.as_slice(), positions.len())
+            .into_iter()
+            .map(|triangle| [base + triangle[0], base + triangle[2], base + triangle[1]]),
+    );
 }
 
 /// Keeps only complete triangles and drops vertices outside the surface.

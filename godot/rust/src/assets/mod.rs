@@ -1002,5 +1002,6 @@ fn streams_mesh(streams: &m2::SubmeshArrays) -> Gd<ArrayMesh> {
     );
     let mut mesh = crate::rebuild_guard::new_array_mesh();
     mesh.add_surface_from_arrays(mesh::PrimitiveType::TRIANGLES, &arrays);
+    crate::render_surface::store_render_surface_arrays(&mut mesh, &arrays);
     mesh
 }

@@ -50,11 +50,16 @@ Shout phase, timing builds, matched runs (`profile/crowd-r2-*`, `crowd-r3-*`):
 
 DB2 (12.1.5.70448) confirms the kit plays for every cast: kit 279043 has no density filter, fallback or flag that would hide it. Retail's spell-clutter system (`SpellClutter.cpp`, Retail 70688 behaviour handoff R19) rejects other players' kits by a random draw only at effective `spellClutter` levels 1-3. The default `spellClutter` is 4 (rejection off), the Spell Density dropdown writes `graphicsSpellDensity` (density filters, default Full), and the raid side (`RAIDspellClutter` 2) applies only with `RAIDsettingsEnabled` on, default off. At default settings Retail shows all 40 shouts, so this client does not thin them. Neither `SpellVisualKitModelAttach.Flags` bit (4, 8) means draping.
 
+## Packed surface streams (2026-11-11)
+
+VERIFIED: Commit `39a6f13e7` retains the packed streams used to build M2/WMO surfaces; the baseline and after field dumps match byte-for-byte across all 25 batches. Single-run first-use times changed from 62/89/62/57/26 ms to 53/70/50/47/20 ms at flat/rug/stairs/wall/training; this is not a controlled FPS A/B. Full results and caveats: [[release-fps-reprofile-2026-11-11]].
+
 ## Open
 
-First sight of a location still costs 22-108 ms of main-thread mesh reads for the render surfaces under a kit's footprint (`RenderSurfaceCache::root_inputs`); reading triangles from the parsed model assets instead of Godot would remove it, but the arrays must first be proven identical.
+UNVERIFIED: A clean same-pose FPS A/B is still unavailable. The fixed-pose Stormwind pair's one-minute host load changed from 21.18 to 36.58, and Ruby has no paired after run; do not treat the exploratory p50 delta as a code effect.
 
 ## See Also
 
 - [[follower-combat-fps]] — follower dungeon combat, unit-frame costs
 - [[spell-visuals]] — kit chain and ground draping
+- [[release-fps-reprofile-2026-11-11]] — release pose profiles, system costs and output parity
