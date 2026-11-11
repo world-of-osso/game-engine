@@ -33,7 +33,8 @@ This page compares the outgoing world text and incoming `Blizzard_CombatText` pa
 ## Proof artifacts
 
 - RED commits: `96e4fe1cb` (world crit punctuation and cross-unit slot fixture), `0377816bd` (self frame, CVar/options, formatting and timing acceptance tests).
-- JPEG evidence: `/syncthing/AgentShared/2026-11-10/combat-text-parity/`; before/after files are listed in the handoff report.
+- JPEG evidence: `/syncthing/AgentShared/2026-11-10/combat-text-parity/`. Both skins have before/after `set`, `cross-unit` and `self` JPEGs, each with a paired `-notext.jpg` frame. The self “before” frames show the default-off/absent frame; the after frames show nine incoming styles.
+- Captures passed: both `set` cases drew nine colored world texts; both `cross-unit` cases retained unit 6000's Dodge while unit 6001 filled four slots; both `self` cases drew nine styles and admitted no more than 20 labels. Twenty self labels advanced at 12.468 µs/frame in Forever and 20.518 µs/frame in Modern (three 2000-iteration samples, median; 100 µs budget).
 - The self-label CanvasLayer/theme is created only when messages arrive. Animation updates only position, scale and alpha; no per-frame theme/material/tree rebuild occurs.
 
 ## Sources

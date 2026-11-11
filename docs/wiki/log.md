@@ -1,3 +1,7 @@
+## Floating combat-text parity — 2026-11-10
+
+VERIFIED: Retail and Forever share combat-text Lua/XML/constants in the cached source audit. Both skins now render outgoing world-text punctuation, color, size, scaling and per-unit slot eviction, plus option-gated incoming self-frame damage, healing and miss messages; each behavior has targeted tests. The native gravity/min-alpha curve, directional offset, auto-attack merge and several CVar families remain unsupported or undecoded, not claimed as pixel parity. Debug/release checks report zero warnings; combat-text tests pass 26/26. JPEGs cover before/after world set, cross-unit eviction and self messages in each skin; twenty self labels cost 12.468 µs/frame in Forever and 20.518 µs/frame in Modern at the fixture's median 2000-iteration sample. Captures: `/syncthing/AgentShared/2026-11-10/combat-text-parity/`. See [[floating-combat-text-parity]].
+
 ## Godot audio bus-details cleanup — 2026-11-10
 
 VERIFIED: the pinned Godot erased retired playback bus details one by one from a SafeList, quadratic in playing 3D sounds; in the 40-player Battle Shout crowd `AudioServer::_cleanup_lists` was 12.7-24.2 % of main-thread samples. Patched pin `-audiobus` retires them per update in O(n), deleting each one update later as before. Headless A/B, interleaved: 200 players 5.1-5.7 -> 1.4-1.7 ms main-thread CPU per frame, 400 players 16-22 -> 2.7-4.8 ms. See [[godot-audio-bus-graveyard]].
