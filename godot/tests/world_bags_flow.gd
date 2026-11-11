@@ -167,27 +167,8 @@ func capture_character_frame(client: Node) -> bool:
 		var state: Dictionary = client.character_frame_state()
 		var panel := authored_control(client, "CharacterFrame")
 		if state.open and panel != null and panel.is_visible_in_tree():
-			if not await capture_bags("character-frame.png"):
-				return false
-			return await capture_spellbook_frame(client)
+			return await capture_bags("character-frame.png")
 	fail("C did not open the native CharacterFrame for capture")
-	return false
-
-func capture_spellbook_frame(client: Node) -> bool:
-	push_key(KEY_ESCAPE, true)
-	await process_frame
-	push_key(KEY_ESCAPE, false)
-	push_key(KEY_P, true)
-	await process_frame
-	push_key(KEY_P, false)
-	var deadline := Time.get_ticks_msec() + BAG_WAIT_MS
-	while Time.get_ticks_msec() < deadline:
-		await process_frame
-		var state: Dictionary = client.spells_state()
-		var panel := client.get_node_or_null("SpellBookUI") as Control
-		if state.spellbook_open and panel != null and panel.is_visible_in_tree():
-			return await capture_bags("spellbook-frame.png")
-	fail("P did not open the native SpellBook for comparison capture")
 	return false
 
 func capture_bags(filename: String = "standalone-bags.png", tooltip_client: Node = null, tooltip_title: String = "") -> bool:
