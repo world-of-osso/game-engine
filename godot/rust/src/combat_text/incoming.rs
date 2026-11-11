@@ -6,17 +6,24 @@ const DAMAGE_RED: [f32; 3] = [1.0, 0.1, 0.1];
 const SPELL_PURPLE: [f32; 3] = [0.79, 0.3, 0.85];
 const HEAL_GREEN: [f32; 3] = [0.1, 1.0, 0.1];
 const SPELL_WHITE: [f32; 3] = [1.0, 1.0, 1.0];
-const SCROLL_SECONDS: f32 = 1.9;
+pub(crate) const SCROLL_SECONDS: f32 = 1.9;
 const FADE_START_SECONDS: f32 = 1.3;
-const NORMAL_HEIGHT: f32 = 25.0;
-const CRIT_MIN_HEIGHT: f32 = 30.0;
+pub(crate) const NORMAL_HEIGHT: f32 = 25.0;
+pub(crate) const CRIT_MIN_HEIGHT: f32 = 30.0;
 const CRIT_MAX_HEIGHT: f32 = 60.0;
+pub(crate) const FONT_BOX_HEIGHT: f32 = 80.0;
+pub(crate) const REFERENCE_VIEWPORT_HEIGHT: f32 = 768.0;
+pub(crate) const REFERENCE_VIEWPORT_WIDTH: f32 = 1024.0;
+pub(crate) const STAGGER_STEP_COUNT: i32 = 21;
+pub(crate) const STAGGER_START: i32 = -10;
+pub(crate) const TEXT_OFFSET_ADJUSTMENT: f32 = 80.0;
 const CRIT_GROW_SECONDS: f32 = 0.05;
 const CRIT_SHRINK_END_SECONDS: f32 = 0.2;
 const SCROLL_DISTANCE: f32 = 225.0;
 const FOUNTAIN_RADIUS: f32 = 150.0;
 pub(crate) const TEXT_START_Y: f32 = 384.0;
 pub(crate) const TEXT_MAX_SPREAD: f32 = 130.0;
+pub(crate) const TEXT_POOL_SIZE: usize = 20;
 const TEXT_SPACING: f32 = 10.0;
 const MESSAGE_HALF_HEIGHT: f32 = 16.0;
 
@@ -104,40 +111,49 @@ fn incoming_miss(
     kind: MissKind,
 ) -> Option<Message> {
     let spell = event.spell_id.is_some();
+    if !miss_is_enabled(kind, options) {
+        return None;
+    }
+    Some(Message {
+        text: miss_word(kind).to_owned(),
+        color: miss_color(kind, spell),
+        crit: false,
+        stagger: !spell && miss_staggers(kind),
+    })
+}
+
+fn miss_is_enabled(kind: MissKind, options: &CombatTextOptions) -> bool {
     let is_reduction = matches!(kind, MissKind::Block | MissKind::Resist | MissKind::Absorb);
-    let allowed = if is_reduction {
+    if is_reduction {
         options.reductions
     } else {
         options.avoidance
-    };
-    if !allowed {
-        return None;
     }
-    let color = match (kind, spell) {
+}
+
+fn miss_color(kind: MissKind, spell: bool) -> [f32; 3] {
+    match (kind, spell) {
         (
             MissKind::Miss
             | MissKind::Dodge
             | MissKind::Parry
             | MissKind::Evade
             | MissKind::Immune
-            | MissKind::Deflect,
+            | MissKind::Deflect
+            | MissKind::Block
+            | MissKind::Reflect,
             true,
         ) => SPELL_WHITE,
         (MissKind::Resist | MissKind::Absorb, true) => SPELL_PURPLE,
-        (MissKind::Block, true) => SPELL_WHITE,
-        (MissKind::Reflect, true) => SPELL_WHITE,
         _ => DAMAGE_RED,
-    };
-    Some(Message {
-        text: miss_word(kind).to_owned(),
-        color,
-        crit: false,
-        stagger: !spell
-            && matches!(
-                kind,
-                MissKind::Miss | MissKind::Dodge | MissKind::Parry | MissKind::Evade
-            ),
-    })
+    }
+}
+
+fn miss_staggers(kind: MissKind) -> bool {
+    matches!(
+        kind,
+        MissKind::Miss | MissKind::Dodge | MissKind::Parry | MissKind::Evade
+    )
 }
 
 fn miss_word(kind: MissKind) -> &'static str {
@@ -170,12 +186,18 @@ fn grouped(amount: i32) -> String {
     formatted
 }
 
+/// Nominal self-frame font height for this crit state and viewport.
+pub(crate) fn font_height(crit: bool, viewport_height: f32) -> f32 {
+    let height = if crit { CRIT_MIN_HEIGHT } else { NORMAL_HEIGHT };
+    height * viewport_height / REFERENCE_VIEWPORT_HEIGHT
+}
+
 /// Choose the next self-frame line from the previous labels' bottom-origin screen positions.
 pub(crate) fn stack_start_y(mode: i32, viewport_height: f32, previous: &[f32]) -> f32 {
     if previous.is_empty() {
         return TEXT_START_Y;
     }
-    let scale_y = viewport_height / 768.0;
+    let scale_y = viewport_height / REFERENCE_VIEWPORT_HEIGHT;
     let gap = MESSAGE_HALF_HEIGHT / scale_y + TEXT_SPACING;
     previous
         .iter()
@@ -209,40 +231,61 @@ pub(crate) struct MotionFrame {
 impl Motion {
     pub(crate) fn frame(self, age: f32) -> MotionFrame {
         let age = age.clamp(0.0, SCROLL_SECONDS);
+        MotionFrame {
+            position: self.position(age),
+            alpha: self.alpha(age),
+            height: self.text_height(age),
+        }
+    }
+
+    fn position(self, age: f32) -> [f32; 2] {
         let time = age / SCROLL_SECONDS;
-        let start_y = self.start[1] * self.viewport[1] / 768.0;
+        let start_y = self.start[1] * self.viewport[1] / REFERENCE_VIEWPORT_HEIGHT;
         let (x, y) = if self.crit {
             (self.start[0], start_y)
         } else if self.mode != 1 && self.mode != 2 {
-            let angle = std::f32::consts::FRAC_PI_2 * time;
-            (
-                self.start[0] - self.x_dir * FOUNTAIN_RADIUS * (1.0 - angle.cos()),
-                start_y + FOUNTAIN_RADIUS * angle.sin(),
-            )
+            fountain_position(self.start[0], start_y, self.x_dir, time)
         } else {
-            let direction = if self.mode == 2 { -1.0 } else { 1.0 };
-            (self.start[0], start_y + direction * SCROLL_DISTANCE * time)
+            standard_position(self.mode, self.start[0], start_y, time)
         };
+        [self.viewport[0] * 0.5 + x, self.viewport[1] - y]
+    }
+
+    fn alpha(self, age: f32) -> f32 {
         let fade =
             ((age - FADE_START_SECONDS) / (SCROLL_SECONDS - FADE_START_SECONDS)).clamp(0.0, 1.0);
-        let height = if self.crit {
-            if age <= CRIT_GROW_SECONDS {
-                CRIT_MIN_HEIGHT + (CRIT_MAX_HEIGHT - CRIT_MIN_HEIGHT) * age / CRIT_GROW_SECONDS
-            } else if age <= CRIT_SHRINK_END_SECONDS {
-                CRIT_MAX_HEIGHT
-                    - (CRIT_MAX_HEIGHT - CRIT_MIN_HEIGHT) * (age - CRIT_GROW_SECONDS)
-                        / (CRIT_SHRINK_END_SECONDS - CRIT_GROW_SECONDS)
-            } else {
-                CRIT_MIN_HEIGHT
-            }
-        } else {
-            NORMAL_HEIGHT
-        } * self.viewport[1]
-            / 768.0;
-        MotionFrame {
-            position: [self.viewport[0] * 0.5 + x, self.viewport[1] - y],
-            alpha: 1.0 - fade,
-            height,
-        }
+        1.0 - fade
+    }
+
+    fn text_height(self, age: f32) -> f32 {
+        crit_height(age, self.crit) * self.viewport[1] / REFERENCE_VIEWPORT_HEIGHT
+    }
+}
+
+fn fountain_position(start_x: f32, start_y: f32, x_dir: f32, time: f32) -> (f32, f32) {
+    let angle = std::f32::consts::FRAC_PI_2 * time;
+    (
+        start_x - x_dir * FOUNTAIN_RADIUS * (1.0 - angle.cos()),
+        start_y + FOUNTAIN_RADIUS * angle.sin(),
+    )
+}
+
+fn standard_position(mode: i32, start_x: f32, start_y: f32, time: f32) -> (f32, f32) {
+    let direction = if mode == 2 { -1.0 } else { 1.0 };
+    (start_x, start_y + direction * SCROLL_DISTANCE * time)
+}
+
+fn crit_height(age: f32, crit: bool) -> f32 {
+    if !crit {
+        return NORMAL_HEIGHT;
+    }
+    if age <= CRIT_GROW_SECONDS {
+        CRIT_MIN_HEIGHT + (CRIT_MAX_HEIGHT - CRIT_MIN_HEIGHT) * age / CRIT_GROW_SECONDS
+    } else if age <= CRIT_SHRINK_END_SECONDS {
+        CRIT_MAX_HEIGHT
+            - (CRIT_MAX_HEIGHT - CRIT_MIN_HEIGHT) * (age - CRIT_GROW_SECONDS)
+                / (CRIT_SHRINK_END_SECONDS - CRIT_GROW_SECONDS)
+    } else {
+        CRIT_MIN_HEIGHT
     }
 }

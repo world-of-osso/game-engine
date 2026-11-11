@@ -123,7 +123,7 @@ impl Default for SpellsHud {
             self_floating: Vec::new(),
             self_float_layer: None,
             self_float_x_dir: 1.0,
-            self_float_offset_adjustment: 80.0,
+            self_float_offset_adjustment: crate::combat_text::incoming::TEXT_OFFSET_ADJUSTMENT,
             floats_spawned: 0,
             combat_text_hold: false,
             sent: Vec::new(),

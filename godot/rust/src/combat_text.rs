@@ -179,51 +179,9 @@ pub(crate) fn text_for_with_options(
     if event.periodic && !options.periodic {
         return None;
     }
-    // Retail keeps melee and spell damage on separate styles (`1 melee damage`, `0 spell
-    // damage`); a swing carries no spell, an ability does.
-    let spell = event.spell_id.is_some();
     match event.kind {
-        CombatLogKind::Damage
-            if event.amount > 0
-                && options.world_damage
-                && match attacker {
-                    Attacker::PetMelee => options.pet_melee,
-                    Attacker::PetSpell => options.pet_spell,
-                    Attacker::Player => true,
-                } =>
-        {
-            let mut style = match (event.crit, spell) {
-                (true, true) => SPELL_CRIT,
-                (true, false) => MELEE_CRIT,
-                (false, true) => SPELL_DAMAGE,
-                (false, false) => MELEE_DAMAGE,
-            };
-            if event.crit {
-                style.scale = options.crit_screen_y / options.screen_y;
-            }
-            Some(FloatText {
-                text: event.amount.to_string(),
-                color: attacker.color(),
-                crit: event.crit,
-                spell_crit: event.crit && spell,
-                style,
-            })
-        }
-        CombatLogKind::Heal
-            if event.amount > 0 && options.world_healing && attacker == Attacker::Player =>
-        {
-            let mut style = if event.crit { HEAL_CRIT } else { HEAL_STYLE };
-            if event.crit {
-                style.scale = options.crit_screen_y / options.screen_y;
-            }
-            Some(FloatText {
-                text: format!("+{}", event.amount),
-                color: HEAL_GREEN,
-                crit: event.crit,
-                spell_crit: event.crit,
-                style,
-            })
-        }
+        CombatLogKind::Damage => damage_text(event, attacker, options),
+        CombatLogKind::Heal => heal_text(event, attacker, options),
         CombatLogKind::Miss(kind) => Some(FloatText {
             text: miss_word(kind).to_owned(),
             color: attacker.color(),
@@ -233,6 +191,59 @@ pub(crate) fn text_for_with_options(
         }),
         _ => None,
     }
+}
+
+fn damage_text(
+    event: &CombatLogEvent,
+    attacker: Attacker,
+    options: &CombatTextOptions,
+) -> Option<FloatText> {
+    let pet_enabled = match attacker {
+        Attacker::PetMelee => options.pet_melee,
+        Attacker::PetSpell => options.pet_spell,
+        Attacker::Player => true,
+    };
+    if event.amount <= 0 || !options.world_damage || !pet_enabled {
+        return None;
+    }
+    let spell = event.spell_id.is_some();
+    let mut style = match (event.crit, spell) {
+        (true, true) => SPELL_CRIT,
+        (true, false) => MELEE_CRIT,
+        (false, true) => SPELL_DAMAGE,
+        (false, false) => MELEE_DAMAGE,
+    };
+    if event.crit {
+        style.scale = options.crit_screen_y / options.screen_y;
+    }
+    Some(FloatText {
+        text: event.amount.to_string(),
+        color: attacker.color(),
+        crit: event.crit,
+        spell_crit: event.crit && spell,
+        style,
+    })
+}
+
+fn heal_text(
+    event: &CombatLogEvent,
+    attacker: Attacker,
+    options: &CombatTextOptions,
+) -> Option<FloatText> {
+    if event.amount <= 0 || !options.world_healing || attacker != Attacker::Player {
+        return None;
+    }
+    let mut style = if event.crit { HEAL_CRIT } else { HEAL_STYLE };
+    if event.crit {
+        style.scale = options.crit_screen_y / options.screen_y;
+    }
+    Some(FloatText {
+        text: format!("+{}", event.amount),
+        color: HEAL_GREEN,
+        crit: event.crit,
+        spell_crit: event.crit,
+        style,
+    })
 }
 
 /// The word 15890 shows for an avoided or reduced hit (`s_combatTextTokens`,

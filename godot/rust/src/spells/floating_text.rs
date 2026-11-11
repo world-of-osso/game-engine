@@ -17,6 +17,15 @@ use combat_text::{
 /// Height above the unit origin where combat text starts.
 const FLOAT_TEXT_HEIGHT: f32 = 3.6;
 
+fn sample_incoming_stagger(message: &Message) -> f32 {
+    if message.stagger {
+        (godot::global::randi() as i32).rem_euclid(combat_text::incoming::STAGGER_STEP_COUNT) as f32
+            + combat_text::incoming::STAGGER_START as f32
+    } else {
+        0.0
+    }
+}
+
 pub(super) struct SelfFloatingText {
     label: Gd<Label>,
     shadow: Gd<Label>,
@@ -28,37 +37,50 @@ pub(super) struct SelfFloatingText {
 impl SelfFloatingText {
     fn advance(&mut self, delta: f32, viewport: Vector2) -> bool {
         self.age += delta;
-        if !self.label.is_instance_valid() || !self.shadow.is_instance_valid() {
-            if self.label.is_instance_valid() {
-                self.label.clone().queue_free();
-            }
-            if self.shadow.is_instance_valid() {
-                self.shadow.clone().queue_free();
-            }
+        let labels_are_valid = self.label.is_instance_valid() && self.shadow.is_instance_valid();
+        if !labels_are_valid || self.age >= combat_text::incoming::SCROLL_SECONDS {
+            self.free_labels();
             return false;
         }
-        if self.age >= 1.9 {
+        self.update_display(viewport);
+        true
+    }
+
+    fn free_labels(&self) {
+        if self.label.is_instance_valid() {
             self.label.clone().queue_free();
-            self.shadow.clone().queue_free();
-            return false;
         }
+        if self.shadow.is_instance_valid() {
+            self.shadow.clone().queue_free();
+        }
+    }
+
+    fn update_display(&mut self, viewport: Vector2) {
         self.motion.viewport = [viewport.x, viewport.y];
         let frame = self.motion.frame(self.age);
         let size = self.label.get_size();
         let scale = frame.height / self.base_height;
-        let origin = Vector2::new(frame.position[0] - size.x * scale * 0.5, frame.position[1]);
+        let left = frame.position[0] - size.x * scale * 0.5;
+        let origin = Vector2::new(left, frame.position[1]);
         self.label.set_position(origin);
         self.label.set_scale(Vector2::new(scale, scale));
         self.shadow.set_position(origin + Vector2::ONE);
         self.shadow.set_scale(Vector2::new(scale, scale));
-        let mut foreground = self.label.get_modulate();
-        foreground.a = frame.alpha;
-        self.label.set_modulate(foreground);
-        let mut shadow = self.shadow.get_modulate();
-        shadow.a = frame.alpha;
-        self.shadow.set_modulate(shadow);
-        true
+        set_label_alpha(&mut self.label, frame.alpha);
+        set_label_alpha(&mut self.shadow, frame.alpha);
     }
+}
+
+fn set_label_alpha(label: &mut Gd<Label>, alpha: f32) {
+    let mut color = label.get_modulate();
+    color.a = alpha;
+    label.set_modulate(color);
+}
+
+struct WorldTextMetrics {
+    em_base: f32,
+    pixel_size: f32,
+    shadow_offset: Vector3,
 }
 
 pub(super) struct FloatingText {
@@ -278,6 +300,34 @@ fn spawn_label(
     label
 }
 
+fn world_text_metrics(
+    camera: &Gd<Camera3D>,
+    style: Style,
+    options: &game_engine_core::combat_text_options::CombatTextOptions,
+) -> WorldTextMetrics {
+    let em_base = combat_text::em_yards_with_options(camera.get_fov(), options);
+    let em = em_base * style.scale * combat_text::height_scale(0.0, style);
+    let camera_basis = camera.get_global_transform().basis;
+    let shadow_direction = (camera_basis.col_a() - camera_basis.col_b()).normalized();
+    WorldTextMetrics {
+        em_base,
+        pixel_size: em_base * combat_text::height_scale(0.0, style)
+            / combat_text::TEXT_FONT_SIZE as f32,
+        shadow_offset: em * combat_text::SHADOW_OFFSET_EM * shadow_direction,
+    }
+}
+
+fn create_world_text_nodes(
+    event: &CombatLogEvent,
+    text: &combat_text::FloatText,
+) -> (Gd<Label3D>, Gd<Label3D>) {
+    let label = spawn_combat_label(event, text);
+    let mut shadow = spawn_label(event, text, "CombatTextShadow", Color::BLACK);
+    shadow.set_render_priority(-1);
+    shadow.set_meta("combat_text_shadow", &true.to_variant());
+    (label, shadow)
+}
+
 enum CombatTextEvent {
     Incoming(CombatLogEvent, Option<String>),
     Outgoing(CombatLogEvent, Attacker),
@@ -322,6 +372,26 @@ impl GameClient {
         healer_name: Option<&str>,
         preview: bool,
     ) -> i64 {
+        let options = self.self_text_options(preview);
+        let Some(message) = combat_text::incoming::message_for(event, &options, healer_name) else {
+            return self.spells.self_floating.len() as i64;
+        };
+        if self.spells.self_floating.len() >= combat_text::incoming::TEXT_POOL_SIZE {
+            return self.spells.self_floating.len() as i64;
+        }
+        let Some(viewport) = self.incoming_viewport_size() else {
+            return self.spells.self_floating.len() as i64;
+        };
+        let layer = self.self_combat_text_layer();
+        let motion = self.build_incoming_motion(&message, options.float_mode, viewport);
+        self.append_incoming_text(&layer, &message, motion, viewport);
+        self.spells.self_floating.len() as i64
+    }
+
+    fn self_text_options(
+        &self,
+        preview: bool,
+    ) -> game_engine_core::combat_text_options::CombatTextOptions {
         let mut options = self.client_options.hud.combat_text;
         if preview {
             options.self_enabled = true;
@@ -329,60 +399,79 @@ impl GameClient {
             options.reductions = true;
             options.friendly_healers = true;
         }
-        let Some(message) = combat_text::incoming::message_for(event, &options, healer_name) else {
-            return self.spells.self_floating.len() as i64;
-        };
-        if self.spells.self_floating.len() >= 20 {
-            return self.spells.self_floating.len() as i64;
-        }
-        let Some(viewport) = self.base().get_viewport() else {
-            return self.spells.self_floating.len() as i64;
-        };
-        let viewport_size = viewport.get_visible_rect().size;
-        if viewport_size.x <= 0.0 || viewport_size.y <= 0.0 {
-            return self.spells.self_floating.len() as i64;
-        }
-        let layer = self.self_combat_text_layer();
-        let mode = options.float_mode;
-        let mut start_y = self.self_combat_text_start_y(mode, viewport_size);
-        let mut start_x = if message.stagger {
-            (godot::global::randi() as i32).rem_euclid(21) as f32 - 10.0
-        } else {
-            0.0
-        };
-        let mut x_dir = -self.spells.self_float_x_dir;
-        self.spells.self_float_x_dir = x_dir;
-        let lower_bound =
-            combat_text::incoming::TEXT_START_Y - combat_text::incoming::TEXT_MAX_SPREAD;
-        let upper_bound =
-            combat_text::incoming::TEXT_START_Y + combat_text::incoming::TEXT_MAX_SPREAD;
-        let overflow = if mode == 2 {
-            start_y > upper_bound
-        } else {
-            start_y < lower_bound
-        };
-        if overflow && message.crit {
-            start_y = 384.0;
-        } else if overflow {
-            self.spells.self_float_offset_adjustment *= -1.0;
-            start_y = if mode == 2 { upper_bound } else { lower_bound };
-            start_x += self.spells.self_float_offset_adjustment * viewport_size.x / 1024.0;
-            x_dir = if self.spells.self_float_offset_adjustment > 0.0 {
-                -1.0
-            } else {
-                1.0
-            };
-        }
-        let motion = Motion {
+        options
+    }
+
+    fn incoming_viewport_size(&self) -> Option<Vector2> {
+        let size = self.base().get_viewport()?.get_visible_rect().size;
+        (size.x > 0.0 && size.y > 0.0).then_some(size)
+    }
+
+    fn build_incoming_motion(&mut self, message: &Message, mode: i32, viewport: Vector2) -> Motion {
+        let start_y = self.self_combat_text_start_y(mode, viewport);
+        let start_x = sample_incoming_stagger(message);
+        let x_dir = self.next_incoming_x_dir();
+        let (start_x, start_y, x_dir) =
+            self.adjust_overflow_motion(message, mode, viewport, start_x, start_y, x_dir);
+        Motion {
             mode,
             crit: message.crit,
             start: [start_x, start_y],
             x_dir,
-            viewport: [viewport_size.x, viewport_size.y],
+            viewport: [viewport.x, viewport.y],
+        }
+    }
+
+    fn next_incoming_x_dir(&mut self) -> f32 {
+        let next = -self.spells.self_float_x_dir;
+        self.spells.self_float_x_dir = next;
+        next
+    }
+
+    fn adjust_overflow_motion(
+        &mut self,
+        message: &Message,
+        mode: i32,
+        viewport: Vector2,
+        mut start_x: f32,
+        mut start_y: f32,
+        mut x_dir: f32,
+    ) -> (f32, f32, f32) {
+        let lower = combat_text::incoming::TEXT_START_Y - combat_text::incoming::TEXT_MAX_SPREAD;
+        let upper = combat_text::incoming::TEXT_START_Y + combat_text::incoming::TEXT_MAX_SPREAD;
+        let is_down = mode == 2;
+        let overflows = if is_down {
+            start_y > upper
+        } else {
+            start_y < lower
         };
-        let base_height = (if message.crit { 30.0 } else { 25.0 }) * viewport_size.y / 768.0;
-        let (label, shadow) =
-            self.create_incoming_labels(&layer, &message, base_height, viewport_size);
+        if !overflows {
+            return (start_x, start_y, x_dir);
+        }
+        if message.crit {
+            return (start_x, combat_text::incoming::TEXT_START_Y, x_dir);
+        }
+        self.spells.self_float_offset_adjustment *= -1.0;
+        start_y = if is_down { upper } else { lower };
+        start_x += self.spells.self_float_offset_adjustment * viewport.x
+            / combat_text::incoming::REFERENCE_VIEWPORT_WIDTH;
+        x_dir = if self.spells.self_float_offset_adjustment > 0.0 {
+            -1.0
+        } else {
+            1.0
+        };
+        (start_x, start_y, x_dir)
+    }
+
+    fn append_incoming_text(
+        &mut self,
+        layer: &Gd<CanvasLayer>,
+        message: &Message,
+        motion: Motion,
+        viewport: Vector2,
+    ) {
+        let base_height = combat_text::incoming::font_height(message.crit, viewport.y);
+        let (label, shadow) = self.create_incoming_labels(layer, message, base_height, viewport);
         let mut text = SelfFloatingText {
             label,
             shadow,
@@ -390,9 +479,8 @@ impl GameClient {
             base_height,
             age: 0.0,
         };
-        text.advance(0.0, viewport_size);
+        text.advance(0.0, viewport);
         self.spells.self_floating.push(text);
-        self.spells.self_floating.len() as i64
     }
 
     fn self_combat_text_layer(&mut self) -> Gd<CanvasLayer> {
@@ -409,7 +497,7 @@ impl GameClient {
     }
 
     fn create_incoming_labels(
-        &mut self,
+        &self,
         layer: &Gd<CanvasLayer>,
         message: &Message,
         base_height: f32,
@@ -442,7 +530,9 @@ impl GameClient {
         label.set_horizontal_alignment(godot::global::HorizontalAlignment::CENTER);
         label.set_vertical_alignment(godot::global::VerticalAlignment::TOP);
         label.set_mouse_filter(godot::classes::control::MouseFilter::IGNORE);
-        label.set_size(Vector2::new(viewport.x, 80.0 * viewport.y / 768.0));
+        let box_height = combat_text::incoming::FONT_BOX_HEIGHT * viewport.y
+            / combat_text::incoming::REFERENCE_VIEWPORT_HEIGHT;
+        label.set_size(Vector2::new(viewport.x, box_height));
         if color == Color::BLACK {
             label.set_meta("combat_text_shadow", &true.to_variant());
         }
@@ -461,7 +551,8 @@ impl GameClient {
             .iter()
             .map(|text| {
                 let frame = text.motion.frame(text.age);
-                (viewport.y - frame.position[1]) * 768.0 / viewport.y
+                (viewport.y - frame.position[1]) * combat_text::incoming::REFERENCE_VIEWPORT_HEIGHT
+                    / viewport.y
             })
             .collect();
         combat_text::incoming::stack_start_y(mode, viewport.y, &previous)
@@ -477,33 +568,40 @@ impl GameClient {
             self.spells.combat_seen = self.account.combat_log_seq;
             return Vec::new();
         };
-        let seq = self.account.combat_log_seq;
-        let fresh = (seq - self.spells.combat_seen).min(self.account.combat_log.len() as u64);
-        self.spells.combat_seen = seq;
+        let sequence = self.account.combat_log_seq;
+        let fresh = (sequence - self.spells.combat_seen).min(self.account.combat_log.len() as u64);
+        self.spells.combat_seen = sequence;
+        let first_fresh = self.account.combat_log.len() - fresh as usize;
         self.account
             .combat_log
             .iter()
-            .skip(self.account.combat_log.len() - fresh as usize)
+            .skip(first_fresh)
             .filter(|event| {
                 matches!(
                     event.kind,
                     CombatLogKind::Damage | CombatLogKind::Heal | CombatLogKind::Miss(_)
                 )
             })
-            .filter_map(|event| {
-                if event.target == Some(player) {
-                    let healer = event
-                        .source
-                        .filter(|source| *source != player)
-                        .and_then(|source| self.replica.unit(source))
-                        .and_then(UnitFields::name)
-                        .map(str::to_owned);
-                    return Some(CombatTextEvent::Incoming(event.clone(), healer));
-                }
-                let attacker = self.combat_text_attacker(event, player)?;
-                Some(CombatTextEvent::Outgoing(event.clone(), attacker))
-            })
+            .filter_map(|event| self.classify_combat_text_event(event, player))
             .collect()
+    }
+
+    fn classify_combat_text_event(
+        &self,
+        event: &CombatLogEvent,
+        player: u64,
+    ) -> Option<CombatTextEvent> {
+        if event.target == Some(player) {
+            let healer = event
+                .source
+                .filter(|source| *source != player)
+                .and_then(|source| self.replica.unit(source))
+                .and_then(UnitFields::name)
+                .map(str::to_owned);
+            return Some(CombatTextEvent::Incoming(event.clone(), healer));
+        }
+        let attacker = self.combat_text_attacker(event, player)?;
+        Some(CombatTextEvent::Outgoing(event.clone(), attacker))
     }
 
     /// Who caused `event` from the local player's view: the player, or a pet/guardian it owns
@@ -567,49 +665,44 @@ impl GameClient {
             return self.spells.floating.len() as i64;
         };
         self.take_combat_text_slot(unit_id, text.spell_crit);
-        let mut label = spawn_combat_label(event, &text);
-        let mut shadow = spawn_label(event, &text, "CombatTextShadow", Color::BLACK);
-        shadow.set_render_priority(-1);
-        shadow.set_meta("combat_text_shadow", &true.to_variant());
-        // Under the client root: unit nodes carry model scale. Each number starts at its own
-        // sideways point in the camera plane, lifted one text height per live number on the
-        // unit, so a unit's slots stack (Retail's per-slot placement, WorldText.cpp:441).
+        let (label, shadow) = create_world_text_nodes(event, &text);
         let origin = self.place_combat_text(
             &camera,
             anchor,
             unit_id,
             combat_text_size(event, text.style) as f32,
         );
-        let camera_transform = camera.get_global_transform();
-        let em_base = combat_text::em_yards_with_options(
-            camera.get_fov(),
-            &self.client_options.hud.combat_text,
-        );
-        let em = em_base * text.style.scale * combat_text::height_scale(0.0, text.style);
-        // 15890's shadow is a tenth of an em, and an em is the text height.
-        let shadow_step = em
-            * combat_text::SHADOW_OFFSET_EM
-            * (camera_transform.basis.col_a() - camera_transform.basis.col_b()).normalized();
-        let pixel = em_base * combat_text::height_scale(0.0, text.style)
-            / combat_text::TEXT_FONT_SIZE as f32;
+        let metrics = world_text_metrics(&camera, text.style, &self.client_options.hud.combat_text);
+        self.attach_world_text(unit_id, origin, &text, label, shadow, metrics);
+        self.spells.floating.len() as i64
+    }
+
+    fn attach_world_text(
+        &mut self,
+        unit: u64,
+        origin: Vector3,
+        text: &combat_text::FloatText,
+        mut label: Gd<Label3D>,
+        mut shadow: Gd<Label3D>,
+        metrics: WorldTextMetrics,
+    ) {
         label.set_position(origin);
-        label.set_pixel_size(pixel);
+        label.set_pixel_size(metrics.pixel_size);
         shadow.set_position(origin);
-        shadow.set_pixel_size(pixel);
+        shadow.set_pixel_size(metrics.pixel_size);
         self.base_mut().add_child(&shadow);
         self.base_mut().add_child(&label);
         self.spells.floating.push(FloatingText {
             node: label,
             shadow,
-            shadow_offset: shadow_step,
-            em_base,
-            unit: unit_id,
+            shadow_offset: metrics.shadow_offset,
+            em_base: metrics.em_base,
+            unit,
             age: 0.0,
             origin,
             style: text.style,
             spell_crit: text.spell_crit,
         });
-        self.spells.floating.len() as i64
     }
 
     /// Offline fixture: one scripted world text over `at`, for pseudo-unit `unit`; `index`
