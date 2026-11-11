@@ -11,10 +11,11 @@ func capture_forever() -> void:
 		push_error("GUILD_NO_GUILD_CAPTURE is required")
 		quit(1)
 		return
-	if DirAccess.make_dir_recursive_absolute(directory) != OK:
-		push_error("Cannot create capture directory: " + directory)
-		quit(1)
-		return
+	if not DirAccess.dir_exists_absolute(directory):
+		if DirAccess.make_dir_recursive_absolute(directory) != OK:
+			push_error("Cannot create capture directory: " + directory)
+			quit(1)
+			return
 	var ui := ClassDB.instantiate("RegistryUi") as CanvasLayer
 	if ui == null:
 		push_error("RegistryUi is unavailable")
