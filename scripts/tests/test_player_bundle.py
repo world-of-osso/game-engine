@@ -28,6 +28,12 @@ def write_empty_ui_db2(data):
     directory.mkdir(parents=True, exist_ok=True)
     for name, content in tables.items():
         (directory / f'{name}.csv').write_text(content)
+    forever_atlas = data / 'db2/1.60.1.69913'
+    forever_atlas.mkdir(parents=True, exist_ok=True)
+    (forever_atlas / 'UiTextureAtlasMember.csv').write_text('ID,UiTextureAtlasID\n')
+    (forever_atlas / 'UiTextureAtlas.csv').write_text(
+        'ID,FileDataID,UiTextureAtlasSetID\n'
+    )
 
 
 spec = importlib.util.spec_from_file_location('player_bundle', Path(__file__).parents[1] / 'player_bundle.py')
@@ -207,6 +213,8 @@ class PlayerBundleTest(unittest.TestCase):
                             'UiMapArtTile', 'WorldMapOverlay', 'WorldMapOverlayTile',
                             'UiTextureAtlasMember', 'UiTextureAtlas',
                         )},
+                        'db2/1.60.1.69913/UiTextureAtlasMember.csv',
+                        'db2/1.60.1.69913/UiTextureAtlas.csv',
                         'forever-1.60.1.70205/models/a.m2',
                         'gametables/classes.txt',
                         'products/wow/dcfc90fffd79ba00406ae46f5f657592/models/1011653.m2',
@@ -219,7 +227,7 @@ class PlayerBundleTest(unittest.TestCase):
             for relative in selected:
                 self.assertEqual((target / 'data' / relative).read_bytes(), (data / relative).read_bytes())
 
-    def test_staged_ui_texture_closure_uses_rendered_map_systems_and_ships_pet_json(self):
+    def test_staged_ui_texture_closure_uses_map_systems_and_both_atlas_sets(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             root.mkdir(exist_ok=True)
@@ -231,6 +239,14 @@ class PlayerBundleTest(unittest.TestCase):
             for name in bundle.DATA_DIRS:
                 (data / name).mkdir(parents=True)
             write_empty_ui_db2(data)
+            forever_tables = data / 'db2/1.60.1.69913'
+            forever_tables.mkdir(parents=True, exist_ok=True)
+            (forever_tables / 'UiTextureAtlasMember.csv').write_text(
+                'ID,UiTextureAtlasID\n1,4100\n2,4101\n'
+            )
+            (forever_tables / 'UiTextureAtlas.csv').write_text(
+                'ID,FileDataID,UiTextureAtlasSetID\n4100,6855432,1\n4101,999998,2\n'
+            )
             (data / 'cache/model-asset-index.json').write_text('{"version":1,"assets":[]}')
             (data / 'battle-pets.json').write_text('[]\n')
 
@@ -251,7 +267,7 @@ class PlayerBundleTest(unittest.TestCase):
 
             expected_fdids = {
                 1599407, 1603193, 2133758, 7438338, 2034162,
-                2168041, 2168254, 6875169, 8040088,
+                2168041, 2168254, 6875169, 8040088, 6855432,
             }
             self.assertEqual(bundle.ui_texture_fdids(root), expected_fdids)
             selected = set(bundle.data_files(root))

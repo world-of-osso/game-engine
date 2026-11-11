@@ -12,7 +12,7 @@ Linux and Windows players share one staged project/data bundle. Publisher: `depl
 - [x] Compare old and new file paths, sizes, and SHA256 except `godot/.godot/uid_cache.bin` and SQLite backups. Compare the UID cache's parsed UID-to-path pairs; two cold imports of the same old bundle produced different cache byte order. Do not rewrite the cache to make it deterministic. For each SQLite backup, compare schema and rows with a quiesced copy of its source; online backup bytes can differ from a raw file copy. Pack locations may differ; verify every referenced pack, range, and reconstructed file hash.
 - [x] Preserve the runtime allowlist, product receipt selection and credential/extraction-state exclusions. Abort if model indexes change while selecting or hashing their assets.
 - [x] Include the top-level client JSON files `battle-pets.json` and `battle-pet-model-scenes.json`; do not include unrelated diagnostic JSON or credentials.
-- [ ] Derive required UI BLPs from active DB2: phase-zero World (System 0) and Housing (System 2) map art with layer-zero tiles, highlights and `WorldMapOverlayTile`s, plus `UiTextureAtlas.FileDataID`s referenced by atlas members. Do not hard-code map IDs or include map systems that current client screens do not render. Extract missing BLPs from local CASC into staged `data/textures`, and fail if any selected texture is absent or invalid.
+- [ ] Derive required UI BLPs from active DB2: phase-zero World (System 0) and Housing (System 2) map art with layer-zero tiles, highlights and `WorldMapOverlayTile`s, plus `UiTextureAtlas.FileDataID`s referenced by atlas members in active and Forever (`1.60.1.69913`) atlas tables. Do not hard-code map IDs or include map systems that current client screens do not render. Extract missing BLPs from local CASC into staged `data/textures`, and fail if any selected texture is absent or invalid.
 - [x] `model-asset-index*.json` entries must stay within `products/<product>/<build_key>/`. UI audio ships directly through `sounds/` (including `sounds/ui/`); keep its verification receipts outside the model-index filename family. Do not produce model-asset-index fragments for flat UI sound paths.
 
 ## Template proof — 2026-10-27
@@ -26,7 +26,7 @@ Linux and Windows players share one staged project/data bundle. Publisher: `depl
 
 ## Tests asserting this spec
 
-- `scripts/tests/test_player_bundle.py` covers active-DB2 World/Housing map texture closure, Zandalar/Neighborhood map tiles, exclusion of unrendered map systems, UI atlas sheets, `battle-pets.json` and staged-manifest sources. `test_launcher_packs.py`, `test_mapped_deploy.py`, and `test_verified_upload.py` cover source drift, removed files, pack output, and verified upload promotion. Existing allowlist, product namespace and native-file cases remain required.
+- `scripts/tests/test_player_bundle.py` covers active-DB2 World/Housing map texture closure, Zandalar/Neighborhood map tiles, exclusion of unrendered map systems, active and Forever UI atlas sheets, `battle-pets.json` and staged-manifest sources. `test_launcher_packs.py`, `test_mapped_deploy.py`, and `test_verified_upload.py` cover source drift, removed files, pack output, and verified upload promotion. Existing allowlist, product namespace and native-file cases remain required.
 
 ## Out of scope
 

@@ -28,6 +28,8 @@ DATA_FILE_GLOBS = (
 )
 # The current map screens render World and Housing UiMap systems.
 RENDERED_UI_MAP_SYSTEMS = {0, 2}
+# ui-model::paths configures atlas lookup from both DB2 exports.
+ATLAS_DB2_VERSIONS = ('active', '1.60.1.69913')
 LIBRARIES = {
     'linux-x86_64': ('linux.x86_64', 'libgame_engine_godot.so'),
     'windows-x86_64': ('windows.x86_64', 'game_engine_godot.dll'),
@@ -120,8 +122,8 @@ def copy_selected(root, destination, files, link=False):
                         *map(str, batch)], cwd=root, check=True)
 
 
-def read_db2_rows(root, table):
-    path = root / 'data/db2/active' / f'{table}.csv'
+def read_db2_rows(root, table, version='active'):
+    path = root / 'data/db2' / version / f'{table}.csv'
     with path.open(encoding='utf-8-sig', newline='') as source:
         reader = csv.DictReader(source)
         if reader.fieldnames is None:
@@ -173,13 +175,16 @@ def ui_texture_fdids(root):
         if int(row['WorldMapOverlayID']) in overlay_ids and int(row['LayerIndex']) == 0
         and int(row['FileDataID']) > 0
     )
-    atlas_ids = {
-        int(row['UiTextureAtlasID']) for row in read_db2_rows(root, 'UiTextureAtlasMember')
-    }
-    fdids.update(
-        int(row['FileDataID']) for row in read_db2_rows(root, 'UiTextureAtlas')
-        if int(row['ID']) in atlas_ids and int(row['FileDataID']) > 0
-    )
+    for version in ATLAS_DB2_VERSIONS:
+        atlas_ids = {
+            int(row['UiTextureAtlasID'])
+            for row in read_db2_rows(root, 'UiTextureAtlasMember', version)
+        }
+        fdids.update(
+            int(row['FileDataID'])
+            for row in read_db2_rows(root, 'UiTextureAtlas', version)
+            if int(row['ID']) in atlas_ids and int(row['FileDataID']) > 0
+        )
     return fdids
 
 
