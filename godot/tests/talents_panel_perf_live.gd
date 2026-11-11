@@ -121,8 +121,13 @@ func run_test() -> void:
 	var panel: Control
 	var node_count := 0
 	var deadline := Time.get_ticks_msec() + OPEN_TIMEOUT_MS
+	var input_frames := 0
 	while Time.get_ticks_msec() < deadline:
 		await process_frame
+		input_frames += 1
+		if input_frames <= 3:
+			print("TALENTS_PANEL_AFTER_INPUT ", JSON.stringify({"screen": client.account_state().screen,
+				"book_open": client.spells_state().spellbook_open}))
 		panel = client.find_child("ClassTalentsFrame", true, false) as Control
 		if panel != null and panel.is_visible_in_tree():
 			node_count = client.find_children("TalentNode*", "Control", true, false).size()
@@ -133,8 +138,8 @@ func run_test() -> void:
 	input_probe.queue_free()
 	if panel == null or not panel.is_visible_in_tree() or node_count == 0:
 		var book := client.find_child("SpellBookRoot", true, false)
-		fail("N did not render talents: book=%s panel=%s nodes=%d focus=%s spells=%s" % [book != null,
-			panel != null and panel.is_visible_in_tree(), node_count,
+		fail("N did not render talents: screen=%s book=%s panel=%s nodes=%d focus=%s spells=%s" % [
+			client.account_state().screen, book != null, panel != null and panel.is_visible_in_tree(), node_count,
 			str(root.gui_get_focus_owner()), str(client.spells_state())])
 		return
 	var first_frame_ms := float(Time.get_ticks_usec() - keypress_usec) / 1000.0
