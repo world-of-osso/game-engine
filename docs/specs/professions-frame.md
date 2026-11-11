@@ -88,7 +88,7 @@ Native profession recipe book and crafting window in `godot/ui-model` and `godot
 - [x] Create sends the selected recipe's spell ID and positive u16 cast quantity on `ProfessionChannel`; Create All sends the available reagent-limited quantity. Missing reagents disable Create.
 - [x] Refresh bags and skill bar from authoritative inventory and profession updates; render Modern and Forever using native chrome and scroll lists. Real K and profession spellbook entry opening are live-proved.
 - [ ] K and ProfessionMicroButton open the 550×525 ProfessionsBookFrame and close it through the shared profession-panel lifecycle.
-- [ ] An empty ProfessionSnapshot shows two primary-profession trainer hints and Cooking, Fishing and Archaeology empty rows; learned roots show their name, tier, rank, icon and opener.
+- [x] An empty ProfessionSnapshot shows two primary-profession trainer hints and Cooking, Fishing and Archaeology empty rows; learned roots show their name, tier, rank, icon and opener. `godot/ui-professions/tests/professions_book.rs` asserts empty rows in Modern and Forever and learned Tailoring/Cooking rows in Forever.
 
 ### Native visual contract
 
