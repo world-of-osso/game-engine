@@ -39,6 +39,9 @@ func run_test() -> void:
 			return
 		var login = client.get_node_or_null("LoginUI")
 		if expected == "CharacterSelect":
+			if state.character_count < 1:
+				fail("Authenticated handoff returned an empty character roster")
+				return
 			if client.get_node_or_null("CharacterSelectUI") == null or (login != null and login.visible):
 				fail("Authenticated handoff did not replace the login form")
 				return
@@ -46,6 +49,12 @@ func run_test() -> void:
 			if login == null or not login.visible or str(state.status).is_empty():
 				fail("Rejected handoff did not show the login form with feedback")
 				return
+			var expected_name := OS.get_environment("GAME_ENGINE_ACCOUNT_NAME")
+			if not expected_name.is_empty():
+				var username = login.find_child("UsernameInput", true, false)
+				if username == null or username.text != expected_name:
+					fail("Rejected handoff did not prefill the saved account name")
+					return
 		print("PASS launcher handoff: ", expected, "; no client credentials; roster=", state.character_count)
 		client.free()
 		quit(0)
