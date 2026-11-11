@@ -102,10 +102,17 @@ fn interface_lists_group_finder_with_retail_name_and_default_key() {
     let (model, menu) = keybindings(BindingSection::Interface);
     let action = InputAction::ToggleGroupFinder;
     assert_eq!(action.label(), "Toggle Group Finder");
-    assert_eq!(
-        text(&menu, &format!("KeybindingLabel{}", action.key())),
-        action.label()
+    let label_name = format!("KeybindingLabel{}", action.key());
+    assert!(
+        menu.registry.get_by_name(&label_name).is_some(),
+        "missing {label_name}; keybinding labels: {:?}",
+        menu.registry
+            .frames_iter()
+            .filter_map(|frame| frame.name.as_deref())
+            .filter(|name| name.starts_with("KeybindingLabel"))
+            .collect::<Vec<_>>()
     );
+    assert_eq!(text(&menu, &label_name), action.label());
     assert_eq!(button_text(&menu, action), "I");
     assert_eq!(
         model.draft_bindings.binding(action),
