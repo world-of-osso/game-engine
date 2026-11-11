@@ -1,5 +1,7 @@
 extends SceneTree
 
+const STALE_TOKEN_MESSAGE := "Saved session expired. Please log in again."
+
 # Process acceptance: set GAME_ENGINE_ACCOUNT_TOKEN privately and --server after --.
 # No connect_account call or credentials: only production startup may authenticate.
 func _initialize() -> void:
@@ -46,8 +48,8 @@ func run_test() -> void:
 				fail("Authenticated handoff did not replace the login form")
 				return
 		else:
-			if login == null or not login.visible or str(state.status).is_empty():
-				fail("Rejected handoff did not show the login form with feedback")
+			if login == null or not login.visible or state.status != STALE_TOKEN_MESSAGE:
+				fail("Rejected handoff did not show the stale-session message")
 				return
 			var expected_name := OS.get_environment("GAME_ENGINE_ACCOUNT_NAME")
 			if not expected_name.is_empty():
