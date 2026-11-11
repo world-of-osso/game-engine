@@ -484,3 +484,4 @@ Evidence: `data/diagnostics/fps-120-close-2026-11-06/profile/occ-*`, `occimpl-*`
 - [[solarityclient-performance-comparison]]: the reference client's culling pipeline.
 - [[movement-performance]]: Bevy-side CPU measurements and the A/B method.
 - [[stormwind-hilly-plaza]]: why the portal traversal ignores antiportals and requires a floor below the camera.
+- [[release-fps-reprofile-2026-11-11]]: standard Stormwind and Ruby release profile costs.

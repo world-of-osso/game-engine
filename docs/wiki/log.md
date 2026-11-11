@@ -1,3 +1,9 @@
+## Release FPS reprofile and surface parity — 2026-11-11
+
+VERIFIED: The pinned release profiles record Stormwind (5,064 frames; p50 4.336 ms) and Ruby Life Pools out of combat (2,706 frames; p50 12.437 ms). The five largest main-system medians and render-attribution limits are in [[release-fps-reprofile-2026-11-11]]. The packed-stream change produced 25/25 byte-identical field outputs.
+
+UNVERIFIED: The fixed-pose Stormwind pair is not a valid FPS comparison: one-minute host load rose from 21.18 to 36.58. Ruby has no paired after run.
+
 ## Floating combat-text parity — 2026-11-10
 
 VERIFIED: Retail and Forever share combat-text Lua/XML/constants in the cached source audit. Both skins now render outgoing world-text punctuation, color, size, scaling and per-unit slot eviction, plus option-gated incoming self-frame damage, healing and miss messages; each behavior has targeted tests. The native gravity/min-alpha curve, directional offset, auto-attack merge and several CVar families remain unsupported or undecoded, not claimed as pixel parity. Debug/release checks report zero warnings; combat-text tests pass 26/26. JPEGs cover before/after world set, cross-unit eviction and self messages in each skin; twenty self labels cost 12.468 µs/frame in Forever and 20.518 µs/frame in Modern at the fixture's median 2000-iteration sample. Captures: `/syncthing/AgentShared/2026-11-10/combat-text-parity/`. See [[floating-combat-text-parity]].
