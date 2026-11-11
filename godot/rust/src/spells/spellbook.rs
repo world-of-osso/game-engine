@@ -227,6 +227,7 @@ impl GameClient {
         &mut self,
         player: Option<SpellbookPlayer>,
     ) -> Result<Option<game_engine_ui_model::talents::TalentView>, String> {
+        let _span = crate::profile::span(|| "spellbook.talent_view_state".to_owned());
         if self.spells.book.tab != PlayerSpellsTab::Talents {
             return Ok(None);
         }
@@ -243,6 +244,7 @@ impl GameClient {
                 .catalog()
                 .ok_or("Talents is waiting for the local spell catalog")?;
             let data = game_engine_ui_model::paths::resolve_data_path("");
+            let _span = crate::profile::span(|| "spellbook.load_talent_view".to_owned());
             let loaded = game_engine_ui_model::talents::load_talent_view(
                 &data,
                 player.class_id,
@@ -282,6 +284,7 @@ impl GameClient {
     }
 
     fn spellbook_state(&mut self) -> Result<SpellbookFrameState, String> {
+        let _span = crate::profile::span(|| "spellbook.state".to_owned());
         let player = self.spellbook_player();
         let talents = self.load_spellbook_talents(player)?;
         let mut content = self.spellbook_content(player);
@@ -348,6 +351,7 @@ impl GameClient {
         state: SpellbookFrameState,
         existing: bool,
     ) -> Result<(), String> {
+        let _span = crate::profile::span(|| format!("spellbook.frame_sync existing={existing}"));
         let scale = self.effective_ui_scale();
         let ui = self.spells.book_ui.as_mut().expect("spellbook open");
         let mut book = ui.bind_mut();
