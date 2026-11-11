@@ -125,13 +125,13 @@ fn bind_uniforms(
     Ok(())
 }
 
-/// Writes `quad` faded by `fade` as one instance of the MultiMesh buffer layout.
-pub(crate) fn write_instance(buffer: &mut [f32], quad: &Quad, fade: f32) {
+/// Packs `quad` faded by `fade` in the MultiMesh buffer layout.
+pub(crate) fn write_instance(quad: &Quad, fade: f32) -> [f32; FLOATS_PER_INSTANCE] {
     let x = quad.axis_x;
     let y = quad.axis_y;
     let z = Vec3::new(quad.tex_pos[0].x, quad.tex_pos[0].y, fade);
     let origin = quad.center;
-    buffer.copy_from_slice(&[
+    [
         x.x,
         y.x,
         z.x,
@@ -152,7 +152,7 @@ pub(crate) fn write_instance(buffer: &mut [f32], quad: &Quad, fade: f32) {
         quad.cell_offset.y,
         quad.tex_pos[1].x,
         quad.tex_pos[1].y,
-    ]);
+    ]
 }
 
 /// One drawn emitter shared by every placement of its model.
@@ -211,9 +211,7 @@ impl ParticlePool {
     pub fn push(&mut self, quads: &[Quad], fade: f32) {
         let room = self.reserved - self.count;
         for quad in quads.iter().take(room) {
-            let start = self.buffer.len();
-            self.buffer.resize(start + FLOATS_PER_INSTANCE, 0.0);
-            write_instance(&mut self.buffer[start..], quad, fade);
+            self.buffer.extend_from_slice(&write_instance(quad, fade));
             self.count += 1;
         }
     }
@@ -1179,6 +1177,26 @@ fn overlap_fixture(sorted: bool) -> (ParticleEmitter, EmitterSim) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn particle_instance_keeps_the_multimesh_float_layout() {
+        let quad = Quad {
+            center: Vec3::new(11.0, 12.0, 13.0),
+            axis_x: Vec3::new(1.0, 2.0, 3.0),
+            axis_y: Vec3::new(4.0, 5.0, 6.0),
+            color: glam::Vec4::new(14.0, 15.0, 16.0, 17.0),
+            cell_offset: glam::Vec2::new(18.0, 19.0),
+            tex_pos: [glam::Vec2::new(20.0, 21.0), glam::Vec2::new(22.0, 23.0)],
+        };
+
+        assert_eq!(
+            write_instance(&quad, 0.5),
+            [
+                1.0, 4.0, 20.0, 11.0, 2.0, 5.0, 21.0, 12.0, 3.0, 6.0, 0.5, 13.0, 14.0, 15.0, 16.0,
+                17.0, 18.0, 19.0, 22.0, 23.0,
+            ]
+        );
+    }
 
     #[test]
     fn divine_shield_refraction_emitters_do_not_create_forward_particles() {
