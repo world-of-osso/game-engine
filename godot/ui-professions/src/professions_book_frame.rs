@@ -1,7 +1,7 @@
 //! Retail ProfessionsBookFrame empty slots and learned profession summary.
 use super::art;
-use super::professions_catalog::{ProfessionBookEntry, ProfessionBookSummary};
-use super::professions_frame::ProfessionView;
+use super::{ProfessionView, art};
+use crate::professions_catalog::{ProfessionBookEntry, ProfessionBookSummary};
 use game_engine_ui_model::bank_art::{cropped, label, texture};
 use game_engine_ui_model::quest_art::{
     DynName, HIGHLIGHT_FONT_COLOR, NORMAL_FONT_COLOR, window_chrome_no_portrait_with_content,
