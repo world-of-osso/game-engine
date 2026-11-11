@@ -8,6 +8,13 @@ const SPEC_TIMEOUT_MS := 30000
 const OPEN_TIMEOUT_MS := 60000
 const SETTLE_SECONDS := 5.0
 
+class InputEventProbe extends Node:
+	var n_pressed_events := 0
+
+	func _input(event: InputEvent) -> void:
+		if event is InputEventKey and event.physical_keycode == KEY_N and event.pressed:
+			n_pressed_events += 1
+
 func select_specialization(spec_id: int) -> bool:
 	var error: String = client.set_specialization(spec_id)
 	if not error.is_empty():
@@ -105,10 +112,13 @@ func run_test() -> void:
 		"unhandled_input_processing": client.is_processing_unhandled_input()}))
 	await measure("talents_closed", segment_s, func(_time: float): pass, true)
 	root.gui_release_focus()
+	var input_probe := InputEventProbe.new()
+	input_probe.set_process_input(true)
+	root.add_child(input_probe)
 	var keypress_usec := Time.get_ticks_usec()
 	send_key(KEY_N, true)
 	print("TALENTS_PANEL_KEY_STATE ", JSON.stringify({"input_pressed": Input.is_key_pressed(KEY_N),
-		"book_open": client.spells_state().spellbook_open}))
+		"probe_presses": input_probe.n_pressed_events, "book_open": client.spells_state().spellbook_open}))
 	var panel: Control
 	var node_count := 0
 	var deadline := Time.get_ticks_msec() + OPEN_TIMEOUT_MS
@@ -121,6 +131,7 @@ func run_test() -> void:
 				await RenderingServer.frame_post_draw
 				break
 	send_key(KEY_N, false)
+	input_probe.queue_free()
 	if panel == null or not panel.is_visible_in_tree() or node_count == 0:
 		var book := client.find_child("SpellBookRoot", true, false)
 		fail("N did not render talents: book=%s panel=%s nodes=%d focus=%s spells=%s" % [book != null,
