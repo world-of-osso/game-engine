@@ -133,10 +133,18 @@ func run_test() -> void:
 	var panel: Control
 	var node_count := 0
 	var panel_state: Dictionary = {}
+	var open_wait_frames := 0
+	var lookup_total_usec := 0
+	var lookup_max_usec := 0
 	var deadline := Time.get_ticks_msec() + OPEN_TIMEOUT_MS
 	while Time.get_ticks_msec() < deadline:
 		await process_frame
+		open_wait_frames += 1
+		var lookup_started_usec := Time.get_ticks_usec()
 		panel_state = find_talents_panel()
+		var lookup_usec := Time.get_ticks_usec() - lookup_started_usec
+		lookup_total_usec += lookup_usec
+		lookup_max_usec = maxi(lookup_max_usec, lookup_usec)
 		if not panel_state.is_empty():
 			panel = panel_state.panel
 			node_count = panel_state.node_count
@@ -152,7 +160,8 @@ func run_test() -> void:
 		return
 	var first_frame_ms := float(Time.get_ticks_usec() - keypress_usec) / 1000.0
 	print("TALENTS_PANEL_FIRST_FRAME ", JSON.stringify({"open_ms": first_frame_ms, "talent_nodes": node_count,
-		"ui_skin": client.account_state().ui_skin}))
+		"wait_frames": open_wait_frames, "lookup_total_ms": float(lookup_total_usec) / 1000.0,
+		"lookup_max_ms": float(lookup_max_usec) / 1000.0, "ui_skin": client.account_state().ui_skin}))
 	var first_frame := root.get_texture().get_image()
 	if first_frame.save_png(screenshot + "-first.png") != OK:
 		fail("Could not save first talents frame")
