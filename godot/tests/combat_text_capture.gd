@@ -123,7 +123,11 @@ func capture_self() -> void:
 		live = client.preview_incoming_combat_text(index)
 	freeze(0.4)
 	check(live == 20, "self combat text caps at the twenty-label Retail pool")
-	check(self_text_labels().size() == 20, "self labels include hits, heals, crits and avoidance")
+	var labels := self_text_labels()
+	print("SELF_LABELS count=%d" % labels.size())
+	if labels.size() != 20:
+		fail("expected twenty foreground self labels, found %d" % labels.size())
+		return
 	var after: Image = await capture("self", before)
 	var diff: Dictionary = image_diff(before, after, 0.15)
 	check(diff.count > 0, "self combat text pixels render")
