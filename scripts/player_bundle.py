@@ -184,6 +184,7 @@ def ui_texture_fdids(root):
             int(row['FileDataID'])
             for row in read_db2_rows(root, 'UiTextureAtlas', version)
             if int(row['ID']) in atlas_ids and int(row['FileDataID']) > 0
+            and (version == 'active' or int(row['UiTextureAtlasSetID']) == 1)
         )
     return fdids
 

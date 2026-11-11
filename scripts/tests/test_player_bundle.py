@@ -284,7 +284,7 @@ class PlayerBundleTest(unittest.TestCase):
             for relative in selected:
                 self.assertEqual((target / 'data' / relative).read_bytes(), (data / relative).read_bytes())
 
-    def test_staged_ui_texture_closure_uses_map_systems_and_both_atlas_sets(self):
+    def test_staged_ui_texture_closure_uses_map_systems_and_both_atlas_sources(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             root.mkdir(exist_ok=True)
@@ -299,10 +299,11 @@ class PlayerBundleTest(unittest.TestCase):
             forever_tables = data / 'db2/1.60.1.69913'
             forever_tables.mkdir(parents=True, exist_ok=True)
             (forever_tables / 'UiTextureAtlasMember.csv').write_text(
-                'ID,UiTextureAtlasID\n1,4100\n2,4101\n'
+                'ID,UiTextureAtlasID\n1,4100\n2,4101\n3,4102\n'
             )
             (forever_tables / 'UiTextureAtlas.csv').write_text(
-                'ID,FileDataID,UiTextureAtlasSetID\n4100,6855432,1\n4101,999998,2\n'
+                'ID,FileDataID,UiTextureAtlasSetID\n'
+                '4100,6855432,1\n4101,999998,2\n4102,999997,0\n'
             )
             (data / 'cache/model-asset-index.json').write_text('{"version":1,"assets":[]}')
             (data / 'battle-pets.json').write_text('[]\n')
@@ -324,7 +325,7 @@ class PlayerBundleTest(unittest.TestCase):
 
             expected_fdids = {
                 1599407, 1603193, 2133758, 7438338, 2034162,
-                2168041, 2168254, 6875169, 8040088, 6855432, 999998,
+                2168041, 2168254, 6875169, 8040088, 6855432,
             }
             self.assertEqual(bundle.ui_texture_fdids(root), expected_fdids)
             selected = set(bundle.data_files(root))
