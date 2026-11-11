@@ -74,6 +74,7 @@ pub fn apply_collections_postsetup(registry: &mut ui_toolkit::registry::FrameReg
         }
     }
     align_pet_loadout_names(registry);
+    apply_random_favorite_mount_button_art(registry);
     for (name, horizontal, vertical) in [
         ("CollectionsJournalBg", true, true),
         ("CollectionsJournalTopTileStreaks", true, false),
@@ -89,6 +90,27 @@ pub fn apply_collections_postsetup(registry: &mut ui_toolkit::registry::FrameReg
             texture.vert_tile = vertical;
         }
     }
+}
+
+fn apply_random_favorite_mount_button_art(registry: &mut ui_toolkit::registry::FrameRegistry) {
+    use ui_toolkit::frame::WidgetData;
+    use ui_toolkit::widgets::{button::ButtonTexture, texture::BlendMode};
+
+    let Some(id) = registry.get_by_name("MountJournalSummonRandomFavorite") else {
+        return;
+    };
+    let frame = registry.get_mut(id).expect("random favorite mount button");
+    let Some(WidgetData::Button(button)) = frame.widget_data.as_mut() else {
+        panic!("random favorite mount control must be a button");
+    };
+    button.pushed_texture = Some(ButtonTexture::new(
+        ui_toolkit::widgets::texture::TextureSource::FileDataId(130_839),
+    ));
+    button.highlight_texture = Some(ButtonTexture {
+        source: ui_toolkit::widgets::texture::TextureSource::FileDataId(130_718),
+        blend_mode: BlendMode::Additive,
+        ..Default::default()
+    });
 }
 
 // CompanionLoadOutTemplate names use BOTTOM; retire when RSX supports justify_v.

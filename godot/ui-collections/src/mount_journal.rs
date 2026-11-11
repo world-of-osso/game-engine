@@ -12,6 +12,9 @@ use ui_toolkit::{rsx, screen::SharedContext, widget_def::Element};
 
 pub const SEARCH: &str = "MountJournalSearchBox";
 pub const MODEL: &str = "MountJournalModelScene";
+pub const RANDOM_FAVORITE_MOUNT_ACTION: &str = "mount:random";
+pub const RANDOM_FAVORITE_MOUNT_SPELL_ID: u32 = 150544;
+pub const RANDOM_FAVORITE_MOUNT_ICON_FDID: u32 = 459044;
 const LIST: &str = "MountJournalScrollBox";
 const ROW_HEIGHT: f32 = 46.0;
 const LIST_HEIGHT: f32 = 478.0;
@@ -355,10 +358,7 @@ fn mount_details(view: &MountJournalView) -> Element {
             }
         }
     };
-    out.extend(rsx! {
-        button { name: "MountJournalSummonRandomFavorite", width: 206.0, height: 33.0,
-        left: 484.0, top: 33.0, pos_type: "absolute", text: "Summon Random Favorite Mount", font_size: 10.0, onclick: "mount:random" }
-    });
+    out.extend(random_favorite_mount_button());
     if let Some(mount) = view.selected_mount() {
         out.extend(texture(
             "MountJournalSelectedIcon".into(),
@@ -416,6 +416,79 @@ fn mount_details(view: &MountJournalView) -> Element {
     ));
     out
 }
+// Mainline Blizzard_MountCollection.xml:219-225 and UIPanelSpellButtonFrame.xml.
+fn random_favorite_mount_button() -> Element {
+    let label = random_favorite_mount_label();
+    let button = random_favorite_mount_icon_button();
+    rsx! {
+        r#frame {
+            name: "MountJournalSummonRandomFavoriteSpellFrame",
+            width: 206.0,
+            height: 33.0,
+            left: 489.0,
+            top: 25.0,
+            pos_type: "absolute",
+            {label}
+            {button}
+        }
+    }
+}
+
+fn random_favorite_mount_label() -> Element {
+    rsx! {
+        fontstring {
+            name: "MountJournalRandomFavoriteLabel",
+            width: 170.0,
+            height: 33.0,
+            text: "Summon Random Favorite Mount",
+            font_object: "GameFontNormal",
+            font_size: 12.0,
+            font_color: WHITE,
+            max_lines: 2,
+            justify_h: "RIGHT",
+            pos_type: "absolute",
+            left: 0.0,
+            top: 0.0,
+        }
+    }
+}
+
+fn random_favorite_mount_icon_button() -> Element {
+    rsx! {
+        button {
+            name: "MountJournalSummonRandomFavorite",
+            width: 33.0,
+            height: 33.0,
+            left: 173.0,
+            top: 0.0,
+            pos_type: "absolute",
+            button_default_skin: false,
+            onclick: RANDOM_FAVORITE_MOUNT_ACTION,
+            tooltip_provider: "mount_random_favorite",
+            tooltip_anchor: "ANCHOR_RIGHT",
+            texture {
+                name: "MountJournalRandomFavoriteIcon",
+                width: 33.0,
+                height: 33.0,
+                texture_fdid: RANDOM_FAVORITE_MOUNT_ICON_FDID,
+                pos_type: "absolute",
+                left: 0.0,
+                top: 0.0,
+            }
+            texture {
+                name: "MountJournalRandomFavoriteBorder",
+                width: 35.0,
+                height: 35.0,
+                texture_fdid: 437_309,
+                tex_coords: "0.015625,0.671875,0.3984375,0.7265625",
+                pos_type: "absolute",
+                left: -1.0,
+                top: -1.0,
+            }
+        }
+    }
+}
+
 // SharedUIPanelTemplates.xml:163-224; source files give 64px corners/edges.
 fn mount_shadow_overlay() -> Element {
     [

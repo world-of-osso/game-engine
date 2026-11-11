@@ -18,6 +18,7 @@ impl RegistryUi {
             registry,
             parent,
         )?;
+        self.enable_cursor_inputs();
         self.toplevel = true;
         Ok(())
     }

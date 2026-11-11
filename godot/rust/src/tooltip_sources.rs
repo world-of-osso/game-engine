@@ -209,6 +209,7 @@ impl GameClient {
             "housing" => self.housing_tooltip(hit),
             "toybox" => self.toybox_tooltip(hit),
             "action_button" => self.action_button_tooltip(hit),
+            "mount_random_favorite" => self.mount_random_favorite_tooltip(),
             "mentor_teleport" => self.mentor_teleport_tooltip(hit),
             "talent_gate" => self.talent_gate_tooltip(hit),
             "profession_recipe_source" => self.profession_recipe_source_tooltip(hit),
@@ -792,6 +793,14 @@ impl GameClient {
             self.account.spells.known().contains(&spell_id),
         );
         Some(HoveredTooltip::text(tooltip))
+    }
+
+    fn mount_random_favorite_tooltip(&self) -> Option<HoveredTooltip> {
+        let spell_id = game_engine_ui_collections::mount_journal::RANDOM_FAVORITE_MOUNT_SPELL_ID;
+        self.spells.catalog()?.get(spell_id)?;
+        Some(HoveredTooltip::text(
+            self.spell_game_tooltip(spell_id, None),
+        ))
     }
 
     fn action_button_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {

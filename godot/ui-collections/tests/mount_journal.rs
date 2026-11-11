@@ -21,6 +21,93 @@ fn mare() -> MountJournalEntry {
         active: false,
     }
 }
+
+#[test]
+fn random_favorite_mount_button_uses_the_retail_spell_icon_and_action() {
+    use game_engine_ui_collections::{
+        collections_component::apply_collections_postsetup,
+        mount_journal::{
+            RANDOM_FAVORITE_MOUNT_ACTION, RANDOM_FAVORITE_MOUNT_ICON_FDID, mount_journal_screen,
+        },
+    };
+    use ui_toolkit::{
+        frame::{Dimension, WidgetData},
+        registry::FrameRegistry,
+        screen::{Screen, SharedContext},
+        widgets::texture::TextureSource,
+    };
+
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    let mut state = view();
+    state.visible = true;
+    let mut shared = SharedContext::new();
+    shared.insert(state);
+    let mut registry = FrameRegistry::new(1280.0, 720.0);
+    Screen::new(mount_journal_screen).sync(&shared, &mut registry);
+    apply_collections_postsetup(&mut registry);
+
+    let frame = |name| {
+        registry
+            .get(registry.get_by_name(name).expect(name))
+            .unwrap()
+    };
+    let spell_frame = frame("MountJournalSummonRandomFavoriteSpellFrame");
+    assert_eq!(spell_frame.width, Dimension::Fixed(206.0));
+    assert_eq!(spell_frame.height, Dimension::Fixed(33.0));
+    let button_id = registry
+        .get_by_name("MountJournalSummonRandomFavorite")
+        .expect("random favorite spell button");
+    let button = frame("MountJournalSummonRandomFavorite");
+    assert_eq!(button.width, Dimension::Fixed(33.0));
+    assert_eq!(button.height, Dimension::Fixed(33.0));
+    assert_eq!(
+        button.position.left,
+        ui_toolkit::layout_values::Val::Px(173.0)
+    );
+    assert_eq!(
+        button.onclick.as_deref(),
+        Some(RANDOM_FAVORITE_MOUNT_ACTION)
+    );
+    assert_eq!(button.parent_id, Some(spell_frame.id));
+
+    let icon = frame("MountJournalRandomFavoriteIcon");
+    let Some(WidgetData::Texture(icon)) = &icon.widget_data else {
+        panic!("random favorite spell icon is missing");
+    };
+    assert_eq!(
+        icon.source,
+        TextureSource::FileDataId(RANDOM_FAVORITE_MOUNT_ICON_FDID)
+    );
+    let label = frame("MountJournalRandomFavoriteLabel");
+    let Some(WidgetData::FontString(label)) = &label.widget_data else {
+        panic!("random favorite spell label is missing");
+    };
+    assert_eq!(label.text, "Summon Random Favorite Mount");
+
+    let Some(WidgetData::Button(button)) = &frame("MountJournalSummonRandomFavorite").widget_data
+    else {
+        panic!("random favorite spell button is missing");
+    };
+    assert_eq!(
+        button
+            .pushed_texture
+            .as_ref()
+            .map(|texture| &texture.source),
+        Some(&TextureSource::FileDataId(130_839))
+    );
+    assert_eq!(
+        button
+            .highlight_texture
+            .as_ref()
+            .map(|texture| &texture.source),
+        Some(&TextureSource::FileDataId(130_718))
+    );
+    assert!(registry.get(button_id).is_some());
+}
+
 #[test]
 fn mount_journal_snapshot_changes_rebuild_shared_screen_without_reopening() {
     use game_engine_ui_collections::mount_journal::mount_journal_screen;

@@ -1,9 +1,9 @@
 //! Spellbook, main action bar and casting (docs/specs/spellbook-action-bar.md).
 //!
-//! The server owns known spells, the action bar and every cast: a bar button's bound key
-//! (`ACTIONBUTTON1..12` on 1..=, Action Bar 2/3 unbound by default) or a click on
-//! a bar button (or a known spell in the spellbook) send `SpellCastIntent` with
-//! the current target; `CastFailed` shows in UIErrorsFrame, `SpellCooldownUpdate`
+//! The server owns known spells, the action bar and every cast: ordinary spell actions
+//! send `SpellCastIntent` with the current target. Mount Journal spell 150544 routes to its
+//! existing collection request. Bar keys are `ACTIONBUTTON1..12` on 1..= (Action Bar 2/3
+//! unbound by default); `CastFailed` shows in UIErrorsFrame, `SpellCooldownUpdate`
 //! sweeps the buttons, the local player's replicated `CastState` fills the cast bar,
 //! and the caster's `CombatLogEvent` damage floats over the target.
 

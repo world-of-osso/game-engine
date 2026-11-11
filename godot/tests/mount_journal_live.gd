@@ -3,6 +3,7 @@ extends SceneTree
 const MOUNT_ID := 18
 const ITEM_ID := 5655
 const SPELL_ID := 6648
+const RANDOM_FAVORITE_SPELL_ID := 150544
 var client: Node
 var shots := OS.get_environment("MOUNT_SHOTS")
 var skin := OS.get_environment("MOUNT_SKIN")
@@ -28,6 +29,7 @@ func run_fixture() -> void:
 	await click("CharCard_" + OS.get_environment("MOUNT_CHARACTER_INDEX"))
 	await click("EnterWorld")
 	if not await wait_until(func(): return client.account_state().screen == "InWorld" and int(client.mount_journal_state().catalog_count) > 0 and control("MinimapLauncherButton") != null, "world/catalog", 180000): return
+
 	var ready := FileAccess.open(OS.get_environment("MOUNT_READY_FILE"), FileAccess.WRITE)
 	ready.store_string(str(client.account_state()))
 	ready.close()
@@ -46,6 +48,7 @@ func run_fixture() -> void:
 	await capture("relog-collected" if relog else "uncollected")
 	if relog:
 		if learned().is_empty() or not learned().favourite: fail("Account mount/favourite did not survive character change: " + str(client.mount_journal_state())); return
+
 	else:
 		if not learned().is_empty(): fail("Fresh account already owns mare"); return
 		await tap(KEY_ESCAPE)
@@ -87,6 +90,10 @@ func run_fixture() -> void:
 		if not await menu_text_visible(): fail("Favourite popup labels are covered by their background"); return
 		await capture("favourite-menu")
 		await click("MountJournalContextCancel")
+	await capture("random-favorite-button")
+	await motion(control("MountJournalSummonRandomFavorite").get_global_rect().get_center(), false)
+	if not await wait_until(func(): return client.tooltip_state().title == "Summon Random Favorite Mount", "random favorite spell tooltip"): return
+	await motion(Vector2(8, 8), false)
 	var model := control("MountJournalModelScene")
 	var start := model.get_global_rect().get_center()
 	await motion(start, false)
@@ -105,7 +112,17 @@ func run_fixture() -> void:
 	if not await wait_until(func(): return mounted(), "random favourite normal mount spell", 60000): return
 	await capture("random-favourite")
 	await click("MountJournalMountButton")
-	if not await wait_until(func(): return dismounted(), "final dismount"): return
+	if not await wait_until(func(): return dismounted(), "dismount before action-bar proof"): return
+	await drag_to("MountJournalSummonRandomFavorite", "ActionButton12")
+	if not await wait_until(func(): return int(client.spells_state().bar[11]) == RANDOM_FAVORITE_SPELL_ID, "random favorite action-bar assignment"): return
+	await tap(KEY_ESCAPE)
+	if not await wait_until(func(): return control("MountJournalSearchBox") == null, "close journal before action-bar activation"): return
+	await capture("random-favorite-bar-slot")
+	await click("ActionButton12")
+	if not await wait_until(func(): return mounted(), "action-bar random favorite summon", 60000): return
+	await tap(KEY_ESCAPE)
+	if not await wait_until(func(): return control("MountJournalSearchBox") == null, "close journal for mounted view"): return
+	await capture("random-favorite-mounted-from-bar")
 	print("MOUNT_JOURNAL_LIVE PASS skin=", skin, " relog=", relog, " state=", client.mount_journal_state())
 	client.free()
 	quit(0)
@@ -225,6 +242,16 @@ func button_event(point: Vector2, button: int, down: bool) -> void:
 	event.pressed = down
 	root.push_input(event, true)
 	await process_frame
+
+func drag_to(source: String, destination: String) -> void:
+	var start := control(source).get_global_rect().get_center()
+	var end := control(destination).get_global_rect().get_center()
+	await motion(start, false)
+	await button_event(start, MOUSE_BUTTON_LEFT, true)
+	for step in range(1, 9):
+		await motion(start.lerp(end, float(step) / 8.0), true)
+	await button_event(end, MOUSE_BUTTON_LEFT, false)
+	await wait_frames(10)
 
 func type_text(value: String) -> void:
 	for character in value:

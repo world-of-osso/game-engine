@@ -132,6 +132,9 @@ impl GameClient {
         if self.toybox_cursor_press(owner, action, click, at)? {
             return Ok(());
         }
+        if self.mount_journal_cursor_press(owner, action, click, at)? {
+            return Ok(());
+        }
         if self.spell_cursor_press(owner, action, click, at)? {
             return Ok(());
         }

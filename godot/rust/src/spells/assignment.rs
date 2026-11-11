@@ -98,7 +98,7 @@ impl GameClient {
         let distance = drag.origin.distance_to(at);
         if distance < DRAG_THRESHOLD {
             self.bags.cursor.spell_drag = None;
-            self.cast_spell(spell_id)?;
+            self.activate_spell_action(spell_id)?;
         } else {
             let hit = self.ui_hit_at(physical_at)?;
             if let Some(action) = hit.and_then(|hit| hit.action) {

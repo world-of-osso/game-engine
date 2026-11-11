@@ -121,7 +121,7 @@ impl GameClient {
         }
     }
 
-    /// `UseAction`: a spell button casts at the current target.
+    /// `UseAction`: ordinary spell actions cast at the current target.
     pub(super) fn use_action_button(
         &mut self,
         bar: ActionBar,
@@ -129,12 +129,20 @@ impl GameClient {
     ) -> Result<(), SessionError> {
         self.spells.pushed[bar as usize][index] = PUSH_SECS;
         match self.action_slot(self.bar_slot(bar, index)) {
-            Some(ActionRef::Spell(spell_id)) => self.cast_spell(spell_id),
+            Some(ActionRef::Spell(spell_id)) => self.activate_spell_action(spell_id),
             Some(ActionRef::Item(item_id)) if self.toybox.model.toy(item_id).is_some() => {
                 self.use_toy(item_id)
             }
             Some(ActionRef::Item(item_id)) => self.use_action_item(item_id),
             _ => Ok(()),
+        }
+    }
+
+    pub(crate) fn activate_spell_action(&mut self, spell_id: u32) -> Result<(), SessionError> {
+        if spell_id == game_engine_ui_collections::mount_journal::RANDOM_FAVORITE_MOUNT_SPELL_ID {
+            self.account.send_random_favourite_mount()
+        } else {
+            self.cast_spell(spell_id)
         }
     }
 

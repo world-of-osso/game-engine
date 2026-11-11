@@ -1,12 +1,15 @@
 //! Native account Mount Journal with an independent creature preview scene.
+use crate::bag_cursor::SpellDrag;
 use crate::character_frame::preview::{Scene, bind_sheet_light};
 use crate::world_models::UnitAppearance;
 use crate::{GameClient, frame_error::FrameError, ui::RegistryUi};
 use game_engine_core::input_bindings_data::InputAction;
 use game_engine_session::SessionScreen;
 use game_engine_ui_collections::mount_journal::{
-    MODEL, MountJournalView, SEARCH, mount_journal_screen,
+    MODEL, MountJournalView, RANDOM_FAVORITE_MOUNT_ACTION, RANDOM_FAVORITE_MOUNT_ICON_FDID,
+    RANDOM_FAVORITE_MOUNT_SPELL_ID, SEARCH, mount_journal_screen,
 };
+use game_engine_ui_model::merchant::Click;
 use godot::prelude::*;
 
 #[derive(Default)]
@@ -65,6 +68,37 @@ impl GameClient {
             ui.free();
         }
     }
+    pub(crate) fn mount_journal_cursor_press(
+        &mut self,
+        owner: i64,
+        action: &str,
+        click: Click,
+        at: Option<Vector2>,
+    ) -> Result<bool, FrameError> {
+        let mount_journal = self
+            .mount_journal
+            .ui
+            .as_ref()
+            .is_some_and(|ui| ui.instance_id().to_i64() == owner);
+        if !mount_journal || action != RANDOM_FAVORITE_MOUNT_ACTION {
+            return Ok(false);
+        }
+        if !click.right
+            && let Some(origin) = at
+        {
+            let icon_fdid = self.drawable_fdid(RANDOM_FAVORITE_MOUNT_ICON_FDID);
+            self.bags.cursor.spell_drag = Some(SpellDrag {
+                owner,
+                origin,
+                spell_id: RANDOM_FAVORITE_MOUNT_SPELL_ID,
+                icon_fdid,
+            });
+        } else {
+            self.activate_spell_action(RANDOM_FAVORITE_MOUNT_SPELL_ID)?;
+        }
+        Ok(true)
+    }
+
     pub(super) fn receive_mount_journal(&mut self, update: shared::protocol::MountJournalUpdate) {
         godot_print!(
             "MOUNT_JOURNAL_RECEIVED count={} mare={:?} error={:?}",

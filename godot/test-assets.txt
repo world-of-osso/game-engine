@@ -4920,6 +4920,10 @@ db2/active/GuildPerkSpells.csv
 db2/active/GuildTabardBackground.csv
 db2/active/GuildTabardBorder.csv
 db2/active/GuildTabardEmblem.csv
+# Mainline Mount Journal random-favorite spell button and UIPanelSpellButton art.
+textures/459044.blp
+textures/130839.blp
+textures/437309.blp
 # Mainline Communities right-edge tabs, column strips/highlight and class sprite.
 textures/136831.blp
 textures/2056011.blp

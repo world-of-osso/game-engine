@@ -771,6 +771,15 @@ impl RegistryModel {
             }
             _ => return None,
         };
+        let is_mount_journal = self
+            .shared
+            .get::<game_engine_ui_collections::mount_journal::MountJournalView>()
+            .is_some();
+        if is_mount_journal
+            && action != game_engine_ui_collections::mount_journal::RANDOM_FAVORITE_MOUNT_ACTION
+        {
+            return None;
+        }
         Some(crate::bag_cursor::BagInput::Click {
             owner,
             action,
