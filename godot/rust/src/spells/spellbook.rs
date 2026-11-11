@@ -105,6 +105,9 @@ impl GameClient {
     }
 
     pub(crate) fn close_spellbook(&mut self) {
+        if std::env::var_os("TALENTS_INPUT_TRACE").is_some() && self.spells.book_ui.is_some() {
+            godot_print!("TALENTS_CLOSE_SPELLBOOK");
+        }
         self.bags.cursor.spell_drag = None;
         if let Some(ui) = self.spells.book_ui.take() {
             ui.free();
@@ -320,6 +323,9 @@ impl GameClient {
         let shown = self
             .sync_spellbook_frame(state, existing)
             .and_then(|()| self.place_spellbook());
+        if !existing && std::env::var_os("TALENTS_INPUT_TRACE").is_some() {
+            godot_print!("TALENTS_INITIAL_SYNC result={:?}", shown);
+        }
         if !existing && shown.is_err() {
             self.close_spellbook();
         }
