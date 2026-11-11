@@ -54,8 +54,14 @@ def publish(sources, manifest, live, output, pack_cache, destination, rclone='rc
     subprocess.run([rclone, 'check', str(pack_cache / 'packs'), f'{destination}/packs',
                     '--one-way', '--size-only', '--checkers', '16',
                     '--low-level-retries', '20'], check=True)
+    revision = json.loads((pack_cache / 'manifest-v3.json').read_text())
+    index = pack_cache / 'indexes' / f"{revision['index']['sha256']}.json.gz"
+    subprocess.run([rclone, 'copyto', str(index),
+                    f"{destination}/indexes/{index.name}", '--immutable'], check=True)
     subprocess.run([rclone, 'copyto', str(pack_cache / 'manifest-v2.json'),
                     f'{destination}/manifest-v2.json', *headers], check=True)
+    subprocess.run([rclone, 'copyto', str(pack_cache / 'manifest-v3.json'),
+                    f'{destination}/manifest-v3.json', *headers], check=True)
 
 
 def upload_some(sources, upload, entries, destination, rclone):
