@@ -81,6 +81,7 @@ pub struct SessionOptions<'a> {
 #[derive(Debug)]
 pub enum SessionEffect {
     PersistToken(String),
+    RemoveSavedToken,
     SelectCharacter(SelectCharacter),
     ResetNetworkWorld,
     RequestDisconnect,
@@ -114,6 +115,7 @@ pub enum ReconnectPhase {
 
 /// Login feedback after the connection dropped.
 const CONNECTION_LOST: &str = "Connection lost.";
+const SAVED_SESSION_EXPIRED: &str = "Saved session expired. Please log in again.";
 
 #[derive(Default)]
 pub struct Session {
@@ -236,12 +238,21 @@ impl Session {
         if !response.success {
             self.clear_reconnect();
             let error = response.error.unwrap_or_default();
+            let expired_saved_session = error == SAVED_SESSION_EXPIRED;
+            if expired_saved_session {
+                self.token = None;
+            }
             self.feedback = Some(user_facing_login_error(&error).to_owned());
             self.screen = SessionScreen::Login;
-            return vec![
+            let mut effects = Vec::new();
+            if expired_saved_session {
+                effects.push(SessionEffect::RemoveSavedToken);
+            }
+            effects.extend([
                 SessionEffect::ResetNetworkWorld,
                 SessionEffect::Transition(self.screen),
-            ];
+            ]);
+            return effects;
         }
 
         self.token = Some(response.token.clone());
@@ -489,7 +500,9 @@ fn resolve_selected_index(
 
 fn user_facing_login_error(error: &str) -> &str {
     let normalized = error.trim().to_ascii_lowercase();
-    if [
+    if normalized == SAVED_SESSION_EXPIRED.to_ascii_lowercase() {
+        error
+    } else if [
         "invalid",
         "incorrect",
         "wrong password",
