@@ -13,7 +13,7 @@ extends SceneTree
 ## Captures are 960x540 JPEGs, each paired with the same frame before any text so the diff is
 ## the text alone.
 
-const OUT_DIR := "/home/osso/Projects/world-of-osso/game-engine/data/diagnostics/combat-text-parity-2026-11-08/"
+var OUT_DIR := OS.get_environment("COMBAT_TEXT_CAPTURE_DIR")
 ## File-name prefix: "master-" for the before-everything baseline.
 var file_prefix := OS.get_environment("CAPTURE_PREFIX")
 ## Open ground inside the Stormwind wall (the healer-ring capture's flat row).
@@ -44,13 +44,18 @@ func run() -> void:
 		fail("CAPTURE_CASE is required")
 		return
 	root.size = Vector2i(1280, 720)
+	if OUT_DIR == "":
+		fail("COMBAT_TEXT_CAPTURE_DIR is required")
+		return
 	DirAccess.make_dir_recursive_absolute(OUT_DIR)
 	client = load("res://scenes/client.tscn").instantiate()
 	root.add_child(client)
 	await wait_ms(1500)
-	var skin_error: String = client.preview_world_skin(true)
-	if skin_error != "" or client.account_state().ui_skin != "Forever":
-		fail("Forever skin unavailable: " + skin_error)
+	var forever := OS.get_environment("COMBAT_TEXT_SKIN") != "Modern"
+	var expected_skin := "Forever" if forever else "Modern"
+	var skin_error: String = client.preview_world_skin(forever)
+	if skin_error != "" or client.account_state().ui_skin != expected_skin:
+		fail(expected_skin + " skin unavailable: " + skin_error)
 		return
 	if not await load_world(ROW):
 		return
@@ -69,6 +74,12 @@ func run() -> void:
 			await capture_set()
 		"limit":
 			await capture_limit()
+		"cross-unit":
+			await capture_cross_unit()
+		"self":
+			await capture_self()
+		"self-before":
+			await capture_self_before()
 		"spread":
 			await capture_spread()
 		"perf":
@@ -85,6 +96,60 @@ func run() -> void:
 	quit(0)
 
 ## One target: a hit, a crit and a heal on the same unit, at 10 or 30 yards.
+func capture_cross_unit() -> void:
+	var before: Image = await grab()
+	for style in [PET_MELEE, PET_SPELL, HEAL, DODGE]:
+		client.preview_combat_text(style, 6000, anchor(Vector3(-2.0, 0.0, 0.0)))
+	for style in [HIT, PERIODIC, ABSORB, HEAL_CRIT, PERIODIC]:
+		client.preview_combat_text(style, 6001, anchor(Vector3(2.0, 0.0, 0.0)))
+	freeze(0.4)
+	await capture("cross-unit", before)
+	var retained := false
+	for label in text_labels():
+		retained = retained or label.text == "Dodge"
+	check(retained, "a full unit must not evict another unit's Dodge")
+	check(client.spells_state().combat_text == 8, "two units retain four slots each")
+
+func capture_self_before() -> void:
+	var before: Image = await grab()
+	var after: Image = await capture("self", before)
+	var diff: Dictionary = image_diff(before, after, 0.15)
+	print("SELF_BASELINE_DIFF count=%d" % diff.count)
+
+func capture_self() -> void:
+	var before: Image = await grab()
+	var live := 0
+	for index in 9:
+		live = client.preview_incoming_combat_text(index)
+	freeze(0.4)
+	check(live == 9, "self capture shows nine message styles")
+	var labels := self_text_labels()
+	if labels.size() != 9:
+		fail("expected nine foreground self labels, found %d" % labels.size())
+		return
+	var after: Image = await capture("self", before)
+	var diff: Dictionary = image_diff(before, after, 0.15)
+	check(diff.count > 0, "self combat text pixels render")
+	for index in range(9, 21):
+		live = client.preview_incoming_combat_text(index)
+	check(live == 20, "self combat text caps at the twenty-label Retail pool")
+	var samples := []
+	for run in 3:
+		samples.append(client.preview_combat_text_cost(2000))
+	samples.sort()
+	var median: float = samples[1]
+	print("SELF_COST_US samples=%s median=%.3f budget=%.1f" % [samples, median, FRAME_BUDGET_US])
+	check(median <= FRAME_BUDGET_US, "twenty self labels stay inside the per-frame budget")
+
+func self_text_labels() -> Array:
+	var labels := []
+	var layer := root.find_child("FloatingCombatTextLayer", true, false)
+	if layer is CanvasLayer:
+		for text in layer.get_children():
+			if text is Label and not text.has_meta("combat_text_shadow"):
+				labels.append(text)
+	return labels
+
 func capture_single() -> void:
 	var before: Image = await grab()
 	for style in [HIT, CRIT, HEAL]:
@@ -356,7 +421,7 @@ func check_count(expected: int, label: String) -> void:
 func check(condition: bool, label: String) -> void:
 	if condition:
 		print("PASS " + label)
-	elif file_prefix != "":
+	elif file_prefix.begins_with("before-"):
 		# The baseline capture shows what master does; its contract differs on purpose.
 		print("BASELINE " + label)
 	else:
@@ -471,7 +536,8 @@ func save_jpeg(image: Image, name: String) -> void:
 func hide_ui(node: Node) -> void:
 	for child in node.get_children():
 		if child is CanvasLayer:
-			child.visible = false
+			if child.name != "FloatingCombatTextLayer":
+				child.visible = false
 		elif child is Control:
 			child.hide()
 		else:

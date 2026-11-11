@@ -349,6 +349,8 @@ impl HealerGroundRingOptions {
 pub struct HudOptionsFile {
     pub show_minimap: bool,
     pub show_action_bars: bool,
+    #[serde(default, rename = "combatText")]
+    pub combat_text: crate::combat_text_options::CombatTextOptions,
     #[serde(default)]
     pub cooldown_assist: CooldownAssistOptions,
     #[serde(default, rename = "extraActionBars")]
@@ -396,6 +398,7 @@ impl Default for HudOptionsFile {
         Self {
             show_minimap: true,
             show_action_bars: true,
+            combat_text: crate::combat_text_options::CombatTextOptions::default(),
             cooldown_assist: CooldownAssistOptions::default(),
             extra_action_bars: ExtraActionBars::default(),
             healer_ground_rings: HealerGroundRingOptions::default(),

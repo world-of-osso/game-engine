@@ -37,7 +37,7 @@ use godot::prelude::*;
 
 use crate::frame_error::{FrameError, report_once};
 use crate::{GameClient, ui::RegistryUi, world_map::WindowDrag};
-use floating_text::FloatingText;
+use floating_text::{FloatingText, SelfFloatingText};
 
 #[cfg(test)]
 use crate::world_map::title_hit;
@@ -82,6 +82,10 @@ pub(crate) struct SpellsHud {
     pushed: [[f32; MAIN_BAR_BUTTONS]; ActionBar::ALL.len()],
     combat_seen: u64,
     floating: Vec<FloatingText>,
+    self_floating: Vec<SelfFloatingText>,
+    self_float_layer: Option<Gd<godot::classes::CanvasLayer>>,
+    self_float_x_dir: f32,
+    self_float_offset_adjustment: f32,
     /// Numbers floated so far, indexing each one's start offset.
     floats_spawned: u32,
     /// Offline capture holds the live texts at their age instead of advancing them.
@@ -116,6 +120,10 @@ impl Default for SpellsHud {
             pushed: Default::default(),
             combat_seen: 0,
             floating: Vec::new(),
+            self_floating: Vec::new(),
+            self_float_layer: None,
+            self_float_x_dir: 1.0,
+            self_float_offset_adjustment: crate::combat_text::incoming::TEXT_OFFSET_ADJUSTMENT,
             floats_spawned: 0,
             combat_text_hold: false,
             sent: Vec::new(),

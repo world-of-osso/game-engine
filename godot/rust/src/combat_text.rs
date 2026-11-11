@@ -6,25 +6,28 @@
 //! shares, and the Retail CVar defaults (`wow-ui-sim/src/cvars.yaml`). Each item's proof level
 //! is recorded in docs/specs/floating-combat-text.md.
 //!
-//! Retail CVars, `_v2` defaults: `WorldTextStartPosRandomness_v2 = 1.0` and
-//! `WorldTextRandomZMin_v2 = 0.8` / `WorldTextRandomZMax_v2 = 1.5` randomise where each number
-//! starts, so simultaneous numbers do not stack; `WorldTextRampDuration_v2 = 1.0` with
-//! `WorldTextRampPow_v2 = 1.9` / `WorldTextRampPowCrit_v2 = 8.0` shape the size ramp, a crit
-//! settling faster. No source has the engine formula; the mapping of each CVar here is read
-//! from its name. Text is world-anchored and shrinks with camera distance (Retail 12.1.5);
-//! 15890 drew the same words in a screen-space ortho at a fixed screen height
-//! (`WorldText.cpp:234-253`), which is the older behaviour. The start spread is measured in
-//! world units that scale with the text, so distant numbers do not land on each other.
+//! Cached Retail CVar defaults include world-text start randomness, random-Z bounds, ramp,
+//! gravity and minimum alpha. The native formulas for those values are not decoded here, so the
+//! current world placement remains the engine's deterministic per-unit stack and camera-plane
+//! spread. The self-frame CVar behavior is implemented in `incoming.rs`. World text is anchored
+//! in 3D and follows the calibrated 1/d projection; 15890's screen-space ortho path
+//! (`WorldText.cpp:234-253`) is older and not used as proof of Retail distance behavior.
 
+#[path = "combat_text/incoming.rs"]
+pub(crate) mod incoming;
+
+#[cfg(test)]
+#[path = "combat_text/parity_tests.rs"]
+mod parity_tests;
+
+use game_engine_core::combat_text_options::CombatTextOptions;
 use godot::prelude::*;
 use shared::protocol::{CombatLogEvent, CombatLogKind, MissKind};
 
-/// `WorldTextStartPosRandomness_v2`: sideways start spread either side, in units.
+/// `WorldTextStartPosRandomness_v2` default bounds the engine's sideways start spread.
 const START_POS_RANDOMNESS: f32 = 1.0;
-/// `WorldTextRandomZMin_v2` / `WorldTextRandomZMax_v2`, in units. Retail randomises the start
-/// height over this band; the engine instead stacks a unit's four slots one text height apart
-/// (see `spells::floating_text`), which is what keeps them from covering each other, so the
-/// band only fixes the lowest start.
+/// Current stack's starting lift, multiplied by the text em. The native meaning of
+/// `WorldTextRandomZMin_v2` is not decoded; this deterministic stack is an engine layout policy.
 pub(crate) const RANDOM_Z_MIN: f32 = 0.8;
 /// The pop-and-settle curve Retail shares with 15890 (`s_critHeightCurve`,
 /// `WorldText.cpp:37-42`): from 10 % of the settled height at spawn, to 200 % at 10 % of the
@@ -163,38 +166,22 @@ pub(crate) struct FloatText {
 /// Damage and healing of zero draw nothing; a pet's heal draws nothing (15890 only draws the
 /// active player's heals); periodic lines draw like direct ones (`WorldText.cpp` has no
 /// distinction, the CVar gate is `floatingCombatTextCombatLogPeriodicSpells_v2`).
+#[cfg(test)]
 pub(crate) fn text_for(event: &CombatLogEvent, attacker: Attacker) -> Option<FloatText> {
-    // Retail keeps melee and spell damage on separate styles (`1 melee damage`, `0 spell
-    // damage`); a swing carries no spell, an ability does.
-    let spell = event.spell_id.is_some();
+    text_for_with_options(event, attacker, &CombatTextOptions::default())
+}
+
+pub(crate) fn text_for_with_options(
+    event: &CombatLogEvent,
+    attacker: Attacker,
+    options: &CombatTextOptions,
+) -> Option<FloatText> {
+    if event.periodic && !options.periodic {
+        return None;
+    }
     match event.kind {
-        CombatLogKind::Damage if event.amount > 0 => Some(FloatText {
-            // Retail appends no punctuation to a crit (`Unit_C.cpp:17775`); this engine's
-            // existing contract and its live fixture keep the "!".
-            text: if event.crit {
-                format!("{}!", event.amount)
-            } else {
-                event.amount.to_string()
-            },
-            color: attacker.color(),
-            crit: event.crit,
-            spell_crit: event.crit && spell,
-            style: match (event.crit, spell) {
-                (true, true) => SPELL_CRIT,
-                (true, false) => MELEE_CRIT,
-                (false, true) => SPELL_DAMAGE,
-                (false, false) => MELEE_DAMAGE,
-            },
-        }),
-        CombatLogKind::Heal if event.amount > 0 && attacker == Attacker::Player => {
-            Some(FloatText {
-                text: format!("+{}", event.amount),
-                color: HEAL_GREEN,
-                crit: event.crit,
-                spell_crit: event.crit,
-                style: if event.crit { HEAL_CRIT } else { HEAL_STYLE },
-            })
-        }
+        CombatLogKind::Damage => damage_text(event, attacker, options),
+        CombatLogKind::Heal => heal_text(event, attacker, options),
         CombatLogKind::Miss(kind) => Some(FloatText {
             text: miss_word(kind).to_owned(),
             color: attacker.color(),
@@ -204,6 +191,59 @@ pub(crate) fn text_for(event: &CombatLogEvent, attacker: Attacker) -> Option<Flo
         }),
         _ => None,
     }
+}
+
+fn damage_text(
+    event: &CombatLogEvent,
+    attacker: Attacker,
+    options: &CombatTextOptions,
+) -> Option<FloatText> {
+    let pet_enabled = match attacker {
+        Attacker::PetMelee => options.pet_melee,
+        Attacker::PetSpell => options.pet_spell,
+        Attacker::Player => true,
+    };
+    if event.amount <= 0 || !options.world_damage || !pet_enabled {
+        return None;
+    }
+    let spell = event.spell_id.is_some();
+    let mut style = match (event.crit, spell) {
+        (true, true) => SPELL_CRIT,
+        (true, false) => MELEE_CRIT,
+        (false, true) => SPELL_DAMAGE,
+        (false, false) => MELEE_DAMAGE,
+    };
+    if event.crit {
+        style.scale = options.crit_screen_y / options.screen_y;
+    }
+    Some(FloatText {
+        text: event.amount.to_string(),
+        color: attacker.color(),
+        crit: event.crit,
+        spell_crit: event.crit && spell,
+        style,
+    })
+}
+
+fn heal_text(
+    event: &CombatLogEvent,
+    attacker: Attacker,
+    options: &CombatTextOptions,
+) -> Option<FloatText> {
+    if event.amount <= 0 || !options.world_healing || attacker != Attacker::Player {
+        return None;
+    }
+    let mut style = if event.crit { HEAL_CRIT } else { HEAL_STYLE };
+    if event.crit {
+        style.scale = options.crit_screen_y / options.screen_y;
+    }
+    Some(FloatText {
+        text: format!("+{}", event.amount),
+        color: HEAL_GREEN,
+        crit: event.crit,
+        spell_crit: event.crit,
+        style,
+    })
 }
 
 /// The word 15890 shows for an avoided or reduced hit (`s_combatTextTokens`,
@@ -233,6 +273,7 @@ pub(crate) const SCREEN_Y: f32 = 0.015;
 pub(crate) const CRIT_SCREEN_Y: f32 = 0.0275;
 const DDC_HEIGHT_SCALE: f32 = 0.6;
 /// Normal-text em as a fraction of the viewport height at [`REFERENCE_YARDS`].
+#[cfg(test)]
 pub(crate) const SCREEN_HEIGHT_FRACTION: f32 = SCREEN_Y / DDC_HEIGHT_SCALE;
 /// The distance at which the em is [`SCREEN_HEIGHT_FRACTION`] of the viewport height.
 /// **Calibrated**: Retail 12.1.5 defines the text height through a screen scale built from
@@ -245,9 +286,14 @@ pub(crate) const REFERENCE_YARDS: f32 = 10.0;
 /// camera's field of view. A constant world size is what makes the screen height follow
 /// Retail's 1/d law: the projected height of a fixed world size divides by the distance
 /// exactly as the law does, so no per-frame distance term is needed.
+#[cfg(test)]
 pub(crate) fn em_yards(fov_degrees: f32) -> f32 {
+    em_yards_with_options(fov_degrees, &CombatTextOptions::default())
+}
+
+pub(crate) fn em_yards_with_options(fov_degrees: f32, options: &CombatTextOptions) -> f32 {
     let half_fov = (fov_degrees * std::f32::consts::PI / 360.0).tan();
-    SCREEN_HEIGHT_FRACTION * REFERENCE_YARDS * 2.0 * half_fov
+    (options.screen_y / DDC_HEIGHT_SCALE) * options.world_scale * REFERENCE_YARDS * 2.0 * half_fov
 }
 
 /// Shadow offset in ems: 15890's `s_shadowOffset` is 0.002 against an 0.0183 em shadow
@@ -272,8 +318,8 @@ pub(crate) const TEXT_FONT_SIZE: i32 = 64;
 pub(crate) const SPREAD_HEIGHTS: f32 = 1.5;
 
 /// Start height of the next number on a unit whose live numbers rise by `(ascend, height)` each:
-/// the sum of every live number's own travel plus its height, so a rising number can never
-/// reach the slot above it. `WorldTextRandomZMin_v2` floors the first slot.
+/// sum every live number's travel and height so a rising number cannot reach the next slot.
+/// The initial lift is an engine layout choice, not a decoded Retail random-Z rule.
 pub(crate) fn stack_offset(live: &[(f32, f32)], own_height: f32) -> f32 {
     let travel: f32 = live.iter().map(|(ascend, height)| ascend + height).sum();
     travel + RANDOM_Z_MIN * own_height
@@ -286,9 +332,8 @@ pub(crate) const CRIT_SCALE: f32 = CRIT_SCREEN_Y / SCREEN_Y;
 /// both axes, so numbers spawned together never share a start.
 const R2: [f32; 2] = [0.754_877_7, 0.569_840_3];
 
-/// Sideways start of the `index`th number relative to the anchor over the target's head, along
-/// the camera's right. `WorldTextStartPosRandomness_v2` gives the range; the vertical axis is
-/// the per-slot ladder in `spells::floating_text`, so numbers on one unit never share a row.
+/// Deterministic sideways start offset within the Retail CVar's default range. The vertical
+/// axis uses the engine's per-slot ladder, so one unit's labels do not share a row.
 pub(crate) fn side_offset(index: u32, camera_right: Vector3, unit: f32) -> Vector3 {
     let u = (0.5 + R2[0] * index as f32).fract();
     camera_right.normalized() * (START_POS_RANDOMNESS * (2.0 * u - 1.0)) * unit
@@ -368,7 +413,7 @@ mod tests {
         let mut crit = event(CombatLogKind::Damage, 99);
         crit.crit = true;
         let text = text_for(&crit, Attacker::Player).expect("crit draws");
-        assert_eq!(text.text, "99!");
+        assert_eq!(text.text, "99");
         assert_eq!(text.style, SPELL_CRIT);
         assert!(text.crit && text.spell_crit);
         assert_eq!(text.style.ascend, 0.0);
@@ -425,8 +470,8 @@ mod tests {
         assert_eq!(heal.text, "+900");
         let mut crit = event(CombatLogKind::Damage, 2345);
         crit.crit = true;
-        assert_eq!(text_for(&crit, Attacker::Player).unwrap().text, "2345!");
-        for text in [hit.text, heal.text, "2345!".to_owned()] {
+        assert_eq!(text_for(&crit, Attacker::Player).unwrap().text, "2345");
+        for text in [hit.text, heal.text, "2345".to_owned()] {
             assert!(!text.contains('.'), "{text} carries a decimal fraction");
             let digits: String = text.chars().filter(char::is_ascii_digit).collect();
             assert!(digits.parse::<u64>().is_ok(), "{text} is not an integer");
