@@ -1,3 +1,7 @@
+## Floating combat-text parity — 2026-11-10
+
+VERIFIED: Retail and Forever share combat-text Lua/XML/constants in the cached source audit. Both skins now render outgoing world-text punctuation, color, size, scaling and per-unit slot eviction, plus option-gated incoming self-frame damage, healing and miss messages; each behavior has targeted tests. The native gravity/min-alpha curve, directional offset, auto-attack merge and several CVar families remain unsupported or undecoded, not claimed as pixel parity. Debug/release checks report zero warnings; combat-text tests pass 26/26. JPEGs cover before/after world set, cross-unit eviction and self messages in each skin; twenty self labels cost 12.468 µs/frame in Forever and 20.518 µs/frame in Modern at the fixture's median 2000-iteration sample. Captures: `/syncthing/AgentShared/2026-11-10/combat-text-parity/`. See [[floating-combat-text-parity]].
+
 ## Godot audio bus-details cleanup — 2026-11-10
 
 VERIFIED: the pinned Godot erased retired playback bus details one by one from a SafeList, quadratic in playing 3D sounds; in the 40-player Battle Shout crowd `AudioServer::_cleanup_lists` was 12.7-24.2 % of main-thread samples. Patched pin `-audiobus` retires them per update in O(n), deleting each one update later as before. Headless A/B, interleaved: 200 players 5.1-5.7 -> 1.4-1.7 ms main-thread CPU per frame, 400 players 16-22 -> 2.7-4.8 ms. See [[godot-audio-bus-graveyard]].
@@ -82,3 +86,7 @@ World doodad particles no longer read their node's parent chain and every emitte
 UI projection syncs update only nodes whose frame, rect, ancestors' rects or parent changed. Evoker combat: unit-frame nodes updated per sync 205 -> 4, unit-frame sync CPU about 3 -> 1.4 ms per frame (Linux debug). [[follower-combat-fps#Unit-frame projection redrew every node (fixed, 2026-11-09)]].
 rebuild_guard_live.gd flaked on master (about 1 run in 3): the minimap clock-text relayout dirtied MinimapDisplay, and the projection re-uploaded any dirty frame's dynamic texture. The projection now redraws a dynamic texture only for new pixels. [[rebuild-guard#Minimap clock-tick flake — 2026-11-09]].
 Crowded combat (40 geared warriors, Battle Shout spam): drape queries no longer call Godot per column, cast game-object rays only where a body meets the column, and skip M2 tiles and render surfaces whose root bounds miss it; same draped bytes, 29.2 -> 17.2 ms per batch (Linux debug). [[crowd-combat-fps]].
+
+## Floating combat-text parity — 2026-11-10
+
+VERIFIED: the cached Retail Lua/XML maps the self-frame scroll, 20-line pool, 1.9 s lifetime, 1.3 s fade and crit scale; the implementation now supports incoming Damage/Heal/Miss events behind the default-off switch and persists mapped CVar defaults. WRONG and fixed: world crit `!` punctuation and cross-unit slot eviction. MISSING: native directional/gravity/min-alpha/random-Z equations and screen-space packing across world units. The full source-line matrix and per-skin JPEG paths are in [[floating-combat-text-parity]].

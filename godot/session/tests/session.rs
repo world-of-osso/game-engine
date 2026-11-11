@@ -264,6 +264,43 @@ fn login_failure_preserves_roster_and_token_but_requests_reset_and_login() {
 }
 
 #[test]
+fn expired_saved_token_clears_session_and_returns_login_feedback() {
+    let mut session = Session::default();
+    session.token = Some("token-from-recreated-db".into());
+
+    let effects = session.receive_login(
+        LoginResponse {
+            success: false,
+            token: String::new(),
+            characters: vec![],
+            error: Some("Saved session expired. Please log in again.".into()),
+        },
+        SessionOptions::default(),
+    );
+
+    assert_eq!(session.screen, SessionScreen::Login);
+    assert_eq!(
+        session.feedback.as_deref(),
+        Some("Saved session expired. Please log in again.")
+    );
+    assert!(session.token.is_none());
+    assert!(matches!(
+        effects.first(),
+        Some(SessionEffect::RemoveSavedToken)
+    ));
+    assert!(
+        effects
+            .iter()
+            .any(|effect| matches!(effect, SessionEffect::ResetNetworkWorld))
+    );
+    assert!(
+        effects
+            .iter()
+            .any(|effect| matches!(effect, SessionEffect::Transition(SessionScreen::Login)))
+    );
+}
+
+#[test]
 fn registration_validation_requires_both_fields() {
     for (username, password) in [
         ("", "fbtest"),

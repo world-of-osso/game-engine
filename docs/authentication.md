@@ -12,7 +12,7 @@ A pending-approval reply stays on the form with administrator-approval guidance 
 
 Enter your username and password, then click Login. On success, the client saves a cached token using the [server-specific path](#storage). Subsequent token logins do not require the password.
 
-Delete the relevant server's token file to force password re-entry.
+If a saved token is unknown or expired, the server rejects it. The client clears it, returns to the login form, and shows `Saved session expired. Please log in again.` Delete the relevant server's token file to force password re-entry.
 
 ### Launcher handoff
 

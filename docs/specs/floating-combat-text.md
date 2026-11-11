@@ -2,8 +2,11 @@
 
 Numbers and words that float over a unit as combat happens (Retail "world text"), plus the
 screen-anchored self combat text that Retail draws from `Blizzard_CombatText`. Source lives in
-`godot/rust/src/combat_text.rs` (Retail CVar defaults, style table, distance law, start spread,
-size ramp, event mapping) and `godot/rust/src/spells/floating_text.rs` (the `Label3D` nodes).
+`godot/rust/src/combat_text.rs` (world-text styles and mapping),
+`godot/rust/src/combat_text/incoming.rs` (self-frame message/layout math),
+`godot/rust/src/spells/floating_text.rs` (world and screen labels), and
+`godot/core/src/combat_text_options.rs` (persisted Retail CVar defaults). The [source-line parity
+audit](../wiki/investigations/floating-combat-text-parity.md) records coverage and native source gaps.
 How it is wired is in [spellbook-action-bar](../../wiki/systems/spellbook-action-bar.md).
 
 Every bullet states its proof level:
@@ -57,13 +60,11 @@ Every bullet states its proof level:
       is carried but unused.
 - [x] Only the local player's heals float over a healed unit (**verified 15890**
       `Unit_C.cpp:21221`, inside `if (isPlayer)`).
-- [x] Incoming healing and damage on the local player belong to the screen-anchored self
-      combat text, not world text (**retail Lua** `CombatText.lua`, `CombatTextConstants.lua`),
-      and that frame is off by default: `enableFloatingCombatText` is `0` and is what loads
-      `Blizzard_CombatText` (**retail Lua** `Combat/Overrides` `CreateFloatingCombatTextSetting`,
-      `Combat.lua:43`; **retail CVar** `0`). The engine has no self frame **and** no CVar store,
-      so it matches Retail's default state; the frame becomes necessary only together with that
-      switch (Known gaps).
+- [x] Incoming damage, healing and avoidance on the local player use a screen-anchored self
+      frame, separate from world text (**retail Lua** `CombatText.xml:3-12`, `CombatText.lua:31-40`),
+      and default off with `enableFloatingCombatText=0` (**retail CVar** `cvars.yaml:621`). Mapped
+      values load from `hud.combatText` in the options file; there is no live CVar registry or
+      settings panel.
 
 ### Colour
 
@@ -75,11 +76,11 @@ Every bullet states its proof level:
       **verified 15890** the `spellColor` argument only selects the pet colour,
       `Unit_C.cpp:17737-17773`). The engine's former white-physical / yellow-spell split was
       unsourced and is gone.
-- [ ] The self combat text colours each message type from `CombatTextTypeInfo` (physical damage
-      and misses red, spell damage purple `0.79, 0.3, 0.85`, heals green, energize blue, aura
-      gain green / loss red, ...) (**retail Lua**
-      `Blizzard_CombatText/Shared/CombatTextConstants.lua:24-73` and
-      `Mainline/CombatTextConstantsOverrides.lua`). Not implemented.
+- [x] The self combat text uses `CombatTextTypeInfo` colors for carried Damage/Heal/Miss kinds:
+      physical damage red, spell damage purple, heals green, plus the matching avoidance and
+      reduction colors (**retail Lua** `CombatTextConstants.lua:24-73`,
+      `Mainline/CombatTextConstantsOverrides.lua:1-7`). Other C_CombatText notifications lack
+      protocol event kinds.
 
 ### Size, font and ramp
 
@@ -100,9 +101,8 @@ Every bullet states its proof level:
 - [x] Settled crit height is `WorldTextCritScreenY_v2 / WorldTextScreenY_v2` = 1.833× a normal
       hit (**retail CVar** `0.0275 / 0.015`, the pair Retail ships; 15890's own table gives
       `0.0275 / 0.0183` = 1.5×, the older ratio), then the pop multiplies it.
-- [x] The engine appends "!" to crit amounts (**ours**; not present in 15890
-      `Unit_C.cpp:17775`; kept because `godot/tests/melee_outcomes_live.gd` and
-      `docs/specs/spellbook-action-bar.md` assert it).
+- [x] Crit amounts have no appended punctuation and use the same amount formatter as hits
+      (**verified 15890** `Unit_C.cpp:17775`; the stale `!` live assertion was removed).
 - [x] Amounts are whole numbers, never a decimal fraction (`%d`, **verified 15890**
       `Unit_C.cpp:17775`). The "+900.0" seen in the first review was two labels overlapping,
       not a formatter: `text_for` formats `i32` and its test asserts `"+900"`.
@@ -147,23 +147,18 @@ Every bullet states its proof level:
       its own rise distance at spawn (**verified 15890** `CreateWorldText`,
       `PlayerName.cpp:782-787`). **Ours**: the rise stays inside the frustum because the spawn
       anchor is 3.6 yards above the unit, not because of the clamp.
-- [x] `WorldTextMinAlpha_v2` floors the alpha while fading and `WorldTextGravity_v2`
-      decelerates the rise (**retail CVar** `0.5` / `0.5`); their formulas are **not decoded**,
-      so the engine keeps 15890's linear rise and fade to zero.
+- [ ] `WorldTextMinAlpha_v2` and `WorldTextGravity_v2` have defaults `0.5` / `0.5`, but their
+      native formulas are **not decoded**; the engine still uses its linear rise and fades to zero.
 
 ### Placement and stacking
 
-- [x] Simultaneous numbers from one unit start at different points: the sideways start keeps
-      `WorldTextStartPosRandomness_v2` (**retail CVar** `1.0`), and every further live number on
-      the unit sits exactly one text height above the previous one, with
-      `WorldTextRandomZMin_v2` (`0.8`) as the floor. Measured on the Forever capture: a unit's
-      four slots never intersect (0 of 6 box pairs), and master's four slots all intersect
-      (15 of 15). The ladder is in world units, so it holds at every camera distance.
-- [ ] Retail instead packs rectangles in screen space (`SmartScreenRectPlace`, BFS up/left/
-      right/down, SmartScreenRect.cpp:432; crits skip it, WorldText.cpp:440-441). Not
-      implemented. At the 18 px em 50 numbers need about 40 000 px of boxes in a 921 600 px
-      frame, so packing is now possible where it was not at master's 174 px em; the no-overlap
-      fixture shows the ladder alone (0 of 1225 pairs) and does not need it.
+- [x] Engine placement uses a deterministic camera-plane spread and a per-unit vertical ladder;
+      the 2026-11-08 Forever fixture measured no overlap among one unit's four slots (0 of 6
+      pairs). This proves the engine layout only, not Retail's native random distribution.
+- [ ] Retail packs world-text rectangles in screen space (`SmartScreenRectPlace`, BFS
+      up/left/right/down, `SmartScreenRect.cpp:432`; crits skip it, `WorldText.cpp:440-441`). The
+      engine does not do this; separate units can still overlap (the 2026-11-08 set capture had
+      1 overlap among 36 pairs).
 - [x] World text carries a black shadow. Label3D outlines do not render for this font (raising
       `outline_size` 8 -> 24 changed the dark-edge pixel count by 1), so the shadow is a black
       copy of the label one tenth of an em down-right, moved and faded with the text
@@ -203,6 +198,7 @@ Retail defaults. A CVar whose effect is read only from its name is marked so.
 | `floatingCombatTextCombatDamageAllAutos_v2` | `1` | every auto-attack vs a merged swing |
 | `floatingCombatTextCombatDamageDirectionalOffset_v2` / `...DirectionalScale_v2` | `1.0` / `1.0` | hit-direction offset |
 | `floatingCombatTextCombatHealing_v2` | `1` | outgoing heal text |
+| `floatingCombatTextCombatHealingAbsorbSelf_v2` / `...Target_v2` | `1` / `1` | self absorb is handled; target path is not mapped |
 | `floatingCombatTextCombatLogPeriodicSpells_v2` | `1` | periodic damage/heal text |
 | `floatingCombatTextPetMeleeDamage_v2` | `1` | pet melee text |
 | `floatingCombatTextPetSpellDamage_v2` | `1` | pet spell text |
@@ -218,17 +214,14 @@ Retail defaults. A CVar whose effect is read only from its name is marked so.
 | `floatingCombatTextFloatMode_v2` | `1` | self-frame scroll direction (`1` up, `2` down, else fountain) |
 | `enableFloatingCombatText` | `0` | loads `Blizzard_CombatText` at all — the **self** frame, not world text (`Settings/CombatOverrides` `CreateFloatingCombatTextSetting`, `Combat.lua:43`) |
 
-The engine has no CVar store; the defaults are compile-time constants.
+Mapped values load from `hud.combatText` in the existing options file; defaults match Retail. This is not a live CVar registry or settings panel, so edits take effect on the next client start.
 
 ### Forever vs Modern
 
-- [x] Retail mainline defines the behaviour; the Forever skin re-skins the same elements. The
-      Forever UI source for `Blizzard_CombatText`, `SystemFont_World` and `DAMAGE_TEXT_FONT` is
-      the same as Retail: `diff -r blizzard-ui/wowforever/AddOns/Blizzard_CombatText
-      blizzard-ui/retail/AddOns/Blizzard_CombatText` reports only one added compatibility
-      global, `CombatText_UpdateDisplayedMessages` (CombatText.lua:468-473), and `Fonts.xml`
-      (`SystemFont_World`) is identical. So no Forever/Modern difference is specified and world
-      text does not branch on `LayoutSkin`.
+- [x] Retail mainline defines behavior; Forever re-skins the same elements. Cached Forever and
+      Retail `Blizzard_CombatText` files differ only by `CombatText_UpdateDisplayedMessages`
+      (Forever `Shared/CombatText.lua:469-474`); the fonts are identical. World and self text
+      share the same skin-neutral paths and do not branch on `LayoutSkin`.
 - [ ] A skin difference may only be added by an explicit spec entry (a Forever-only font or
       colour); none exists.
 
@@ -240,25 +233,9 @@ The engine has no CVar store; the defaults are compile-time constants.
       2026-11-08); the same fixture cost 38.1 µs before this change. The per-frame distance
       lookup and 7 px clamp are gone. Budget `FRAME_BUDGET_US` = 100.
 
-## Parity audit (2026-11-08)
+## Retail source coverage (updated 2026-11-10)
 
-Every item from the 2026-11-06 USER request, checked against the sources above. "Parity" means
-the engine draws what Retail 12.1.5 draws with its shipped CVar defaults.
-
-| Retail behaviour | Ours | Status |
-|---|---|---|
-| World text has no per-school colour. The style table colours by role: white damage and words, green heals, pet melee orange, pet spell yellow; per-school colours (physical red, spell purple `0.79,0.3,0.85`) exist only in the self frame's `CombatTextTypeInfo` (**retail Lua** CombatTextConstants.lua:24-73; **verified 12.1.5** style array). | `Attacker` role only; `school_mask` never reaches the colour. Damage/style test loops all seven schools and asserts white. | Parity for world text. The self frame's school colours belong to the open self-frame item. |
-| A crit is `WorldTextCritScreenY_v2 / WorldTextScreenY_v2` = 1.833x a hit (**retail CVar** `0.0275/0.015`) and plays the three-segment pop; the font is the same `SystemFont_World` (**retail Lua** Fonts.xml:1060, GameFontStyles.xml:147). | `CRIT_SCALE` = 1.833, `height_scale` pop (10 % -> 200 % -> 100 %), same Label3D font. `spells.rs` test fixes the crit font at 117 px against 64. | Parity. |
-| Heals float as `+N` in green, heal crits taller, and only a heal whose source is the active player draws (**verified 15890** Unit_C.cpp:21202-21230). | `text_for` emits `+N`, `HEAL_GREEN`, `HEAL_CRIT`, gated on `Attacker::Player`. Unit test asserts `+900` and green. | Parity. |
-| Absorb, Miss, Dodge, Parry, Block, Resist, Immune, Evade (also Deflect, Reflect) are words in one style at 0.6 of a hit's height; world words are ungated (**verified 12.1.5** style 9 `+0x1c` 0.6; **verified 15890** `s_combatTextTokens`, Unit_C.cpp:406). | `miss_word` covers all ten `MissKind` values; `WORD_STYLE.scale = 0.6`; no CVar gate. Test asserts every word and the scale. | Parity. |
-| Periodic damage and healing draw like direct text when `floatingCombatTextCombatLogPeriodicSpells_v2` is on (default `1`); repeated ticks are separate texts (**verified 15890** Unit_C.cpp:17705; **verified 12.1.5** no coalescing). | `periodic` never branches; test asserts a tick draws `55`. | Parity at the default; the gate itself waits for a CVar store. |
-| Damage or healing on the active player is not world text; it belongs to the screen-anchored self frame, which Retail ships off (`enableFloatingCombatText` = `0`, **retail CVar**). | `spawn_combat_text` returns when the target is the local player; no self frame exists. | Parity at Retail's default. Open: the self frame and its switch (needs a CVar store). |
-| Damage from an owned pet or guardian draws in the pet colours: pet melee orange `0xFFFF8400`, pet spell yellow `0xFFFFDE00` (**verified 15890** Unit_C.cpp:17681-17702,17737-17773,411-417). | `combat_text_attacker` follows `summoned_by` two levels (guardian of a pet of the player) and picks melee/spell colours by `spell_id`. | Parity. Guardian uses the same colours because 15890 does; no separate guardian colour exists in the sources. |
-| `floatingCombatTextCombatDamageAllAutos_v2` = `1` makes every auto-attack draw; the merged-swing rule behind `0` and any multistrike merge are not decoded (**retail CVar**). | Every event draws its own text; a unit's four slots bound the result. | Parity at the default. Open: the `0` merge rule has no source to implement. |
-| Forever and Modern share the combat-text UI: the Forever `Blizzard_CombatText` adds only the compatibility global `CombatText_UpdateDisplayedMessages`, and `SystemFont_World`/`DAMAGE_TEXT_FONT` are identical (**retail Lua** diff above). | World text draws the same font, colours and sizes in both skins; no `LayoutSkin` branch. | Parity; no Forever-only look is specified. |
-| Text size is `WorldTextScreenY_v2` (`0.015`) in 15890's DDC height (`0.6` half-viewport), i.e. 0.025 of the viewport height: 18 px at 720p, 27 px at 1080p (**retail CVar**; **verified 15890** WorldText.cpp:44-56, Coordinate.cpp:19-22). | `SCREEN_HEIGHT_FRACTION` = `0.015/0.6`; `em_yards` turns it into a world em at `REFERENCE_YARDS`. | Parity at the calibrated 10-yard anchor; the two distance operands stay undecoded. |
-| World text shrinks with camera distance (1/d); `WorldTextMinSize` is the minimum character-name size, not a combat-text floor (**retail CVar**; **retail Lua** Accessibility.lua:12-35). | Fixed world em, so projection gives exactly 1/d; `single10`/`single30` measure 18 px -> 6 px. The former 7 px floor is removed. | Parity. |
-| Many simultaneous numbers must stay cheap. | 50 numbers over 13 units: measured below. | Parity (budget 0.1 ms/frame). |
+The 2026-11-08 table is superseded by the [source-line coverage matrix](../wiki/investigations/floating-combat-text-parity.md). The current implementation covers outgoing world text and the supported incoming self-frame Damage/Heal/Miss subset. The self frame follows the Retail default-off switch; CVar-named values persist under `hud.combatText` and load on client restart. The world crit punctuation and cross-unit slot eviction errors are fixed. Native world gravity, minimum-alpha, direction, random-Z and upstream auto/multistrike merge formulas remain unproven; world screen-rectangle packing also remains missing.
 
 ## How it works
 
@@ -267,10 +244,10 @@ the engine draws what Retail 12.1.5 draws with its shipped CVar defaults.
 
 ## Implementation inventory
 
-- `godot/rust/src/combat_text.rs` — Retail style table (colours, lifetimes, rises, scale),
-  distance law, start spread, crit pop, fade, `CombatLogEvent` → text mapping.
-- `godot/rust/src/spells/floating_text.rs` — `Label3D` spawn, per-frame advance (rise, pop,
-  pixel size, fade), the per-unit four-slot stack, the offline preview hooks.
+- `godot/rust/src/combat_text.rs` — world styles/gates and `CombatLogEvent` mapping.
+- `godot/rust/src/combat_text/incoming.rs` — self-frame colors, formatting, scroll, row placement, crit scale and fade math.
+- `godot/core/src/combat_text_options.rs` — persisted CVar-named options and Retail defaults.
+- `godot/rust/src/spells/floating_text.rs` — world `Label3D`s, self `Label`s, per-frame animation and per-unit slots.
 - `godot/rust/src/spells.rs` — the `SpellsHud` fields holding the live texts and the seen-event
   cursor.
 - `godot/rust/src/spells/snapshot.rs` — `combat_text` count for automation.
@@ -283,12 +260,8 @@ the engine draws what Retail 12.1.5 draws with its shipped CVar defaults.
   crit pop curve, avoidance word scale, colours, zero amounts, periodic, fade, distance law,
   start spread.
 - `godot/rust/src/spells.rs` — settled font sizes (64 / 117 / 48: hit, crit, glancing).
-- `godot/tests/combat_text_capture.gd` — Forever capture fixture, offline in Stormwind:
-  `set` (nine texts over three units, every style), `limit` (four slots, crit replacement,
-  fifth-text eviction), `spread` (fifty over thirteen units), `measure` and `perf` (the frame
-  cost). Each capture saves a 960×540 JPEG plus the same frame without text, and
-  `CAPTURE_PREFIX=master-` records the same scenes from a build of local `master` carrying only
-  these preview hooks. Evidence: `/syncthing/AgentShared/2026-11-06/combat-text/`, 2026-11-06:
+- `godot/rust/src/combat_text/parity_tests.rs` — self message colors/formatting, CVar independence, scroll/fountain, row stack math, crit curve and fade.
+- `godot/tests/combat_text_capture.gd` — offline both-skin captures for outgoing styles, per-unit eviction and 20 simultaneous self labels; every scene saves a 960×540 JPEG and a no-text frame. Evidence: `/syncthing/AgentShared/2026-11-06/combat-text/`, 2026-11-06:
 
   | scene | boxes intersecting, master | ours | text pixels (white/green/orange/yellow), ours |
   |---|---|---|---|
@@ -315,15 +288,15 @@ the engine draws what Retail 12.1.5 draws with its shipped CVar defaults.
 
 ## Known gaps (current cycle)
 
-- [ ] The self combat text frame (`Blizzard_CombatText`) and its `enableFloatingCombatText`
-      switch: incoming damage/healing on the player, auras, honor, reputation, XP, threat,
-      combo points and PvP rank icons. Retail ships it off, so this waits for the CVar store
-      rather than for the frame alone.
-- [ ] `floatingCombatTextCombatDamageDirectionalOffset_v2` hit-direction offset.
+- [ ] Self-frame event kinds not present in the protocol: energize/power, aura gain/loss,
+      combat state, low health/mana, honor, reputation, XP, threat, combo points, runes and
+      reactive spells. The frame switch and carried Damage/Heal/Miss messages are implemented.
+- [ ] Screen-space packing across world units, Retail's native random-Z distribution, and
+      `floatingCombatTextCombatDamageDirectionalOffset_v2` hit-direction offset.
 - [ ] `WorldTextGravity_v2`, `WorldTextMinAlpha_v2` and the decoded operands of the distance
       constant.
 - [ ] Guardian damage colour (unknown; pet colours apply).
-- [ ] CVar gating: the defaults are compiled in, with no runtime switch.
+- [ ] The persisted combat-text options have no settings panel/live CVar callback; file edits load on client restart.
 
 ## Out of scope
 
@@ -331,5 +304,5 @@ the engine draws what Retail 12.1.5 draws with its shipped CVar defaults.
   pet-battle HUD.
 - World-object building damage text (15890 types 8/9 style slots), which needs destructible
   buildings.
-- The self frame's non-combat messages (honor, reputation, XP, threat, combo points, auras, PvP
-  rank icons) until `C_CombatText` engine events exist.
+- Native formulas that are not specified by the cached Lua/CVar sources; see the source-blocked
+  list above.
