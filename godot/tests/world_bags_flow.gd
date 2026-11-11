@@ -138,6 +138,8 @@ func run_test() -> void:
 			return
 	if not await wait_bag_inventory(client):
 		return
+	if not OS.get_environment("GODOT_BAGS_SCREENSHOTS").is_empty() and not await capture_character_frame(client):
+		return
 	print("FIXTURE BAGS_DONE")
 	# Parent owns deliberate kill/reap; normal engine shutdown is not this test.
 	while true:
@@ -154,6 +156,20 @@ func right_click_control(control: Control) -> void:
 		event.global_position = point
 		Input.parse_input_event(event)
 		await process_frame
+
+func capture_character_frame(client: Node) -> bool:
+	push_key(KEY_C, true)
+	await process_frame
+	push_key(KEY_C, false)
+	var deadline := Time.get_ticks_msec() + BAG_WAIT_MS
+	while Time.get_ticks_msec() < deadline:
+		await process_frame
+		var state: Dictionary = client.character_frame_state()
+		var panel := authored_control(client, "CharacterFrame")
+		if state.open and panel != null and panel.is_visible_in_tree():
+			return await capture_bags("character-frame.png")
+	fail("C did not open the native CharacterFrame for capture")
+	return false
 
 func capture_bags(filename: String = "standalone-bags.png", tooltip_client: Node = null, tooltip_title: String = "") -> bool:
 	var directory := OS.get_environment("GODOT_BAGS_SCREENSHOTS")
