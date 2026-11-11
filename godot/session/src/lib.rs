@@ -135,6 +135,11 @@ pub struct Session {
 }
 
 impl Session {
+    /// Use a launcher-authenticated account for this startup, replacing any cached account.
+    pub fn set_launcher_token(&mut self, token: &str) {
+        self.token = normalize_auth_token(token);
+    }
+
     pub fn gameplay_input_allowed(&self) -> bool {
         self.reconnect_phase == ReconnectPhase::Inactive
     }

@@ -23,6 +23,10 @@ pub(super) enum StartupPanel {
     Campsites,
 }
 
+fn launcher_account_token() -> Option<String> {
+    std::env::var("GAME_ENGINE_ACCOUNT_TOKEN").ok()
+}
+
 fn read_startup_arguments() -> Result<StartupArgs, String> {
     let arguments = Os::singleton()
         .get_cmdline_user_args()
@@ -65,10 +69,13 @@ impl GameClient {
     pub(super) fn initialize_startup(&mut self) -> Result<(), String> {
         let arguments = read_startup_arguments()?;
         let explicit_server = arguments.server.is_some();
+        let launcher_token = launcher_account_token();
         if let Some(server) = arguments.server.as_deref() {
             self.server_hostname = RealmPreset::from_alias(server)
                 .map(|preset| preset.hostname().to_owned())
                 .unwrap_or_else(|| server.to_owned());
+        } else if launcher_token.is_some() {
+            self.server_hostname = RealmPreset::Prod.hostname().to_owned();
         }
         self.account.startup_options.preselected_name = arguments.character.clone();
         self.attach_login_ui()?;
@@ -76,6 +83,7 @@ impl GameClient {
             self.open_eula()?;
         }
         match arguments.target {
+            None if launcher_token.is_some() => self.connect_for_startup(None, false),
             None => Ok(()),
             Some(StartupTarget::Screen(screen)) => {
                 self.start_requested_screen(screen, explicit_server, &arguments)
@@ -151,18 +159,24 @@ impl GameClient {
     ) -> Result<(), String> {
         self.account.startup_options.startup_screen = screen;
         self.account.startup_options.auto_enter_world = enter_world;
-        // Preserve the original startup shortcut's configured credentials or development defaults.
-        let credentials = load_login_credentials().unwrap_or(LoginCredentials {
-            username: "admin".into(),
-            password: "admin".into(),
-        });
-        self.account
-            .connect_startup(
-                &self.server_hostname,
-                &credentials.username,
-                &credentials.password,
-            )
-            .map_err(|error| error.to_string())?;
+        if let Some(token) = launcher_account_token() {
+            self.account
+                .connect_launcher(&self.server_hostname, &token)
+                .map_err(|error| error.to_string())?;
+        } else {
+            // Preserve the original startup shortcut's configured credentials or development defaults.
+            let credentials = load_login_credentials().unwrap_or(LoginCredentials {
+                username: "admin".into(),
+                password: "admin".into(),
+            });
+            self.account
+                .connect_startup(
+                    &self.server_hostname,
+                    &credentials.username,
+                    &credentials.password,
+                )
+                .map_err(|error| error.to_string())?;
+        }
         self.reset_world()?;
         self.update_login_status("Connecting...", true, true)
     }

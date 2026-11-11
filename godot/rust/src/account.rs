@@ -454,6 +454,13 @@ impl Account {
             .map_err(SessionError)
     }
 
+    /// Connects with a token handed off by the signed-in launcher, never credentials.
+    pub fn connect_launcher(&mut self, hostname: &str, token: &str) -> Result<(), SessionError> {
+        self.prepare_connection(hostname).map_err(SessionError)?;
+        let _ = self.session.set_launcher_token(token);
+        self.start_transport("", "", false).map_err(SessionError)
+    }
+
     pub fn connect_startup(
         &mut self,
         hostname: &str,

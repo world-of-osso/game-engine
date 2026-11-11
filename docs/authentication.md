@@ -14,6 +14,10 @@ Enter your username and password, then click Login. On success, the client saves
 
 Delete the relevant server's token file to force password re-entry.
 
+### Launcher handoff
+
+When the signed-in launcher starts the client, it passes the saved account token in the child process's `GAME_ENGINE_ACCOUNT_TOKEN` environment. The client uses its normal token-login request; it does not receive a password or a token in command-line arguments. With no explicit `--server`, this startup connects to the Live realm and opens character select. A server rejection returns to the existing login form with its normal feedback; the client does not retry with another credential source. Direct client starts without the handoff keep their existing saved-token and configured-credential behavior.
+
 ## How it works
 
 1. **Register**: Client sends `RegisterRequest { username, password }` on AuthChannel to the selected server. `RegisterResponse { success, token, pending_approval, error }` distinguishes pending approval, immediate authentication and refusal. Pending approval takes precedence over `success` and never persists the response token.
