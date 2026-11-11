@@ -98,6 +98,7 @@ fn left_click_then_a_key_binds_it_and_the_button_shows_it() {
 
 #[test]
 fn interface_lists_group_finder_with_retail_name_and_default_key() {
+    ui_toolkit::atlas::set_thread_skin(ui_toolkit::atlas::ActiveSkin::Forever);
     let (model, menu) = keybindings(BindingSection::Interface);
     let action = InputAction::ToggleGroupFinder;
     assert_eq!(action.label(), "Toggle Group Finder");
