@@ -141,11 +141,11 @@ func capture_self() -> void:
 
 func self_text_labels() -> Array:
 	var labels := []
-	for child in client.get_children():
-		if child is CanvasLayer and child.name == "FloatingCombatTextLayer":
-			for text in child.get_children():
-				if text is Label and not text.has_meta("combat_text_shadow"):
-					labels.append(text)
+	var layer := client.find_child("FloatingCombatTextLayer", true, false)
+	if layer is CanvasLayer:
+		for text in layer.get_children():
+			if text is Label and not text.has_meta("combat_text_shadow"):
+				labels.append(text)
 	return labels
 
 func capture_single() -> void:
