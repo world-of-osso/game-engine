@@ -157,13 +157,12 @@ fn miss_word(kind: MissKind) -> &'static str {
 
 fn grouped(amount: i32) -> String {
     let digits = amount.unsigned_abs().to_string();
-    let first_group = digits.len() % 3;
     let mut formatted = String::with_capacity(digits.len() + digits.len() / 3);
     if amount < 0 {
         formatted.push('-');
     }
     for (index, digit) in digits.chars().enumerate() {
-        if index > 0 && (index - first_group).is_multiple_of(3) {
+        if index > 0 && (digits.len() - index).is_multiple_of(3) {
             formatted.push(',');
         }
         formatted.push(digit);
