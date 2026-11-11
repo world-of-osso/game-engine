@@ -1,6 +1,6 @@
 ## WowStyle1 dropdown caption alignment — 2026-11-11
 
-INFERRED: The previous full-owner Label rectangle centered at y12.5, while Forever's authored 10px Text region centered at y13. VERIFIED: Commit `65168d644` aligns the shared native line box to the source-region center and preserves the one-line caption contract. VERIFIED: `ea6d3e4ff` removes a redundant vertical-justification attribute; MIDDLE is already the FontString default. VERIFIED: Current Quest Log source has no shared dropdown callsite. Rendered captures and test/build proof are pending; see [[menu-primitives#wowstyle1-caption-source-region-alignment-2026-11-11]].
+INFERRED: The previous full-owner Label rectangle centered at y12.5, while Forever's authored 10px Text region centered at y13. VERIFIED: Commit `65168d644` aligns the shared native line box to the source-region center and preserves the one-line caption contract. VERIFIED: `ea6d3e4ff` removes a redundant vertical-justification attribute; MIDDLE is already the FontString default. VERIFIED: `3cdec84d7` names the source Text and Arrow insets without changing the geometry. VERIFIED: Current Quest Log source has no shared dropdown callsite. Rendered captures and test/build proof are pending; see [[menu-primitives#wowstyle1-caption-source-region-alignment-2026-11-11]].
 
 ## Ruby emitter frustum cache — 2026-11-11
 

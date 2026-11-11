@@ -34,7 +34,7 @@ VERIFIED: Commit `5a0fc9369` preserves explicit `wordwrap=false` and one-line pr
 
 VERIFIED: AH `duration_top` retains its `+2` owner offset because Forever AH XML anchors the control at y=-2; it is not a caption correction. VERIFIED: Current Quest Log source has no shared dropdown helper callsite, so its requested screenshot is a control view, not evidence for this component.
 
-UNVERIFIED: The new Forever rendered-caption test, after screenshots, and helper-driven debug/release builds have not run. VERIFIED: The current code commit is `ea6d3e4ff`; its geometry and behavior remain subject to those gates.
+UNVERIFIED: The new Forever rendered-caption test, after screenshots, and helper-driven debug/release builds have not run. VERIFIED: Commits `65168d644`, `ea6d3e4ff`, and `3cdec84d7` contain the current source-region implementation; its geometry and behavior remain subject to those gates.
 
 ### Historical native proof (2026-10-15)
 
