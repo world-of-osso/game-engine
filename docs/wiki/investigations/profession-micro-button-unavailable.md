@@ -1,6 +1,6 @@
 # Profession micro-button unavailable
 
-The unavailable message came from a client-side disabled configuration, not from a missing ProfessionSnapshot. The native ProfessionsBookFrame and empty/learned row projection are implemented, but this lane has no live screenshot proof.
+**VERIFIED:** The unavailable message came from a client-side disabled configuration, not from a missing ProfessionSnapshot. **VERIFIED in source and tests:** The native ProfessionsBookFrame and empty/learned row projection are implemented. **UNVERIFIED:** This lane has no live screenshot proof.
 
 ## Root cause
 
