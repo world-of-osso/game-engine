@@ -35,6 +35,9 @@ func run_fixture() -> void:
 	ready.close()
 	if not await wait_until(func(): return FileAccess.file_exists(OS.get_environment("MOUNT_GO_FILE")), "online riding setup", 120000): return
 	if client.account_state().ui_skin != "Forever": fail("Wrong active skin for proof"); return
+	if OS.get_environment("MOUNT_ACTION_BAR_RELOG") == "1":
+		if not relog: fail("Action-bar relog proof requires MOUNT_RELOG=1"); return
+		if not await wait_until(func(): return client.spells_state().bar.size() > 11 and int(client.spells_state().bar[11]) == RANDOM_FAVORITE_SPELL_ID, "persisted random favorite action-bar slot"): return
 	client.set_world_minutes(720.0)
 	client.set_camera_orbit(PI, -0.3, 12.0)
 	await wait_frames(90)
