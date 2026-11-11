@@ -127,7 +127,7 @@ func verify_caption(ui: Node, item: Dictionary) -> bool:
 	if not completion.require(capital.has_area() and descender.has_area(), "Probe glyph bounds are visible: " + item.name):
 		return false
 	var line_height := float(caption.get_line_height(0))
-	var line_center := caption.global_position.y + (caption.size.y - line_height) / 2.0 + line_height / 2.0
+	var line_box_center := caption.global_position.y + (caption.size.y - line_height) / 2.0 + line_height / 2.0
 	var ink_center := caption.global_position.y + (capital.position.y + descender.end.y) / 2.0
 	var expected_center := owner.global_position.y + float(item.center)
 	caption.text = production_text
@@ -136,8 +136,8 @@ func verify_caption(ui: Node, item: Dictionary) -> bool:
 		await RenderingServer.frame_post_draw
 	if not completion.require(caption.get_line_count() == 1, "Dropdown caption remains one line: " + item.name):
 		return false
-	print("DROPDOWN_LINE ", item.name, " text=", production_text, " font_height=", caption.get_theme_font("font").get_height(caption.get_theme_font_size("font_size")), " line_center=", line_center, " ink_center=", ink_center, " template_center=", expected_center)
-	var line_centered := absf(line_center - expected_center) <= 0.01
+	print("DROPDOWN_LINE ", item.name, " text=", production_text, " font_height=", caption.get_theme_font("font").get_height(caption.get_theme_font_size("font_size")), " line_box_center=", line_box_center, " ink_center=", ink_center, " template_center=", expected_center)
+	var line_centered := absf(line_box_center - expected_center) <= 0.01
 	var glyphs_centered := absf(ink_center - expected_center) <= 2.0
 	return completion.require(line_centered and glyphs_centered, "Rendered caption line and glyphs follow Retail Text bounds: " + item.name)
 
