@@ -6,6 +6,10 @@ Server gameplay contract: [follower dungeons](../../../game-server/docs/specs/fo
 - The follower type dropdown, role icons/checks, source20px dungeon checkbox rows and ScrollBox/MinimalScrollBar use the same elements in Modern and Forever. Pending requests and active matches disable repeat admission; server refusals remain visible in the follower description and IPC status.
 - Native `lfg queue <role> <dungeon IDs>` retains the same selected-role transport for diagnostics. Difficulty205 selects a follower dungeon in the imported server catalog.
 - Queue-send acknowledgment is not server acceptance. `lfg status` exposes the latest authoritative snapshot, match roster and refusal; reconnect clears stale state.
+## Retail level eligibility
+
+- [ ] The catalog uses Retail `ContentTuning.LfgMinLevel/LfgMaxLevel` for level locks, with the squish range when the LFG bounds are zero. Ineligible rows use the Retail lock indicator and localized lock tooltip; they cannot be selected or queued.
+- [ ] Server error keys use Retail GlobalStrings in the Group Finder description and system chat.
 - Existing LFG dequeue/role-check requests use the same transport. Completed follower admission is a running instance, not a human matchmaking queue entry.
 - Both Modern and Forever show the same replicated followers and existing party frames; no skin-specific gameplay or invented UI frames.
 - Local user-approved server workaround uses labelled-spec player spells and same-map Normal population/entrance; absent Rogue/DK/DH identities and full-rotation gaps remain explicit in the server contract.
@@ -22,7 +26,7 @@ Server gameplay contract: [follower dungeons](../../../game-server/docs/specs/fo
 ## Tests
 
 - `godot/tests/follower_layout_capture.gd` — native rendered Control rectangles from XML/Lua, all three tab anchors and parent clipping;1920×1080 Modern/Forever closed/open dropdown PNGs. `GODOT_FOLLOWER_LAYOUT_ASSERT=1` enables the geometry gate.
-- `ui-model/tests/follower_dungeons.rs` — real both-skin registry, sourced catalog selection, selected-role queue actions, pending/refusal/match state and absent/stale-catalog refusal.
+- `ui-model/tests/follower_dungeons.rs` — real Forever registry, Retail level-range import/fallback, lock indicator/tooltip, selection/queue refusal, localized source errors, selected-role queue actions and pending/refusal/match state.
 - `network/src/wire_tests.rs::follower_group_finder_default_bridge_receives_catalog_over_udp` — default bridge, real loopback UDP catalog delivery.
 - `account_dungeonclient_tests.rs::follower_group_finder_account_dispatches_catalog_and_authoritative_state` — decoded catalog and LFG state reach the native host while IPC retains authoritative state.
 - Private UDP5761 Group Finder admission now has both-skin proof: actual native microbutton/type/role/dungeon/Find Group clicks, authoritative five-member party and four companions following14m movement. [Exact proof and limits](../wiki/systems/follower-dungeons.md#both-skin-native-admission--2026-10-13). This does not prove combat, the walked route or dungeon completion.

@@ -49,6 +49,10 @@ impl GameClient {
         self.follower_dungeons.view.visible = !self.follower_dungeons.view.visible;
         if self.follower_dungeons.view.visible {
             self.battleground.view.visible = false;
+            let player_level = self.player_level().map(u32::from);
+            self.follower_dungeons.view.player_level = player_level;
+            self.follower_dungeons.view.level_ranges =
+                game_engine_ui_model::follower_dungeons::retail_level_ranges()?;
             self.account.send_lfg(QueryFollowerDungeons)?;
             self.account.send_lfg(QueryLfgStatus)?;
         }
@@ -111,6 +115,8 @@ impl GameClient {
             .get_visible_rect()
             .size;
         self.follower_dungeons.view.viewport = [size.x / scale, size.y / scale];
+        let player_level = self.player_level().map(u32::from);
+        self.follower_dungeons.view.player_level = player_level;
         let local_name = self
             .account
             .session

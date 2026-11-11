@@ -3266,7 +3266,9 @@ impl GameClient {
                     godot_error!("Emote of {}: {error}", event.sender);
                 }
             }
-            AccountEvent::GroupNotice(text) => self.receive_group_notice(&text),
+            AccountEvent::GroupNotice(text) => self.receive_group_notice(
+                &game_engine_ui_model::follower_dungeons::localize_error(&text),
+            ),
             AccountEvent::MinimapPing(ping) => self.receive_minimap_ping(&ping),
             AccountEvent::Quest(message) => self.receive_quest_message(message)?,
             AccountEvent::QuestNotice(notice) => match notice {

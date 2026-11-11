@@ -12,7 +12,12 @@ use crate::quest_art::{
 use crate::ui::screens::auction_house_frame_component::inset_border;
 use crate::ui::screens::merchant_frame_component::{tab, tab_width};
 use shared::protocol::GroupRoleSnapshot;
-use ui_toolkit::{rsx, screen::SharedContext, strata::FrameStrata, widget_def::Element};
+use ui_toolkit::{
+    rsx,
+    screen::SharedContext,
+    strata::FrameStrata,
+    widget_def::{Attr, Element, WidgetChild},
+};
 
 pub const FOLLOWER_LIST: &str = "LFDQueueFrameFollowerScrollBox";
 pub const ROW_HEIGHT: usize = 20;
@@ -475,14 +480,8 @@ fn dungeon_list(shared: &SharedContext, view: &View) -> Element {
 }
 fn dungeon_row(view: &View, id: u32, title: &str, index: usize) -> Element {
     let name = format!("LFDQueueFrameFollowerDungeon{id}");
-    let top = index as f32 * ROW_HEIGHT as f32;
-    let enabled = !view.pending && !view.matched();
-    let mut art = texture(
-        format!("{name}CheckBox"),
-        130_755,
-        (15.0, 0.0, 20.0, 20.0),
-        "1,1,1,1",
-    );
+    let enabled = view.can_select(id);
+    let mut art = dungeon_row_indicator(&name, view, id);
     if view.selected == Some(id) {
         art.extend(texture(
             format!("{name}Check"),
@@ -497,12 +496,49 @@ fn dungeon_row(view: &View, id: u32, title: &str, index: usize) -> Element {
         (40.0, 0.0, 255.0, 20.0),
         (13.0, NORMAL_FONT_COLOR, "LEFT"),
     ));
-    crate::selection_list::row(
+    let mut row = crate::selection_list::row(
         name,
         &format!("follower:select:{id}"),
         enabled,
-        (0.0, top, 295.0, ROW_HEIGHT as f32),
+        (
+            0.0,
+            index as f32 * ROW_HEIGHT as f32,
+            295.0,
+            ROW_HEIGHT as f32,
+        ),
         (&crate::selection_list::AUTHORED, view.selected == Some(id)),
         art,
-    )
+    );
+    apply_level_lock_tooltip(&mut row, view.level_lock_message(id));
+    row
+}
+
+fn dungeon_row_indicator(name: &str, view: &View, id: u32) -> Element {
+    if view.level_lock_message(id).is_some() {
+        named_atlas_texture(
+            format!("{name}LockedIndicator"),
+            "LFG-lock",
+            (16.5, -0.5, 17.0, 21.0),
+        )
+    } else {
+        texture(
+            format!("{name}CheckBox"),
+            130_755,
+            (15.0, 0.0, 20.0, 20.0),
+            "1,1,1,1",
+        )
+    }
+}
+
+fn apply_level_lock_tooltip(row: &mut Element, reason: Option<&str>) {
+    let Some(reason) = reason else {
+        return;
+    };
+    let [WidgetChild::Widget(button)] = row.as_mut_slice() else {
+        panic!("follower dungeon row must have one owning button")
+    };
+    button.attrs.extend([
+        Attr::new_static("disabled_tooltip", reason.to_owned()),
+        Attr::new_static("disabled_tooltip_anchor", "ANCHOR_TOP".to_owned()),
+    ]);
 }

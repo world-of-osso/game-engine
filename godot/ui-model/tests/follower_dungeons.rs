@@ -265,6 +265,27 @@ fn follower_group_finder_both_skins_use_the_server_catalog_and_real_queue_action
     }
 }
 #[test]
+fn follower_group_finder_uses_retail_lfg_ranges_and_squish_fallback() {
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    let ranges = game_engine_ui_model::follower_dungeons::retail_level_ranges().unwrap();
+    assert_eq!(
+        ranges.get(&2436),
+        Some(&DungeonLevelRange { min: 10, max: 70 })
+    );
+    assert_eq!(
+        ranges.get(&2439),
+        Some(&DungeonLevelRange { min: 30, max: 70 })
+    );
+    assert_eq!(
+        ranges.get(&2745),
+        Some(&DungeonLevelRange { min: 80, max: 90 })
+    );
+}
+
+#[test]
 fn follower_group_finder_disables_and_refuses_dungeons_below_player_level() {
     let mut view = View {
         visible: true,
@@ -296,22 +317,32 @@ fn follower_group_finder_disables_and_refuses_dungeons_below_player_level() {
     assert_eq!(view.selected, None);
     assert_eq!(view.action("follower:queue"), None);
 
-    let registry = render(view, ActiveSkin::Forever);
-    assert_eq!(
-        button(&registry, "LFDQueueFrameFollowerDungeon2439").0,
-        ButtonState::Disabled
-    );
-    let (_, binding) = ui_toolkit::tooltip::tooltip_owner(
-        &registry,
-        registry
-            .get_by_name("LFDQueueFrameFollowerDungeon2439")
-            .unwrap(),
-    )
-    .expect("locked dungeon must show the Retail lock reason on hover");
-    assert_eq!(
-        binding.disabled_text.as_deref(),
-        Some("You must advance to a higher level.")
-    );
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let registry = render(view.clone(), skin);
+        assert_eq!(
+            button(&registry, "LFDQueueFrameFollowerDungeon2439").0,
+            ButtonState::Disabled
+        );
+        let lock = registry
+            .get(
+                registry
+                    .get_by_name("LFDQueueFrameFollowerDungeon2439LockedIndicator")
+                    .expect("locked rows use the Retail lock indicator"),
+            )
+            .unwrap();
+        assert_eq!((lock.width.value(), lock.height.value()), (17.0, 21.0));
+        let (_, binding) = ui_toolkit::tooltip::tooltip_owner(
+            &registry,
+            registry
+                .get_by_name("LFDQueueFrameFollowerDungeon2439")
+                .unwrap(),
+        )
+        .expect("locked dungeon must show the Retail lock reason on hover");
+        assert_eq!(
+            binding.disabled_text.as_deref(),
+            Some("You must advance to a higher level.")
+        );
+    }
 }
 
 #[test]
