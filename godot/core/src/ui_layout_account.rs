@@ -168,6 +168,19 @@ mod tests {
     }
 
     #[test]
+    fn missing_launcher_account_mapping_is_distinct_from_storage_errors() {
+        let directory =
+            std::env::temp_dir().join(format!("hudmanager-token-lookup-{}", std::process::id()));
+        let path = directory.join("layout_accounts.ron");
+        let realm = "game.worldofosso.com:5000";
+        assert_eq!(lookup_token_account(&path, realm, "unknown"), Ok(None));
+        fs::create_dir_all(&directory).unwrap();
+        fs::write(&path, "invalid RON").unwrap();
+        assert!(lookup_token_account(&path, realm, "unknown").is_err());
+        fs::remove_dir_all(directory).unwrap();
+    }
+
+    #[test]
     fn hudmanager_rotated_tokens_reopen_the_same_account_layouts() {
         let directory =
             std::env::temp_dir().join(format!("hudmanager-token-accounts-{}", std::process::id()));
