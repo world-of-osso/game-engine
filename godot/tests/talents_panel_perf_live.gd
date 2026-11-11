@@ -33,7 +33,6 @@ func send_key(code: Key, pressed: bool) -> void:
 	event.physical_keycode = code
 	event.keycode = code
 	event.pressed = pressed
-	Input.parse_input_event(event)
 	root.push_input(event, true)
 
 func wait_for_startup_world(character: String) -> bool:
