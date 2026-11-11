@@ -443,6 +443,11 @@ fn window_background(prefix: &str, width: f32, height: f32) -> Element {
     }
 }
 
+/// `NineSlicePanelTemplate` frame level (`SharedUIPanelTemplates.xml:381`).
+const METAL_BORDER_FRAME_LEVEL: f32 = 500.0;
+/// NineSliceLayouts.lua:20 draws this portrait corner in the frame's OVERLAY layer.
+const PORTRAIT_RING_FRAME_LEVEL: f32 = 501.0;
+
 /// The `layout` metal border on a frame [`MetalTopLeft::outset`] larger than the window.
 pub(crate) fn metal_border(prefix: &str, width: f32, height: f32, layout: MetalTopLeft) -> Element {
     let [left, top, right, bottom] = layout.outset();
@@ -451,6 +456,7 @@ pub(crate) fn metal_border(prefix: &str, width: f32, height: f32, layout: MetalT
             name: {DynName(format!("{prefix}NineSlice"))},
             width: {width + left + right},
             height: {height + top + bottom},
+            frame_level: METAL_BORDER_FRAME_LEVEL,
             style: {layout.style_name()},
             pos_type: "absolute",
             left: {-left},
@@ -463,8 +469,8 @@ pub(crate) fn metal_border(prefix: &str, width: f32, height: f32, layout: MetalT
     elements
 }
 
-/// NineSliceLayouts.lua:20 OVERLAY portrait corner. Draw separately from the low-level
-/// background border so the masked 3D portrait cannot paint over the gold rim.
+/// NineSliceLayouts.lua:20 OVERLAY portrait corner. Keep it above the frame-level-500
+/// NineSlice, and above the level-400 portrait host, so neither can cover the gold rim.
 fn portrait_ring(prefix: &str) -> Element {
     let art = read_active_atlas_art("UI-Frame-PortraitMetal-CornerTopLeft");
     let coords = art.tex_coords(1.0);
@@ -474,7 +480,7 @@ fn portrait_ring(prefix: &str) -> Element {
         name: {DynName(format!("{prefix}PortraitRing"))},
         width: {region.width / 2.0},
         height: {region.height / 2.0},
-        frame_level: 401.0,
+        frame_level: PORTRAIT_RING_FRAME_LEVEL,
         texture_fdid: {art.fdid},
         tex_coords: {coords.as_str()},
         pos_type: "absolute",

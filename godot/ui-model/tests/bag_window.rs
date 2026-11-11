@@ -127,6 +127,7 @@ fn assert_backpack_window(skin: ActiveSkin) -> Vec<TextureSource> {
     let border = frame(&registry, "ContainerFrame0NineSlice");
     assert_eq!(border.parent_id, registry.get_by_name("ContainerFrame0"));
     assert!(border.panel_style.is_some(), "{skin:?}: frame border drawn");
+    assert_eq!(border.frame_level, 500.0, "{skin:?}: template border layer");
     let border_rect = rect(border);
     assert!(
         border_rect[0] < 0.0 && border_rect[2] > bounds[2],
@@ -146,6 +147,20 @@ fn assert_backpack_window(skin: ActiveSkin) -> Vec<TextureSource> {
         "{skin:?}: portrait shows the bag icon"
     );
     let portrait_rect = rect(portrait);
+    assert_eq!(
+        portrait.frame_level, 400.0,
+        "{skin:?}: template portrait layer"
+    );
+    assert_eq!(
+        portrait_rect,
+        [-4.0, -1.0, 36.0, 36.0],
+        "{skin:?}: source portrait bounds"
+    );
+    assert_eq!(
+        frame(&registry, "ContainerFrame0PortraitRing").frame_level,
+        501.0,
+        "{skin:?}: OVERLAY ring is above NineSlice"
+    );
     assert!(
         portrait_rect[0] <= 0.0 && portrait_rect[1] <= 0.0,
         "{skin:?}: portrait in the top-left ring"
@@ -358,6 +373,22 @@ fn only_the_backpack_has_a_search_box_above_its_slots() {
         let search = frame(&registry, "BagItemSearchBox");
         assert_eq!(search.parent_id, registry.get_by_name("ContainerFrame0"));
         let search_rect = rect(search);
+        assert_eq!(
+            search_rect,
+            [42.0, 37.0, 96.0, 18.0],
+            "{skin:?}: source search bounds"
+        );
+        let portrait_rect = rect(frame(&registry, "ContainerFrame0Portrait"));
+        let title_rect = rect(frame(&registry, "ContainerFrame0TitleText"));
+        assert_eq!(title_rect[0], 35.0, "{skin:?}: source title inset");
+        assert!(
+            !overlaps(search_rect, portrait_rect),
+            "{skin:?}: search misses portrait"
+        );
+        assert!(
+            !overlaps(search_rect, title_rect),
+            "{skin:?}: search misses title"
+        );
         let window = rect(frame(&registry, "ContainerFrame0"));
         assert!(inside(search_rect, window), "{skin:?}: search box inside");
         assert!(search_rect[1] >= 20.0, "{skin:?}: below the title bar");

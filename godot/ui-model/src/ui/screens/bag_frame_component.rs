@@ -38,6 +38,8 @@ pub const BACKPACK_PORTRAIT: u32 = 133_633;
 /// TOPLEFT (-4, 1); the host rounds it with `TempPortraitAlphaMask`
 /// (SharedUIPanelTemplates.xml:564-572 `CircleMask`).
 const PORTRAIT: (f32, f32, f32) = (-4.0, -1.0, 36.0);
+/// PortraitFrameBaseTemplate's PortraitContainer (`SharedUIPanelTemplates.xml:574`).
+const PORTRAIT_FRAME_LEVEL: f32 = 400.0;
 /// The dimmed icon of a slot whose item is on the cursor.
 pub const LOCKED_ICON: &str = "0.5,0.5,0.5,1.0";
 /// `ContainerFrameBackpackMixin:GetPaddingHeight` adds 30 for the search box
@@ -216,6 +218,7 @@ fn portrait(prefix: &str, fdid: u32) -> Element {
             name: {DynName(format!("{prefix}Portrait"))},
             width: size,
             height: size,
+            frame_level: PORTRAIT_FRAME_LEVEL,
             texture_fdid: fdid,
             pos_type: "absolute",
             left: x,
