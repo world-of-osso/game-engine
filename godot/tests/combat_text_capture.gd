@@ -124,7 +124,6 @@ func capture_self() -> void:
 	freeze(0.4)
 	check(live == 20, "self combat text caps at the twenty-label Retail pool")
 	var labels := self_text_labels()
-	print("SELF_LABELS count=%d" % labels.size())
 	if labels.size() != 20:
 		fail("expected twenty foreground self labels, found %d" % labels.size())
 		return
@@ -142,10 +141,8 @@ func capture_self() -> void:
 func self_text_labels() -> Array:
 	var labels := []
 	var layer := root.find_child("FloatingCombatTextLayer", true, false)
-	print("SELF_LAYER node=%s" % str(layer))
 	if layer is CanvasLayer:
 		for text in layer.get_children():
-			print("SELF_LAYER_CHILD name=%s type=%s" % [text.name, text.get_class()])
 			if text is Label and not text.has_meta("combat_text_shadow"):
 				labels.append(text)
 	return labels

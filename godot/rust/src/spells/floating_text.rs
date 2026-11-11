@@ -443,7 +443,9 @@ impl GameClient {
         label.set_vertical_alignment(godot::global::VerticalAlignment::TOP);
         label.set_mouse_filter(godot::classes::control::MouseFilter::IGNORE);
         label.set_size(Vector2::new(viewport.x, 80.0 * viewport.y / 768.0));
-        label.set_meta("combat_text_shadow", &(color == Color::BLACK).to_variant());
+        if color == Color::BLACK {
+            label.set_meta("combat_text_shadow", &true.to_variant());
+        }
         if let Some(font) = world_font() {
             label.change_theme_font_override("font", &font);
         }
