@@ -25,7 +25,7 @@ Dropdowns, context menus and breadcrumb navigation implement Retail Mainline `Bl
 ## Tests asserting this spec
 
 - `godot/ui-model/tests/menu_primitives.rs` — source art, responders, disabled selection art, measured resizing and press/overflow state.
-- `godot/tests/dropdown_caption_centering.gd` — Forever native rendered caption alignment across WowStyle1, Filter, WowStyle2, AH font overrides, Group Finder and six Options dropdown captions.
+- `godot/tests/dropdown_caption_centering.gd` — Forever native rendered caption alignment across WowStyle1, Filter, WowStyle2, AH font overrides, Group Finder and six Options dropdown captions; it also saves a Quest Log control capture (Quest Log has no shared dropdown callsite).
 - `godot/tests/menu_primitives_capture.gd` — both-skin native backdrop opacity and source-pixel slice-edge regression; inspected PNGs under `/syncthing/AgentShared/2026-10-13/ui-primitives/`.
 - `godot/tests/guild_menu_order.gd` — actual projected rank-menu order above Last Online/public/officer notes and GuildControl navigation control, both skins.
 - `godot/tests/projection_order.gd` — actual native tooltip/dialog, conflicting-strata/level, raise and sibling-ID render/pointer controls, including reused sibling reordering.
