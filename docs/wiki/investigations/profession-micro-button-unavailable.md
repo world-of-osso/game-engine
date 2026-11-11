@@ -14,7 +14,9 @@ The unavailable message came from a client-side disabled configuration, not from
 - **VERIFIED by targeted tests:** `game-engine-ui-professions --test integration professions_book_` passed two tests: empty rows in Modern and Forever, plus learned Tailoring/Cooking rows in Forever.
 - **VERIFIED by targeted test:** `game-engine-ui-model --test integration professions_micro_button_` passed one test for availability and pushed art.
 - **VERIFIED by targeted test:** `game-engine-godot professions_account_dispatches_loading_snapshot_and_skill_refresh` passed one test for the existing owner snapshot dispatch path.
-- **VERIFIED:** `cargo fmt --all -- --check` passed on the engine slot. The `game-engine-godot` account-dispatch test output has no warning lines; this is not a zero-warning full client-build claim.
+- **VERIFIED:** `cargo fmt --all -- --check` passed on the engine slot. The targeted `game-engine-godot` account-dispatch test passed.
+- **VERIFIED:** Native `engine-build.py --root <slot> --cli` exited 0 and produced the extension and CLI. The exact `/home/osso/Projects/world-of-osso/game-engine/data/cache/professions.sqlite` path was absent before and after one exact-path unlink attempt and the build.
+- **GATE BLOCKED:** The first native build recorded a C warning from transitive `libquickjs-sys`, generated `quickjs.c:27172`: assignment discards `const` qualifier. No warning suppression or dependency patch was made. The zero-warning gate is not met.
 - **UNVERIFIED:** This lane did not establish the live book toggle or row rendering in a running client and did not capture empty/learned screenshots. The NPC/source was not verified. Do not describe database spawn records as trainer proof.
 - **BLOCKED:** The user directed that private-server provisioning stop. Do not start a server/client or claim live screenshots under this directive.
 
