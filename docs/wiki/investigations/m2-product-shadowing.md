@@ -93,8 +93,18 @@ Evidence under the certification's private diagnostic root: `skyborne-small-mode
 
 `75208c162` adds the ignored real-map worker regression and reproduces `Vertex101` (exit101). `7ded89db4` retains selected MapCatalog CSV provenance in WDT; terrain M2 worker/parsed keys include product+FDID, companion acquisition uses `authored_model_resolver`, decoded/material/particle textures keep the model's root, and particle pools key by texture namespace too. WMO geometry/material IO remains separate. Compile-only/native extension builds and guarded extracted-only GREEN1 pass. Lead published2,248 terrain mappings and campsite descendants. Four r3 cases reach world with requested Modern/Forever skin, positive player/NPC geometry, expected-product terrain paths and tripwire0; Vertex101 is absent. Mulgore has zero object failures and only the separate attachment34 gap. Skyborne still lacks two authenticated same-product texture aliases beside current-build models:unique owners retain historical70338 identity while parents use70450. Producer `6ae2b9313` preserves those requested namespaces as aliases without changing owner receipts or adding runtime fallback (RED3→GREEN9). Lead published both aliases; canonical hashes match. Fresh Modern r4/Forever r5 Skyborne runs each show17 player meshes/51 NPC models/HP292,1,321 placements/226 Forever sources,zero wrong sources/object failures/pending/errors and tripwire0, with inspected captures. Mulgore r3 remains valid for both skins with only its named attachment34 errors. Bounded terrain-chain recheck is complete; all-doodad-set root603672/full-catalog/pristine-bundle and independent lead gates remain open. [Current proof and harness incident](../../handoffs/noinstall-cert-2026-10-21.md#terrain-source-qualification-implementation-acceptance-pending) owns exact bounds; do not infer P4 from implementation.
 
+## GameObjectDisplayInfo root receipts (2026-11-11)
+
+VERIFIED: `game_objects.rs::load_visual_files` used `local_resolver(data_root)`, so extracted-only root M2 requests missed the published product path; it now selects `authored_model_resolver(data_root, AssetProduct::Retail, fdid)`. The parsed model and texture loads use that same resolver.
+
+VERIFIED: The resolver test uses real FDID1686555 with a synthetic receipt and payload. It returns `products/wow/bc493ecb2898766c0f8947a99b4b3d65/models/1686555.m2` while `data/models/1686555.m2` stays absent; this proves path selection, not M2 parsing.
+
+VERIFIED: An extracted-only race-30 Paladin reached map 1860 at its expected position with two parsed terrain tiles, zero CASC diagnostics and no missing-receipt errors for target M2s 1686555, 1697837 and 1706172. The run still reports two other map-object M2s, 166432 and 1697838; neither has a row in any of the 152 canonical `model-asset-index*.json` files. Full zero-receipt acceptance remains incomplete. The run used published receipt indexes and product paths through the isolated slot, with no flat aliases or fallback.
+
 ## Sources
 
+- [GameObject loader and resolver test](../../../godot/rust/src/game_objects.rs), [receipt-aware resolver](../../../godot/rust/src/assets/creature.rs), and [receipt index](../../../godot/core/src/model_asset_index.rs)
+- [Product-isolated model asset contract](../../specs/product-isolated-model-assets.md)
 - [Native Skyborne checkpoint](../systems/forever-data.md#native-skyborne-rosterworld-recheck-2026-10-09)
 - [Loader](../../../godot/rust/src/assets/creature.rs), [worker](../../../godot/rust/src/world_models.rs), [display row](../../../godot/core/src/game/creatures/creature_display_data.rs)
 - Sibling `asset-resolver/src/casc_resolver.rs` lines303–324 and473–516; `src/paths.rs::casc_cache_path`; `src/lib.rs::CascListfileResolver`.
@@ -103,5 +113,6 @@ Evidence under the certification's private diagnostic root: `skyborne-small-mode
 
 ## See Also
 
+- [Asset pipeline](../systems/asset-pipeline.md) — published asset identities and runtime paths
 - [Authored NPC rendering](../../specs/npc-appearance.md)
 - [Forever data](../systems/forever-data.md)

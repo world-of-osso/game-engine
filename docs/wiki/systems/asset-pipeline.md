@@ -73,6 +73,8 @@ Extraction to disk is not the only access path. The project `AssetResolver` also
 
 `771c1f5f` uses the existing local `CascListfileResolver` cache path for a native creature-model helper: model FDID → `.m2`, primary M2 SFID → adjacent `00.skin`, optional SKID → adjacent `.skel`, then parsed render-batch/explicit creature-slot texture FDIDs → `.blp`. The helper is not yet attached to native world-unit spawning.
 
+VERIFIED 2026-11-11: `GameObjectDisplayInfo` root M2s now select the Retail authored-model receipt identity. Their three target M2s load in the Paladin start test; the map-wide zero-error gate remains blocked by two other M2s with no index rows. See [GameObject receipt boundary](../investigations/m2-product-shadowing.md#gameobjectdisplayinfo-root-receipts-2026-11-11).
+
 ## Equipped-item material closure — verified 2026-10-15
 
 M2 `TXID` and `ItemDisplayInfo.ModelMaterialResourcesID_*` do not exhaust an equipped model's textures. `ItemDisplayInfoModelMatRes` supplies additional `(display, model column, TextureType, MaterialResourcesID)` overrides; resolve each through `TextureFileData` and the same authored race/sex selection as the runtime. Sfkgeared's head/shoulders require types3/4 textures6256534/6153788/6310348/6153800, omitted by the earlier M2-chain audit. Native preview accepted6256534, then exposed6153788; no combat or clear was proved.
