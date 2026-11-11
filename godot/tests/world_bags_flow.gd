@@ -15,8 +15,26 @@ const EXPECTED_ITEMS := [
 	[1, 7, 755, "Melted Candle", 2],
 ]
 
+func set_capture_resolution() -> bool:
+	var requested := OS.get_environment("GODOT_TEST_RESOLUTION")
+	if requested.is_empty():
+		root.size = Vector2i(1920, 1080)
+		return true
+	var dimensions := requested.split("x")
+	if dimensions.size() != 2 or not dimensions[0].is_valid_int() or not dimensions[1].is_valid_int():
+		fail("GODOT_TEST_RESOLUTION must be WIDTHxHEIGHT: " + requested)
+		return false
+	var width := dimensions[0].to_int()
+	var height := dimensions[1].to_int()
+	if width <= 0 or height <= 0:
+		fail("GODOT_TEST_RESOLUTION dimensions must be positive: " + requested)
+		return false
+	root.size = Vector2i(width, height)
+	return true
+
 func run_test() -> void:
-	root.size = Vector2i(1920, 1080)
+	if not set_capture_resolution():
+		return
 	var endpoint := OS.get_environment("GODOT_TEST_SERVER")
 	var config := OS.get_environment("XDG_CONFIG_HOME")
 	if not endpoint.begins_with("127.0.0.1:") or endpoint.ends_with(":0") or not config.contains("/data/diagnostics/native-input-"):
@@ -145,13 +163,17 @@ func capture_bags(filename: String = "standalone-bags.png", tooltip_client: Node
 		fail("Cannot create bag capture directory: %s" % error)
 		return false
 	await RenderingServer.frame_post_draw
+	var image := root.get_texture().get_image()
+	if image.get_size() != root.size:
+		fail("Bag capture is %s, not the requested %s" % [image.get_size(), root.size])
+		return false
 	if tooltip_client != null:
 		var panel := authored_control(tooltip_client, "TooltipFrame")
 		var title := authored_control(tooltip_client, "TooltipTitle") as Label
 		if panel == null or not panel.is_visible_in_tree() or title == null or not title.is_visible_in_tree() or title.text != tooltip_title:
 			fail("Item tooltip must remain shown in capture: " + filename)
 			return false
-	error = root.get_texture().get_image().save_png(directory.path_join(filename))
+	error = image.save_png(directory.path_join(filename))
 	if error != OK:
 		fail("Cannot save authored bag capture: %s" % error)
 		return false
