@@ -264,6 +264,9 @@ impl GameClient {
     pub(super) fn update_spells(&mut self, delta: f32) -> Result<(), FrameError> {
         match self.drive_spells(delta) {
             Err(FrameError::Client(error)) => {
+                if std::env::var_os("TALENTS_INPUT_TRACE").is_some() {
+                    godot_print!("TALENTS_SPELLS_ERROR {error}");
+                }
                 report_once(&format!("Spell UI: {error}"));
                 self.spells.close();
                 Ok(())
@@ -274,6 +277,12 @@ impl GameClient {
 
     fn drive_spells(&mut self, delta: f32) -> Result<(), FrameError> {
         if self.account.session.screen != SessionScreen::InWorld {
+            if std::env::var_os("TALENTS_INPUT_TRACE").is_some() && self.spells.book_ui.is_some() {
+                godot_print!(
+                    "TALENTS_SPELLS_NOT_IN_WORLD screen={:?}",
+                    self.account.session.screen
+                );
+            }
             self.spells.close();
             return Ok(());
         }
