@@ -174,7 +174,19 @@ pub fn window_chrome_no_portrait(
     title: &str,
     close_action: &str,
 ) -> Element {
+    window_chrome_no_portrait_with_content(prefix, (width, height), title, close_action, vec![])
+}
+
+/// BasicFrameTemplate with authored children under the border, title and close button.
+pub fn window_chrome_no_portrait_with_content(
+    prefix: &str,
+    (width, height): (f32, f32),
+    title: &str,
+    close_action: &str,
+    content: Element,
+) -> Element {
     let mut elements = window_background(prefix, width, height);
+    elements.extend(content);
     elements.extend(metal_border(prefix, width, height, MetalTopLeft::Plain));
     elements.extend(window_title(prefix, width, title, FLAT_TITLE_LEFT));
     elements.extend(close_button(prefix, width, close_action));

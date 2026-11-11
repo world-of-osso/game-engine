@@ -3,8 +3,7 @@
 //! 32×40 buttons laid out with `childXPadding=-5` at the active preset's anchor
 //! (`crate::hud_layout`). Each button draws its
 //! `LoadMicroButtonTextures` atlas for its state over `Background`/`PushedBackground`.
-//! Buttons whose window exists natively toggle it; the rest take the disabled branch of
-//! their Retail `UpdateMicroButton` and say why in their tooltip.
+//! Native windows toggle from their buttons; unavailable buttons retain their Retail reason.
 
 use game_engine_core::input_bindings_data::InputAction;
 use ui_toolkit::rsx;
@@ -20,6 +19,7 @@ use crate::tooltip_presentation::{TOOLTIP_WHITE, TooltipLineState, TooltipPresen
 pub const MICRO_MENU: &str = "MicroMenuContainer";
 pub const ACTION_PREFIX: &str = "micro:";
 pub const ACTION_CHARACTER: &str = "micro:CharacterMicroButton";
+pub const ACTION_PROFESSIONS: &str = "micro:ProfessionMicroButton";
 pub const ACTION_PLAYER_SPELLS: &str = "micro:PlayerSpellsMicroButton";
 pub const ACTION_QUEST_LOG: &str = "micro:QuestLogMicroButton";
 pub const ACTION_MAIN_MENU: &str = "micro:MainMenuMicroButton";
@@ -80,10 +80,6 @@ pub enum Unavailable {
     MinLevel(u32),
 }
 
-/// `ERR_SYSTEM_DISABLED`, the `SetKioskTooltip` line of the buttons whose Retail
-/// `UpdateMicroButton` has no other disabled branch.
-const SYSTEM_DISABLED: Unavailable = Unavailable::Reason("This system is currently disabled.");
-
 pub struct MicroButton {
     pub name: &'static str,
     /// `tooltipText` before `MicroButtonTooltipText` adds the binding.
@@ -114,13 +110,12 @@ pub const MICRO_BUTTONS: [MicroButton; 12] = [
         art: None,
         unavailable: None,
     },
-    // No ProfessionsBookFrame natively; the Lua's only disabled branch is the kiosk one.
     MicroButton {
         name: "ProfessionMicroButton",
         title: "Professions",
         binding: Some(InputAction::ToggleProfessions),
         art: Some("Professions"),
-        unavailable: Some(SYSTEM_DISABLED),
+        unavailable: None,
     },
     // `PlayerSpellsUtil.TogglePlayerSpellsFrame`: the native spellbook.
     MicroButton {
@@ -213,6 +208,7 @@ pub fn player_spells_micro_tab(action: &str) -> Option<crate::player_spells_data
 }
 
 const CHARACTER: usize = 0;
+const PROFESSIONS_BOOK: usize = 1;
 const PLAYER_SPELLS: usize = 2;
 const QUEST_LOG: usize = 4;
 const MAIN_MENU: usize = 11;
@@ -221,6 +217,7 @@ const MAIN_MENU: usize = 11;
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct OpenWindows {
     pub character: bool,
+    pub professions_book: bool,
     pub player_spells: bool,
     pub quest_log: bool,
     pub game_menu: bool,
@@ -256,6 +253,7 @@ impl MicroMenuView {
         }
         let open = match index {
             CHARACTER => self.open.character,
+            PROFESSIONS_BOOK => self.open.professions_book,
             PLAYER_SPELLS => self.open.player_spells,
             QUEST_LOG => self.open.quest_log,
             _ => false,

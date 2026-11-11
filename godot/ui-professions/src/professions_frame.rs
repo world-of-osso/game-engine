@@ -1,4 +1,5 @@
 //! Retail profession tree and schematic; crafting decisions remain in ProfessionBook.
+use crate::professions_catalog::ProfessionBookSummary;
 use game_engine_ui_model::bank_art::{HIGHLIGHT_FONT_COLOR, label};
 use game_engine_ui_model::professions::ProfessionBook;
 use game_engine_ui_model::quest_art::{
@@ -10,6 +11,8 @@ use ui_toolkit::{rsx, screen::SharedContext, widget_def::Element};
 
 #[path = "professions_frame_art.rs"]
 mod art;
+#[path = "professions_book_frame.rs"]
+mod book_frame;
 #[path = "professions_frame_concentration.rs"]
 pub mod concentration;
 #[path = "professions_frame_favorites.rs"]
@@ -66,6 +69,8 @@ pub struct ProfessionView {
     pub order_can_place: bool,
     pub now_unix: u64,
     pub owned_reagents: BTreeMap<u32, u32>,
+    pub profession_book_visible: bool,
+    pub profession_book: ProfessionBookSummary,
     pub book: ProfessionBook,
     pub skill_names: BTreeMap<u32, String>,
     pub child_skills: BTreeSet<u32>,
@@ -96,9 +101,15 @@ pub fn apply_professions_art(
 
 pub fn professions_screen(ctx: &SharedContext) -> Element {
     let _ = ctx.get::<ui_toolkit::atlas::ActiveSkin>();
-    let Some(view) = ctx.get::<ProfessionView>().filter(|view| view.book.visible) else {
+    let Some(view) = ctx.get::<ProfessionView>() else {
         return vec![];
     };
+    if view.profession_book_visible {
+        return book_frame::screen(view);
+    }
+    if !view.book.visible {
+        return vec![];
+    }
     if view.page == ProfessionPage::Orders && view.orders.customer {
         return orders::customer_screen(ctx, view);
     }
