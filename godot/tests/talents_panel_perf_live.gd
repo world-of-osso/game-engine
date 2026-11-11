@@ -82,9 +82,9 @@ func run_test() -> void:
 	var spec_id := int(OS.get_environment("BENCH_SPEC_ID"))
 	if spec_id > 0 and not await select_specialization(spec_id):
 		return
-	var spell_state: Dictionary = client.spells_state()
-	if int(spell_state.get("level", 0)) != 90 or int(spell_state.get("spec", 0)) <= 0:
-		fail("Talents requires a level-90 player with an active spec: " + str(spell_state))
+	var ready_spells: Dictionary = client.spells_state()
+	if int(ready_spells.get("level", 0)) != 90 or int(ready_spells.get("spec", 0)) <= 0:
+		fail("Talents requires a level-90 player with an active spec: " + str(ready_spells))
 		return
 	var skin_error: String = client.preview_world_skin(true)
 	if not skin_error.is_empty() or client.account_state().ui_skin != "Forever":
