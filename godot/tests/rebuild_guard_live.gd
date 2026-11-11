@@ -27,15 +27,20 @@ func run_test() -> void:
 	var windows := int(OS.get_environment("GUARD_WINDOWS")) if OS.get_environment("GUARD_WINDOWS") != "" else 3
 	client = load("res://scenes/client.tscn").instantiate()
 	root.add_child(client)
-	if not await wait_for_asset_startup():
-		return
-	var error = client.connect_account(server, account, PASSWORD, false)
-	if error != "":
-		fail("Fixture connection: " + error)
-		return
-	if not await enter_world(character):
-		return
-	if OS.get_environment("GUARD_TALENTS") == "1" and not await open_talents_panel():
+	var talents := OS.get_environment("GUARD_TALENTS") == "1"
+	if talents:
+		if not await wait_for_startup_world(character):
+			return
+	else:
+		if not await wait_for_asset_startup():
+			return
+		var error = client.connect_account(server, account, PASSWORD, false)
+		if error != "":
+			fail("Fixture connection: " + error)
+			return
+		if not await enter_world(character):
+			return
+	if talents and not await open_talents_panel():
 		return
 	client.set_camera_orbit(yaw, PITCH, DISTANCE)
 	await create_timer(settle_s).timeout
@@ -71,6 +76,16 @@ func run_test() -> void:
 	client.free()
 	quit(0)
 
+func wait_for_startup_world(character: String) -> bool:
+	var deadline := Time.get_ticks_msec() + 900000
+	while Time.get_ticks_msec() < deadline:
+		await process_frame
+		var state: Dictionary = client.account_state()
+		if state.screen == "InWorld" and Readiness.is_ready(state) and state.local_player_position != null:
+			return true
+	fail("Startup did not enter a ready world: " + str(client.account_state()))
+	return false
+
 func wait_for_asset_startup() -> bool:
 	var deadline := Time.get_ticks_msec() + ASSET_STARTUP_TIMEOUT_MS
 	while Time.get_ticks_msec() < deadline and client.account_state().assets_starting:
@@ -97,7 +112,9 @@ func open_talents_panel() -> bool:
 			var nodes := client.find_children("TalentNode*", "Control", true, false)
 			if not nodes.is_empty():
 				await RenderingServer.frame_post_draw
+				push_key(KEY_N, false)
 				print("REBUILD_GUARD_PANEL talents ui_skin=Forever nodes=", nodes.size())
 				return true
+	push_key(KEY_N, false)
 	fail("N did not render the Forever talents panel")
 	return false

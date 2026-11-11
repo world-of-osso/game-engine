@@ -7,6 +7,18 @@ const ASSET_STARTUP_TIMEOUT_MS := 180000
 const OPEN_TIMEOUT_MS := 60000
 const SETTLE_SECONDS := 5.0
 
+func wait_for_startup_world(character: String) -> bool:
+	var deadline := Time.get_ticks_msec() + 900000
+	while Time.get_ticks_msec() < deadline:
+		await process_frame
+		var state: Dictionary = client.account_state()
+		if state.screen == "InWorld" and Readiness.is_ready(state) and state.local_player_position != null:
+			return true
+		if Time.get_ticks_msec() % 10000 < 20:
+			print("TALENTS_PANEL_STARTUP_WAIT ", JSON.stringify({"screen": state.screen, "assets_starting": state.assets_starting}))
+	fail("Startup did not enter a ready world: " + str(client.account_state()))
+	return false
+
 func wait_for_asset_startup() -> bool:
 	var deadline := Time.get_ticks_msec() + ASSET_STARTUP_TIMEOUT_MS
 	while Time.get_ticks_msec() < deadline and client.account_state().assets_starting:
@@ -29,14 +41,18 @@ func run_test() -> void:
 	RenderingServer.viewport_set_measure_render_time(root.get_viewport_rid(), true)
 	client = load("res://scenes/client.tscn").instantiate()
 	root.add_child(client)
-	if not await wait_for_asset_startup():
-		return
-	var error: String = client.connect_account(server, account, PASSWORD, false)
-	if not error.is_empty():
-		fail("Fixture connection: " + error)
-		return
-	if not await enter_world(character):
-		return
+	if OS.get_environment("BENCH_STARTUP_INWORLD") == "1":
+		if not await wait_for_startup_world(character):
+			return
+	else:
+		if not await wait_for_asset_startup():
+			return
+		var error: String = client.connect_account(server, account, PASSWORD, false)
+		if not error.is_empty():
+			fail("Fixture connection: " + error)
+			return
+		if not await enter_world(character):
+			return
 	player = client.get_node_or_null("WorldUnits/" + character) as Node3D
 	if player == null:
 		fail("No local player node WorldUnits/" + character)
@@ -56,8 +72,6 @@ func run_test() -> void:
 	await measure("talents_closed", segment_s, func(_time: float): pass, true)
 	var keypress_usec := Time.get_ticks_usec()
 	push_key(KEY_N, true)
-	await process_frame
-	push_key(KEY_N, false)
 	var panel: Control
 	var node_count := 0
 	var deadline := Time.get_ticks_msec() + OPEN_TIMEOUT_MS
@@ -69,6 +83,7 @@ func run_test() -> void:
 			if node_count > 0:
 				await RenderingServer.frame_post_draw
 				break
+	push_key(KEY_N, false)
 	if panel == null or not panel.is_visible_in_tree() or node_count == 0:
 		fail("N did not render a talents page with nodes; node_count=%d state=%s" % [node_count, str(client.account_state())])
 		return
