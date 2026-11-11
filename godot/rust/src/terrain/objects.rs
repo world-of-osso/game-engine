@@ -44,6 +44,131 @@ mod surface_cell_tests {
     }
 }
 
+#[cfg(test)]
+mod emitter_frustum_tests {
+    use super::*;
+
+    const Y_HALF_EXTENT: f32 = 4.0;
+
+    fn box_frustum(x_min: f32, x_max: f32, z_min: f32, z_max: f32) -> Vec<HalfSpace> {
+        vec![
+            HalfSpace {
+                normal: Vec3::X,
+                d: -x_min,
+            },
+            HalfSpace {
+                normal: Vec3::NEG_X,
+                d: x_max,
+            },
+            HalfSpace {
+                normal: Vec3::Y,
+                d: Y_HALF_EXTENT,
+            },
+            HalfSpace {
+                normal: Vec3::NEG_Y,
+                d: Y_HALF_EXTENT,
+            },
+            HalfSpace {
+                normal: Vec3::Z,
+                d: -z_min,
+            },
+            HalfSpace {
+                normal: Vec3::NEG_Z,
+                d: z_max,
+            },
+        ]
+    }
+
+    fn placements() -> Vec<SceneryDistance> {
+        (0..25)
+            .map(|index| {
+                let x = (index % 5) as f32 * 6.0 - 12.0;
+                let z = (index / 5) as f32 * 7.0 - 30.0;
+                let half_extent = 0.5 + (index % 3) as f32 * 0.25;
+                let half = Vec3::splat(half_extent);
+                SceneryDistance::new(
+                    -half,
+                    half,
+                    Affine3A::from_translation(Vec3::new(x, 0.0, z)),
+                )
+            })
+            .collect()
+    }
+
+    #[test]
+    fn cached_emitter_frustum_field_dump_matches_fresh_checks() {
+        let scenery = placements();
+        let frustums = [
+            box_frustum(-15.0, 0.0, -32.0, -4.0),
+            box_frustum(0.0, 15.0, -32.0, -4.0),
+            box_frustum(-8.0, 8.0, -12.0, 10.0),
+        ];
+        let mut frustum_cache = ParticleFrustumCache::default();
+        let mut visibility_cache = vec![None; scenery.len()];
+
+        for (view_index, frustum) in frustums.iter().enumerate() {
+            for frame_index in 0..2 {
+                let frustum_changed = frustum_cache.update_frustum(frustum);
+                assert_eq!(frustum_changed, frame_index == 0);
+                let opacity_phase = view_index * 2 + frame_index;
+                let cached_field_dump: Vec<u8> = scenery
+                    .iter()
+                    .zip(&mut visibility_cache)
+                    .enumerate()
+                    .map(|(index, (placement, cached))| {
+                        let frustum_visible = cached_emitter_frustum_visibility(
+                            placement,
+                            frustum,
+                            frustum_changed,
+                            cached,
+                        );
+                        let opacity = if (index + opacity_phase) % 4 == 0 {
+                            0.0
+                        } else {
+                            0.5
+                        };
+                        u8::from(opacity > 0.0 && frustum_visible)
+                    })
+                    .collect();
+                let fresh_field_dump: Vec<u8> = scenery
+                    .iter()
+                    .enumerate()
+                    .map(|(index, placement)| {
+                        let opacity = if (index + opacity_phase) % 4 == 0 {
+                            0.0
+                        } else {
+                            0.5
+                        };
+                        u8::from(opacity > 0.0 && placement.box_in_frustum(frustum))
+                    })
+                    .collect();
+
+                assert_eq!(
+                    cached_field_dump, fresh_field_dump,
+                    "view {view_index}, frame {frame_index}"
+                );
+            }
+        }
+
+        let new_placement = SceneryDistance::new(
+            Vec3::splat(-1.0),
+            Vec3::splat(1.0),
+            Affine3A::from_translation(Vec3::new(3.0, 0.0, -15.0)),
+        );
+        let current_frustum = frustums.last().expect("test frustum");
+        let frustum_changed = frustum_cache.update_frustum(current_frustum);
+        assert!(!frustum_changed);
+        let mut new_visibility = None;
+        let cached = cached_emitter_frustum_visibility(
+            &new_placement,
+            current_frustum,
+            frustum_changed,
+            &mut new_visibility,
+        );
+        assert_eq!(cached, new_placement.box_in_frustum(current_frustum));
+    }
+}
+
 use std::{
     collections::{BTreeSet, HashMap, VecDeque},
     path::{Path, PathBuf},
@@ -277,6 +402,37 @@ struct CulledDoodad {
     /// Particle emitters, when the model has any and particle effects are on.
     particles: Option<PlacedParticles>,
     ribbons: Option<crate::ribbons::PlacedRibbons>,
+    /// Frustum visibility of the fixed world box used by particle and ribbon updates.
+    emitter_frustum_visible: Option<bool>,
+}
+
+#[derive(Default)]
+struct ParticleFrustumCache {
+    planes: Option<Vec<HalfSpace>>,
+}
+
+impl ParticleFrustumCache {
+    fn update_frustum(&mut self, frustum: &[HalfSpace]) -> bool {
+        if self.planes.as_deref() == Some(frustum) {
+            return false;
+        }
+        self.planes = Some(frustum.to_vec());
+        true
+    }
+}
+
+fn cached_emitter_frustum_visibility(
+    scenery: &SceneryDistance,
+    frustum: &[HalfSpace],
+    frustum_changed: bool,
+    cached_visibility: &mut Option<bool>,
+) -> bool {
+    if !frustum_changed && let Some(visible) = *cached_visibility {
+        return visible;
+    }
+    let visible = scenery.box_in_frustum(frustum);
+    *cached_visibility = Some(visible);
+    visible
 }
 
 impl CulledDoodad {
@@ -306,6 +462,7 @@ impl CulledDoodad {
             portal_cull_safe,
             particles: None,
             ribbons: None,
+            emitter_frustum_visible: None,
         }
     }
 
@@ -571,6 +728,7 @@ pub(crate) struct TerrainObjects {
     doodads: Vec<CulledDoodad>,
     /// Indices of the doodads with particle emitters or ribbons, in `doodads` order.
     emitting_doodads: Vec<usize>,
+    particle_frustum_cache: ParticleFrustumCache,
     scenery_index: SceneryIndex,
     /// Whether the last portal cull drew a different set of WMO groups than the one
     /// before it.
@@ -650,6 +808,7 @@ impl TerrainObjects {
             wmo_doodads: HashMap::new(),
             doodads: Vec::new(),
             emitting_doodads: Vec::new(),
+            particle_frustum_cache: ParticleFrustumCache::default(),
             scenery_index: SceneryIndex::default(),
             wmo_drawn_changed: true,
             wmo_cull_view: None,
@@ -1850,13 +2009,20 @@ impl TerrainObjects {
         let Some(pools) = &mut self.particles else {
             return;
         };
+        let frustum_changed = self.particle_frustum_cache.update_frustum(frustum);
         let view = view_basis(camera);
         let started = Instant::now();
         pools.begin_frame();
         let mut updated = 0;
         for &index in &self.emitting_doodads {
             let doodad = &mut self.doodads[index];
-            let visible = doodad.opacity > 0.0 && doodad.scenery.box_in_frustum(frustum);
+            let frustum_visible = cached_emitter_frustum_visibility(
+                &doodad.scenery,
+                frustum,
+                frustum_changed,
+                &mut doodad.emitter_frustum_visible,
+            );
+            let visible = doodad.opacity > 0.0 && frustum_visible;
             if let Some(placed) = &mut doodad.particles {
                 if visible {
                     placed.update_and_draw(&doodad.node, delta, doodad.opacity, &view, pools);
@@ -1939,6 +2105,7 @@ impl TerrainObjects {
         self.wmo_doodads.clear();
         self.doodads.clear();
         self.emitting_doodads.clear();
+        self.particle_frustum_cache = ParticleFrustumCache::default();
         self.scenery_index = SceneryIndex::default();
         self.wmos.clear();
         self.wmo_cull_view = None;

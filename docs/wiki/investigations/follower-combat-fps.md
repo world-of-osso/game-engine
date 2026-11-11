@@ -66,7 +66,13 @@ VERIFIED: `ParticlePool::push` used to grow each 20-float instance with zeros, t
 
 VERIFIED: Before the change, the staged Ruby release segment had 38 units and `pending=0`; across 1,701 frames, `Culling` was 1.532 ms median and `cull.particles` was 1.147 ms median (0.996 ms on-CPU). Segment-end host loads were 19.65/33.23/41.30 (1/5/15-minute averages). This is a baseline profile, not an A/B result.
 
-UNVERIFIED: The optimization's performance effect is unknown. At 10:49:15 on November 11, 2026, the pre-run load check read 11.43/13.55/22.77 and rejected the A/B before launching a client. No FPS improvement is established.
+UNVERIFIED: The quad-packing optimization's performance effect is unknown. At 10:49:15 on November 11, 2026, the pre-run load check read 11.43/13.55/22.77 and rejected the A/B before launching a client. No FPS improvement is established.
+
+## Emitter frustum admission cache (2026-11-11)
+
+VERIFIED: Each doodad's `SceneryDistance` world box is created at spawn and is not changed later in `TerrainObjects`. The new cache reuses its exact frustum result only while every `HalfSpace` plane remains equal; the opacity check and particle update/defer calls still run every frame. The field-dump test compares 25 bounds against fresh culling for three views, repeated unchanged views, opacity changes, and a late-added emitter; all output bytes match.
+
+UNVERIFIED: The cache's frame-time effect has no valid A/B. At 13:21:18 on November 11, 2026, `uptime` reported 14.56/16.09/18.93; no A/B run started because the 1-minute average was above 10.
 
 ## Sources
 
@@ -74,10 +80,13 @@ UNVERIFIED: The optimization's performance effect is unknown. At 10:49:15 on Nov
 - [Unit frame auras](../../../godot/ui-model/src/ui/screens/inworld_unit_frames_aura.rs) — `player_aura_icons`, `aura_elapsed`, `set_target_auras`.
 - [UI projection](../../../godot/rust/src/ui/projection.rs) — which nodes a sync updates.
 - [Particles](../../../godot/rust/src/particles.rs) — placed emitters, held emitter transforms.
+- [Terrain objects](../../../godot/rust/src/terrain/objects.rs) — fixed doodad world bounds and cached particle/ribbon frustum admission.
 - [Camera follow](../../../godot/core/src/camera_follow_data.rs) — terrain-sampled orbit and ground clamp.
 - [Player model chain](../../../godot/core/src/player_model_data.rs) and [world appearance selection](../../../godot/rust/src/world.rs) — body FDIDs and replicated display overrides.
 - [Forever reference test](../../../godot/ui-model/tests/forever_unit_reference.rs) — the stale portrait assertion and retained pet geometry.
 
+- `data/diagnostics/culling-frustum-cache-2026-11-11/emitter-frustum-field-test.log` — byte-exact 25-bound culling decisions against fresh checks.
+- `data/diagnostics/culling-frustum-cache-2026-11-11/before-libgame_engine_godot.so` and `after-libgame_engine_godot.so` — release artifacts for the pending A/B (SHA-256 `28de7d52b98d6abb017555f4829d3a264d82f42d83eb9d9e2d4f55de3bd00957`, `66cd2eaa8839b0460bb558fecc19935b733512e5e4b266e069d13d45bd27b915`).
 - `data/diagnostics/culling-ruby-2026-11-11/ruby-culling-particle-state.log` — staged pre-change release segment and particle counters.
 - `data/diagnostics/culling-ruby-2026-11-11/particle-debug-after.log` — release particle-debug fixture after the buffer change.
 

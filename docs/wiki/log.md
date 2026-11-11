@@ -1,3 +1,9 @@
+## Ruby emitter frustum cache — 2026-11-11
+
+VERIFIED: `TerrainObjects::update_particles` reuses doodad frustum admission when the exact plane list is unchanged; the bit-field fixture matches fresh AABB culling for 25 bounds across changed and unchanged views. Particle simulation and deferral still run each frame. See [[follower-combat-fps#emitter-frustum-admission-cache-2026-11-11]].
+
+UNVERIFIED: No paired A/B was run because the 1-minute `uptime` average was 14.56 at 13:21:18; no performance effect is claimed.
+
 ## GameObject M2 receipt gate closed — 2026-11-11
 
 VERIFIED: The lead-published third fragment has 11 asset rows and 2 companion aliases, including receipts for M2s 166432 and 1697838; all 13 referenced payloads match their receipt hashes. On commit `d4bb12bf0f204a5ad4391c3369a6173d1645e8ec`, an extracted-only race-30 Paladin reached map 1860 at start distance 0.00 with two parsed terrain tiles, zero receipt errors and zero CASC diagnostics. The run used no flat aliases or fallback. Afterward, the private server stopped and all 23 temporary receipt-index links were removed; the slot's original cache path was restored. Evidence: `/home/osso/.worktrees/charcreate-receipts/agent-assets/live/gameobject-final-live-proof.json`. See [[m2-product-shadowing]].
