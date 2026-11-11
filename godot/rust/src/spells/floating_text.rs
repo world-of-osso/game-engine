@@ -1,15 +1,66 @@
 //! Floating damage labels and their animation.
 
+use crate::rebuild_guard::{Rebuild, ThemeOverrides};
 use crate::{GameClient, combat_text, replicated::UnitFields};
-use godot::classes::{Camera3D, FontFile, Label3D, base_material_3d::BillboardMode};
+use game_engine_core::combat_text_options::CombatTextOptions;
+use godot::classes::{
+    Camera3D, CanvasLayer, FontFile, Label, Label3D, base_material_3d::BillboardMode,
+};
 use godot::prelude::*;
 use shared::protocol::{CombatLogEvent, CombatLogKind};
 use ui_toolkit::widgets::font_string::GameFont;
 
-use combat_text::{Attacker, Style};
+use combat_text::{
+    Attacker, Style,
+    incoming::{Message, Motion},
+};
 
 /// Height above the unit origin where combat text starts.
 const FLOAT_TEXT_HEIGHT: f32 = 3.6;
+
+pub(super) struct SelfFloatingText {
+    label: Gd<Label>,
+    shadow: Gd<Label>,
+    motion: Motion,
+    base_height: f32,
+    age: f32,
+}
+
+impl SelfFloatingText {
+    fn advance(&mut self, delta: f32, viewport: Vector2) -> bool {
+        self.age += delta;
+        if !self.label.is_instance_valid() || !self.shadow.is_instance_valid() {
+            if self.label.is_instance_valid() {
+                self.label.clone().queue_free();
+            }
+            if self.shadow.is_instance_valid() {
+                self.shadow.clone().queue_free();
+            }
+            return false;
+        }
+        if self.age >= 1.9 {
+            self.label.clone().queue_free();
+            self.shadow.clone().queue_free();
+            return false;
+        }
+        self.motion.viewport = [viewport.x, viewport.y];
+        let frame = self.motion.frame(self.age);
+        let size = self.label.get_size();
+        let scale = frame.height / self.base_height;
+        let origin = Vector2::new(frame.position[0] - size.x * scale * 0.5, frame.position[1]);
+        self.label.set_position(origin);
+        self.label.set_scale(Vector2::new(scale, scale));
+        self.shadow.set_position(origin + Vector2::ONE);
+        self.shadow.set_scale(Vector2::new(scale, scale));
+        let mut foreground = self.label.get_modulate();
+        foreground.a = frame.alpha;
+        self.label.set_modulate(foreground);
+        let mut shadow = self.shadow.get_modulate();
+        shadow.a = frame.alpha;
+        self.shadow.set_modulate(shadow);
+        true
+    }
+}
 
 pub(super) struct FloatingText {
     pub(super) node: Gd<Label3D>,
@@ -78,6 +129,52 @@ pub(super) fn combat_text_size(event: &CombatLogEvent, style: Style) -> i32 {
         size *= 0.75;
     }
     size.round() as i32
+}
+
+fn preview_incoming_event(index: u32) -> CombatLogEvent {
+    use shared::protocol::{CombatLogKind, MissKind};
+    let mut event = CombatLogEvent {
+        source: Some(2),
+        target: Some(1),
+        spell_id: Some(133),
+        school_mask: 4,
+        amount: 12345,
+        overflow: 0,
+        absorbed: 0,
+        resisted: 0,
+        blocked: 0,
+        crit: false,
+        glancing: false,
+        periodic: false,
+        extra_spell_id: None,
+        timestamp_unix_ms: 0,
+        kind: CombatLogKind::Damage,
+    };
+    match index % 9 {
+        0 => event.spell_id = None,
+        1 => event.amount = 2345,
+        2 => event.crit = true,
+        3 => event.kind = CombatLogKind::Heal,
+        4 => {
+            event.kind = CombatLogKind::Heal;
+            event.crit = true;
+        }
+        5 => {
+            event.amount = 0;
+            event.kind = CombatLogKind::Miss(MissKind::Dodge);
+        }
+        6 => {
+            event.amount = 0;
+            event.kind = CombatLogKind::Miss(MissKind::Absorb);
+        }
+        7 => event.blocked = 400,
+        _ => {
+            event.kind = CombatLogKind::Heal;
+            event.periodic = true;
+            event.crit = true;
+        }
+    }
+    event
 }
 
 /// The fixture's scripted events, one per `index % SCRIPT.len()`: a plain hit, a crit, a
@@ -182,16 +279,35 @@ fn spawn_label(
     label
 }
 
+enum CombatTextEvent {
+    Incoming(CombatLogEvent, Option<String>),
+    Outgoing(CombatLogEvent, Attacker),
+}
+
 impl GameClient {
-    /// Retail floating combat text over the target for the player's own damage.
+    /// Advance screen-anchored self messages and world-anchored outgoing messages.
     pub(super) fn float_combat_text(&mut self, delta: f32) {
-        let events = self.take_combat_text_events();
-        let camera = self.combat_text_camera();
-        for (event, attacker) in events {
-            self.spawn_combat_text(&event, attacker, camera.clone());
+        for event in self.take_combat_text_events() {
+            match event {
+                CombatTextEvent::Incoming(event, healer) => {
+                    self.spawn_incoming_combat_text(&event, healer.as_deref(), false);
+                }
+                CombatTextEvent::Outgoing(event, attacker) => {
+                    let camera = self.combat_text_camera();
+                    self.spawn_combat_text(&event, attacker, camera);
+                }
+            }
         }
         if !self.spells.combat_text_hold {
             self.spells.floating.retain_mut(|text| text.advance(delta));
+            let viewport = self
+                .base()
+                .get_viewport()
+                .map(|viewport| viewport.get_visible_rect().size)
+                .unwrap_or(Vector2::ZERO);
+            self.spells
+                .self_floating
+                .retain_mut(|text| text.advance(delta, viewport));
         }
     }
 
@@ -201,7 +317,156 @@ impl GameClient {
             .and_then(|viewport| viewport.get_camera_3d())
     }
 
-    fn take_combat_text_events(&mut self) -> Vec<(CombatLogEvent, Attacker)> {
+    fn spawn_incoming_combat_text(
+        &mut self,
+        event: &CombatLogEvent,
+        healer_name: Option<&str>,
+        preview: bool,
+    ) -> i64 {
+        let mut options = self.client_options.hud.combat_text;
+        if preview {
+            options.self_enabled = true;
+        }
+        let Some(message) = combat_text::incoming::message_for(event, &options, healer_name) else {
+            return self.spells.self_floating.len() as i64;
+        };
+        if self.spells.self_floating.len() >= 20 {
+            return self.spells.self_floating.len() as i64;
+        }
+        let Some(viewport) = self.base().get_viewport() else {
+            return self.spells.self_floating.len() as i64;
+        };
+        let viewport_size = viewport.get_visible_rect().size;
+        if viewport_size.x <= 0.0 || viewport_size.y <= 0.0 {
+            return self.spells.self_floating.len() as i64;
+        }
+        let layer = self.self_combat_text_layer();
+        let mode = options.float_mode;
+        let mut start_y = self.self_combat_text_start_y(mode, viewport_size);
+        let mut start_x = if message.stagger {
+            (godot::global::randi() as i32).rem_euclid(21) as f32 - 10.0
+        } else {
+            0.0
+        };
+        let mut x_dir = -self.spells.self_float_x_dir;
+        self.spells.self_float_x_dir = x_dir;
+        let lower_bound = 384.0 - 130.0;
+        let upper_bound = 384.0 + 130.0;
+        let overflow = if mode == 2 {
+            start_y > upper_bound
+        } else {
+            start_y < lower_bound
+        };
+        if overflow && message.crit {
+            start_y = 384.0;
+        } else if overflow {
+            self.spells.self_float_offset_adjustment *= -1.0;
+            start_y = if mode == 2 { upper_bound } else { lower_bound };
+            start_x += self.spells.self_float_offset_adjustment * viewport_size.x / 1024.0;
+            x_dir = if self.spells.self_float_offset_adjustment > 0.0 {
+                -1.0
+            } else {
+                1.0
+            };
+        }
+        let motion = Motion {
+            mode,
+            crit: message.crit,
+            start: [start_x, start_y],
+            x_dir,
+            viewport: [viewport_size.x, viewport_size.y],
+        };
+        let base_height = (if message.crit { 30.0 } else { 25.0 }) * scale_y;
+        let (label, shadow) =
+            self.create_incoming_labels(&layer, &message, base_height, viewport_size);
+        let mut text = SelfFloatingText {
+            label,
+            shadow,
+            motion,
+            base_height,
+            age: 0.0,
+        };
+        text.advance(0.0, viewport_size);
+        self.spells.self_floating.push(text);
+        self.spells.self_floating.len() as i64
+    }
+
+    fn self_combat_text_layer(&mut self) -> Gd<CanvasLayer> {
+        if let Some(layer) = &self.spells.self_float_layer {
+            return layer.clone();
+        }
+        let mut layer = CanvasLayer::new_alloc();
+        layer.set_name("FloatingCombatTextLayer");
+        layer.set_layer(10);
+        crate::rebuild_guard::count(Rebuild::UiTree, 1);
+        self.base_mut().add_child(&layer);
+        self.spells.self_float_layer = Some(layer.clone());
+        layer
+    }
+
+    fn create_incoming_labels(
+        &mut self,
+        layer: &Gd<CanvasLayer>,
+        message: &Message,
+        base_height: f32,
+        viewport: Vector2,
+    ) -> (Gd<Label>, Gd<Label>) {
+        let mut shadow = self.new_incoming_label(message, base_height, viewport, Color::BLACK);
+        let color = Color::from_rgb(message.color[0], message.color[1], message.color[2]);
+        let mut label = self.new_incoming_label(message, base_height, viewport, color);
+        let mut layer = layer.clone();
+        layer.add_child(&shadow);
+        layer.add_child(&label);
+        crate::rebuild_guard::count(Rebuild::UiTree, 2);
+        (label, shadow)
+    }
+
+    fn new_incoming_label(
+        &self,
+        message: &Message,
+        base_height: f32,
+        viewport: Vector2,
+        color: Color,
+    ) -> Gd<Label> {
+        let mut label = Label::new_alloc();
+        label.set_name(if color == Color::BLACK {
+            "CombatTextShadow"
+        } else {
+            "CombatText"
+        });
+        label.set_text(&message.text);
+        label.set_horizontal_alignment(godot::global::HorizontalAlignment::CENTER);
+        label.set_vertical_alignment(godot::global::VerticalAlignment::TOP);
+        label.set_mouse_filter(godot::classes::control::MouseFilter::IGNORE);
+        label.set_size(Vector2::new(viewport.x, 80.0 * viewport.y / 768.0));
+        label.set_meta("combat_text_shadow", &(color == Color::BLACK).to_variant());
+        if let Some(font) = world_font() {
+            label.change_theme_font_override("font", &font);
+        }
+        label.change_theme_font_size_override("font_size", base_height.round() as i32);
+        label.change_theme_color_override("font_color", color);
+        label
+    }
+
+    fn self_combat_text_start_y(&self, mode: i32, viewport: Vector2) -> f32 {
+        let previous: Vec<f32> = self
+            .spells
+            .self_floating
+            .iter()
+            .map(|text| {
+                let frame = text.motion.frame(text.age);
+                (viewport.y - frame.position[1]) * 768.0 / viewport.y
+            })
+            .collect();
+        combat_text::incoming::stack_start_y(mode, viewport.y, &previous)
+    }
+
+    pub(crate) fn preview_incoming_float_text(&mut self, index: u32) -> i64 {
+        let event = preview_incoming_event(index);
+        self.spawn_incoming_combat_text(&event, Some("Alice"), true)
+    }
+
+    fn take_combat_text_events(&mut self) -> Vec<CombatTextEvent> {
         let Some(player) = self.world.local_player_id() else {
             self.spells.combat_seen = self.account.combat_log_seq;
             return Vec::new();
@@ -220,8 +485,17 @@ impl GameClient {
                 )
             })
             .filter_map(|event| {
+                if event.target == Some(player) {
+                    let healer = event
+                        .source
+                        .filter(|source| *source != player)
+                        .and_then(|source| self.replica.unit(source))
+                        .and_then(UnitFields::name)
+                        .map(str::to_owned);
+                    return Some(CombatTextEvent::Incoming(event.clone(), healer));
+                }
                 let attacker = self.combat_text_attacker(event, player)?;
-                Some((event.clone(), attacker))
+                Some(CombatTextEvent::Outgoing(event.clone(), attacker))
             })
             .collect()
     }
@@ -279,7 +553,11 @@ impl GameClient {
         attacker: Attacker,
         camera: Gd<Camera3D>,
     ) -> i64 {
-        let Some(text) = combat_text::text_for(event, attacker) else {
+        let Some(text) = combat_text::text_for_with_options(
+            event,
+            attacker,
+            &self.client_options.hud.combat_text,
+        ) else {
             return self.spells.floating.len() as i64;
         };
         self.take_combat_text_slot(unit_id, text.spell_crit);
@@ -297,7 +575,10 @@ impl GameClient {
             combat_text_size(event, text.style) as f32,
         );
         let camera_transform = camera.get_global_transform();
-        let em_base = combat_text::em_yards(camera.get_fov());
+        let em_base = combat_text::em_yards_with_options(
+            camera.get_fov(),
+            &self.client_options.hud.combat_text,
+        );
         let em = em_base * text.style.scale * combat_text::height_scale(0.0, text.style);
         // 15890's shadow is a tenth of an em, and an em is the text height.
         let shadow_step = em
@@ -347,15 +628,31 @@ impl GameClient {
         self.spells
             .floating
             .retain_mut(|text| text.advance(seconds));
-        self.spells.floating.len() as i64
+        let viewport = self
+            .base()
+            .get_viewport()
+            .map(|viewport| viewport.get_visible_rect().size)
+            .unwrap_or(Vector2::ZERO);
+        self.spells
+            .self_floating
+            .retain_mut(|text| text.advance(seconds, viewport));
+        (self.spells.floating.len() + self.spells.self_floating.len()) as i64
     }
 
     /// Offline fixture: microseconds one frame spends advancing all live world texts.
     pub(crate) fn preview_float_text_cost(&mut self, iterations: u32) -> f64 {
         let iterations = iterations.clamp(1, 100_000);
         let started = std::time::Instant::now();
+        let viewport = self
+            .base()
+            .get_viewport()
+            .map(|viewport| viewport.get_visible_rect().size)
+            .unwrap_or(Vector2::ZERO);
         for _ in 0..iterations {
             self.spells.floating.retain_mut(|text| text.advance(0.0));
+            self.spells
+                .self_floating
+                .retain_mut(|text| text.advance(0.0, viewport));
         }
         started.elapsed().as_secs_f64() * 1_000_000.0 / f64::from(iterations)
     }
@@ -372,16 +669,18 @@ impl GameClient {
             .filter(|(_, text)| text.unit == unit)
             .map(|(index, _)| index)
             .collect();
-        let spell_crit_slot = if spell_crit {
-            slots
-                .iter()
-                .rev()
-                .copied()
-                .find(|index| self.spells.floating[*index].spell_crit)
-        } else {
-            None
-        };
-        if let Some(index) = combat_text::slot_eviction(slots.len(), spell_crit_slot) {
+        let spell_crit_slot =
+            if spell_crit {
+                slots.iter().enumerate().rev().find_map(|(slot, index)| {
+                    self.spells.floating[*index].spell_crit.then_some(slot)
+                })
+            } else {
+                None
+            };
+        if let Some(slot) = combat_text::slot_eviction(slots.len(), spell_crit_slot) {
+            let Some(index) = slots.get(slot).copied() else {
+                return;
+            };
             let text = self.spells.floating.remove(index);
             text.node.clone().queue_free();
             if text.shadow.is_instance_valid() {
@@ -403,8 +702,11 @@ impl GameClient {
         let camera_transform = camera.get_global_transform();
         // Text is a constant world size, so its height is the same at every distance and the
         // spread is a constant world offset too.
-        let height =
-            combat_text::em_yards(camera.get_fov()) * font_px / combat_text::TEXT_FONT_SIZE as f32;
+        let height = combat_text::em_yards_with_options(
+            camera.get_fov(),
+            &self.client_options.hud.combat_text,
+        ) * font_px
+            / combat_text::TEXT_FONT_SIZE as f32;
         let origin = anchor
             + combat_text::side_offset(
                 self.spells.floats_spawned,

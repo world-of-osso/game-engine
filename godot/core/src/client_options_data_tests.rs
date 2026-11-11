@@ -14,6 +14,8 @@ fn full_options_round_trip_keeps_custom_values() {
     file.graphics.ssao_enabled = true;
     file.hud.nameplate_style.health_colors.neutral = [0.2, 0.5, 0.8];
     file.hud.auto_loot = true;
+    file.hud.combat_text.self_enabled = true;
+    file.hud.combat_text.float_mode = 2;
     file.hud.healer_ground_rings.all_roles = true;
     file.hud.healer_ground_rings.raid_lowest = 3;
     file.bindings.assign(
@@ -36,6 +38,8 @@ fn full_options_round_trip_keeps_custom_values() {
         [0.2, 0.5, 0.8]
     );
     assert!(restored.hud.auto_loot);
+    assert!(restored.hud.combat_text.self_enabled);
+    assert_eq!(restored.hud.combat_text.float_mode, 2);
     assert!(restored.hud.healer_ground_rings.all_roles);
     assert_eq!(restored.hud.healer_ground_rings.raid_lowest, 3);
     assert_eq!(

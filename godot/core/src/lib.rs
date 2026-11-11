@@ -37,6 +37,7 @@ pub mod character_model_data;
 pub mod client_options_data;
 #[cfg(test)]
 mod client_options_data_tests;
+pub mod combat_text_options;
 #[path = "game/equipment/component_file_data.rs"]
 mod component_file_data;
 pub mod cooldown_assist;

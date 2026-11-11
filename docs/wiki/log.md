@@ -82,3 +82,7 @@ World doodad particles no longer read their node's parent chain and every emitte
 UI projection syncs update only nodes whose frame, rect, ancestors' rects or parent changed. Evoker combat: unit-frame nodes updated per sync 205 -> 4, unit-frame sync CPU about 3 -> 1.4 ms per frame (Linux debug). [[follower-combat-fps#Unit-frame projection redrew every node (fixed, 2026-11-09)]].
 rebuild_guard_live.gd flaked on master (about 1 run in 3): the minimap clock-text relayout dirtied MinimapDisplay, and the projection re-uploaded any dirty frame's dynamic texture. The projection now redraws a dynamic texture only for new pixels. [[rebuild-guard#Minimap clock-tick flake — 2026-11-09]].
 Crowded combat (40 geared warriors, Battle Shout spam): drape queries no longer call Godot per column, cast game-object rays only where a body meets the column, and skip M2 tiles and render surfaces whose root bounds miss it; same draped bytes, 29.2 -> 17.2 ms per batch (Linux debug). [[crowd-combat-fps]].
+
+## Floating combat-text parity — 2026-11-10
+
+VERIFIED: the cached Retail Lua/XML maps the self-frame scroll, 20-line pool, 1.9 s lifetime, 1.3 s fade and crit scale; the implementation now supports incoming Damage/Heal/Miss events behind the default-off switch and persists mapped CVar defaults. WRONG and fixed: world crit `!` punctuation and cross-unit slot eviction. MISSING: native directional/gravity/min-alpha/random-Z equations and screen-space packing across world units. The full source-line matrix and per-skin JPEG paths are in [[floating-combat-text-parity]].

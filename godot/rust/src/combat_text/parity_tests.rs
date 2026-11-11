@@ -1,6 +1,6 @@
 use super::*;
 use game_engine_core::combat_text_options::CombatTextOptions;
-use incoming::{Motion, message_for};
+use incoming::{Motion, message_for, stack_start_y};
 
 fn event(kind: CombatLogKind, amount: i32) -> CombatLogEvent {
     CombatLogEvent {
@@ -118,6 +118,23 @@ fn incoming_heals_keep_effective_amount_and_optional_healer_names() {
         .text,
         "+12,345  (50 absorbed)"
     );
+    let absorb_hidden = CombatTextOptions {
+        healing_absorb_self: false,
+        ..names
+    };
+    assert_eq!(
+        message_for(
+            &CombatLogEvent {
+                absorbed: 50,
+                ..event(CombatLogKind::Heal, 12345)
+            },
+            &absorb_hidden,
+            None,
+        )
+        .unwrap()
+        .text,
+        "+12,345"
+    );
 }
 
 #[test]
@@ -139,27 +156,45 @@ fn incoming_avoidance_and_reductions_have_independent_switches() {
         message_for(&absorb, &reductions, None).unwrap().text,
         "Absorb"
     );
-    for (absorbed, resisted, blocked, suffix) in [
-        (20, 0, 0, " (20 absorbed)"),
-        (0, 30, 0, " (30 resisted)"),
-        (0, 0, 40, " (40 blocked)"),
+    for (kind, word) in [
+        (MissKind::Miss, "Miss"),
+        (MissKind::Parry, "Parry"),
+        (MissKind::Immune, "Immune"),
+        (MissKind::Evade, "Evade"),
+        (MissKind::Deflect, "Deflect"),
+        (MissKind::Reflect, "Reflect"),
     ] {
+        assert_eq!(
+            message_for(&event(CombatLogKind::Miss(kind), 0), &avoidance, None)
+                .unwrap()
+                .text,
+            word
+        );
+    }
+    for (absorbed, resisted, suffix) in [(20, 0, " (20 absorbed)"), (0, 30, " (30 resisted)")] {
         let hit = CombatLogEvent {
             absorbed,
             resisted,
-            blocked,
             ..event(CombatLogKind::Damage, 70)
         };
-        let without_reductions = if blocked > 0 { "40 (Block)" } else { "-70" };
-        assert_eq!(
-            message_for(&hit, &enabled(), None).unwrap().text,
-            without_reductions
-        );
+        assert_eq!(message_for(&hit, &enabled(), None).unwrap().text, "-70");
         assert_eq!(
             message_for(&hit, &reductions, None).unwrap().text,
             format!("-70 {suffix}")
         );
     }
+    let partial_block = CombatLogEvent {
+        blocked: 40,
+        ..event(CombatLogKind::Damage, 70)
+    };
+    assert_eq!(
+        message_for(&partial_block, &enabled(), None).unwrap().text,
+        "40 (Block)"
+    );
+    assert_eq!(
+        message_for(&partial_block, &reductions, None).unwrap().text,
+        "40 (Block)"
+    );
 }
 
 fn motion(mode: i32, crit: bool) -> Motion {
@@ -170,6 +205,15 @@ fn motion(mode: i32, crit: bool) -> Motion {
         x_dir: 1.0,
         viewport: [1024.0, 768.0],
     }
+}
+
+#[test]
+fn incoming_rows_stack_in_the_selected_direction_and_scale_with_the_viewport() {
+    assert_eq!(stack_start_y(1, 768.0, &[]), 384.0);
+    assert_eq!(stack_start_y(1, 768.0, &[384.0]), 358.0);
+    assert_eq!(stack_start_y(1, 768.0, &[384.0, 358.0]), 332.0);
+    assert_eq!(stack_start_y(2, 768.0, &[384.0]), 410.0);
+    assert_eq!(stack_start_y(3, 1536.0, &[384.0]), 366.0);
 }
 
 #[test]

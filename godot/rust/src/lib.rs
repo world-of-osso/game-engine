@@ -1591,7 +1591,13 @@ impl GameClient {
         )
     }
 
-    /// Offline fixture: hold every live world text at its current age.
+    /// Offline fixture: add one Retail self combat-text message by style index.
+    #[func]
+    fn preview_incoming_combat_text(&mut self, index: i64) -> i64 {
+        self.preview_incoming_float_text(index.clamp(0, i64::from(u32::MAX)) as u32)
+    }
+
+    /// Offline fixture: hold every live world and self text at its current age.
     #[func]
     fn preview_combat_text_hold(&mut self, hold: bool) {
         self.preview_float_text_hold(hold);

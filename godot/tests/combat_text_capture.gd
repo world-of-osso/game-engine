@@ -76,6 +76,10 @@ func run() -> void:
 			await capture_limit()
 		"cross-unit":
 			await capture_cross_unit()
+		"self":
+			await capture_self()
+		"self-before":
+			await capture_self_before()
 		"spread":
 			await capture_spread()
 		"perf":
@@ -105,6 +109,40 @@ func capture_cross_unit() -> void:
 		retained = retained or label.text == "Dodge"
 	check(retained, "a full unit must not evict another unit's Dodge")
 	check(client.spells_state().combat_text == 8, "two units retain four slots each")
+
+func capture_self_before() -> void:
+	var before: Image = await grab()
+	var after: Image = await capture("self", before)
+	var diff: Dictionary = image_diff(before, after, 0.15)
+	print("SELF_BASELINE_DIFF count=%d" % diff.count)
+
+func capture_self() -> void:
+	var before: Image = await grab()
+	var live := 0
+	for index in 21:
+		live = client.preview_incoming_combat_text(index)
+	freeze(0.4)
+	check(live == 20, "self combat text caps at the twenty-label Retail pool")
+	check(self_text_labels().size() == 20, "self labels include hits, heals, crits and avoidance")
+	var after: Image = await capture("self", before)
+	var diff: Dictionary = image_diff(before, after, 0.15)
+	check(diff.count > 0, "self combat text pixels render")
+	var samples := []
+	for run in 3:
+		samples.append(client.preview_combat_text_cost(2000))
+	samples.sort()
+	var median: float = samples[1]
+	print("SELF_COST_US samples=%s median=%.3f budget=%.1f" % [samples, median, FRAME_BUDGET_US])
+	check(median <= FRAME_BUDGET_US, "twenty self labels stay inside the per-frame budget")
+
+func self_text_labels() -> Array:
+	var labels := []
+	for child in client.get_children():
+		if child is CanvasLayer and child.name == "FloatingCombatTextLayer":
+			for text in child.get_children():
+				if text is Label and not text.has_meta("combat_text_shadow"):
+					labels.append(text)
+	return labels
 
 func capture_single() -> void:
 	var before: Image = await grab()
@@ -492,7 +530,8 @@ func save_jpeg(image: Image, name: String) -> void:
 func hide_ui(node: Node) -> void:
 	for child in node.get_children():
 		if child is CanvasLayer:
-			child.visible = false
+			if child.name != "FloatingCombatTextLayer":
+				child.visible = false
 		elif child is Control:
 			child.hide()
 		else:
