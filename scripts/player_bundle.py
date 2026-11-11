@@ -26,6 +26,8 @@ DATA_FILE_GLOBS = (
     '*.csv', '*.ron', 'local-listfile-cache.sqlite',
     'battle-pet-model-scenes.json', 'battle-pets.json',
 )
+# The current map screens render World and Housing UiMap systems.
+RENDERED_UI_MAP_SYSTEMS = {0, 2}
 LIBRARIES = {
     'linux-x86_64': ('linux.x86_64', 'libgame_engine_godot.so'),
     'windows-x86_64': ('windows.x86_64', 'game_engine_godot.dll'),
@@ -136,7 +138,10 @@ def is_blp_file(path):
 
 
 def ui_texture_fdids(root):
-    maps = {int(row['ID']) for row in read_db2_rows(root, 'UiMap')}
+    maps = {
+        int(row['ID']) for row in read_db2_rows(root, 'UiMap')
+        if int(row['System']) in RENDERED_UI_MAP_SYSTEMS
+    }
     art_links = {
         int(row['UiMapArtID']) for row in read_db2_rows(root, 'UiMapXMapArt')
         if int(row['PhaseID']) == 0 and int(row['UiMapID']) in maps

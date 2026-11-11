@@ -219,7 +219,7 @@ class PlayerBundleTest(unittest.TestCase):
             for relative in selected:
                 self.assertEqual((target / 'data' / relative).read_bytes(), (data / relative).read_bytes())
 
-    def test_staged_ui_texture_closure_uses_active_db2_and_ships_pet_json(self):
+    def test_staged_ui_texture_closure_uses_rendered_map_systems_and_ships_pet_json(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             root.mkdir(exist_ok=True)
@@ -236,13 +236,13 @@ class PlayerBundleTest(unittest.TestCase):
 
             tables = data / 'db2/active'
             rows = {
-                'UiMap': 'ID,System\n862,0\n875,0\n1165,0\n2401,2\n',
-                'UiMapXMapArt': 'PhaseID,UiMapArtID,UiMapID\n0,887,862\n0,900,875\n0,1143,1165\n0,2056,2401\n1,999,1165\n',
-                'UiMapArt': 'ID,HighlightFileDataID,UiMapArtStyleID\n887,2168041,5\n900,2168254,5\n1143,0,5\n2056,0,106\n999,777777,7\n',
+                'UiMap': 'ID,System\n862,0\n875,0\n1165,0\n2401,2\n2402,1\n2403,3\n',
+                'UiMapXMapArt': 'PhaseID,UiMapArtID,UiMapID\n0,887,862\n0,900,875\n0,1143,1165\n0,2056,2401\n0,999,2402\n0,998,2403\n1,1000,1165\n',
+                'UiMapArt': 'ID,HighlightFileDataID,UiMapArtStyleID\n887,2168041,5\n900,2168254,5\n1143,0,5\n2056,0,106\n998,777776,7\n999,777777,7\n1000,777778,7\n',
                 'UiMapArtStyleLayer': 'UiMapArtStyleID,LayerIndex\n5,0\n5,1\n7,0\n106,0\n',
-                'UiMapArtTile': 'UiMapArtID,LayerIndex,FileDataID\n887,0,1599407\n900,0,1603193\n1143,0,2133758\n2056,0,7438338\n1143,1,999999\n999,0,777778\n',
-                'WorldMapOverlay': 'ID,UiMapArtID\n80,887\n81,2056\n',
-                'WorldMapOverlayTile': 'WorldMapOverlayID,LayerIndex,FileDataID\n80,0,2034162\n81,0,0\n80,1,777779\n',
+                'UiMapArtTile': 'UiMapArtID,LayerIndex,FileDataID\n887,0,1599407\n900,0,1603193\n1143,0,2133758\n2056,0,7438338\n1143,1,999999\n998,0,777779\n999,0,777780\n1000,0,777781\n',
+                'WorldMapOverlay': 'ID,UiMapArtID\n80,887\n81,2056\n82,998\n83,999\n',
+                'WorldMapOverlayTile': 'WorldMapOverlayID,LayerIndex,FileDataID\n80,0,2034162\n81,0,0\n80,1,777782\n82,0,777783\n83,0,777784\n',
                 'UiTextureAtlasMember': 'ID,UiTextureAtlasID\n1,3215\n2,3963\n',
                 'UiTextureAtlas': 'ID,FileDataID\n3215,6875169\n3963,8040088\n9999,555000\n',
             }
