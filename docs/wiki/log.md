@@ -2,7 +2,7 @@
 
 VERIFIED, SOURCE: Retail and Forever select `GUILD_FINDER` with no subscribed clubs and no guild; that mode shows `CommunitiesList` and `GuildFinderFrame`, not the member roster. The source list adds finder/join entries by feature and account permissions, and invitation entries only from `C_Club` results.
 
-VERIFIED, CODE: The guild-only model previously rendered a row with an empty name when its profile was absent. It now routes `NotInGuild` to a finder presentation and omits the missing-profile row. The dedicated Forever behavioral test, live screenshot, and dev/release build gates remain pending.
+VERIFIED, CODE: The guild-only model previously rendered a row with an empty name when its profile was absent. It now routes `NotInGuild` to a finder presentation and omits the missing-profile row. The Forever-only integration filter passes 2/2 tests. Live screenshot and dev/release build gates remain pending.
 
 ## Ruby emitter frustum cache — 2026-11-11
 
