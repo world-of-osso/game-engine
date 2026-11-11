@@ -1,5 +1,7 @@
 //! Retail Mainline PVEFrame / LFDQueueFrame follower mode.
 //! Source: Blizzard_GroupFinder/Mainline/{PVEFrame,LFDFrame,LFGFrame}.xml/.lua.
+use std::collections::HashMap;
+
 pub use crate::follower_dungeons_component::{FOLLOWER_LIST, ROW_HEIGHT};
 use shared::protocol::{FollowerDungeons, GroupRoleSnapshot, LfgStateUpdate, QueueForLfg};
 use ui_toolkit::{screen::SharedContext, widget_def::Element};
@@ -66,11 +68,19 @@ pub enum Action {
     Pvp,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct DungeonLevelRange {
+    pub min: u32,
+    pub max: u32,
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct View {
     pub visible: bool,
     pub viewport: [f32; 2],
     pub catalog: Option<FollowerDungeons>,
+    pub player_level: Option<u32>,
+    pub level_ranges: HashMap<u32, DungeonLevelRange>,
     pub role: GroupRoleSnapshot,
     pub selected: Option<u32>,
     pub pending: bool,
@@ -87,6 +97,8 @@ impl Default for View {
             visible: false,
             viewport: [1280.0, 720.0],
             catalog: None,
+            player_level: None,
+            level_ranges: HashMap::new(),
             role: GroupRoleSnapshot::Damage,
             selected: None,
             pending: false,
