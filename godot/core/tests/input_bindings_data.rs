@@ -163,6 +163,17 @@ fn inventory_defaults_and_sections_are_exact() {
         BindingSection::ALL.map(|s| actions_for_section(s).len()),
         [8, 6, 14, 22, 12, 12, 12, 12, 1, 17, 6, 20]
     );
+    let interface = actions_for_section(BindingSection::Interface);
+    let retail_group_finder_order = [
+        InputAction::ToggleSocial,
+        InputAction::ToggleGroupFinder,
+        InputAction::ToggleCollections,
+    ];
+    assert!(
+        interface
+            .windows(retail_group_finder_order.len())
+            .any(|window| window == retail_group_finder_order.as_slice())
+    );
     let housing = actions_for_section(BindingSection::Housing);
     assert_eq!(
         housing

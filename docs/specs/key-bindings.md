@@ -22,7 +22,7 @@ Sources:
 - [x] Pet bar: Ctrl-1..Ctrl-0 for `BONUSACTIONBUTTON1-10` (DefaultBindings.wtf:53-62, `BINDING_HEADER_ACTIONBAR`), listed in the Action Bar section; they press pet bar buttons only while it is shown, and Ctrl-N never presses `ACTIONBUTTONn` (Ctrl shadowing). Hotkeys show `c-1`..`c-0` (`CTRL_KEY_TEXT_ABBR`).
 - [x] Frames:
   - C character, P spellbook, L quest log, M world map;
-  - I `TOGGLEGROUPFINDER` toggles the native Group Finder; the LFDMicroButton tooltip uses the live binding (`Bindings_Standard.xml:1311-1313`).
+  - I `TOGGLEGROUPFINDER` toggles the native Group Finder; it follows Social and precedes Collections in the Interface list, and the LFDMicroButton tooltip uses the live binding (`Bindings_Standard.xml:1311-1313`).
   - Shift-P `TOGGLECOLLECTIONS` toggles the Collections owner, including its active journal tab (`Bindings_Standard.xml:1326-1330`). Assignable in Interface; the micro-menu tooltip uses the live binding.
   - Ctrl-R `TOGGLEFPS`;
   - Escape game menu and Enter, `/` and R chat. These five keys are fixed, not rebindable.
