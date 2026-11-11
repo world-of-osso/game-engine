@@ -14,6 +14,10 @@ Enter your username and password, then click Login. On success, the client saves
 
 If a saved token is unknown or expired, the server rejects it. The client clears it, returns to the login form, and shows `Saved session expired. Please log in again.` Delete the relevant server's token file to force password re-entry.
 
+### Launcher handoff
+
+When the signed-in launcher starts the client, it passes the saved account token and its fingerprint-bound username in the child process's `GAME_ENGINE_ACCOUNT_TOKEN` and `GAME_ENGINE_ACCOUNT_NAME` environment. The client uses its normal token-login request and records the username↔token mapping used for per-account HUD layouts; it receives no password or token in command-line arguments. With no explicit `--server`, this startup connects to the Live realm and opens character select. A server rejection returns to the existing login form with server feedback and the username prefilled; the client does not retry with another credential source. A launcher 0.5.3 token has no saved username, so the newer launcher asks for account credentials before it starts the client and saves the username beside the token. Without a supplied username, the client uses only an existing authenticated local token mapping; if none exists, it keeps the login form open with an account-link message and does not send the unknown token. Direct client starts without the handoff keep their existing saved-token and configured-credential behavior.
+
 ## How it works
 
 1. **Register**: Client sends `RegisterRequest { username, password }` on AuthChannel to the selected server. `RegisterResponse { success, token, pending_approval, error }` distinguishes pending approval, immediate authentication and refusal. Pending approval takes precedence over `success` and never persists the response token.

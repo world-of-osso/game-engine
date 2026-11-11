@@ -388,6 +388,9 @@ fn layout_accounts_path() -> PathBuf {
     game_engine_core::client_options_data::options_path().with_file_name("layout_accounts.ron")
 }
 
+const LAUNCHER_ACCOUNT_NAME_REQUIRED: &str =
+    "Log in once to link this launcher account with the game client.";
+
 impl Account {
     pub(crate) fn login_reply_pending(&self) -> bool {
         self.session.screen == SessionScreen::Login && self.bridge.is_some() && !self.reply_received
@@ -452,6 +455,44 @@ impl Account {
         }
         self.start_transport(username, password, register)
             .map_err(SessionError)
+    }
+
+    /// Connects with a launcher token and its username, never a password.
+    pub fn connect_launcher(
+        &mut self,
+        hostname: &str,
+        token: &str,
+        account_name: Option<&str>,
+    ) -> Result<Option<String>, SessionError> {
+        self.prepare_connection(hostname).map_err(SessionError)?;
+        self.session.set_launcher_token(token);
+        let Some(token) = self.session.token.as_deref() else {
+            self.request_launcher_account_name();
+            return Ok(None);
+        };
+        let username = match account_name.map(str::trim).filter(|name| !name.is_empty()) {
+            Some(username) => Some(username.to_owned()),
+            None => game_engine_core::ui_layout_account::read_token_account_if_present(
+                &layout_accounts_path(),
+                hostname,
+                token,
+            )
+            .map_err(SessionError)?,
+        };
+        let Some(username) = username else {
+            self.request_launcher_account_name();
+            return Ok(None);
+        };
+        self.pending_layout_username = Some(username.clone());
+        self.start_transport("", "", false).map_err(SessionError)?;
+        Ok(Some(username))
+    }
+
+    fn request_launcher_account_name(&mut self) {
+        self.session.token = None;
+        self.session.feedback = Some(LAUNCHER_ACCOUNT_NAME_REQUIRED.into());
+        self.session.feedback_is_informational = true;
+        self.session.screen = SessionScreen::Login;
     }
 
     pub fn connect_startup(
@@ -1667,6 +1708,9 @@ impl Account {
     }
 
     fn load_layout_username(&mut self, request: &AuthRequest) -> Result<(), String> {
+        if self.pending_layout_username.is_some() {
+            return Ok(());
+        }
         use game_engine_core::ui_layout_account::read_token_account;
         let username = match request {
             AuthRequest::Login(request) => match &request.token {
