@@ -42,7 +42,7 @@ impl GameClient {
     }
 
     /// The replicated player named `name`.
-    fn group_member_unit(&self, name: &str) -> Option<u64> {
+    pub(crate) fn group_member_unit(&self, name: &str) -> Option<u64> {
         self.replica
             .units()
             .find(|unit| {
