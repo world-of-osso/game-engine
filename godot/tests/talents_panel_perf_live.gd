@@ -67,9 +67,12 @@ func run_test() -> void:
 	if not Readiness.is_ready(client.account_state()):
 		fail("World work queued before measurement: " + str(client.account_state().world_objects))
 		return
+	var focus := root.gui_get_focus_owner()
 	print("TALENTS_PANEL_BENCH_READY ", JSON.stringify({"character": character, "ui_skin": client.account_state().ui_skin,
-		"server": server, "world_minutes": client.world_minutes()}))
+		"server": server, "world_minutes": client.world_minutes(),
+		"focus": str(focus.get_path()) if focus != null else "none"}))
 	await measure("talents_closed", segment_s, func(_time: float): pass, true)
+	root.gui_release_focus()
 	var keypress_usec := Time.get_ticks_usec()
 	push_key(KEY_N, true)
 	var panel: Control
@@ -85,7 +88,10 @@ func run_test() -> void:
 				break
 	push_key(KEY_N, false)
 	if panel == null or not panel.is_visible_in_tree() or node_count == 0:
-		fail("N did not render a talents page with nodes; node_count=%d state=%s" % [node_count, str(client.account_state())])
+		var book := client.find_child("SpellBookRoot", true, false)
+		fail("N did not render talents: book=%s panel=%s nodes=%d focus=%s" % [book != null,
+			panel != null and panel.is_visible_in_tree(), node_count,
+			str(root.gui_get_focus_owner())])
 		return
 	var first_frame_ms := float(Time.get_ticks_usec() - keypress_usec) / 1000.0
 	print("TALENTS_PANEL_FIRST_FRAME ", JSON.stringify({"open_ms": first_frame_ms, "talent_nodes": node_count,
