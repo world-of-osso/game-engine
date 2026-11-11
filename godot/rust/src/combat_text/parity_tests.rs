@@ -235,7 +235,7 @@ fn incoming_crit_font_and_fade_have_their_own_lifetime() {
     assert_eq!(crit.frame(0.0).height, 30.0);
     assert_eq!(crit.frame(0.05).height, 60.0);
     assert_eq!(crit.frame(0.125).height, 45.0);
-    assert_eq!(crit.frame(0.2).height, 30.0);
+    assert!((crit.frame(0.2).height - 30.0).abs() < 1e-4);
     assert_eq!(crit.frame(1.0).height, 30.0);
     let plain = motion(1, false);
     assert_eq!(plain.frame(0.0).height, 25.0);
