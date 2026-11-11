@@ -1,6 +1,10 @@
-## GameObject M2 receipt boundary — 2026-11-11
+## GameObject M2 receipt gate closed — 2026-11-11
 
-VERIFIED: `load_visual_files` now uses the Retail authored-model resolver. The FDID 1686555 resolver test passes against a receipt-qualified path with no flat file; formatter, focused test, dev build and release build pass with zero compiler warnings. The extracted-only Paladin reaches map 1860 at start distance 0.00 with zero CASC diagnostics and no missing receipts for the three target M2s. Two other map-object M2s (166432 and 1697838) still have no row in the 152 canonical model-index files, so the full zero-receipt gate is not met. See [[m2-product-shadowing]].
+VERIFIED: The lead-published third fragment has 11 asset rows and 2 companion aliases, including receipts for M2s 166432 and 1697838; all 13 referenced payloads match their receipt hashes. On commit `d4bb12bf0f204a5ad4391c3369a6173d1645e8ec`, an extracted-only race-30 Paladin reached map 1860 at start distance 0.00 with two parsed terrain tiles, zero receipt errors and zero CASC diagnostics. The run used no flat aliases or fallback. Afterward, the private server stopped and all 23 temporary receipt-index links were removed; the slot's original cache path was restored. Evidence: `/home/osso/.worktrees/charcreate-receipts/agent-assets/live/gameobject-final-live-proof.json`. See [[m2-product-shadowing]].
+
+## Initial GameObject M2 receipt boundary before third-fragment publication — 2026-11-11
+
+VERIFIED: `load_visual_files` uses the Retail authored-model resolver. The FDID 1686555 resolver test passes against a receipt-qualified path with no flat file; formatter, focused test, dev build and release build pass with zero compiler warnings. The first extracted-only Paladin run reached map 1860 at start distance 0.00 with zero CASC diagnostics and no missing receipts for three target M2s. Two other map-object M2s (166432 and 1697838) had no row in the 152 canonical model-index files then present, so that checkpoint did not meet the full gate. See [[m2-product-shadowing]].
 
 ## Floating combat-text parity — 2026-11-10
 

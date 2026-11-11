@@ -73,7 +73,7 @@ Extraction to disk is not the only access path. The project `AssetResolver` also
 
 `771c1f5f` uses the existing local `CascListfileResolver` cache path for a native creature-model helper: model FDID → `.m2`, primary M2 SFID → adjacent `00.skin`, optional SKID → adjacent `.skel`, then parsed render-batch/explicit creature-slot texture FDIDs → `.blp`. The helper is not yet attached to native world-unit spawning.
 
-VERIFIED 2026-11-11: `GameObjectDisplayInfo` root M2s now select the Retail authored-model receipt identity. Their three target M2s load in the Paladin start test; the map-wide zero-error gate remains blocked by two other M2s with no index rows. See [GameObject receipt boundary](../investigations/m2-product-shadowing.md#gameobjectdisplayinfo-root-receipts-2026-11-11).
+VERIFIED 2026-11-11: `GameObjectDisplayInfo` root M2s now select the Retail authored-model receipt identity. A lead-published third fragment adds receipts for M2s 166432 and 1697838; the final extracted-only Paladin run reached map 1860 with zero receipt errors and zero CASC diagnostics. See [final GameObject receipt gate](../investigations/m2-product-shadowing.md#final-map-1860-gate-after-third-fragment-2026-11-11).
 
 ## Equipped-item material closure — verified 2026-10-15
 

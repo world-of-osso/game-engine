@@ -99,7 +99,15 @@ VERIFIED: `game_objects.rs::load_visual_files` used `local_resolver(data_root)`,
 
 VERIFIED: The resolver test uses real FDID1686555 with a synthetic receipt and payload. It returns `products/wow/bc493ecb2898766c0f8947a99b4b3d65/models/1686555.m2` while `data/models/1686555.m2` stays absent; this proves path selection, not M2 parsing.
 
-VERIFIED: An extracted-only race-30 Paladin reached map 1860 at its expected position with two parsed terrain tiles, zero CASC diagnostics and no missing-receipt errors for target M2s 1686555, 1697837 and 1706172. The run still reports two other map-object M2s, 166432 and 1697838; neither has a row in any of the 152 canonical `model-asset-index*.json` files. Full zero-receipt acceptance remains incomplete. The run used published receipt indexes and product paths through the isolated slot, with no flat aliases or fallback.
+VERIFIED (before third-fragment publication on 2026-11-11): An extracted-only race-30 Paladin reached map 1860 at its expected position with two parsed terrain tiles, zero CASC diagnostics and no missing-receipt errors for target M2s 1686555, 1697837 and 1706172. That run still reported two other map-object M2s, 166432 and 1697838, with no rows in the 152 canonical `model-asset-index*.json` files then present. The full gate was incomplete at that checkpoint; see the final acceptance below. The run used published receipt indexes and product paths through the isolated slot, with no flat aliases or fallback.
+
+## Final map-1860 gate after third fragment (2026-11-11)
+
+VERIFIED: The lead-published third fragment `model-asset-index-charcreate-gameobject-receipts-20261111.json` adds 11 asset rows and 2 companion aliases, including root M2 receipts 166432 and 1697838. Its SHA-256 is `6749eaab4acce96d81037970848615c77ac8055fcfb071f766e1dad5a582a62c`; all 13 referenced payloads match their recorded byte lengths, SHA-256 values and MD5 content keys. The publication dry run verified 13 of 13 files without writes.
+
+VERIFIED: Commit `d4bb12bf0f204a5ad4391c3369a6173d1645e8ec` passed the extracted-only race-30 Paladin gate. Existing character `LfdZone` reached map 1860 at the expected position, with start distance 0.00 and two parsed terrain tiles; the run recorded zero receipt errors and zero CASC diagnostics. It used the isolated slot's published receipt indexes, with no flat aliases or fallback.
+
+VERIFIED: After the run, the private server stopped, all 23 temporary index links were removed, the slot cache and product link were restored, and no private UDP listener remained. The canonical base index hash and all third-fragment payloads were unchanged by this lane; this lane did not write canonical data. Full evidence: `/home/osso/.worktrees/charcreate-receipts/agent-assets/live/gameobject-final-live-proof.json`.
 
 ## Sources
 
