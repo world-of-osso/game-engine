@@ -8,6 +8,7 @@ use ui_toolkit::atlas::{ActiveSkin, set_thread_skin};
 fn supplied_owner() -> PvpSnapshot {
     PvpSnapshot {
         lifetime_honor_xp: 0,
+        account_lifetime_honor_xp: 0,
         honor_level: None,
         honor: 0,
         honor_max: 15000,
