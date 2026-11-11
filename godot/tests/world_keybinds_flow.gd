@@ -320,6 +320,29 @@ func kb_follower_group_finder_cases() -> bool:
 	print("KEYBINDS GROUP_FINDER I closed PVEFrame")
 	return true
 
+func kb_binding_row_visible_in_content() -> bool:
+	var content := uo_ctl(kb_client, "GameMenuUI", "OptionsContentScroll")
+	var row := uo_ctl(kb_client, "GameMenuUI", "KeybindingRowtoggle_group_finder")
+	return content != null and row != null and content.get_global_rect().encloses(row.get_global_rect())
+
+func kb_reveal_group_finder_binding() -> bool:
+	var content := uo_ctl(kb_client, "GameMenuUI", "OptionsContentScroll")
+	if content == null:
+		return fail_false("Keybindings content scroll area is absent")
+	for _step in range(4):
+		if kb_binding_row_visible_in_content():
+			return true
+		var row := uo_ctl(kb_client, "GameMenuUI", "KeybindingRowtoggle_group_finder")
+		var scroll_up := row != null and row.get_global_rect().position.y < content.get_global_rect().position.y
+		var wheel := InputEventMouseButton.new()
+		wheel.position = content.get_global_rect().get_center()
+		wheel.button_index = MOUSE_BUTTON_WHEEL_UP if scroll_up else MOUSE_BUTTON_WHEEL_DOWN
+		wheel.pressed = true
+		root.push_input(wheel, true)
+		await process_frame
+		await process_frame
+	return kb_binding_row_visible_in_content() or fail_false("Group Finder binding row did not scroll into view")
+
 func kb_interface_binding_capture() -> bool:
 	await kb_tap(KEY_ESCAPE)
 	if not await uo_wait(func(): return uo_visible(uo_ctl(kb_client, "GameMenuUI", "MenuBtnOptions")), 6000):
@@ -331,6 +354,8 @@ func kb_interface_binding_capture() -> bool:
 	if not await uo_wait(func(): return uo_visible(uo_ctl(kb_client, "GameMenuUI", "KeybindingSectioninterfaceButton")), 6000):
 		return fail_false("Interface binding section is absent")
 	await uo_click(uo_center(kb_client, "GameMenuUI", "KeybindingSectioninterfaceButton"))
+	if not await kb_reveal_group_finder_binding():
+		return false
 	var label := uo_ctl(kb_client, "GameMenuUI", "KeybindingLabeltoggle_group_finder") as Label
 	var binding := uo_ctl(kb_client, "GameMenuUI", "KeybindingButtonTexttoggle_group_finder") as Label
 	if label == null or binding == null or label.text != "Toggle Group Finder" or binding.text != "I":
