@@ -2,6 +2,24 @@
 
 Guild state is server-authoritative. Contracts: [ranks/lifecycle](../../specs/guild-ranks.md), [charters](../../specs/guild-charters.md), [vault](../../specs/guild-bank-frame.md), [tabards](../../specs/guild-tabards.md).
 
+## No-guild Communities display
+
+VERIFIED: Retail and Forever `CommunitiesFrameMixin:UpdateClubSelection()` select `GUILD_FINDER` and clear the selected club when the subscribed-club list is empty and the player is not in a guild; `GUILD_FINDER` shows `CommunitiesList` and `GuildFinderFrame`, not `MemberList`.
+
+VERIFIED: Retail and Forever `CommunitiesListMixin:Update()` add Guild Finder when enabled and not in a guild, Find a Community when its finder is enabled, and Join or Create when the account may join a Character or BattleNet club. Community and finder invitation rows come only from `C_Club` invitation results.
+
+VERIFIED: The guild-only client previously rendered `CommunitiesGuildEntry` even when `GuildRanksSession.profile` was `None`, and used an empty string for its name. The authoritative `GuildRankError::NotInGuild` now selects the Guild Finder shell, while absent guild profiles produce no guild row. The separate legacy `GuildInvitation` popup is not a `C_Club` invitation row; this model does not synthesize community invitations or finder results.
+
+## No-guild Communities display
+
+VERIFIED: Retail and Forever `CommunitiesFrameMixin:UpdateClubSelection()` select `GUILD_FINDER` and clear the selected club when there are no subscribed clubs and the player is not in a guild. That mode shows `CommunitiesList` and `GuildFinderFrame`, not `MemberList`.
+
+VERIFIED: `CommunitiesListMixin:Update()` adds Guild Finder when enabled and the player is not in a guild, Find a Community when its finder is enabled, and Join or Create when the account may join a Character or BattleNet club. Community and finder invitation rows come from `C_Club` results; they are not default entries.
+
+VERIFIED, CODE: `receive_guild_ranks()` clears the profile when the rank list is empty. `guild_communities.rs` previously rendered `CommunitiesGuildEntry` unconditionally and converted the missing profile name to `""`. The current model selects the finder shell for `GuildRankError::NotInGuild` and omits a guild row without a profile. It does not synthesize community invitations or finder results. The separate `GuildInvitation` popup is not a `C_Club` invitation row.
+
+The finder rows are presentation-only; this client has no `C_Club` finder, join, or invitation service. The contract and current proof status are in [guild ranks](../../specs/guild-ranks.md#communities-presentation).
+
 ## Confirmed disband
 
 [Contract and pinned source rules](../../specs/guild-disband.md): the slash parser produces a local confirmation intent, not a destructive packet. Native code queries current rank authority; the session opens Yes/No only for rank0. The popup also mounts while Communities is closed, with native pointer/Escape ownership; the slash does not open that panel. Info uses the same confirmation reducer. No/Escape send nothing; Yes consumes the local confirmation once and sends `GuildRankRequest::Disband`. Empty/changed authority or a known guild-ID change closes the confirmation. Source prompt: local GlobalStrings16280. The Info-button placement is project UI, not a claimed Retail menu coordinate. Backend deletion is atomic; [acceptance](../../specs/guild-disband.md#acceptance--2026-10-25) records both actual native skins and fresh-process readback.
@@ -122,6 +140,8 @@ Registered proof validates the installed catalog and calls the real paid registr
 - [Lifecycle contract](../../specs/guild-ranks.md) — commands, authority and native regression fixtures.
 - [Banks](banks.md) — bank wire/state and native projection boundaries.
 - [Tabard contract](../../specs/guild-tabards.md) — Retail GuildUtil/TabardFrame, pinned TrinityCore registration and WoWModelViewer item/tier references; implementation and focused test inventory.
+- Cached Retail/Forever `Blizzard_Communities/CommunitiesFrame.lua:466–486`, `CommunitiesList.lua:185–244` and `CommunitiesFrame.xml:475–480` — no-guild display mode, conditional entries and right pane.
+- [Guild Communities renderer](../../godot/ui-model/src/guild_communities.rs) — native guild/finder presentation.
 
 ## See Also
 

@@ -1,3 +1,9 @@
+## Guild no-guild Communities display — 2026-11-11
+
+VERIFIED, SOURCE: Retail and Forever select `GUILD_FINDER` with no subscribed clubs and no guild; that mode shows `CommunitiesList` and `GuildFinderFrame`, not the member roster. The source list adds finder/join entries by feature and account permissions, and invitation entries only from `C_Club` results.
+
+VERIFIED, CODE: The guild-only model previously rendered a row with an empty name when its profile was absent. It now routes `NotInGuild` to a finder presentation and omits the missing-profile row. The dedicated Forever behavioral test, live screenshot, and dev/release build gates remain pending.
+
 ## Ruby emitter frustum cache — 2026-11-11
 
 VERIFIED: `TerrainObjects::update_particles` reuses doodad frustum admission when the exact plane list is unchanged; the bit-field fixture matches fresh AABB culling for 25 bounds across changed and unchanged views. Particle simulation and deferral still run each frame. See [[follower-combat-fps#emitter-frustum-admission-cache-2026-11-11]].
