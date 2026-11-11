@@ -444,12 +444,16 @@ func check_container(client: Node, index: int, capacity: int, occupied_slot: int
 	return true
 
 func check_solo_position(client: Node, index: int) -> bool:
-	var rect := authored_control(client, "ContainerFrame%s" % index).get_global_rect()
+	var container := authored_control(client, "ContainerFrame%s" % index)
+	var rect := container.get_global_rect()
+	var ui_scale := container.get_global_transform_with_canvas().get_scale().x
 	var viewport := root.get_visible_rect()
 	var right := viewport.end.x - rect.end.x
 	var bottom := viewport.end.y - rect.end.y
-	print("BAGS POSITION solo=", index, " rect=", rect, " right=", right, " bottom=", bottom)
-	if absf(right - CONTAINER_RIGHT) > POSITION_TOLERANCE or absf(bottom - CONTAINER_BOTTOM) > POSITION_TOLERANCE:
-		fail("Standalone container must match original right16/bottom96 anchor")
+	var expected_right := CONTAINER_RIGHT * ui_scale
+	var expected_bottom := CONTAINER_BOTTOM * ui_scale
+	print("BAGS POSITION solo=", index, " rect=", rect, " scale=", ui_scale, " right=", right, " bottom=", bottom)
+	if absf(right - expected_right) > POSITION_TOLERANCE or absf(bottom - expected_bottom) > POSITION_TOLERANCE:
+		fail("Standalone container must match original scaled right16/bottom96 anchor")
 		return false
 	return true
