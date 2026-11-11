@@ -1,4 +1,5 @@
 use game_engine_core::input_bindings_data::{BindingKey, InputBindingsData};
+use game_engine_ui_model::game_tooltip::GameTooltip;
 use game_engine_ui_model::launcher::{
     ACTION_CLOSE, ACTION_OPEN, LauncherKey, LauncherView, SEARCH_FIELD, entries, launcher_screen,
 };
@@ -7,6 +8,9 @@ use game_engine_ui_model::minimap::{MinimapClusterState, minimap_cluster_screen}
 use ui_toolkit::atlas::ActiveSkin;
 use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::screen::{Screen, SharedContext};
+use ui_toolkit::tooltip::tooltip_owner;
+use ui_toolkit::widgets::button::ButtonState;
+use ui_toolkit::widgets::texture::{BlendMode, TextureSource};
 
 fn build(view: LauncherView) -> FrameRegistry {
     build_skin(view, ActiveSkin::Modern)
@@ -233,6 +237,72 @@ fn launcher_minimap_search_button_opens_and_close_action_dismisses() {
     assert!(view.open);
     view.action(ACTION_CLOSE);
     assert!(!view.open);
+}
+
+fn hovered_tooltip(registry: &FrameRegistry, id: u64) -> Option<GameTooltip> {
+    let frame = registry.get(id)?;
+    let Some(ui_toolkit::frame::WidgetData::Button(button)) = &frame.widget_data else {
+        return None;
+    };
+    if !button.hovered {
+        return None;
+    }
+    let (_, binding) = tooltip_owner(registry, id)?;
+    GameTooltip::from_binding(binding, button.state != ButtonState::Disabled, [0.0; 4])
+}
+
+#[test]
+fn minimap_launcher_hover_adds_minimap_glow_and_launcher_tooltip_until_leave() {
+    load_icon_tables();
+    let skin = ActiveSkin::Forever;
+    ui_toolkit::atlas::set_thread_skin(skin);
+    let mut shared = SharedContext::new();
+    shared.insert(skin);
+    let state = MinimapClusterState::default();
+    shared.insert(state.clone());
+    let mut registry = FrameRegistry::new(1920.0, 1080.0);
+    Screen::new(minimap_cluster_screen).sync(&shared, &mut registry);
+
+    let id = registry.get_by_name("MinimapLauncherButton").unwrap();
+    let button = match &registry.get(id).unwrap().widget_data {
+        Some(ui_toolkit::frame::WidgetData::Button(button)) => button,
+        _ => panic!("MinimapLauncherButton is not a button"),
+    };
+    assert!(!button.hovered);
+    assert!(button.highlight_region().is_none());
+    assert!(hovered_tooltip(&registry, id).is_none());
+
+    let Some(ui_toolkit::frame::WidgetData::Button(button)) = registry
+        .get_mut(id)
+        .and_then(|frame| frame.widget_data.as_mut())
+    else {
+        panic!("MinimapLauncherButton is not a button")
+    };
+    button.hovered = true;
+
+    let Some(ui_toolkit::frame::WidgetData::Button(button)) =
+        &registry.get(id).unwrap().widget_data
+    else {
+        panic!("MinimapLauncherButton is not a button")
+    };
+    let highlight = button.highlight_region().expect("hover highlight appears");
+    assert_eq!(highlight.source, TextureSource::FileDataId(136_477));
+    assert_eq!(highlight.blend_mode, BlendMode::Additive);
+    assert_eq!(
+        hovered_tooltip(&registry, id).unwrap().content.title,
+        "Open Launcher"
+    );
+    assert!(game_engine_ui_model::minimap::minimap_texture_fdids(&state, skin).contains(&136_477));
+
+    let Some(ui_toolkit::frame::WidgetData::Button(button)) = registry
+        .get_mut(id)
+        .and_then(|frame| frame.widget_data.as_mut())
+    else {
+        panic!("MinimapLauncherButton is not a button")
+    };
+    button.hovered = false;
+    assert!(button.highlight_region().is_none());
+    assert!(hovered_tooltip(&registry, id).is_none());
 }
 
 #[test]

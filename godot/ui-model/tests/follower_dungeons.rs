@@ -1,11 +1,16 @@
 use game_engine_ui_model::follower_dungeons::{Action, View, follower_screen};
+use game_engine_ui_model::game_tooltip::GameTooltip;
 use shared::protocol::*;
 use ui_toolkit::{
     atlas::{ActiveSkin, set_thread_skin},
     frame::WidgetData,
     registry::FrameRegistry,
     screen::{Screen, SharedContext},
-    widgets::button::ButtonState,
+    tooltip::tooltip_owner,
+    widgets::{
+        button::ButtonState,
+        texture::{BlendMode, TextureSource},
+    },
 };
 
 fn catalog() -> FollowerDungeons {
@@ -31,6 +36,18 @@ fn render(view: View, skin: ActiveSkin) -> FrameRegistry {
     game_engine_ui_model::follower_dungeons::apply_follower_postsetup(&mut registry);
     registry
 }
+fn hovered_tooltip(registry: &FrameRegistry, id: u64) -> Option<GameTooltip> {
+    let frame = registry.get(id)?;
+    let Some(WidgetData::Button(button)) = &frame.widget_data else {
+        return None;
+    };
+    if !button.hovered {
+        return None;
+    }
+    let (_, binding) = tooltip_owner(registry, id)?;
+    GameTooltip::from_binding(binding, button.state != ButtonState::Disabled, [0.0; 4])
+}
+
 #[test]
 fn follower_group_finder_role_templates_include_solo_leader_and_centered_backgrounds() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
@@ -75,6 +92,73 @@ fn follower_group_finder_role_templates_include_solo_leader_and_centered_backgro
                 ui_toolkit::strata::DrawLayer::Background
             );
         }
+    }
+}
+
+#[test]
+fn follower_group_finder_role_hover_shows_checkbox_highlight_and_globalstring_until_leave() {
+    let mut registry = render(
+        View {
+            visible: true,
+            ..Default::default()
+        },
+        ActiveSkin::Forever,
+    );
+    for (role, description) in [
+        (
+            "Tank",
+            "Indicates that you are willing to protect allies from harm by ensuring that enemies are attacking you instead of them.",
+        ),
+        (
+            "Healer",
+            "Indicates that you are willing to heal your allies when they take damage.",
+        ),
+        (
+            "DPS",
+            "Indicates that you are willing to take on the role of dealing damage to enemies.",
+        ),
+    ] {
+        let name = format!("LFDQueueFrameRoleButton{role}");
+        let id = registry.get_by_name(&name).unwrap();
+        assert_eq!(button(&registry, &name).0, ButtonState::Normal);
+        assert!(hovered_tooltip(&registry, id).is_none());
+        assert!(match &registry.get(id).unwrap().widget_data {
+            Some(WidgetData::Button(button)) => button.highlight_region().is_none(),
+            _ => false,
+        });
+
+        let Some(WidgetData::Button(button)) = registry
+            .get_mut(id)
+            .and_then(|frame| frame.widget_data.as_mut())
+        else {
+            panic!("{name} is not a button")
+        };
+        button.hovered = true;
+        let Some(WidgetData::Button(button)) = &registry.get(id).unwrap().widget_data else {
+            panic!("{name} is not a button")
+        };
+        let highlight = button.highlight_region().expect("hover highlight appears");
+        assert_eq!(
+            highlight.source,
+            TextureSource::Atlas("checkbox-minimal".into())
+        );
+        assert_eq!(highlight.blend_mode, BlendMode::Additive);
+        assert_eq!(highlight.size, Some([21.0, 20.3]));
+        assert_eq!(highlight.offset, [-17.0, 16.65]);
+        assert_eq!(
+            hovered_tooltip(&registry, id).unwrap().content.title,
+            description
+        );
+
+        let Some(WidgetData::Button(button)) = registry
+            .get_mut(id)
+            .and_then(|frame| frame.widget_data.as_mut())
+        else {
+            panic!("{name} is not a button")
+        };
+        button.hovered = false;
+        assert!(button.highlight_region().is_none());
+        assert!(hovered_tooltip(&registry, id).is_none());
     }
 }
 
