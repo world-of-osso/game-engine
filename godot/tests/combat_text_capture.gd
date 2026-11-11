@@ -141,9 +141,11 @@ func capture_self() -> void:
 
 func self_text_labels() -> Array:
 	var labels := []
-	var layer := client.find_child("FloatingCombatTextLayer", true, false)
+	var layer := root.find_child("FloatingCombatTextLayer", true, false)
+	print("SELF_LAYER node=%s" % str(layer))
 	if layer is CanvasLayer:
 		for text in layer.get_children():
+			print("SELF_LAYER_CHILD name=%s type=%s" % [text.name, text.get_class()])
 			if text is Label and not text.has_meta("combat_text_shadow"):
 				labels.append(text)
 	return labels
