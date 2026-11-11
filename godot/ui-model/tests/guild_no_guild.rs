@@ -22,7 +22,9 @@ fn mount(session: &GuildRanksSession) -> FrameRegistry {
 }
 
 fn frame_text(registry: &FrameRegistry, name: &str) -> String {
-    let frame = registry.get(registry.get_by_name(name).expect(name)).unwrap();
+    let frame = registry
+        .get(registry.get_by_name(name).expect(name))
+        .unwrap();
     match frame.widget_data.as_ref().unwrap() {
         WidgetData::FontString(font) => font.text.clone(),
         other => panic!("{name}: {other:?}"),
@@ -30,17 +32,21 @@ fn frame_text(registry: &FrameRegistry, name: &str) -> String {
 }
 
 #[test]
-fn missing_guild_profile_does_not_render_an_empty_selector_row() {
+fn guild_no_guild_missing_profile_does_not_render_an_empty_selector_row() {
     let _lock = SKIN.lock().unwrap_or_else(|poison| poison.into_inner());
     set_thread_skin(ActiveSkin::Forever);
     let mut session = GuildRanksSession::default();
     session.open();
 
-    assert!(mount(&session).get_by_name("CommunitiesGuildEntry").is_none());
+    assert!(
+        mount(&session)
+            .get_by_name("CommunitiesGuildEntry")
+            .is_none()
+    );
 }
 
 #[test]
-fn not_in_guild_shows_retail_finder_entries_without_phantom_roster() {
+fn guild_no_guild_shows_retail_finder_entries_without_phantom_roster() {
     let _lock = SKIN.lock().unwrap_or_else(|poison| poison.into_inner());
     set_thread_skin(ActiveSkin::Forever);
     let mut session = GuildRanksSession::default();
@@ -56,11 +62,19 @@ fn not_in_guild_shows_retail_finder_entries_without_phantom_roster() {
     let registry = mount(&session);
     assert!(registry.get_by_name("CommunitiesGuildEntry").is_none());
     assert!(registry.get_by_name("CommunitiesGuildEntryName").is_none());
-    assert!(registry.get_by_name("CommunitiesMemberListScrollBox").is_none());
+    assert!(
+        registry
+            .get_by_name("CommunitiesMemberListScrollBox")
+            .is_none()
+    );
     assert!(registry.get_by_name("CommunitiesRosterColumn0").is_none());
     assert!(registry.get_by_name("GuildRosterTab").is_none());
     assert!(registry.get_by_name("GuildFinderFrame").is_some());
-    assert!(registry.get_by_name("CommunitiesGuildFinderEntryIcon").is_some());
+    assert!(
+        registry
+            .get_by_name("CommunitiesGuildFinderEntryIcon")
+            .is_some()
+    );
     for (name, expected) in [
         ("CommunitiesGuildFinderEntryName", "Guild Finder"),
         ("CommunitiesFindCommunityEntryName", "Find a Community"),
@@ -71,6 +85,14 @@ fn not_in_guild_shows_retail_finder_entries_without_phantom_roster() {
     ] {
         assert_eq!(frame_text(&registry, name), expected);
     }
-    assert!(registry.get_by_name("CommunitiesFindCommunityEntryIcon").is_some());
-    assert!(registry.get_by_name("CommunitiesJoinCommunityEntryIcon").is_some());
+    assert!(
+        registry
+            .get_by_name("CommunitiesFindCommunityEntryIcon")
+            .is_some()
+    );
+    assert!(
+        registry
+            .get_by_name("CommunitiesJoinCommunityEntryIcon")
+            .is_some()
+    );
 }

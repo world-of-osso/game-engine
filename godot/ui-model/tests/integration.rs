@@ -42,6 +42,8 @@ mod game_menu;
 mod golden_layer_census;
 mod group_countdown;
 mod guild_charters;
+#[path = "guild_no_guild.rs"]
+mod guild_no_guild;
 mod guild_rank_widgets;
 mod guild_tabards;
 mod item_confirmation_shadow;
