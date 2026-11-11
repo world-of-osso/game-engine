@@ -87,8 +87,49 @@ func click_player_frame() -> bool:
 		if state.target != null and state.target_name == character and state.circle_on == state.target:
 			if target_frame == null or not target_frame.is_visible_in_tree() or target_name == null or target_name.text != character:
 				return reject("TargetFrame did not show the selected player")
-			return capture_player_target()
+			if not await capture_player_target():
+				return false
+			print("UNITFRAME_WAITING_FOR_PARTY_FRAME")
+			return await click_party_frame()
 	return reject("PlayerFrame click did not target the local player: " + str(client.target_state()))
+
+func click_party_frame() -> bool:
+	var deadline := Time.get_ticks_msec() + WORLD_WAIT_MS
+	while Time.get_ticks_msec() < deadline:
+		await process_frame
+		var party := first_non_local_party_frame()
+		if party.is_empty():
+			continue
+		await click_control(party.frame)
+		var state: Dictionary = client.target_state()
+		if state.target == null or state.target_name != party.name or state.circle_on != state.target:
+			return reject("Party-frame click did not target " + party.name + ": " + str(state))
+		var ui := client.get_node_or_null("UnitFramesUI")
+		var target_name := ui.find_child("TargetName", true, false) as Label if ui != null else null
+		if target_name == null or target_name.text != party.name:
+			return reject("TargetFrame did not show party member " + party.name)
+		print("UNITFRAME_PARTY_CLICK_PASS member=" + party.name + " id=" + str(state.target))
+		return true
+	return reject("No non-local party frame appeared before timeout")
+
+func first_non_local_party_frame() -> Dictionary:
+	var ui := client.get_node_or_null("GroupFramesUI")
+	if ui == null:
+		return {}
+	var candidates: Array[String] = []
+	for group in range(1, 9):
+		for member in range(1, 6):
+			candidates.append("CompactRaidGroup%dMember%d" % [group, member])
+	for member in range(1, 6):
+		candidates.append("CompactPartyFrameMember%d" % member)
+	for member in range(1, 5):
+		candidates.append("PartyMemberFrame%d" % member)
+	for frame_name in candidates:
+		var frame := ui.find_child(frame_name, true, false) as Control
+		var label := ui.find_child(frame_name + "Name", true, false) as Label
+		if frame != null and frame.is_visible_in_tree() and label != null and label.is_visible_in_tree() and label.text != character and not label.text.is_empty():
+			return {"frame": frame, "name": label.text}
+	return {}
 
 func capture_player_target() -> bool:
 	await RenderingServer.frame_post_draw
