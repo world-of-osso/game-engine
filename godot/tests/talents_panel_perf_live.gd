@@ -1,0 +1,79 @@
+extends "res://tests/frame_benchmark.gd"
+
+## Measure the live Forever talents panel with the release GDExtension.
+## Required: GODOT_TEST_SERVER, BENCH_ACCOUNT, BENCH_CHARACTER,
+## BENCH_TALENTS_SCREENSHOT. Optional: BENCH_SEGMENT_S, BENCH_RESOLUTION.
+const OPEN_TIMEOUT_MS := 60000
+const SETTLE_SECONDS := 5.0
+
+func run_test() -> void:
+	root.size = parse_resolution(OS.get_environment("BENCH_RESOLUTION"))
+	var server := OS.get_environment("GODOT_TEST_SERVER")
+	var account := OS.get_environment("BENCH_ACCOUNT")
+	var character := OS.get_environment("BENCH_CHARACTER")
+	var screenshot := OS.get_environment("BENCH_TALENTS_SCREENSHOT")
+	if server.is_empty() or account.is_empty() or character.is_empty() or screenshot.is_empty():
+		fail("GODOT_TEST_SERVER, BENCH_ACCOUNT, BENCH_CHARACTER and BENCH_TALENTS_SCREENSHOT are required")
+		return
+	var segment_s := float(OS.get_environment("BENCH_SEGMENT_S")) if OS.get_environment("BENCH_SEGMENT_S") != "" else 10.0
+	RenderingServer.viewport_set_measure_render_time(root.get_viewport_rid(), true)
+	client = load("res://scenes/client.tscn").instantiate()
+	root.add_child(client)
+	var error: String = client.connect_account(server, account, PASSWORD, false)
+	if not error.is_empty():
+		fail("Fixture connection: " + error)
+		return
+	if not await enter_world(character):
+		return
+	player = client.get_node_or_null("WorldUnits/" + character) as Node3D
+	if player == null:
+		fail("No local player node WorldUnits/" + character)
+		return
+	var skin_error: String = client.preview_world_skin(true)
+	if not skin_error.is_empty() or client.account_state().ui_skin != "Forever":
+		fail("Could not select Forever: " + skin_error)
+		return
+	client.set_world_minutes(WORLD_MINUTES)
+	client.set_camera_orbit(0.0, PITCH, DISTANCE)
+	await create_timer(SETTLE_SECONDS).timeout
+	if not Readiness.is_ready(client.account_state()):
+		fail("World work queued before measurement: " + str(client.account_state().world_objects))
+		return
+	print("TALENTS_PANEL_BENCH_READY ", JSON.stringify({"character": character, "ui_skin": client.account_state().ui_skin,
+		"server": server, "world_minutes": client.world_minutes()}))
+	await measure("talents_closed", segment_s, func(_time: float): pass, true)
+	var keypress_usec := Time.get_ticks_usec()
+	push_key(KEY_N, true)
+	await process_frame
+	push_key(KEY_N, false)
+	var panel: Control
+	var node_count := 0
+	var deadline := Time.get_ticks_msec() + OPEN_TIMEOUT_MS
+	while Time.get_ticks_msec() < deadline:
+		await process_frame
+		panel = client.find_child("ClassTalentsFrame", true, false) as Control
+		if panel != null and panel.is_visible_in_tree():
+			node_count = client.find_children("TalentNode*", "Control", true, false).size()
+			if node_count > 0:
+				await RenderingServer.frame_post_draw
+				break
+	if panel == null or not panel.is_visible_in_tree() or node_count == 0:
+		fail("N did not render a talents page with nodes; node_count=%d state=%s" % [node_count, str(client.account_state())])
+		return
+	var first_frame_ms := float(Time.get_ticks_usec() - keypress_usec) / 1000.0
+	print("TALENTS_PANEL_FIRST_FRAME ", JSON.stringify({"open_ms": first_frame_ms, "talent_nodes": node_count,
+		"ui_skin": client.account_state().ui_skin}))
+	var first_frame := root.get_texture().get_image()
+	if first_frame.save_png(screenshot + "-first.png") != OK:
+		fail("Could not save first talents frame")
+		return
+	await create_timer(2.0).timeout
+	await RenderingServer.frame_post_draw
+	var settled_frame := root.get_texture().get_image()
+	if settled_frame.save_png(screenshot + "-settled.png") != OK:
+		fail("Could not save settled talents frame")
+		return
+	await measure("talents_open", segment_s, func(_time: float): pass, true)
+	print("TALENTS_PANEL_PERF_PASS")
+	client.free()
+	quit(0)

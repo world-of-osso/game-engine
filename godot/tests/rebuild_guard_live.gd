@@ -4,7 +4,8 @@ extends "res://tests/frame_benchmark.gd"
 ## server's live clock (no `set_world_minutes`, as the Windows receipt harness), holds the
 ## camera at BENCH_CAMERA_YAW, waits GUARD_SETTLE_S seconds (default 10) for the loading
 ## fade and late placements, then counts rebuilds over GUARD_SEGMENT_S seconds (default 10)
-## of idle frames. Fails when a rebuild_guard.gd category averages above its allowlist
+## of idle frames. GUARD_TALENTS=1 switches to Forever, opens N, and guards the talents panel.
+## Fails when a rebuild_guard.gd category averages above its allowlist
 ## budget, naming the category and its first call site. Stormwind's NPCs walk in and out
 ## of view: a window in which a unit visual entered the scene is not steady, so it is
 ## reported and measured again, up to GUARD_WINDOWS (default 3) windows. Run once per
@@ -29,6 +30,8 @@ func run_test() -> void:
 		fail("Fixture connection: " + error)
 		return
 	if not await enter_world(character):
+		return
+	if OS.get_environment("GUARD_TALENTS") == "1" and not await open_talents_panel():
 		return
 	client.set_camera_orbit(yaw, PITCH, DISTANCE)
 	await create_timer(settle_s).timeout
@@ -63,3 +66,25 @@ func run_test() -> void:
 	print("FIXTURE REBUILD_GUARD_PASS")
 	client.free()
 	quit(0)
+
+func open_talents_panel() -> bool:
+	var skin_error: String = client.preview_world_skin(true)
+	if not skin_error.is_empty() or client.account_state().ui_skin != "Forever":
+		fail("Could not select Forever for the talents guard: " + skin_error)
+		return false
+	client.set_world_minutes(WORLD_MINUTES)
+	push_key(KEY_N, true)
+	await process_frame
+	push_key(KEY_N, false)
+	var deadline := Time.get_ticks_msec() + 60000
+	while Time.get_ticks_msec() < deadline:
+		await process_frame
+		var panel := client.find_child("ClassTalentsFrame", true, false) as Control
+		if panel != null and panel.is_visible_in_tree():
+			var nodes := client.find_children("TalentNode*", "Control", true, false)
+			if not nodes.is_empty():
+				await RenderingServer.frame_post_draw
+				print("REBUILD_GUARD_PANEL talents ui_skin=Forever nodes=", nodes.size())
+				return true
+	fail("N did not render the Forever talents panel")
+	return false
