@@ -316,9 +316,26 @@ impl GameClient {
     }
 
     fn apply_spell_keys(&mut self) -> Result<(), FrameError> {
+        use game_engine_core::input_bindings_data::{BindingKey, InputState};
+
         let input = self.physical_input.gameplay_state(self.keyboard_free());
         let bindings = &self.client_options.bindings;
         let tab = pressed_player_spells_tab(bindings, &input);
+        let n_pressed = input.key_pressed(BindingKey::KeyN);
+        let n_just_pressed = input.key_just_pressed(BindingKey::KeyN);
+        static TRACED_N_FRAMES: std::sync::atomic::AtomicUsize =
+            std::sync::atomic::AtomicUsize::new(0);
+        if std::env::var_os("TALENTS_INPUT_TRACE").is_some()
+            && (n_pressed || n_just_pressed)
+            && TRACED_N_FRAMES.fetch_add(1, std::sync::atomic::Ordering::Relaxed) < 3
+        {
+            godot_print!(
+                "TALENTS_INPUT_STATE held={} just_pressed={} tab={}",
+                n_pressed,
+                n_just_pressed,
+                tab.is_some()
+            );
+        }
         let pressed = pressed_action_buttons(bindings, &input);
         if let Some(tab) = tab {
             self.toggle_player_spells(tab)?;

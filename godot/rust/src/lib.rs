@@ -712,6 +712,15 @@ impl INode3D for GameClient {
                 .clone()
                 .try_cast::<godot::classes::InputEventKey>()
                 .is_ok();
+        if trace_key.is_some() {
+            godot_print!(
+                "TALENTS_INPUT_CAPTURE game_menu={} split_key={} launcher={} hud_editor={}",
+                self.game_menu_ui.is_some(),
+                split_key_event,
+                self.launcher.view.open,
+                self.hud_editor.draft.active
+            );
+        }
         if self.game_menu_ui.is_none()
             && !split_key_event
             && !self.launcher.view.open
