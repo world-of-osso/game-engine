@@ -632,8 +632,27 @@ impl INode3D for GameClient {
     }
 
     fn input(&mut self, event: Gd<godot::classes::InputEvent>) {
+        let trace_key = std::env::var_os("TALENTS_INPUT_TRACE")
+            .and_then(|_| {
+                event
+                    .clone()
+                    .try_cast::<godot::classes::InputEventKey>()
+                    .ok()
+            })
+            .filter(|key| key.get_physical_keycode() == godot::global::Key::N);
+        if let Some(key) = trace_key.as_ref() {
+            godot_print!("TALENTS_INPUT_CALLBACK pressed={}", key.is_pressed());
+        }
         self.physical_input.capture_pointer(&event);
-        if self.dispatch_priority_input(&event) {
+        let priority_handled = self.dispatch_priority_input(&event);
+        if let Some(key) = trace_key.as_ref() {
+            godot_print!(
+                "TALENTS_INPUT_PRIORITY pressed={} handled={}",
+                key.is_pressed(),
+                priority_handled
+            );
+        }
+        if priority_handled {
             return;
         }
         match self.hud_edit_pointer(&event) {
