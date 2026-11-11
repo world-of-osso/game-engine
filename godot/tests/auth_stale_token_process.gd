@@ -63,7 +63,7 @@ func reject_stale_session_then_log_in(server: String, account: String) -> void:
 		var state: Dictionary = client.account_state()
 		if state.reply_received and state.screen == "Login" and state.status == EXPIRED_MESSAGE:
 			break
-	var rejected := client.account_state()
+	var rejected: Dictionary = client.account_state()
 	var reject_ms := Time.get_ticks_msec() - started
 	if not require(reject_ms < 1000, "Stale-token response exceeded 1 s: %d ms" % reject_ms):
 		return
