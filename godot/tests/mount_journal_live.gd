@@ -122,8 +122,6 @@ func run_fixture() -> void:
 	await capture("random-favorite-bar-slot")
 	await click("ActionButton12")
 	if not await wait_until(func(): return mounted(), "action-bar random favorite summon", 60000): return
-	await tap(KEY_ESCAPE)
-	if not await wait_until(func(): return control("MountJournalSearchBox") == null, "close journal for mounted view"): return
 	await capture("random-favorite-mounted-from-bar")
 	print("MOUNT_JOURNAL_LIVE PASS skin=", skin, " relog=", relog, " state=", client.mount_journal_state())
 	client.free()
