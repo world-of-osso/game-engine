@@ -103,11 +103,15 @@ func run_test() -> void:
 	await click(backpack)
 	if not await wait_container(client, 0, true) or not await wait_container(client, 1, true):
 		return
-	var first := authored_control(client, "ContainerFrame0").get_global_rect()
+	var first_control := authored_control(client, "ContainerFrame0")
+	var first := first_control.get_global_rect()
 	var second := authored_control(client, "ContainerFrame1").get_global_rect()
-	print("BAGS POSITIONS together bag0=", first, " bag1=", second)
-	if first.intersects(second) or absf(root.get_visible_rect().end.y - first.end.y - CONTAINER_BOTTOM) > POSITION_TOLERANCE or absf(first.position.y - second.end.y - 8.0) > POSITION_TOLERANCE:
-		fail("Authored standalone bags must stack by bag index with the original eight-unit gap")
+	var bag_scale := first_control.get_global_transform_with_canvas().get_scale().x
+	var expected_bottom := CONTAINER_BOTTOM * bag_scale
+	var expected_gap := 8.0 * bag_scale
+	print("BAGS POSITIONS together bag0=", first, " bag1=", second, " scale=", bag_scale)
+	if first.intersects(second) or absf(root.get_visible_rect().end.y - first.end.y - expected_bottom) > POSITION_TOLERANCE or absf(first.position.y - second.end.y - expected_gap) > POSITION_TOLERANCE:
+		fail("Authored standalone bags must stack by bag index with the original scaled eight-unit gap")
 		return
 	if not await capture_bags():
 		return
