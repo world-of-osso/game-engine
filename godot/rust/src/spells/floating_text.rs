@@ -325,6 +325,9 @@ impl GameClient {
         let mut options = self.client_options.hud.combat_text;
         if preview {
             options.self_enabled = true;
+            options.avoidance = true;
+            options.reductions = true;
+            options.friendly_healers = true;
         }
         let Some(message) = combat_text::incoming::message_for(event, &options, healer_name) else {
             return self.spells.self_floating.len() as i64;
