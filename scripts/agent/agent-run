@@ -36,7 +36,10 @@ if [ -n "$runs_cargo" ] && [ -x "$capacity" ]; then
     # The merge train lands everyone's work: it takes the lead_ id so the 24/32 CPU hold skips it
     # (its fmt/check steps sat 60+ min behind agent compiles on 2026-10-30). The train passes
     # `merge-train`; matching `merge_train` left it queued behind agents (2026-11-01).
+    # Lead landing gates (`lead_*`) keep their name so capacity.sh ranks them as lead work; as
+    # `agent-lead_land` the engine landing check sat 90+ min behind agent builds (2026-11-10).
     capacity_id="agent-${name}"; [ "$name" = merge-train ] && capacity_id=lead_merge_train_build
+    case "$name" in lead_*) capacity_id=$name;; esac
     until verdict=$(CAPACITY_ID="$capacity_id" "$capacity") && echo "$verdict" >&2 \
         && [[ $verdict == *'| ADD:'* ]]; do :; done
 fi
