@@ -1189,13 +1189,13 @@ mod tests {
             tex_pos: [glam::Vec2::new(20.0, 21.0), glam::Vec2::new(22.0, 23.0)],
         };
 
-        assert_eq!(
-            write_instance(&quad, 0.5),
-            [
-                1.0, 4.0, 20.0, 11.0, 2.0, 5.0, 21.0, 12.0, 3.0, 6.0, 0.5, 13.0, 14.0, 15.0, 16.0,
-                17.0, 18.0, 19.0, 22.0, 23.0,
-            ]
-        );
+        let expected = [
+            1.0, 4.0, 20.0, 11.0, 2.0, 5.0, 21.0, 12.0, 3.0, 6.0, 0.5, 13.0, 14.0, 15.0, 16.0,
+            17.0, 18.0, 19.0, 22.0, 23.0,
+        ];
+        let actual = write_instance(&quad, 0.5);
+
+        assert_eq!(actual.map(f32::to_bits), expected.map(f32::to_bits));
     }
 
     #[test]
