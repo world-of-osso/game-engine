@@ -3,8 +3,18 @@ extends "res://tests/frame_benchmark.gd"
 ## Measure the live Forever talents panel with the release GDExtension.
 ## Required: GODOT_TEST_SERVER, BENCH_ACCOUNT, BENCH_CHARACTER,
 ## BENCH_TALENTS_SCREENSHOT. Optional: BENCH_SEGMENT_S, BENCH_RESOLUTION.
+const ASSET_STARTUP_TIMEOUT_MS := 180000
 const OPEN_TIMEOUT_MS := 60000
 const SETTLE_SECONDS := 5.0
+
+func wait_for_asset_startup() -> bool:
+	var deadline := Time.get_ticks_msec() + ASSET_STARTUP_TIMEOUT_MS
+	while Time.get_ticks_msec() < deadline and client.account_state().assets_starting:
+		await process_frame
+	if client.account_state().assets_starting:
+		fail("CASC asset startup did not finish within %d ms" % ASSET_STARTUP_TIMEOUT_MS)
+		return false
+	return true
 
 func run_test() -> void:
 	root.size = parse_resolution(OS.get_environment("BENCH_RESOLUTION"))
@@ -19,6 +29,8 @@ func run_test() -> void:
 	RenderingServer.viewport_set_measure_render_time(root.get_viewport_rid(), true)
 	client = load("res://scenes/client.tscn").instantiate()
 	root.add_child(client)
+	if not await wait_for_asset_startup():
+		return
 	var error: String = client.connect_account(server, account, PASSWORD, false)
 	if not error.is_empty():
 		fail("Fixture connection: " + error)

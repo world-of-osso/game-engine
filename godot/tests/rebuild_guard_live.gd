@@ -11,6 +11,8 @@ extends "res://tests/frame_benchmark.gd"
 ## reported and measured again, up to GUARD_WINDOWS (default 3) windows. Run once per
 ## receipt pose (`game-server-admin set-position` while the character is offline).
 
+const ASSET_STARTUP_TIMEOUT_MS := 180000
+
 func run_test() -> void:
 	root.size = parse_resolution(OS.get_environment("BENCH_RESOLUTION"))
 	var server := OS.get_environment("GODOT_TEST_SERVER")
@@ -25,6 +27,8 @@ func run_test() -> void:
 	var windows := int(OS.get_environment("GUARD_WINDOWS")) if OS.get_environment("GUARD_WINDOWS") != "" else 3
 	client = load("res://scenes/client.tscn").instantiate()
 	root.add_child(client)
+	if not await wait_for_asset_startup():
+		return
 	var error = client.connect_account(server, account, PASSWORD, false)
 	if error != "":
 		fail("Fixture connection: " + error)
@@ -66,6 +70,15 @@ func run_test() -> void:
 	print("FIXTURE REBUILD_GUARD_PASS")
 	client.free()
 	quit(0)
+
+func wait_for_asset_startup() -> bool:
+	var deadline := Time.get_ticks_msec() + ASSET_STARTUP_TIMEOUT_MS
+	while Time.get_ticks_msec() < deadline and client.account_state().assets_starting:
+		await process_frame
+	if client.account_state().assets_starting:
+		fail("CASC asset startup did not finish within %d ms" % ASSET_STARTUP_TIMEOUT_MS)
+		return false
+	return true
 
 func open_talents_panel() -> bool:
 	var skin_error: String = client.preview_world_skin(true)
