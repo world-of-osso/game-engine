@@ -101,11 +101,14 @@ func run_test() -> void:
 	print("TALENTS_PANEL_BENCH_READY ", JSON.stringify({"character": character, "ui_skin": client.account_state().ui_skin,
 		"server": server, "world_minutes": client.world_minutes(), "focus": str(focus.get_path()) if focus != null else "none",
 		"spell_spec": spell_state.get("spec"), "spellbook_open": spell_state.get("spellbook_open"),
-		"catalog_ready": spell_state.get("catalog_ready")}))
+		"catalog_ready": spell_state.get("catalog_ready"), "input_processing": client.is_processing_input(),
+		"unhandled_input_processing": client.is_processing_unhandled_input()}))
 	await measure("talents_closed", segment_s, func(_time: float): pass, true)
 	root.gui_release_focus()
 	var keypress_usec := Time.get_ticks_usec()
 	send_key(KEY_N, true)
+	print("TALENTS_PANEL_KEY_STATE ", JSON.stringify({"input_pressed": Input.is_key_pressed(KEY_N),
+		"book_open": client.spells_state().spellbook_open}))
 	var panel: Control
 	var node_count := 0
 	var deadline := Time.get_ticks_msec() + OPEN_TIMEOUT_MS
