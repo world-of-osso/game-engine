@@ -142,7 +142,7 @@ Registered proof validates the installed catalog and calls the real paid registr
 - [Lifecycle contract](../../specs/guild-ranks.md) — commands, authority and native regression fixtures.
 - [Banks](banks.md) — bank wire/state and native projection boundaries.
 - [Tabard contract](../../specs/guild-tabards.md) — Retail GuildUtil/TabardFrame, pinned TrinityCore registration and WoWModelViewer item/tier references; implementation and focused test inventory.
-- Cached Retail/Forever `Blizzard_Communities/CommunitiesFrame.lua:466–486`, `CommunitiesList.lua:185–244` and `CommunitiesFrame.xml:475–480` — no-guild display mode, conditional entries and right pane.
+- Cached Retail `Blizzard_Communities/CommunitiesFrame.lua:429–450,590–593`, Forever `CommunitiesFrame.lua:466–487,627–630`, `CommunitiesList.lua:185–244` in both, and `CommunitiesFrame.xml:475–492` Retail / `484–501` Forever — no-guild display mode, conditional entries and right pane.
 - [Guild Communities renderer](../../godot/ui-model/src/guild_communities.rs) — native guild/finder presentation.
 
 ## See Also

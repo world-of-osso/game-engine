@@ -88,7 +88,7 @@ fn has_no_guild_state(session: &GuildRanksSession) -> bool {
         .is_some_and(|state| state.error == Some(GuildRankError::NotInGuild))
 }
 
-/// CommunitiesFrame.lua:466–486 and CommunitiesFrame.xml:475–480.
+/// Retail/Forever CommunitiesFrame.lua:429–450/466–487, CommunitiesFrame.xml:475–492/484–501.
 fn no_guild_communities() -> Element {
     let mut children = no_guild_entries();
     children.extend(guild_finder());
