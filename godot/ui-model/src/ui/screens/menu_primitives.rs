@@ -8,8 +8,10 @@ use ui_toolkit::{rsx, widget_def::Element, widgets::font_string::GameFont};
 
 const ROW_HEIGHT: f32 = 20.0;
 const MENU_INSET: f32 = 8.0;
+const WOW_STYLE1_TEXT_LEFT: f32 = 8.0;
 const WOW_STYLE1_TEXT_TOP: f32 = 8.0;
 const WOW_STYLE1_TEXT_HEIGHT: f32 = 10.0;
+const WOW_STYLE1_ARROW_LEFT_INSET: f32 = 26.0;
 const MENU_BOTTOM: f32 = 15.0;
 const DIVIDER_HEIGHT: f32 = 13.0;
 const SPACER_HEIGHT: f32 = 10.0;
@@ -245,11 +247,11 @@ fn calculate_dropdown_text_rect(
 ) -> (f32, f32, f32, f32) {
     match style {
         // Keep the native Label tall enough for its font, but center its line on Retail's
-        // Text region: TOPLEFT(8, -8), height10. Its center is 0.5px below a 25px owner.
+        // Text region: TOPLEFT(8, -8), height10; its right edge meets Arrow.LEFT.
         DropdownStyle::WowStyle1 => (
-            8.0,
+            WOW_STYLE1_TEXT_LEFT,
             WOW_STYLE1_TEXT_TOP + WOW_STYLE1_TEXT_HEIGHT / 2.0 - props.height / 2.0,
-            props.width - 34.0,
+            props.width - WOW_STYLE1_TEXT_LEFT - WOW_STYLE1_ARROW_LEFT_INSET,
             props.height,
         ),
         DropdownStyle::Filter => (0.0, 0.0, props.width, 20.0),
