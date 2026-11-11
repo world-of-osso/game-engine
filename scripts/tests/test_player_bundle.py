@@ -2,6 +2,7 @@ import hashlib
 import importlib.util
 import json
 import os
+import re
 import shutil
 import sqlite3
 import subprocess
@@ -10,6 +11,37 @@ import tempfile
 import unittest
 from contextlib import closing
 from pathlib import Path
+
+
+def client_read_files(repo):
+    literal_path = re.compile(
+        r'(?:self\.)?data_root\s*\.\s*join\(\s*"([^"]+)"'
+        r'|resolve_data_path\(\s*"([^"]+)"'
+    )
+    files = set()
+    unsupported = set()
+    for source in (repo / 'godot').rglob('*.rs'):
+        if {'tests', 'target', 'vendor'} & set(source.parts) or source.name.endswith('_tests.rs'):
+            continue
+        for match in literal_path.finditer(source.read_text(errors='replace')):
+            value = next(group for group in match.groups() if group is not None)
+            relative = Path(value)
+            if relative.is_absolute() or '..' in relative.parts or not relative.parts:
+                continue
+            if relative.parts[0] in bundle.DATA_DIRS:
+                if relative.parts[0] == 'products':
+                    continue
+                if relative.suffix:
+                    files.add(relative)
+            elif len(relative.parts) == 1 and any(
+                relative.match(pattern) for pattern in bundle.DATA_FILE_GLOBS
+            ):
+                files.add(relative)
+            else:
+                unsupported.add(value)
+    if unsupported:
+        raise AssertionError(f'Client data reads outside bundle policy: {sorted(unsupported)}')
+    return files
 
 
 def write_empty_ui_db2(data):
@@ -187,6 +219,27 @@ class PlayerBundleTest(unittest.TestCase):
             self.assertEqual((output / 'godot/project.godot').read_text(), 'project')
             self.assertTrue((output / 'godot/.godot/extension_list.cfg').exists())
             self.assertFalse((output / 'data').exists())
+
+    def test_literal_client_data_root_reads_are_selected(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            data = root / 'data'
+            for name in bundle.DATA_DIRS:
+                (data / name).mkdir(parents=True)
+            write_empty_ui_db2(data)
+            (data / 'cache/model-asset-index.json').write_text(
+                '{"version":1,"assets":[]}'
+            )
+            client_files = client_read_files(Path(__file__).parents[2])
+            for relative in client_files:
+                path = data / relative
+                if relative != Path('cache/model-asset-index.json'):
+                    path.parent.mkdir(parents=True, exist_ok=True)
+                    path.touch()
+
+            selected = set(bundle.data_files(root))
+            self.assertTrue(client_files)
+            self.assertEqual(client_files - selected, set())
 
     def test_allowlist_excludes_credentials_and_extraction_state(self):
         with tempfile.TemporaryDirectory() as directory:
