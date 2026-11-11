@@ -98,11 +98,7 @@ fn no_guild_communities() -> Element {
 fn no_guild_entries() -> Element {
     // CommunitiesList.lua:185–244 gets invitations from C_Club, absent from GuildRanksSession.
     const ENTRIES: [(&str, &str, Option<&str>); 3] = [
-        (
-            "CommunitiesGuildFinderEntry",
-            "Guild Finder",
-            Some("communities-icon-searchmagnifyingglass"),
-        ),
+        ("CommunitiesGuildFinderEntry", "Guild Finder", None),
         (
             "CommunitiesFindCommunityEntry",
             "Find a Community",
@@ -127,6 +123,18 @@ fn no_guild_entries() -> Element {
 /// CommunitiesList.xml:5–12,26–35,112–120 and CommunitiesList.lua:581–690.
 fn no_guild_entry(name: &str, text: &str, icon: Option<&str>, selected: bool, top: f32) -> Element {
     let mut content = no_guild_entry_background(name, selected);
+    if selected {
+        content.extend(rsx! {
+            texture { name: {DynName(format!("{name}TabardBackground"))},
+                texture_atlas: "communities-guildbanner-background", width: 52.0, height: 51.0,
+                left: 6.0, top: 11.0, vertex_color: "0.7,0.7,0.7,1.0",
+                draw_layer: "BACKGROUND", pos_type: "absolute" }
+            texture { name: {DynName(format!("{name}TabardBorder"))},
+                texture_atlas: "communities-guildbanner-border", width: 52.0, height: 51.0,
+                left: 6.0, top: 11.0, vertex_color: "0.7,0.7,0.7,1.0",
+                draw_layer: "OVERLAY", pos_type: "absolute" }
+        });
+    }
     if let Some(icon) = icon {
         content.extend(named_atlas_texture(
             format!("{name}Icon"),

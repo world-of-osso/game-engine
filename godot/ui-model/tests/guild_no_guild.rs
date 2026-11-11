@@ -72,7 +72,7 @@ fn guild_no_guild_shows_retail_finder_entries_without_phantom_roster() {
     assert!(registry.get_by_name("GuildFinderFrame").is_some());
     assert!(
         registry
-            .get_by_name("CommunitiesGuildFinderEntryIcon")
+            .get_by_name("CommunitiesGuildFinderEntryTabardBackground")
             .is_some()
     );
     for (name, expected) in [
