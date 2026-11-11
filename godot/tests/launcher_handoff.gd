@@ -10,6 +10,7 @@ func run_test() -> void:
 	var client = load("res://scenes/client.tscn").instantiate()
 	root.add_child(client)
 	var expected := OS.get_environment("HANDOFF_EXPECTED_SCREEN")
+	var expects_name_prompt := OS.get_environment("HANDOFF_EXPECT_NO_NAME") == "1"
 	if expected not in ["CharacterSelect", "Login"]:
 		fail("HANDOFF_EXPECTED_SCREEN must be CharacterSelect or Login")
 		return
@@ -17,6 +18,20 @@ func run_test() -> void:
 	while Time.get_ticks_msec() < deadline:
 		await process_frame
 		var state: Dictionary = client.account_state()
+		if expects_name_prompt:
+			if state.screen != "Login" or str(state.status).is_empty():
+				continue
+			if state.reply_received:
+				fail("Unknown launcher token was sent without an account name")
+				return
+			var login = client.get_node_or_null("LoginUI")
+			if login == null or not login.visible:
+				fail("Unknown launcher token did not keep the login form visible")
+				return
+			print("PASS token-only legacy launcher handoff: login form requested account name without trying the token")
+			client.free()
+			quit(0)
+			return
 		if not state.reply_received:
 			continue
 		if state.screen != expected:
