@@ -15,8 +15,8 @@ const CRIT_GROW_SECONDS: f32 = 0.05;
 const CRIT_SHRINK_END_SECONDS: f32 = 0.2;
 const SCROLL_DISTANCE: f32 = 225.0;
 const FOUNTAIN_RADIUS: f32 = 150.0;
-const TEXT_START_Y: f32 = 384.0;
-const TEXT_MAX_SPREAD: f32 = 130.0;
+pub(crate) const TEXT_START_Y: f32 = 384.0;
+pub(crate) const TEXT_MAX_SPREAD: f32 = 130.0;
 const TEXT_SPACING: f32 = 10.0;
 const MESSAGE_HALF_HEIGHT: f32 = 16.0;
 

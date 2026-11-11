@@ -349,8 +349,10 @@ impl GameClient {
         };
         let mut x_dir = -self.spells.self_float_x_dir;
         self.spells.self_float_x_dir = x_dir;
-        let lower_bound = 384.0 - 130.0;
-        let upper_bound = 384.0 + 130.0;
+        let lower_bound =
+            combat_text::incoming::TEXT_START_Y - combat_text::incoming::TEXT_MAX_SPREAD;
+        let upper_bound =
+            combat_text::incoming::TEXT_START_Y + combat_text::incoming::TEXT_MAX_SPREAD;
         let overflow = if mode == 2 {
             start_y > upper_bound
         } else {
