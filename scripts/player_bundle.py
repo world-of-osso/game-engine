@@ -2,6 +2,7 @@
 """Shared Linux/Windows player project and runtime data assembly. Never copies auth tokens."""
 
 import argparse
+import csv
 import datetime
 import filecmp
 import fnmatch
@@ -21,7 +22,10 @@ DATA_DIRS = (
     'forever-1.60.1.70205', 'gametables', 'glues', 'item-models', 'los',
     'minimap', 'models', 'music', 'products', 'reference', 'sounds', 'terrain', 'textures', 'ui',
 )
-DATA_FILE_GLOBS = ('*.csv', '*.ron', 'local-listfile-cache.sqlite', 'battle-pet-model-scenes.json')
+DATA_FILE_GLOBS = (
+    '*.csv', '*.ron', 'local-listfile-cache.sqlite',
+    'battle-pet-model-scenes.json', 'battle-pets.json',
+)
 LIBRARIES = {
     'linux-x86_64': ('linux.x86_64', 'libgame_engine_godot.so'),
     'windows-x86_64': ('windows.x86_64', 'game_engine_godot.dll'),
@@ -63,8 +67,14 @@ def model_asset_files(data):
     return sorted(paths)
 
 
-def data_files(root):
+def data_files(root, additional_files=None):
     data = root / 'data'
+    if additional_files is None:
+        additional_files = {
+            Path('textures') / f'{fdid}.blp' for fdid in ui_texture_fdids(root)
+        }
+    else:
+        additional_files = set(additional_files)
     for name in DATA_DIRS:
         source = data / name
         if not source.is_dir():
@@ -76,12 +86,14 @@ def data_files(root):
             if Path(directory) == data / 'cache':
                 subdirs[:] = [name for name in subdirs if name != 'casc' and not fnmatch.fnmatch(name, 'pre-retail-*')]
             for filename in files:
-                if not filename.endswith(('.missing', '.lock')):
-                    yield (Path(directory) / filename).relative_to(data)
+                relative = (Path(directory) / filename).relative_to(data)
+                if not filename.endswith(('.missing', '.lock')) and relative not in additional_files:
+                    yield relative
     for pattern in DATA_FILE_GLOBS:
         for path in data.glob(pattern):
             if path.is_file():
                 yield path.relative_to(data)
+    yield from sorted(additional_files)
 
 
 def copy_file(source, target):
@@ -106,18 +118,137 @@ def copy_selected(root, destination, files, link=False):
                         *map(str, batch)], cwd=root, check=True)
 
 
+def read_db2_rows(root, table):
+    path = root / 'data/db2/active' / f'{table}.csv'
+    with path.open(encoding='utf-8-sig', newline='') as source:
+        reader = csv.DictReader(source)
+        if reader.fieldnames is None:
+            raise ValueError(f'Empty DB2 table: {path}')
+        return list(reader)
+
+
+def is_blp_file(path):
+    try:
+        with path.open('rb') as texture:
+            return texture.read(4) in (b'BLP1', b'BLP2')
+    except OSError:
+        return False
+
+
+def ui_texture_fdids(root):
+    maps = {int(row['ID']) for row in read_db2_rows(root, 'UiMap')}
+    art_links = {
+        int(row['UiMapArtID']) for row in read_db2_rows(root, 'UiMapXMapArt')
+        if int(row['PhaseID']) == 0 and int(row['UiMapID']) in maps
+    }
+    arts = {int(row['ID']): row for row in read_db2_rows(root, 'UiMapArt')}
+    layer_styles = {
+        int(row['UiMapArtStyleID']) for row in read_db2_rows(root, 'UiMapArtStyleLayer')
+        if int(row['LayerIndex']) == 0
+    }
+    art_ids = {
+        art_id for art_id in art_links
+        if art_id in arts and int(arts[art_id]['UiMapArtStyleID']) in layer_styles
+    }
+    fdids = {
+        int(arts[art_id]['HighlightFileDataID']) for art_id in art_ids
+        if int(arts[art_id]['HighlightFileDataID']) > 0
+    }
+    fdids.update(
+        int(row['FileDataID']) for row in read_db2_rows(root, 'UiMapArtTile')
+        if int(row['UiMapArtID']) in art_ids and int(row['LayerIndex']) == 0
+        and int(row['FileDataID']) > 0
+    )
+    overlay_ids = {
+        int(row['ID']) for row in read_db2_rows(root, 'WorldMapOverlay')
+        if int(row['UiMapArtID']) in art_ids
+    }
+    fdids.update(
+        int(row['FileDataID']) for row in read_db2_rows(root, 'WorldMapOverlayTile')
+        if int(row['WorldMapOverlayID']) in overlay_ids and int(row['LayerIndex']) == 0
+        and int(row['FileDataID']) > 0
+    )
+    atlas_ids = {
+        int(row['UiTextureAtlasID']) for row in read_db2_rows(root, 'UiTextureAtlasMember')
+    }
+    fdids.update(
+        int(row['FileDataID']) for row in read_db2_rows(root, 'UiTextureAtlas')
+        if int(row['ID']) in atlas_ids and int(row['FileDataID']) > 0
+    )
+    return fdids
+
+
+def extract_ui_texture_ids(root, texture_dir, missing):
+    texture_dir.mkdir(parents=True, exist_ok=True)
+    missing = sorted(missing)
+    if not missing:
+        return 0
+    extractor = Path(os.environ.get('CASC_LOCAL', root.parent / 'asset-resolver/target/debug/casc-local'))
+    if not extractor.is_file():
+        raise FileNotFoundError(
+            f'Cannot assemble UI texture closure: {len(missing)} DB2-referenced BLPs are absent; '
+            f'local CASC extractor not found at {extractor}'
+        )
+    environment = dict(os.environ, WOW_PRODUCT='wow')
+    result = subprocess.run(
+        [str(extractor), *map(str, missing), '-o', str(texture_dir)],
+        cwd=root,
+        env=environment,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+    )
+    for fdid in missing:
+        dat = texture_dir / f'{fdid}.dat'
+        blp = texture_dir / f'{fdid}.blp'
+        if not blp.is_file() and dat.is_file():
+            with dat.open('rb') as source:
+                is_blp = source.read(4) in (b'BLP1', b'BLP2')
+            if is_blp:
+                dat.rename(blp)
+    unresolved = [fdid for fdid in missing if not is_blp_file(texture_dir / f'{fdid}.blp')]
+    if result.returncode or unresolved:
+        raise ValueError(
+            f'Local CASC UI texture extraction failed (exit {result.returncode}); '
+            f'{len(unresolved)} required FDIDs remain absent: {unresolved[:32]}. '
+            f'Extractor output: {result.stdout[-2000:]}'
+        )
+    added_bytes = sum((texture_dir / f'{fdid}.blp').stat().st_size for fdid in missing)
+    print(f'Added {len(missing)} DB2-referenced UI textures from local CASC ({added_bytes} bytes)')
+    return added_bytes
+
+
+def extract_missing_ui_textures(root, bundle, required_fdids):
+    texture_dir = bundle / 'data/textures'
+    missing = []
+    for fdid in sorted(required_fdids):
+        path = texture_dir / f'{fdid}.blp'
+        if is_blp_file(path):
+            continue
+        path.unlink(missing_ok=True)
+        missing.append(fdid)
+    extract_ui_texture_ids(root, texture_dir, missing)
+
+
 def copy_data(root, bundle):
     for name in DATA_DIRS:
         (bundle / 'data' / name).mkdir(parents=True, exist_ok=True)
+    required_fdids = ui_texture_fdids(root)
+    required_ui_textures = {Path('textures') / f'{fdid}.blp' for fdid in required_fdids}
     # Catalogs can change while the client runs; only immutable payloads share storage.
-    files = iter(data_files(root))
+    files = iter(data_files(root, required_ui_textures))
     while batch := list(itertools.islice(files, 512)):
         copied, linked = [], []
         for relative in batch:
+            if not (root / 'data' / relative).is_file():
+                if relative in required_ui_textures:
+                    continue
+                raise FileNotFoundError(f'Missing selected player data file: {relative}')
             selected = copied if is_mutable_data(relative) else linked
             selected.append(relative)
         copy_selected(root / 'data', bundle / 'data', copied)
         copy_selected(root / 'data', bundle / 'data', linked, link=True)
+    extract_missing_ui_textures(root, bundle, required_fdids)
 
 
 def is_mutable_data(relative):
@@ -268,10 +399,25 @@ def copy_project(root, bundle, platform):
 
 
 def source_map(root, generated, windows_artifacts):
-    """Map shipped paths to source files without copying the runtime data."""
+    """Map shipped paths to source files and stage DB2-required UI textures."""
+    required_fdids = ui_texture_fdids(root)
+    required_ui_textures = {Path('textures') / f'{fdid}.blp' for fdid in required_fdids}
+    staged_textures = generated / 'data/textures'
+    shutil.rmtree(staged_textures, ignore_errors=True)
+    missing = [
+        fdid for fdid in sorted(required_fdids)
+        if not is_blp_file(root / 'data/textures' / f'{fdid}.blp')
+        and not is_blp_file(staged_textures / f'{fdid}.blp')
+    ]
+    extract_ui_texture_ids(root, staged_textures, missing)
     files = {path.as_posix(): root / path for path in project_files(root)}
-    files.update({(Path('data') / path).as_posix(): root / 'data' / path
-                  for path in data_files(root)})
+    data_sources = {}
+    for path in data_files(root, required_ui_textures):
+        source = root / 'data' / path
+        if path in required_ui_textures and not is_blp_file(source):
+            source = generated / 'data' / path
+        data_sources[(Path('data') / path).as_posix()] = source
+    files.update(data_sources)
     for source, target in (
         ('godot.exe', 'runtime/godot.exe'),
         ('game_engine_godot.dll', 'lib/game_engine_godot.dll'),

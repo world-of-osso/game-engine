@@ -1,6 +1,7 @@
 import hashlib
 import importlib.util
 import json
+import os
 import shutil
 import sqlite3
 import subprocess
@@ -9,6 +10,25 @@ import tempfile
 import unittest
 from contextlib import closing
 from pathlib import Path
+
+
+def write_empty_ui_db2(data):
+    tables = {
+        'UiMap': 'ID,System\n',
+        'UiMapXMapArt': 'PhaseID,UiMapArtID,UiMapID\n',
+        'UiMapArt': 'ID,HighlightFileDataID,UiMapArtStyleID\n',
+        'UiMapArtStyleLayer': 'UiMapArtStyleID,LayerIndex\n',
+        'UiMapArtTile': 'UiMapArtID,LayerIndex,FileDataID\n',
+        'WorldMapOverlay': 'ID,UiMapArtID\n',
+        'WorldMapOverlayTile': 'WorldMapOverlayID,LayerIndex,FileDataID\n',
+        'UiTextureAtlasMember': 'ID,UiTextureAtlasID\n',
+        'UiTextureAtlas': 'ID,FileDataID\n',
+    }
+    directory = data / 'db2/active'
+    directory.mkdir(parents=True, exist_ok=True)
+    for name, content in tables.items():
+        (directory / f'{name}.csv').write_text(content)
+
 
 spec = importlib.util.spec_from_file_location('player_bundle', Path(__file__).parents[1] / 'player_bundle.py')
 bundle = importlib.util.module_from_spec(spec)
@@ -28,6 +48,7 @@ class PlayerBundleTest(unittest.TestCase):
             data = root / 'data'
             for name in bundle.DATA_DIRS:
                 (data / name).mkdir(parents=True)
+            write_empty_ui_db2(data)
             (data / 'cache/model-asset-index.json').write_text('{"version":1,"assets":[]}')
             asset = data / 'textures/12.blp'
             asset.write_bytes(b'asset')
@@ -167,10 +188,11 @@ class PlayerBundleTest(unittest.TestCase):
             data = root / 'data'
             for name in bundle.DATA_DIRS:
                 (data / name).mkdir(parents=True)
+            write_empty_ui_db2(data)
             for name in ('cache/catalog.sqlite', 'cache/casc/root.bin', 'cache/pre-retail-old/a',
                          'textures/12.blp', 'textures/13.blp.missing', 'cache/a.lock',
                          'auth_token.realm', 'auth_token.private.json', 'diagnostics/run.log', 'Map.csv', 'local-listfile-cache.sqlite',
-                         'battle-pet-model-scenes.json',
+                         'battle-pet-model-scenes.json', 'battle-pets.json',
                          'forever-1.60.1.70205/models/a.m2', 'gametables/classes.txt',
                          'products/wow/dcfc90fffd79ba00406ae46f5f657592/models/1011653.m2',
                          'products/wow/dcfc90fffd79ba00406ae46f5f657592/models/1011653.m2.receipt.json'):
@@ -179,8 +201,13 @@ class PlayerBundleTest(unittest.TestCase):
                 path.write_text(name)
             index = {'version': 1, 'assets': [{'product': 'wow', 'build_key': 'dcfc90fffd79ba00406ae46f5f657592', 'path': 'products/wow/dcfc90fffd79ba00406ae46f5f657592/models/1011653.m2'}]}
             (data / 'cache/model-asset-index.json').write_text(json.dumps(index))
-            expected = {'cache/model-asset-index.json', 'cache/catalog.sqlite', 'textures/12.blp', 'Map.csv', 'battle-pet-model-scenes.json',
-                        'local-listfile-cache.sqlite', 'forever-1.60.1.70205/models/a.m2',
+            expected = {'cache/model-asset-index.json', 'cache/catalog.sqlite', 'textures/12.blp', 'Map.csv', 'battle-pet-model-scenes.json', 'battle-pets.json',
+                        'local-listfile-cache.sqlite', *{f'db2/active/{name}.csv' for name in (
+                            'UiMap', 'UiMapXMapArt', 'UiMapArt', 'UiMapArtStyleLayer',
+                            'UiMapArtTile', 'WorldMapOverlay', 'WorldMapOverlayTile',
+                            'UiTextureAtlasMember', 'UiTextureAtlas',
+                        )},
+                        'forever-1.60.1.70205/models/a.m2',
                         'gametables/classes.txt',
                         'products/wow/dcfc90fffd79ba00406ae46f5f657592/models/1011653.m2',
                         'products/wow/dcfc90fffd79ba00406ae46f5f657592/models/1011653.m2.receipt.json'}
@@ -192,12 +219,91 @@ class PlayerBundleTest(unittest.TestCase):
             for relative in selected:
                 self.assertEqual((target / 'data' / relative).read_bytes(), (data / relative).read_bytes())
 
+    def test_staged_ui_texture_closure_uses_active_db2_and_ships_pet_json(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            root.mkdir(exist_ok=True)
+            subprocess.run(['git', 'init', '-q', str(root)], check=True)
+            (root / 'godot').mkdir()
+            (root / 'godot/project.godot').write_text('project')
+            subprocess.run(['git', '-C', str(root), 'add', 'godot'], check=True)
+            data = root / 'data'
+            for name in bundle.DATA_DIRS:
+                (data / name).mkdir(parents=True)
+            write_empty_ui_db2(data)
+            (data / 'cache/model-asset-index.json').write_text('{"version":1,"assets":[]}')
+            (data / 'battle-pets.json').write_text('[]\n')
+
+            tables = data / 'db2/active'
+            rows = {
+                'UiMap': 'ID,System\n862,0\n875,0\n1165,0\n2401,2\n',
+                'UiMapXMapArt': 'PhaseID,UiMapArtID,UiMapID\n0,887,862\n0,900,875\n0,1143,1165\n0,2056,2401\n1,999,1165\n',
+                'UiMapArt': 'ID,HighlightFileDataID,UiMapArtStyleID\n887,2168041,5\n900,2168254,5\n1143,0,5\n2056,0,106\n999,777777,7\n',
+                'UiMapArtStyleLayer': 'UiMapArtStyleID,LayerIndex\n5,0\n5,1\n7,0\n106,0\n',
+                'UiMapArtTile': 'UiMapArtID,LayerIndex,FileDataID\n887,0,1599407\n900,0,1603193\n1143,0,2133758\n2056,0,7438338\n1143,1,999999\n999,0,777778\n',
+                'WorldMapOverlay': 'ID,UiMapArtID\n80,887\n81,2056\n',
+                'WorldMapOverlayTile': 'WorldMapOverlayID,LayerIndex,FileDataID\n80,0,2034162\n81,0,0\n80,1,777779\n',
+                'UiTextureAtlasMember': 'ID,UiTextureAtlasID\n1,3215\n2,3963\n',
+                'UiTextureAtlas': 'ID,FileDataID\n3215,6875169\n3963,8040088\n9999,555000\n',
+            }
+            for name, content in rows.items():
+                (tables / f'{name}.csv').write_text(content)
+
+            expected_fdids = {
+                1599407, 1603193, 2133758, 7438338, 2034162,
+                2168041, 2168254, 6875169, 8040088,
+            }
+            self.assertEqual(bundle.ui_texture_fdids(root), expected_fdids)
+            selected = set(bundle.data_files(root))
+            for fdid in expected_fdids:
+                self.assertIn(Path(f'textures/{fdid}.blp'), selected)
+
+            extractor = root / 'casc-local-fixture'
+            extractor.write_text(
+                f'#!{sys.executable}\n'
+                'import pathlib, sys\n'
+                'arguments = sys.argv[1:]\n'
+                'split = arguments.index("-o")\n'
+                'output = pathlib.Path(arguments[split + 1])\n'
+                'for fdid in arguments[:split]:\n'
+                '    (output / f"{fdid}.blp").write_bytes(b"BLP2" + fdid.encode())\n'
+            )
+            extractor.chmod(0o755)
+            target = root / 'player'
+            artifacts = root / 'windows'
+            artifacts.mkdir()
+            for name in ('godot.exe', 'game_engine_godot.dll', 'game-engine-windows-x86_64.exe'):
+                (artifacts / name).write_text(name)
+            generated = root / 'generated'
+            old_extractor = os.environ.get('CASC_LOCAL')
+            os.environ['CASC_LOCAL'] = str(extractor)
+            try:
+                bundle.copy_data(root, target)
+                sources = bundle.source_map(root, generated, artifacts)
+            finally:
+                if old_extractor is None:
+                    os.environ.pop('CASC_LOCAL', None)
+                else:
+                    os.environ['CASC_LOCAL'] = old_extractor
+
+            for fdid in expected_fdids:
+                self.assertEqual(
+                    (target / f'data/textures/{fdid}.blp').read_bytes(),
+                    b'BLP2' + str(fdid).encode(),
+                )
+            self.assertEqual((target / 'data/battle-pets.json').read_text(), '[]\n')
+            self.assertFalse((target / 'data/textures/0.blp').exists())
+            staged_tile = generated / 'data/textures/7438338.blp'
+            self.assertEqual(sources['data/textures/7438338.blp'], staged_tile)
+            self.assertEqual(staged_tile.read_bytes(), b'BLP27438338')
+
     def test_linux_data_shares_storage_with_source_through_symlinks(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             data = root / 'data'
             for name in bundle.DATA_DIRS:
                 (data / name).mkdir(parents=True)
+            write_empty_ui_db2(data)
             (data / 'cache/model-asset-index.json').write_text('{"version":1,"assets":[]}')
             (data / 'textures/12.blp').write_text('direct')
             canonical = root / 'canonical.blp'
@@ -218,6 +324,7 @@ class PlayerBundleTest(unittest.TestCase):
             data = root / 'data'
             for name in bundle.DATA_DIRS:
                 (data / name).mkdir(parents=True)
+            write_empty_ui_db2(data)
             old = 'products/wow/' + '1' * 32 + '/textures/126862.blp'
             new = 'products/wow/' + '2' * 32 + '/textures/126862.blp'
             for name, raw in [(old, b'old'), (new, b'new')]:
@@ -236,6 +343,7 @@ class PlayerBundleTest(unittest.TestCase):
             data = root / 'data'
             for name in bundle.DATA_DIRS:
                 (data / name).mkdir(parents=True)
+            write_empty_ui_db2(data)
             texts = {
                 'cache/model-asset-index.json': '{"version":1,"assets":[]}',
                 'equipment_transforms.ron': '()',
