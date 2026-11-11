@@ -27,6 +27,7 @@ func send_key(code: Key, pressed: bool) -> void:
 	event.keycode = code
 	event.pressed = pressed
 	Input.parse_input_event(event)
+	root.push_input(event, true)
 
 func wait_for_startup_world(character: String) -> bool:
 	var deadline := Time.get_ticks_msec() + 900000
@@ -96,9 +97,11 @@ func run_test() -> void:
 		fail("World work queued before measurement: " + str(client.account_state().world_objects))
 		return
 	var focus := root.gui_get_focus_owner()
+	var spell_state: Dictionary = client.spells_state()
 	print("TALENTS_PANEL_BENCH_READY ", JSON.stringify({"character": character, "ui_skin": client.account_state().ui_skin,
-		"server": server, "world_minutes": client.world_minutes(),
-		"focus": str(focus.get_path()) if focus != null else "none"}))
+		"server": server, "world_minutes": client.world_minutes(), "focus": str(focus.get_path()) if focus != null else "none",
+		"spell_spec": spell_state.get("spec"), "spellbook_open": spell_state.get("spellbook_open"),
+		"catalog_ready": spell_state.get("catalog_ready")}))
 	await measure("talents_closed", segment_s, func(_time: float): pass, true)
 	root.gui_release_focus()
 	var keypress_usec := Time.get_ticks_usec()
@@ -117,9 +120,9 @@ func run_test() -> void:
 	send_key(KEY_N, false)
 	if panel == null or not panel.is_visible_in_tree() or node_count == 0:
 		var book := client.find_child("SpellBookRoot", true, false)
-		fail("N did not render talents: book=%s panel=%s nodes=%d focus=%s" % [book != null,
+		fail("N did not render talents: book=%s panel=%s nodes=%d focus=%s spells=%s" % [book != null,
 			panel != null and panel.is_visible_in_tree(), node_count,
-			str(root.gui_get_focus_owner())])
+			str(root.gui_get_focus_owner()), str(client.spells_state())])
 		return
 	var first_frame_ms := float(Time.get_ticks_usec() - keypress_usec) / 1000.0
 	print("TALENTS_PANEL_FIRST_FRAME ", JSON.stringify({"open_ms": first_frame_ms, "talent_nodes": node_count,
