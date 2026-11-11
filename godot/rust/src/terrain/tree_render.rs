@@ -168,6 +168,7 @@ fn copy_weighted_surface(
         .lods(&lods)
         .flags(source.surface_get_format(surface) | mesh::ArrayFormat::COLOR)
         .done();
+    crate::render_surface::store_render_surface_arrays(weighted, &arrays);
     if weighted.get_surface_count() != surface + 1 {
         return Err("Godot rejected weighted arrays".into());
     }
