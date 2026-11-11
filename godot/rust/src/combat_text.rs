@@ -16,6 +16,10 @@
 //! (`WorldText.cpp:234-253`), which is the older behaviour. The start spread is measured in
 //! world units that scale with the text, so distant numbers do not land on each other.
 
+#[cfg(test)]
+#[path = "combat_text/parity_tests.rs"]
+mod parity_tests;
+
 use godot::prelude::*;
 use shared::protocol::{CombatLogEvent, CombatLogKind, MissKind};
 
