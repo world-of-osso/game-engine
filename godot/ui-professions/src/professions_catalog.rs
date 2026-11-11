@@ -1,12 +1,31 @@
 //! Retail DB2 recipe metadata; shared recipe/quality models retain base identity.
 use game_engine_ui_model::professions::Recipe;
 use game_engine_ui_model::professions_catalog::{number, read_rows};
+use shared::{profession::ProfessionSkillLine, protocol::ProfessionSnapshot};
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
 // SkillLine.CategoryID, including secondary professions such as Cooking.
 const SECONDARY_PROFESSION: u32 = 9;
 const PRIMARY_PROFESSION: u32 = 11;
+// The Retail book has fixed Cooking, Fishing and Archaeology rows (SkillLine IDs).
+const SECONDARY_SKILL_LINES: [u32; 3] = [185, 356, 794];
+
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct ProfessionBookEntry {
+    pub name: String,
+    pub rank_name: String,
+    pub rank: u16,
+    pub max_rank: u16,
+    pub icon_fdid: u32,
+    pub opener_spell: Option<u32>,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct ProfessionBookSummary {
+    pub primary: Vec<ProfessionBookEntry>,
+    pub secondary: [Option<ProfessionBookEntry>; 3],
+}
 
 #[derive(Debug, Default)]
 pub struct RecipeCatalog {
@@ -15,7 +34,10 @@ pub struct RecipeCatalog {
     pub child_skills: BTreeSet<u32>,
     pub openers: BTreeMap<u32, u32>,
     pub primary_skills: BTreeSet<u32>,
+    pub secondary_skills: BTreeSet<u32>,
     pub profession_skills: BTreeSet<u32>,
+    pub profession_line_hierarchy: BTreeMap<u32, (u32, i32)>,
+    pub skill_icons: BTreeMap<u32, u32>,
     pub crafting_quality: BTreeMap<u32, game_engine_ui_model::professions_quality::CraftingQuality>,
     pub reagent_slots: BTreeMap<u32, Vec<shared::crafting_reagents::ReagentSlot>>,
     /// SkillLine ID -> (ParentSkillLineID, ParentTierIndex), for nonzero trait-tree variants.
@@ -35,6 +57,75 @@ impl RecipeCatalog {
         self.profession_skills
             .contains(&recipe.profession)
             .then_some(recipe)
+    }
+
+    pub fn book_summary(&self, snapshot: &ProfessionSnapshot) -> ProfessionBookSummary {
+        let mut active_lines = BTreeMap::<u32, (i32, &ProfessionSkillLine)>::new();
+        let mut primary_order = Vec::new();
+        for line in snapshot.lines.iter().filter(|line| line.rank > 0) {
+            if !self.profession_skills.contains(&line.skill_line) {
+                continue;
+            }
+            let Some(root) = self.root_skill_line(line.skill_line) else {
+                continue;
+            };
+            if self.primary_skills.contains(&root) && !primary_order.contains(&root) {
+                primary_order.push(root);
+            }
+            let tier = self
+                .profession_line_hierarchy
+                .get(&line.skill_line)
+                .map_or(0, |(_, tier)| *tier);
+            if active_lines
+                .get(&root)
+                .is_none_or(|(known_tier, _)| tier > *known_tier)
+            {
+                active_lines.insert(root, (tier, line));
+            }
+        }
+        let primary = primary_order
+            .into_iter()
+            .take(2)
+            .filter_map(|root| self.book_entry(root, &active_lines, snapshot))
+            .collect();
+        let secondary = std::array::from_fn(|index| {
+            let root = SECONDARY_SKILL_LINES[index];
+            self.secondary_skills
+                .contains(&root)
+                .then(|| self.book_entry(root, &active_lines, snapshot))
+                .flatten()
+        });
+        ProfessionBookSummary { primary, secondary }
+    }
+
+    fn root_skill_line(&self, skill: u32) -> Option<u32> {
+        let mut root = skill;
+        loop {
+            let &(parent, _) = self.profession_line_hierarchy.get(&root)?;
+            if parent == 0 {
+                return Some(root);
+            }
+            root = parent;
+        }
+    }
+
+    fn book_entry(
+        &self,
+        root: u32,
+        active_lines: &BTreeMap<u32, (i32, &ProfessionSkillLine)>,
+        snapshot: &ProfessionSnapshot,
+    ) -> Option<ProfessionBookEntry> {
+        let (_, line) = active_lines.get(&root)?;
+        Some(ProfessionBookEntry {
+            name: self.skill_names.get(&root)?.clone(),
+            rank_name: self.skill_names.get(&line.skill_line)?.clone(),
+            rank: line.rank,
+            max_rank: line.max_rank,
+            icon_fdid: *self.skill_icons.get(&root)?,
+            opener_spell: self.openers.iter().find_map(|(spell, skill)| {
+                (*skill == root && snapshot.spells.contains(spell)).then_some(*spell)
+            }),
+        })
     }
 
     pub fn specialization_skill_line(
@@ -66,6 +157,7 @@ impl RecipeCatalog {
             &[
                 "ID",
                 "DisplayName_lang",
+                "SpellIconFileID",
                 "SpellBookSpellID",
                 "CategoryID",
                 "ParentSkillLineID",
@@ -74,22 +166,28 @@ impl RecipeCatalog {
             |row| {
                 let skill = number(row[0])?;
                 catalog.skill_names.insert(skill, row[1].into());
-                let category = number(row[3])?;
-                let parent = number(row[4])?;
-                let tier = row[5]
+                let icon = number(row[2])?;
+                let category = number(row[4])?;
+                let parent = number(row[5])?;
+                let tier = row[6]
                     .parse::<i32>()
                     .map_err(|error| format!("SkillLine tier index: {error}"))?;
                 skill_tiers.insert(skill, (parent, tier));
-                if category == PRIMARY_PROFESSION && parent == 0 {
-                    catalog.primary_skills.insert(skill);
-                }
                 if matches!(category, SECONDARY_PROFESSION | PRIMARY_PROFESSION) {
                     catalog.profession_skills.insert(skill);
-                    if parent != 0 {
+                    catalog
+                        .profession_line_hierarchy
+                        .insert(skill, (parent, tier));
+                    catalog.skill_icons.insert(skill, icon);
+                    if parent == 0 && category == PRIMARY_PROFESSION {
+                        catalog.primary_skills.insert(skill);
+                    } else if parent == 0 {
+                        catalog.secondary_skills.insert(skill);
+                    } else {
                         catalog.child_skills.insert(skill);
                     }
                 }
-                let opener = number(row[2])?;
+                let opener = number(row[3])?;
                 if opener != 0 {
                     catalog.openers.insert(opener, skill);
                 }
