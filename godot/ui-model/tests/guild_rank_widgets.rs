@@ -58,6 +58,7 @@ fn mounted(session: &GuildRanksSession) -> FrameRegistry {
     game_engine_ui_model::guild_rank_frame::apply_guild_postsetup(session, &mut registry);
     registry
 }
+
 #[test]
 fn ui_template_behavior_services_guild_news_subject_keeps_live_entry_owner() {
     use ui_toolkit::tooltip::{TooltipAnchor, tooltip_owner};
