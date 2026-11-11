@@ -18,6 +18,10 @@ def client_read_files(repo):
         r'(?:self\.)?data_root\s*\.\s*join\(\s*"([^"]+)"'
         r'|resolve_data_path\(\s*"([^"]+)"'
     )
+    file_suffixes = {
+        '.adt', '.blp', '.blob', '.csv', '.db2', '.json', '.m2', '.mp3',
+        '.ogg', '.ron', '.skin', '.skel', '.sqlite', '.txt', '.wav', '.wdt', '.wmo',
+    }
     files = set()
     unsupported = set()
     for source in (repo / 'godot').rglob('*.rs'):
@@ -31,7 +35,7 @@ def client_read_files(repo):
             if relative.parts[0] in bundle.DATA_DIRS:
                 if relative.parts[0] == 'products':
                     continue
-                if relative.suffix:
+                if relative.suffix.lower() in file_suffixes:
                     files.add(relative)
             elif len(relative.parts) == 1 and any(
                 relative.match(pattern) for pattern in bundle.DATA_FILE_GLOBS
@@ -320,7 +324,7 @@ class PlayerBundleTest(unittest.TestCase):
 
             expected_fdids = {
                 1599407, 1603193, 2133758, 7438338, 2034162,
-                2168041, 2168254, 6875169, 8040088, 6855432,
+                2168041, 2168254, 6875169, 8040088, 6855432, 999998,
             }
             self.assertEqual(bundle.ui_texture_fdids(root), expected_fdids)
             selected = set(bundle.data_files(root))
