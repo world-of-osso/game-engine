@@ -61,7 +61,7 @@ pub fn persist_token_account(
 }
 
 /// Find the username already authenticated for this token, without guessing an identity.
-pub fn lookup_token_account(
+pub fn read_token_account_if_present(
     path: &Path,
     realm: &str,
     token: &str,
@@ -76,7 +76,7 @@ pub fn lookup_token_account(
 
 /// An unknown saved token must be identified by a credential login, never guessed.
 pub fn read_token_account(path: &Path, realm: &str, token: &str) -> Result<String, String> {
-    lookup_token_account(path, realm, token)?.ok_or_else(|| {
+    read_token_account_if_present(path, realm, token)?.ok_or_else(|| {
         "Saved session has no HUD layout account; log in with username and password".into()
     })
 }
@@ -181,10 +181,13 @@ mod tests {
             std::env::temp_dir().join(format!("hudmanager-token-lookup-{}", std::process::id()));
         let path = directory.join("layout_accounts.ron");
         let realm = "game.worldofosso.com:5000";
-        assert_eq!(lookup_token_account(&path, realm, "unknown"), Ok(None));
+        assert_eq!(
+            read_token_account_if_present(&path, realm, "unknown"),
+            Ok(None)
+        );
         fs::create_dir_all(&directory).unwrap();
         fs::write(&path, "invalid RON").unwrap();
-        assert!(lookup_token_account(&path, realm, "unknown").is_err());
+        assert!(read_token_account_if_present(&path, realm, "unknown").is_err());
         fs::remove_dir_all(directory).unwrap();
     }
 

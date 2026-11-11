@@ -472,7 +472,7 @@ impl Account {
         };
         let username = match account_name.map(str::trim).filter(|name| !name.is_empty()) {
             Some(username) => Some(username.to_owned()),
-            None => game_engine_core::ui_layout_account::lookup_token_account(
+            None => game_engine_core::ui_layout_account::read_token_account_if_present(
                 &layout_accounts_path(),
                 hostname,
                 token,
