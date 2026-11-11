@@ -267,7 +267,7 @@
 - [Expert housing sound events](systems/housing.md#expert-submode-sound-scheduling--implementation2026-10-15) — distinct source pointer/key kits, native nominal stream/mute properties and both-skin held-drag conservation; dummy driver excludes audible/full-audio parity.
 - [Trading Post menu sounds](systems/trading-post.md#menu-lifecycle-sounds--bounded-proof-october15) — source show/hide kits,15 exact70391 variants/gains; both-skin eight decoded native playback/lifecycle observations and inspected PNGs; canonical15-file closure verified; close pitch remains a named gap.
 
-- [Shared WowStyle1 caption centering](systems/menu-primitives.md#wowstyle1-caption-centering-2026-10-15) — native font-minimum adaptation, paired core attribute wiring and explicit one-line policy; both-skin AH/shared caption deltas0 and unchanged Filter/Style2 control pixels.
+- [Shared WowStyle1 caption source-region alignment](systems/menu-primitives.md#wowstyle1-caption-source-region-alignment-2026-11-11) — VERIFIED: Retail Text-region center and full-height Label positioning; rendered proof pending.
 
 - [IoC NPC attachment](systems/battlegrounds.md#ioc-npc-attachment--implementation2026-10-15) — native synthetic scene RED→GREEN plus real-UDP NPC identity/release; merged consumer gates pass; actual models/both-skin driving/fire remain open.
 
