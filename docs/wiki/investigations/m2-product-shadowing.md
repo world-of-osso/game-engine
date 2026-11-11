@@ -93,8 +93,26 @@ Evidence under the certification's private diagnostic root: `skyborne-small-mode
 
 `75208c162` adds the ignored real-map worker regression and reproduces `Vertex101` (exit101). `7ded89db4` retains selected MapCatalog CSV provenance in WDT; terrain M2 worker/parsed keys include product+FDID, companion acquisition uses `authored_model_resolver`, decoded/material/particle textures keep the model's root, and particle pools key by texture namespace too. WMO geometry/material IO remains separate. Compile-only/native extension builds and guarded extracted-only GREEN1 pass. Lead published2,248 terrain mappings and campsite descendants. Four r3 cases reach world with requested Modern/Forever skin, positive player/NPC geometry, expected-product terrain paths and tripwire0; Vertex101 is absent. Mulgore has zero object failures and only the separate attachment34 gap. Skyborne still lacks two authenticated same-product texture aliases beside current-build models:unique owners retain historical70338 identity while parents use70450. Producer `6ae2b9313` preserves those requested namespaces as aliases without changing owner receipts or adding runtime fallback (RED3→GREEN9). Lead published both aliases; canonical hashes match. Fresh Modern r4/Forever r5 Skyborne runs each show17 player meshes/51 NPC models/HP292,1,321 placements/226 Forever sources,zero wrong sources/object failures/pending/errors and tripwire0, with inspected captures. Mulgore r3 remains valid for both skins with only its named attachment34 errors. Bounded terrain-chain recheck is complete; all-doodad-set root603672/full-catalog/pristine-bundle and independent lead gates remain open. [Current proof and harness incident](../../handoffs/noinstall-cert-2026-10-21.md#terrain-source-qualification-implementation-acceptance-pending) owns exact bounds; do not infer P4 from implementation.
 
+## GameObjectDisplayInfo root receipts (2026-11-11)
+
+VERIFIED: `game_objects.rs::load_visual_files` used `local_resolver(data_root)`, so extracted-only root M2 requests missed the published product path; it now selects `authored_model_resolver(data_root, AssetProduct::Retail, fdid)`. The parsed model and texture loads use that same resolver.
+
+VERIFIED: The resolver test uses real FDID1686555 with a synthetic receipt and payload. It returns `products/wow/bc493ecb2898766c0f8947a99b4b3d65/models/1686555.m2` while `data/models/1686555.m2` stays absent; this proves path selection, not M2 parsing.
+
+VERIFIED (before third-fragment publication on 2026-11-11): An extracted-only race-30 Paladin reached map 1860 at its expected position with two parsed terrain tiles, zero CASC diagnostics and no missing-receipt errors for target M2s 1686555, 1697837 and 1706172. That run still reported two other map-object M2s, 166432 and 1697838, with no rows in the 152 canonical `model-asset-index*.json` files then present. The full gate was incomplete at that checkpoint; see the final acceptance below. The run used published receipt indexes and product paths through the isolated slot, with no flat aliases or fallback.
+
+## Final map-1860 gate after third fragment (2026-11-11)
+
+VERIFIED: The lead-published third fragment `model-asset-index-charcreate-gameobject-receipts-20261111.json` adds 11 asset rows and 2 companion aliases, including root M2 receipts 166432 and 1697838. Its SHA-256 is `6749eaab4acce96d81037970848615c77ac8055fcfb071f766e1dad5a582a62c`; all 13 referenced payloads match their recorded byte lengths, SHA-256 values and MD5 content keys. The publication dry run verified 13 of 13 files without writes.
+
+VERIFIED: Commit `d4bb12bf0f204a5ad4391c3369a6173d1645e8ec` passed the extracted-only race-30 Paladin gate. Existing character `LfdZone` reached map 1860 at the expected position, with start distance 0.00 and two parsed terrain tiles; the run recorded zero receipt errors and zero CASC diagnostics. It used the isolated slot's published receipt indexes, with no flat aliases or fallback.
+
+VERIFIED: After the run, the private server stopped, all 23 temporary index links were removed, the slot cache and product link were restored, and no private UDP listener remained. The canonical base index hash and all third-fragment payloads were unchanged by this lane; this lane did not write canonical data. Full evidence: `/home/osso/.worktrees/charcreate-receipts/agent-assets/live/gameobject-final-live-proof.json`.
+
 ## Sources
 
+- [GameObject loader and resolver test](../../../godot/rust/src/game_objects.rs), [receipt-aware resolver](../../../godot/rust/src/assets/creature.rs), and [receipt index](../../../godot/core/src/model_asset_index.rs)
+- [Product-isolated model asset contract](../../specs/product-isolated-model-assets.md)
 - [Native Skyborne checkpoint](../systems/forever-data.md#native-skyborne-rosterworld-recheck-2026-10-09)
 - [Loader](../../../godot/rust/src/assets/creature.rs), [worker](../../../godot/rust/src/world_models.rs), [display row](../../../godot/core/src/game/creatures/creature_display_data.rs)
 - Sibling `asset-resolver/src/casc_resolver.rs` lines303–324 and473–516; `src/paths.rs::casc_cache_path`; `src/lib.rs::CascListfileResolver`.
@@ -103,5 +121,6 @@ Evidence under the certification's private diagnostic root: `skyborne-small-mode
 
 ## See Also
 
+- [Asset pipeline](../systems/asset-pipeline.md) — published asset identities and runtime paths
 - [Authored NPC rendering](../../specs/npc-appearance.md)
 - [Forever data](../systems/forever-data.md)

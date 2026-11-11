@@ -6,8 +6,8 @@ use crate::{
     assets::{
         M2_BOUNDS_META, build_model,
         creature::{
-            CachedModel, DecodedTextures, cache_model_textures, decode_new_textures,
-            load_model_files, local_resolver, model_asset_root, model_texture_dir,
+            CachedModel, DecodedTextures, authored_model_resolver, cache_model_textures,
+            decode_new_textures, load_model_files, model_asset_root, model_texture_dir,
             publish_decoded_texture,
         },
     },
@@ -17,6 +17,7 @@ use crate::{
 };
 use game_engine_core::{
     asset_loader::{AssetLoader, Priority},
+    asset_product::AssetProduct,
     csv_util::parse_csv_line,
 };
 use game_engine_network::replica::Unit;
@@ -28,6 +29,7 @@ use godot::{
     },
     prelude::*,
 };
+use osso_asset_resolver::CascListfileResolver;
 use shared::components::{Position, Rotation};
 use shared::protocol::{
     GAMEOBJECT_TYPE_BATTLEGROUND_FLAG, GAMEOBJECT_TYPE_BUTTON, GAMEOBJECT_TYPE_CHAIR,
@@ -140,11 +142,19 @@ pub(crate) struct GameObjects {
 
 /// Worker: extract and parse model `fdid` and decode the textures it draws with.
 fn load_visual_files(data_root: &Path, fdid: u32) -> Result<LoadedVisual, String> {
-    let resolver = local_resolver(data_root);
+    let resolver = load_game_object_model_resolver(data_root, fdid)?;
     let cached = load_model_files(&resolver, data_root, fdid)?;
     let fdids = cache_model_textures(&resolver, data_root, &[0; 3], &cached.model)?;
     let textures = decode_new_textures(model_asset_root(&cached)?, &fdids)?;
     Ok((cached, textures))
+}
+
+fn load_game_object_model_resolver(
+    data_root: &Path,
+    fdid: u32,
+) -> Result<Arc<CascListfileResolver>, String> {
+    // GameObjectDisplayInfo comes from the active Retail catalog.
+    authored_model_resolver(data_root, AssetProduct::Retail, fdid)
 }
 
 fn parse_displays(text: &str) -> Result<HashMap<u32, u32>, String> {
@@ -1063,6 +1073,7 @@ fn apply_object_animation(
 mod tests {
     use super::*;
     use godot::builtin::EulerOrder;
+    use sha2::Digest;
 
     /// The model node's global transform as `upsert` places it: the object node at the
     /// replicated position, yaw (orientation + pi/2, game-server `game_object_bundle`) and
@@ -1090,6 +1101,50 @@ mod tests {
     /// WoW `(x, y, z)` in engine coordinates (game-server `wow_to_bevy`).
     fn engine(x: f32, y: f32, z: f32) -> Vector3 {
         Vector3::new(x, z, -y)
+    }
+
+    /// FDID 1686555 has a product receipt but no flat model file, matching the world-object boundary.
+    #[test]
+    fn game_object_model_resolver_uses_published_receipt_for_fdid_1686555() {
+        const FDID: u32 = 1_686_555;
+        const BUILD_KEY: &str = "bc493ecb2898766c0f8947a99b4b3d65";
+        let data_root = std::env::temp_dir().join(format!(
+            "game-object-model-receipt-{}-{FDID}",
+            std::process::id()
+        ));
+        std::fs::create_dir(&data_root).unwrap();
+        let payload = b"MD20 receipt-boundary fixture";
+        let product_path = format!("products/wow/{BUILD_KEY}/models/{FDID}.m2");
+        let product_file = data_root.join(&product_path);
+        std::fs::create_dir_all(data_root.join("cache")).unwrap();
+        std::fs::create_dir_all(product_file.parent().unwrap()).unwrap();
+        std::fs::write(&product_file, payload).unwrap();
+        let receipt = serde_json::json!({
+            "product": "wow",
+            "build_key": BUILD_KEY,
+            "build": "12.1.5.70783",
+            "fdid": FDID,
+            "kind": "m2",
+            "path": product_path,
+            "bytes": payload.len(),
+            "sha256": format!("{:x}", sha2::Sha256::digest(payload)),
+            "content_key": format!("{:x}", md5::Md5::digest(payload)),
+        });
+        std::fs::write(
+            data_root.join("cache/model-asset-index.json"),
+            serde_json::json!({"version": 1, "assets": [receipt]}).to_string(),
+        )
+        .unwrap();
+
+        let flat_path = data_root.join(format!("models/{FDID}.m2"));
+        assert!(!flat_path.exists());
+        let resolver = load_game_object_model_resolver(&data_root, FDID).unwrap();
+        let resolved = resolver.ensure_cached_checked(FDID, &flat_path).unwrap();
+
+        assert_eq!(resolved, product_file);
+        assert_eq!(std::fs::read(&resolved).unwrap(), payload);
+        assert!(!flat_path.exists());
+        std::fs::remove_dir_all(data_root).unwrap();
     }
 
     #[test]
