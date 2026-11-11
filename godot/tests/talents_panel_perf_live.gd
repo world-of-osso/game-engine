@@ -35,6 +35,18 @@ func send_key(code: Key, pressed: bool) -> void:
 	event.pressed = pressed
 	root.push_input(event, true)
 
+func find_talents_panel() -> Dictionary:
+	var book_ui := client.get_node_or_null("SpellBookUI")
+	if book_ui == null:
+		return {}
+	var panel := book_ui.find_child("ClassTalentsFrame", true, false) as Control
+	if panel == null or not panel.is_visible_in_tree():
+		return {}
+	var node_count := book_ui.find_children("TalentNode*", "Control", true, false).size()
+	if node_count == 0:
+		return {}
+	return {"panel": panel, "node_count": node_count}
+
 func wait_for_startup_world(character: String) -> bool:
 	var deadline := Time.get_ticks_msec() + 900000
 	while Time.get_ticks_msec() < deadline:
@@ -120,21 +132,17 @@ func run_test() -> void:
 		"probe_presses": input_probe.n_pressed_events, "book_open": client.spells_state().spellbook_open}))
 	var panel: Control
 	var node_count := 0
+	var panel_state: Dictionary = {}
 	var deadline := Time.get_ticks_msec() + OPEN_TIMEOUT_MS
-	var input_frames := 0
 	while Time.get_ticks_msec() < deadline:
 		await process_frame
-		input_frames += 1
-		if input_frames <= 3:
-			print("TALENTS_PANEL_AFTER_INPUT ", JSON.stringify({"screen": client.account_state().screen,
-				"book_open": client.spells_state().spellbook_open}))
-		panel = client.find_child("ClassTalentsFrame", true, false) as Control
-		if panel != null and panel.is_visible_in_tree():
-			node_count = client.find_children("TalentNode*", "Control", true, false).size()
-			if node_count > 0:
-				await RenderingServer.frame_post_draw
-				break
-	send_key(KEY_N, false)
+		panel_state = find_talents_panel()
+		if not panel_state.is_empty():
+			panel = panel_state.panel
+			node_count = panel_state.node_count
+			await RenderingServer.frame_post_draw
+			break
+send_key(KEY_N, false)
 	input_probe.queue_free()
 	if panel == null or not panel.is_visible_in_tree() or node_count == 0:
 		var book := client.find_child("SpellBookRoot", true, false)
@@ -156,6 +164,16 @@ func run_test() -> void:
 		fail("Could not save settled talents frame")
 		return
 	await measure("talents_open", segment_s, func(_time: float): pass, true)
+	send_key(KEY_N, true)
+	await process_frame
+	send_key(KEY_N, false)
+	var close_deadline := Time.get_ticks_msec() + OPEN_TIMEOUT_MS
+	while Time.get_ticks_msec() < close_deadline and client.spells_state().spellbook_open:
+		await process_frame
+	if client.spells_state().spellbook_open:
+		fail("N did not close the talents panel after measurement")
+		return
+	await measure("talents_closed_warm", segment_s, func(_time: float): pass, true)
 	print("TALENTS_PANEL_PERF_PASS")
 	client.free()
 	quit(0)
