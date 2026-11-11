@@ -167,7 +167,7 @@ pub const MICRO_BUTTONS: [MicroButton; 12] = [
     MicroButton {
         name: "LFDMicroButton",
         title: "Group Finder",
-        binding: None,
+        binding: Some(InputAction::ToggleGroupFinder),
         art: Some("Groupfinder"),
         unavailable: None,
     },

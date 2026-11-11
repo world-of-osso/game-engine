@@ -403,10 +403,22 @@ fn an_open_game_menu_pushes_its_button_and_disables_the_rest_without_tooltips() 
 
 #[test]
 fn follower_group_finder_micro_button_is_enabled_with_native_action() {
+    use game_engine_core::input_bindings_data::InputBindingsData;
     data_root();
     let registry = build(MicroMenuView::default());
     let (state, _, action) = button_state(&registry, "LFDMicroButton");
+    let binding_action = MICRO_BUTTONS[index("LFDMicroButton")]
+        .binding
+        .expect("Group Finder binding");
+    let binding = InputBindingsData::default()
+        .binding(binding_action)
+        .expect("Group Finder default key")
+        .display();
     assert_ne!(state, ButtonState::Disabled);
     assert_eq!(action.as_deref(), Some("micro:LFDMicroButton"));
+    assert_eq!(
+        tooltip_rows(&MicroMenuView::default(), "LFDMicroButton", Some(&binding)).unwrap(),
+        ["Group Finder (I)"]
+    );
     assert_eq!(unavailable_message("micro:LFDMicroButton"), None);
 }

@@ -1,5 +1,6 @@
 //! Native Group Finder follower-dungeon catalog, selection and solo queue.
 use crate::{GameClient, frame_error::FrameError, ui::RegistryUi};
+use game_engine_core::input_bindings_data::InputAction;
 use game_engine_session::SessionScreen;
 use game_engine_ui_model::follower_dungeons::{Action, View, follower_screen};
 use godot::prelude::*;
@@ -59,6 +60,16 @@ impl GameClient {
             return Ok(());
         }
         self.dispatch_follower_actions()?;
+        if self.account.session.gameplay_input_allowed() && self.keyboard_free() {
+            let input = self.physical_input.gameplay_state(true);
+            if self
+                .client_options
+                .bindings
+                .is_just_pressed(InputAction::ToggleGroupFinder, &input)
+            {
+                self.toggle_follower_group_finder()?;
+            }
+        }
         if !self.follower_dungeons.view.visible {
             if let Some(ui) = self.follower_dungeons.ui.take() {
                 ui.free();

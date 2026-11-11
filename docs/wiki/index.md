@@ -654,7 +654,7 @@ External resources and asset lists.
 
 - [open-source-wow-clients](reference/open-source-wow-clients.md) — Clients, renderers, viewers, editors, format libraries
 - [test-assets](reference/test-assets.md) — Available local test files; [Zaralda fixture](reference/test-assets.md#zaralda-native-merchant-fixture-2026-10-01) historical 0/3; matched-protocol InWorld then binding fix/real torso pick; faction-0 AutoAttack observed, faction-35 native success observed; artifact gate116 scoped PASS, server SSOT for content/CLI proof
-- [keybindings](reference/keybindings.md) — Bindable actions vs fixed inputs, scope boundaries
+- [keybindings](reference/keybindings.md) — Bindable actions vs fixed inputs, scope boundaries; Group Finder I is visible in Interface and opens/closes the native panel
 - [audio-libraries](reference/audio-libraries.md) — Audio engines and spatial audio tools (AudioNimbus, etc.)
 
 - [TargetSelf Options rebind evidence](systems/godot-conversion.md#native-main-menu-boundary) — Test-only `685cbe83`, `target-binding-options/run1.log` exit 0; real Targeting capture F1 → T → F1, labels/canonical ownership, inactive old keys, same-player ring/TargetFrame and cleanup. Prior helpers/full Menu UDP/Exit pass; unchanged compiled `mb61bqgcj2`, no new Depot/production change. Independent gate accepted bounded saved-runtime/source PASS (eight PASS messages, not eight framework cases); no all-bindings/conflict/server-ack/movement-rebind/fresh-process acceptance.

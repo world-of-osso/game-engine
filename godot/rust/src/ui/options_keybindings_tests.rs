@@ -97,6 +97,22 @@ fn left_click_then_a_key_binds_it_and_the_button_shows_it() {
 }
 
 #[test]
+fn interface_lists_group_finder_with_retail_name_and_default_key() {
+    let (model, menu) = keybindings(BindingSection::Interface);
+    let action = InputAction::ToggleGroupFinder;
+    assert_eq!(action.label(), "Toggle Group Finder");
+    assert_eq!(
+        text(&menu, &format!("KeybindingLabel{}", action.key())),
+        action.label()
+    );
+    assert_eq!(button_text(&menu, action), "I");
+    assert_eq!(
+        model.draft_bindings.binding(action),
+        Some(InputBinding::Keyboard(BindingKey::KeyI))
+    );
+}
+
+#[test]
 fn right_click_on_a_button_unbinds_its_action() {
     let (mut model, mut menu) = keybindings(BindingSection::Movement);
     assert_eq!(button_text(&menu, InputAction::MoveForward), "W");

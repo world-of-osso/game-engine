@@ -1,8 +1,8 @@
 extends "res://tests/world_ui_ownership_flow.gd"
 
 # native_input_fixture keybinds: physical key presses of the Retail default bag,
-# targeting and minimap zoom bindings, the world map tiled at three zones, and QuestFrame /
-# WorldMapBorderFrame raise-on-click over the MerchantFrame. Every check fails the run.
+# targeting, minimap zoom and Group Finder bindings, the world map tiled at three zones, and
+# QuestFrame / WorldMapBorderFrame raise-on-click over the MerchantFrame. Every check fails the run.
 # KEYBINDS_SHOTS=<dir> saves screenshots (needs GODOT_TEST_VISUAL=1).
 const KB_BAGS := [0, 1, 2, 4]
 const KB_MAP := "WorldMapUI"
@@ -35,6 +35,10 @@ func run_test() -> void:
 	if not await kb_minimap_zoom_cases():
 		return
 	if not await kb_world_map_cases():
+		return
+	if not await kb_follower_group_finder_cases():
+		return
+	if not await kb_interface_binding_capture():
 		return
 	if not await kb_quest_raise_cases():
 		return
@@ -291,6 +295,54 @@ func kb_world_map_cases() -> bool:
 	await kb_capture("worldmap-westfall.png")
 	await kb_tap(KEY_M)
 	return await uo_wait(func(): return kb_client.get_node_or_null(KB_MAP) == null, 5000) or fail_false("M did not close the world map")
+
+# ---------- Group Finder: TOGGLEGROUPFINDER I ----------
+
+func kb_group_finder_visible() -> bool:
+	var finder := kb_client.get_node_or_null("FollowerDungeonUI")
+	if finder == null:
+		return false
+	var frame := finder.find_child("PVEFrame", true, false) as Control
+	return frame != null and frame.is_visible_in_tree()
+
+func kb_follower_group_finder_cases() -> bool:
+	if kb_group_finder_visible():
+		return fail_false("Group Finder unexpectedly open before I")
+	await kb_tap(KEY_I)
+	if not await uo_wait(func(): return kb_group_finder_visible(), 5000):
+		return fail_false("I did not open the native Group Finder")
+	print("KEYBINDS GROUP_FINDER I opened PVEFrame")
+	await uo_settle(500)
+	await kb_capture("group-finder-opened-with-I.png")
+	await kb_tap(KEY_I)
+	if not await uo_wait(func(): return not kb_group_finder_visible(), 5000):
+		return fail_false("I did not close the native Group Finder")
+	print("KEYBINDS GROUP_FINDER I closed PVEFrame")
+	return true
+
+func kb_interface_binding_capture() -> bool:
+	await kb_tap(KEY_ESCAPE)
+	if not await uo_wait(func(): return uo_visible(uo_ctl(kb_client, "GameMenuUI", "MenuBtnOptions")), 6000):
+		return fail_false("Escape did not open the Game Menu")
+	await uo_click(uo_center(kb_client, "GameMenuUI", "MenuBtnOptions"))
+	if not await uo_wait(func(): return uo_visible(uo_ctl(kb_client, "GameMenuUI", "OptionsTabkeybindings")), 6000):
+		return fail_false("Options did not open from the Game Menu")
+	await uo_click(uo_center(kb_client, "GameMenuUI", "OptionsTabkeybindings"))
+	if not await uo_wait(func(): return uo_visible(uo_ctl(kb_client, "GameMenuUI", "KeybindingSectioninterfaceButton")), 6000):
+		return fail_false("Interface binding section is absent")
+	await uo_click(uo_center(kb_client, "GameMenuUI", "KeybindingSectioninterfaceButton"))
+	var label := uo_ctl(kb_client, "GameMenuUI", "KeybindingLabeltoggle_group_finder") as Label
+	var binding := uo_ctl(kb_client, "GameMenuUI", "KeybindingButtonTexttoggle_group_finder") as Label
+	if label == null or binding == null or label.text != "Toggle Group Finder" or binding.text != "I":
+		return fail_false("Interface section expected Toggle Group Finder (I), got %s (%s)" % [label.text if label != null else "<missing>", binding.text if binding != null else "<missing>"])
+	await kb_capture("keybindings-interface-group-finder.png")
+	await kb_tap(KEY_ESCAPE)
+	if not await uo_wait(func(): return uo_visible(uo_ctl(kb_client, "GameMenuUI", "MenuBtnResume")), 5000):
+		return fail_false("Escape did not return from Options to the Game Menu")
+	await kb_tap(KEY_ESCAPE)
+	if not await uo_wait(func(): return kb_client.get_node_or_null("GameMenuUI") == null, 5000):
+		return fail_false("Escape did not close the Game Menu")
+	return true
 
 # ---------- QuestFrame / WorldMapBorderFrame raise-on-click (toplevel) ----------
 
