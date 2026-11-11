@@ -405,6 +405,38 @@ fn pet_journal_skins_share_retail_layout_and_real_instance_text() {
 }
 
 #[test]
+fn pet_data_error_keeps_journal_visible_and_zero_icons_request_no_texture() {
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut state = view();
+        state.error = "data/battle-pets.json could not be read".into();
+        state.icons.insert(39, 0);
+        let mut context = SharedContext::new();
+        context.insert(skin);
+        context.insert(state);
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        Screen::new(pet_journal_screen).sync(&context, &mut registry);
+
+        assert!(registry.get_by_name("CollectionsJournal").is_some());
+        assert!(registry.get_by_name("pet_select_owned_1Icon").is_none());
+        assert!(registry.get_by_name("PetJournalPetCardIcon").is_none());
+        let status_id = registry.get_by_name("PetJournalStatus").unwrap();
+        let status = registry.get(status_id).unwrap();
+        match status.widget_data.as_ref().unwrap() {
+            WidgetData::FontString(font) => {
+                assert_eq!(font.text, "data/battle-pets.json could not be read")
+            }
+            other => panic!("pet journal error is not text: {other:?}"),
+        }
+    }
+    set_thread_skin(ActiveSkin::Modern);
+}
+
+#[test]
 fn companion_loadout_and_card_follow_retail_xml_in_both_skins() {
     use ui_toolkit::{frame::Dimension, layout_values::Val};
     game_engine_ui_model::paths::set_data_root(
