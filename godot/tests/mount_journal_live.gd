@@ -35,9 +35,7 @@ func run_fixture() -> void:
 	ready.close()
 	if not await wait_until(func(): return FileAccess.file_exists(OS.get_environment("MOUNT_GO_FILE")), "online riding setup", 120000): return
 	if client.account_state().ui_skin != "Forever": fail("Wrong active skin for proof"); return
-	if OS.get_environment("MOUNT_ACTION_BAR_RELOG") == "1":
-		if not relog: fail("Action-bar relog proof requires MOUNT_RELOG=1"); return
-		if not await wait_until(func(): return client.spells_state().bar.size() > 11 and int(client.spells_state().bar[11]) == RANDOM_FAVORITE_SPELL_ID, "persisted random favorite action-bar slot"): return
+	var selected_character_name := str(client.account_state().selected_character_name)
 	client.set_world_minutes(720.0)
 	client.set_camera_orbit(PI, -0.3, 12.0)
 	await wait_frames(90)
@@ -117,9 +115,10 @@ func run_fixture() -> void:
 	await click("MountJournalMountButton")
 	if not await wait_until(func(): return dismounted(), "dismount before action-bar proof"): return
 	await drag_to("MountJournalSummonRandomFavorite", "ActionButton12")
-	if not await wait_until(func(): return int(client.spells_state().bar[11]) == RANDOM_FAVORITE_SPELL_ID, "random favorite action-bar assignment"): return
+	if not await wait_until(func(): return has_random_favorite_action_slot(), "random favorite action-bar assignment"): return
 	await tap(KEY_ESCAPE)
 	if not await wait_until(func(): return control("MountJournalSearchBox") == null, "close journal before action-bar activation"): return
+	if not await reconnect_same_character(selected_character_name): return
 	await capture("random-favorite-bar-slot")
 	await click("ActionButton12")
 	if not await wait_until(func(): return mounted(), "action-bar random favorite summon", 60000): return
@@ -129,6 +128,30 @@ func run_fixture() -> void:
 	print("MOUNT_JOURNAL_LIVE PASS skin=", skin, " relog=", relog, " state=", client.mount_journal_state())
 	client.free()
 	quit(0)
+
+func reconnect_same_character(character_name: String) -> bool:
+	await wait_frames(30)
+	client.free()
+	client = null
+	await process_frame
+	client = load("res://scenes/client.tscn").instantiate()
+	root.add_child(client)
+	if not await wait_until(func(): return not client.account_state().assets_starting, "reconnect asset startup", 180000): return false
+	var error: String = client.connect_account("127.0.0.1:5901", OS.get_environment("MOUNT_ACCOUNT"), "fbtest", false)
+	if error != "": fail("Reconnect: " + error); return false
+	if not await wait_until(func(): return client.get_node_or_null("CharacterSelectUI") != null, "reconnect character select", 120000): return false
+	await click("CharCard_" + OS.get_environment("MOUNT_CHARACTER_INDEX"))
+	await click("EnterWorld")
+	if not await wait_until(func(): return client.account_state().screen == "InWorld" and str(client.account_state().selected_character_name) == character_name and has_random_favorite_action_slot(), "same-character action-bar restoration", 180000): return false
+	if client.account_state().ui_skin != "Forever": fail("Reconnect changed UI skin"); return false
+	client.set_world_minutes(720.0)
+	client.set_camera_orbit(PI, -0.3, 12.0)
+	await wait_frames(90)
+	return true
+
+func has_random_favorite_action_slot() -> bool:
+	var bar: Array = client.spells_state().bar
+	return bar.size() > 11 and int(bar[11]) == RANDOM_FAVORITE_SPELL_ID
 
 func buy_mare() -> bool:
 	if not await open_vendor(): return false
