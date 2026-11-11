@@ -1,3 +1,9 @@
+## Ruby particle quad packing — 2026-11-11
+
+VERIFIED: The release Ruby baseline records `Culling` 1.532 ms/frame and `cull.particles` 1.147 ms/frame at the staged 38-unit pose. `ParticlePool::push` no longer zero-fills each 20-float instance before writing it; a bitwise layout test and the release particle-debug fixture pass. [[follower-combat-fps#particle-instance-buffer-zero-fill-2026-11-11]]
+
+UNVERIFIED: No paired FPS A/B exists. The pre-run `uptime` check at 10:49:15 read 11.43/13.55/22.77 and rejected the run before client launch.
+
 ## Release FPS reprofile and surface parity — 2026-11-11
 
 VERIFIED: The pinned release profiles record Stormwind (5,064 frames; p50 4.336 ms) and Ruby Life Pools out of combat (2,706 frames; p50 12.437 ms). The five largest main-system medians and render-attribution limits are in [[release-fps-reprofile-2026-11-11]]. The packed-stream change produced 25/25 byte-identical field outputs.

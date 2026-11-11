@@ -60,6 +60,14 @@ A doodad's node never moves, and its bones change only when its `WowAnimationPla
 
 `Culling` stays at 2-3 ms in both states. In `cull.particles`, simulation and quad writing remain (about 1 ms for the plateau view). The render thread rises about 3 ms in combat.
 
+## Particle instance buffer zero-fill (2026-11-11)
+
+VERIFIED: `ParticlePool::push` used to grow each 20-float instance with zeros, then overwrite every value. Commit `5fb11b211987e3ce000acefc6f4d2efcb118855a` returns the same fixed layout and appends it directly, avoiding that redundant initialization. The bitwise test checks all 20 `f32` bit patterns, and the release `particle_debug_screen.gd` fixture passes. Test commit: `0a1e788020408bbd244a0c7494045b44df599728`.
+
+VERIFIED: Before the change, the staged Ruby release segment had 38 units and `pending=0`; across 1,701 frames, `Culling` was 1.532 ms median and `cull.particles` was 1.147 ms median (0.996 ms on-CPU). Segment-end host loads were 19.65/33.23/41.30 (1/5/15-minute averages). This is a baseline profile, not an A/B result.
+
+UNVERIFIED: The optimization's performance effect is unknown. At 10:49:15 on November 11, 2026, the pre-run load check read 11.43/13.55/22.77 and rejected the A/B before launching a client. No FPS improvement is established.
+
 ## Sources
 
 - [Auras host](../../../godot/rust/src/auras.rs) — player-frame and target-aura state, swipe pass.
@@ -69,6 +77,9 @@ A doodad's node never moves, and its bones change only when its `WowAnimationPla
 - [Camera follow](../../../godot/core/src/camera_follow_data.rs) — terrain-sampled orbit and ground clamp.
 - [Player model chain](../../../godot/core/src/player_model_data.rs) and [world appearance selection](../../../godot/rust/src/world.rs) — body FDIDs and replicated display overrides.
 - [Forever reference test](../../../godot/ui-model/tests/forever_unit_reference.rs) — the stale portrait assertion and retained pet geometry.
+
+- `data/diagnostics/culling-ruby-2026-11-11/ruby-culling-particle-state.log` — staged pre-change release segment and particle counters.
+- `data/diagnostics/culling-ruby-2026-11-11/particle-debug-after.log` — release particle-debug fixture after the buffer change.
 
 FPS evidence: `data/diagnostics/fps-120-close-2026-11-06/profile/combat-{probe*,diag*,ab-*}.log` and `*-shots/`.
 
