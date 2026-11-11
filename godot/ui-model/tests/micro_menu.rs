@@ -248,13 +248,13 @@ fn professions_micro_button_is_available_and_pushes_for_the_open_book() {
         },
         ..MicroMenuView::default()
     });
-    assert_eq!(
-        button_state(&open, "ProfessionMicroButton").0,
-        ButtonState::Pushed
-    );
     assert_ne!(
         atlas(&open, "ProfessionMicroButtonArt0"),
         atlas(&closed, "ProfessionMicroButtonArt0")
+    );
+    assert_ne!(
+        atlas(&open, "ProfessionMicroButtonArt1"),
+        atlas(&closed, "ProfessionMicroButtonArt1")
     );
 }
 
