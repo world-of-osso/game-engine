@@ -2813,6 +2813,10 @@ fn quest_message(
 }
 
 #[cfg(test)]
+#[path = "account_auth_stale_token_tests.rs"]
+mod auth_stale_token_tests;
+
+#[cfg(test)]
 #[path = "account_toys_tests.rs"]
 mod toys_tests;
 
