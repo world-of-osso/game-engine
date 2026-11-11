@@ -19,6 +19,7 @@ pub(super) const SOURCE_TABLES: &[&str] = &[
     "Spell",
     "SpellMisc",
     "SpellEffect",
+    "SpellTargetRestrictions",
     "SpellPower",
     "SpellCastTimes",
     "SpellRange",
@@ -35,12 +36,43 @@ pub(super) const SOURCE_TABLES: &[&str] = &[
 
 type SpellMap = HashMap<u32, CatalogSpell>;
 
+const SPELL_EFFECT_COLUMNS: &[&str] = &[
+    "SpellID",
+    "DifficultyID",
+    "EffectIndex",
+    "Effect",
+    "EffectAura",
+    "EffectBasePointsF",
+    "EffectAuraPeriod",
+    "EffectChainTargets",
+    "EffectRadiusIndex_0",
+    "EffectRadiusIndex_1",
+    "EffectBonusCoefficient",
+    "BonusCoefficientFromAP",
+    "ScalingClass",
+    "Coefficient",
+    "EffectMiscValue_0",
+    "ImplicitTarget_0",
+    "ImplicitTarget_1",
+];
+
+#[derive(Default)]
+struct SpellEffectRows {
+    effects: HashMap<u32, Vec<CatalogEffect>>,
+    bonus_bars: HashMap<u32, u8>,
+}
+
 /// `SpellEffect.Effect` SCHOOL_DAMAGE and HEAL, and `EffectAura` PERIODIC_DAMAGE and
 /// PERIODIC_HEAL: their points always add the power coefficient term. Other effects
 /// (e.g. Bloodlust's haste, 30 points with a 0.25 coefficient) count as scaled only
 /// when their stored points are 0.
 const DAMAGE_OR_HEAL_EFFECTS: [u16; 2] = [2, 10];
 const DAMAGE_OR_HEAL_AURAS: [u16; 2] = [3, 8];
+/// INFERRED: TrinityCore a352b1fa `SpellInfo.cpp:256,264,279,282` maps these IDs to destination-area units.
+const DESTINATION_AREA_TARGETS: [u16; 4] = [8, 16, 31, 34];
+/// INFERRED: 12.1.5.70448 player-spell rows use Effects 3 and 32 for area radius on DEST_DEST.
+const DESTINATION_AREA_EFFECTS: [u16; 2] = [3, 32];
+const TARGET_DEST_DEST: u16 = 87;
 /// `EffectAura` MOD_SHAPESHIFT; `EffectMiscValue_0` is the `SpellShapeshiftForm` id.
 const AURA_MOD_SHAPESHIFT: u16 = 36;
 
@@ -65,6 +97,7 @@ pub(super) fn build_spells(dir: &Path) -> Result<Vec<CatalogSpell>, String> {
     apply_text(dir, &mut spells)?;
     apply_description_variables(dir, &mut spells)?;
     apply_misc(dir, &mut spells)?;
+    apply_ground_target_restrictions(dir, &mut spells)?;
     apply_effects(dir, &mut spells)?;
     apply_powers(dir, &mut spells)?;
     apply_cooldowns(dir, &mut spells)?;
@@ -285,96 +318,161 @@ fn auto_attack(attributes_1: i64, attributes_2: i64) -> SpellAutoAttack {
     }
 }
 
+fn ground_area_radius_yd(effect: u16, targets: [u16; 2], radii: [f32; 2]) -> Option<f32> {
+    let destination_effect_has_area = DESTINATION_AREA_EFFECTS.contains(&effect);
+    targets
+        .into_iter()
+        .zip(radii)
+        .filter_map(|(target, radius)| {
+            let target_selects_area = DESTINATION_AREA_TARGETS.contains(&target)
+                || (destination_effect_has_area && target == TARGET_DEST_DEST);
+            (target_selects_area && radius > 0.0).then_some(radius)
+        })
+        .reduce(f32::max)
+}
+
 fn apply_effects(dir: &Path, spells: &mut SpellMap) -> Result<(), String> {
     let radii = load_id_map(dir, "SpellRadius", &["ID", "Radius"], |row| row.get(1))?;
-    let radius = |index: u32| radii.get(&index).copied().unwrap_or(0.0_f32);
     let form_bonus_bars = load_id_map(
         dir,
         "SpellShapeshiftForm",
         &["ID", "BonusActionBar"],
         |row| row.get::<u8>(1),
     )?;
-    let columns = [
-        "SpellID",
-        "DifficultyID",
-        "EffectIndex",
-        "Effect",
-        "EffectAura",
-        "EffectBasePointsF",
-        "EffectAuraPeriod",
-        "EffectChainTargets",
-        "EffectRadiusIndex_0",
-        "EffectRadiusIndex_1",
-        "EffectBonusCoefficient",
-        "BonusCoefficientFromAP",
-        "ScalingClass",
-        "Coefficient",
-        "EffectMiscValue_0",
-        "ImplicitTarget_0",
-        "ImplicitTarget_1",
-    ];
-    let mut effects: HashMap<u32, Vec<CatalogEffect>> = HashMap::new();
-    let mut bonus_bars: HashMap<u32, u8> = HashMap::new();
-    for_each_row(dir, "SpellEffect", &columns, |row| {
-        if !row.is_base_difficulty(1)? {
-            return Ok(());
+    let mut parsed = SpellEffectRows::default();
+    for_each_row(dir, "SpellEffect", SPELL_EFFECT_COLUMNS, |row| {
+        if row.is_base_difficulty(1)? {
+            parse_spell_effect(row, &radii, &form_bonus_bars, spells, &mut parsed)?;
         }
-        let cursor_destination = row.get::<u16>(15)? == 87 || row.get::<u16>(16)? == 87;
-        if cursor_destination && let Some(spell) = spells.get_mut(&row.get(0)?) {
-            spell.ground_targeted = true;
-        }
-        let primary_radius = radius(row.get(8)?);
-        let radius_yd = if primary_radius > 0.0 {
-            primary_radius
-        } else {
-            radius(row.get(9)?)
-        };
-        let base_points: f32 = row.get(5)?;
-        let (sp_coefficient, ap_coefficient): (f32, f32) = (row.get(10)?, row.get(11)?);
-        let has_power_coefficient = sp_coefficient != 0.0 || ap_coefficient != 0.0;
-        let damage_or_heal = DAMAGE_OR_HEAL_EFFECTS.contains(&row.get(3)?)
-            || DAMAGE_OR_HEAL_AURAS.contains(&row.get(4)?);
-        let spell_power_scaled = has_power_coefficient && (damage_or_heal || base_points == 0.0);
-        let level_scaled = row.get::<i32>(12)? != 0 && row.get::<f32>(13)? != 0.0;
-        if row.get::<u16>(4)? == AURA_MOD_SHAPESHIFT
-            && let Some(&bonus_bar) = form_bonus_bars.get(&row.get(14)?)
-        {
-            bonus_bars.insert(row.get(0)?, bonus_bar);
-        }
-        effects.entry(row.get(0)?).or_default().push(CatalogEffect {
-            index: row.get(2)?,
-            effect: row.get(3)?,
-            aura: row.get(4)?,
-            base_points,
-            aura_period_ms: row.get(6)?,
-            chain_targets: row.get(7)?,
-            radius_yd,
-            spell_power_coefficient: if spell_power_scaled {
-                sp_coefficient
-            } else {
-                0.0
-            },
-            attack_power_coefficient: if spell_power_scaled {
-                ap_coefficient
-            } else {
-                0.0
-            },
-            level_scaled,
-        });
         Ok(())
     })?;
-    for (id, mut list) in effects {
-        if let Some(spell) = spells.get_mut(&id) {
+    assign_spell_effects(parsed.effects, spells);
+    assign_bonus_bars(parsed.bonus_bars, spells);
+    Ok(())
+}
+
+fn parse_spell_effect(
+    row: &Row,
+    radii: &HashMap<u32, f32>,
+    form_bonus_bars: &HashMap<u32, u8>,
+    spells: &mut SpellMap,
+    parsed: &mut SpellEffectRows,
+) -> Result<(), String> {
+    let spell_id = row.get(0)?;
+    let effect = row.get(3)?;
+    let targets = [row.get(15)?, row.get(16)?];
+    let effect_radii =
+        [row.get(8)?, row.get(9)?].map(|index| radii.get(&index).copied().unwrap_or(0.0_f32));
+    update_ground_target_radius(spells, spell_id, effect, targets, effect_radii);
+    if row.get::<u16>(4)? == AURA_MOD_SHAPESHIFT
+        && let Some(&bonus_bar) = form_bonus_bars.get(&row.get(14)?)
+    {
+        parsed.bonus_bars.insert(spell_id, bonus_bar);
+    }
+    parsed
+        .effects
+        .entry(spell_id)
+        .or_default()
+        .push(catalog_effect_from_row(row, effect, effect_radii)?);
+    Ok(())
+}
+
+fn catalog_effect_from_row(
+    row: &Row,
+    effect: u16,
+    effect_radii: [f32; 2],
+) -> Result<CatalogEffect, String> {
+    let aura = row.get::<u16>(4)?;
+    let base_points: f32 = row.get(5)?;
+    let (sp_coefficient, ap_coefficient): (f32, f32) = (row.get(10)?, row.get(11)?);
+    let has_power_coefficient = sp_coefficient != 0.0 || ap_coefficient != 0.0;
+    let damage_or_heal =
+        DAMAGE_OR_HEAL_EFFECTS.contains(&effect) || DAMAGE_OR_HEAL_AURAS.contains(&aura);
+    let spell_power_scaled = has_power_coefficient && (damage_or_heal || base_points == 0.0);
+    let radius_yd = if effect_radii[0] > 0.0 {
+        effect_radii[0]
+    } else {
+        effect_radii[1]
+    };
+    Ok(CatalogEffect {
+        index: row.get(2)?,
+        effect,
+        aura,
+        base_points,
+        aura_period_ms: row.get(6)?,
+        chain_targets: row.get(7)?,
+        radius_yd,
+        spell_power_coefficient: if spell_power_scaled {
+            sp_coefficient
+        } else {
+            0.0
+        },
+        attack_power_coefficient: if spell_power_scaled {
+            ap_coefficient
+        } else {
+            0.0
+        },
+        level_scaled: row.get::<i32>(12)? != 0 && row.get::<f32>(13)? != 0.0,
+    })
+}
+
+fn update_ground_target_radius(
+    spells: &mut SpellMap,
+    spell_id: u32,
+    effect: u16,
+    targets: [u16; 2],
+    radii: [f32; 2],
+) {
+    let Some(radius) = ground_area_radius_yd(effect, targets, radii) else {
+        return;
+    };
+    let Some(spell) = spells
+        .get_mut(&spell_id)
+        .filter(|spell| spell.ground_targeted)
+    else {
+        return;
+    };
+    spell.ground_target_radius = Some(
+        spell
+            .ground_target_radius
+            .map_or(radius, |current| current.max(radius)),
+    );
+}
+
+fn assign_spell_effects(effects: HashMap<u32, Vec<CatalogEffect>>, spells: &mut SpellMap) {
+    for (spell_id, mut list) in effects {
+        if let Some(spell) = spells.get_mut(&spell_id) {
             list.sort_unstable_by_key(|effect| effect.index);
             spell.effects = list.into_boxed_slice();
         }
     }
-    for (id, bonus_bar) in bonus_bars {
-        if let Some(spell) = spells.get_mut(&id) {
+}
+
+fn assign_bonus_bars(bonus_bars: HashMap<u32, u8>, spells: &mut SpellMap) {
+    for (spell_id, bonus_bar) in bonus_bars {
+        if let Some(spell) = spells.get_mut(&spell_id) {
             spell.bonus_bar = bonus_bar;
         }
     }
-    Ok(())
+}
+
+/// INFERRED: `Targets & 0x40` is `TARGET_FLAG_DEST_LOCATION` (TrinityCore a352b1fa,
+/// `SpellDefines.h:318`) and requires an explicit destination. `DEST_DEST` alone is not
+/// enough, because area-trigger effects can derive their destination from the caster.
+fn apply_ground_target_restrictions(dir: &Path, spells: &mut SpellMap) -> Result<(), String> {
+    const TARGET_FLAG_DEST_LOCATION: u32 = 0x40;
+    let columns = ["SpellID", "DifficultyID", "Targets"];
+    for_each_row(dir, "SpellTargetRestrictions", &columns, |row| {
+        if !row.is_base_difficulty(1)? {
+            return Ok(());
+        }
+        if row.get::<u32>(2)? & TARGET_FLAG_DEST_LOCATION != 0
+            && let Some(spell) = spells.get_mut(&row.get(0)?)
+        {
+            spell.ground_targeted = true;
+        }
+        Ok(())
+    })
 }
 
 fn apply_powers(dir: &Path, spells: &mut SpellMap) -> Result<(), String> {

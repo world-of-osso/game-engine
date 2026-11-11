@@ -98,7 +98,8 @@ pub(crate) struct SpellsHud {
     ground: game_engine_ui_model::spell_targeting::GroundTarget,
     ground_toy: Option<u32>,
     item: game_engine_ui_model::spell_targeting::ItemTarget,
-    reticle: Option<Gd<godot::classes::MeshInstance3D>>,
+    reticle: Option<Gd<godot::classes::Decal>>,
+    reticle_valid: Option<bool>,
 }
 
 impl Default for SpellsHud {
@@ -133,6 +134,7 @@ impl Default for SpellsHud {
             ground_toy: None,
             item: Default::default(),
             reticle: None,
+            reticle_valid: None,
         }
     }
 }

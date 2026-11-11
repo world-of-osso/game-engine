@@ -1,10 +1,10 @@
-//! Shared spell catalog and spellbook tabs against the pinned 12.1.0.69933 CSVs.
+//! Shared spell catalog and spellbook tabs against the active 12.1.5.70448 CSVs.
 
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 
 use game_engine_core::spell_catalog::{
-    SpellCatalogData, SpellCatalogPaths, SpellTextContext, load_spell_catalog,
+    CatalogSpell, SpellCatalogData, SpellCatalogPaths, SpellTextContext, load_spell_catalog,
 };
 use game_engine_core::spellbook_data::{SpellbookPlayer, build_spellbook_tabs};
 
@@ -51,13 +51,98 @@ fn journal_text_uses_explicit_spell_references_without_a_section_spell() {
 }
 
 #[test]
-fn ground_leaps_need_a_cursor_destination_but_blink_and_target_leaps_do_not() {
+fn ground_targeting_uses_explicit_destination_restrictions() {
     let data = catalog();
-    assert!(data.get(189110).unwrap().ground_targeted);
-    assert!(data.get(6544).unwrap().ground_targeted);
-    for id in [1953, 186260, 196884] {
+    for id in [
+        2120, 2484, 6197, 114158, 145205, 190356, 43265, 52212, 6544, 189110,
+    ] {
+        assert!(data.get(id).unwrap().ground_targeted, "spell {id}");
+    }
+    for id in [
+        26573, 32773, 33559, 36946, 37553, 38385, 41541, 43429, 50915, 57798, 59998, 69930, 194246,
+        1953, 186260, 196884,
+    ] {
         assert!(!data.get(id).unwrap().ground_targeted, "spell {id}");
     }
+}
+
+#[test]
+fn ground_target_texture_selector_uses_documented_school_art() {
+    let data = catalog();
+    for (spell_id, texture_fdid) in [
+        (2120, 1_001_600),   // Fire: Flamestrike
+        (2484, 1_001_695),   // Nature: Earthbind Totem
+        (6197, 1_001_690),   // Arcane: Eagle Eye
+        (114158, 1_001_694), // Holy: Light's Hammer
+        (145205, 1_001_695), // Nature: Efflorescence
+        (190356, 1_001_693), // Frost: Blizzard
+        (43265, 1_001_697),  // Shadow: Death and Decay
+        (6544, 1_001_601),   // Physical: documented every-base art
+    ] {
+        assert!(
+            data.get(spell_id).unwrap().ground_targeted,
+            "spell {spell_id}"
+        );
+        assert_eq!(
+            data.get(spell_id).unwrap().ground_target_texture_fdid(),
+            Some(texture_fdid),
+            "spell {spell_id}"
+        );
+    }
+    let composite = CatalogSpell {
+        ground_targeted: true,
+        school_mask: 0x44,
+        ..Default::default()
+    };
+    assert_eq!(composite.ground_target_texture_fdid(), Some(1_001_601));
+    assert_eq!(data.get(26573).unwrap().ground_target_texture_fdid(), None);
+}
+
+#[test]
+fn ground_target_radius_uses_destination_area_effects_only() {
+    let data = catalog();
+    for (spell_id, radius_yd) in [
+        (2120, Some(8.0)),    // Flamestrike's destination-area damage.
+        (2484, Some(8.0)),    // Earthbind Totem's destination area.
+        (114158, Some(10.0)), // Light's Hammer's destination area.
+        (145205, Some(10.0)), // Efflorescence's destination area.
+        (190356, Some(12.0)), // Blizzard's destination area.
+        (207778, Some(12.0)), // Downpour's destination-area heal.
+        (43265, Some(8.0)),   // Death and Decay's destination area.
+        (61882, Some(8.0)),   // Earthquake's destination area trigger.
+        (6544, Some(3.0)),    // Heroic Leap's destination effect.
+        (189110, Some(3.0)),  // Infernal Strike's destination effect.
+        (6197, None),         // Eagle Eye has a 100 yd effect radius, but no area target.
+        (26573, None),        // Consecration has no explicit destination.
+    ] {
+        assert_eq!(
+            data.get(spell_id).unwrap().ground_target_radius_yd(),
+            radius_yd,
+            "spell {spell_id}"
+        );
+    }
+    assert!(
+        data.get(2120)
+            .unwrap()
+            .range
+            .contains_hostile_distance_yd(8.0)
+    );
+    assert!(
+        !data
+            .get(2120)
+            .unwrap()
+            .range
+            .contains_hostile_distance_yd(41.0)
+    );
+}
+
+#[test]
+fn ground_target_radius_has_no_invented_default() {
+    let spell = CatalogSpell {
+        ground_targeted: true,
+        ..Default::default()
+    };
+    assert_eq!(spell.ground_target_radius_yd(), None);
 }
 
 fn human_warrior(level: u32) -> Option<SpellbookPlayer> {

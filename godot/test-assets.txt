@@ -459,6 +459,7 @@ db2/active/SpellName.csv
 db2/active/Spell.csv
 db2/active/SpellMisc.csv
 db2/active/SpellEffect.csv
+db2/active/SpellTargetRestrictions.csv
 db2/active/SpellPower.csv
 db2/active/SpellCastTimes.csv
 db2/active/SpellRange.csv

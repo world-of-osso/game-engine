@@ -1,3 +1,7 @@
+## Ground spell targeting — 2026-11-11
+
+VERIFIED: Local 12.1 DB2 distinguishes cursor destinations through `SpellTargetRestrictions.Targets=64`; Consecration 26573 has `DEST_DEST`, range ID1 (Self Only), and no restriction row, while Flamestrike 2120 and DnD 43265 have the explicit destination flag. The native catalog now maps school masks to the sourced AoE `targetarea_*.blp` textures. See [[spell-catalog#ground-destination-and-aoe-decal--2026-11-11]] and [[target-circle-rendering#spell-ground-target-placement]].
+
 ## Ruby emitter frustum cache — 2026-11-11
 
 VERIFIED: `TerrainObjects::update_particles` reuses doodad frustum admission when the exact plane list is unchanged; the bit-field fixture matches fresh AABB culling for 25 bounds across changed and unchanged views. Particle simulation and deferral still run each frame. See [[follower-combat-fps#emitter-frustum-admission-cache-2026-11-11]].

@@ -4,10 +4,10 @@ Client-side lookup of static spell data for tooltips, spellbook and action bars.
 
 ## Source and load
 
-- CSVs: `data/db2/12.1.0.69933/` — SpellName, Spell, SpellMisc, SpellEffect, SpellPower, SpellCastTimes, SpellRange, SpellDuration, SpellRadius, SpellCooldowns, SpellCategories, SpellCategory, SpellAuraOptions.
+- CSVs: `data/db2/active/` — SpellName, Spell, SpellMisc, SpellEffect, SpellTargetRestrictions, SpellPower, SpellCastTimes, SpellRange, SpellDuration, SpellRadius, SpellCooldowns, SpellCategories, SpellCategory, SpellAuraOptions. The active source resolved to DB2 build 12.1.5.70448 for the 2026-11-11 ground-target investigation.
 - Per-difficulty tables contribute only `DifficultyID = 0` rows. 3,382 SpellName ids have no SpellMisc row and keep zeroed misc fields.
 - `SpellCatalogPlugin` spawns the load on `AsyncComputeTaskPool` at `Startup`; `SpellCatalog.state` goes `Loading` → `Ready` / `Failed`.
-- Cache: `data/cache/spell_catalog-12.1.0.69933.bin`, bincode (`CacheKey` then `Vec<CatalogSpell>`). Key = format version + build + (size, mtime ns) of every source CSV; any mismatch or decode error rebuilds and rewrites it. Storage is the shared `src/game/db2_cache.rs` (also used by [[talents-ui]]).
+- Cache: `data/cache/spell_catalog-active.bin`, bincode (`CacheKey` then `Vec<CatalogSpell>`). Key = format version + build + (size, mtime ns) of every source CSV; any mismatch or decode error rebuilds and rewrites it. Format 13 includes explicit ground-destination restrictions and a destination-area radius. Storage is the shared `src/game/db2_cache.rs` (also used by [[talents-ui]]).
 
 ## Measured (dev test profile, 2026-09-23)
 
@@ -34,7 +34,17 @@ The crate itself is unoptimized in dev builds, so cold times there are pessimist
 
 ## Godot
 
-The catalog data, build, render and tabs files are engine-free (`data.rs`; the Bevy `SpellCatalogPlugin` stays in `mod.rs`) and compiled into `godot/core` as `spell_catalog` with `spellbook_data`. The Godot client loads it on a worker thread when it enters the world, caching at `user://spell_catalog-12.1.0.69933.bin`. The spellbook, action bar and casting that use it: [[spellbook-action-bar]].
+The catalog data, build, render and tabs files are engine-free (`data.rs`; the Bevy `SpellCatalogPlugin` stays in `mod.rs`) and compiled into `godot/core` as `spell_catalog` with `spellbook_data`. The Godot client loads it on a worker thread when it enters the world, caching at `user://spell_catalog-active.bin`. The spellbook, action bar and casting that use it: [[spellbook-action-bar]].
+
+## Ground destination and AoE decal — 2026-11-11
+
+VERIFIED: In local DB2 build 12.1.5.70448, `SpellEffect` 26573 has `Effect=179`, `ImplicitTarget_0=87`, and `EffectMiscValue_0=4488`; `SpellMisc.RangeIndex=1` is Self Only, and there is no base `SpellTargetRestrictions` row for 26573. Its old `DEST_DEST` check therefore treated a caster-centered area-trigger effect as a cursor request.
+
+VERIFIED: Flamestrike 2120 and Death and Decay 43265 have `SpellTargetRestrictions.Targets=64`, the DB2 destination-location flag. Their effects differ: Flamestrike uses area-unit targets while DnD includes `DEST_DEST`; the restriction identifies the explicit destination in both cases. Heroic Leap 6544 and Infernal Strike 189110 also use the flag. Consecration variants in the tested IDs have no destination restriction; 26573 has range ID1 (Self Only).
+
+INFERRED: In DB2 build 12.1.5.70448, `SpellMisc.SchoolMask` selects the Retail AoE-placement art: Fire 1001600, Holy 1001694, Nature 1001695, Frost 1001693, Shadow 1001697, Arcane 1001690, or the documented neutral `targetarea_everybase.blp` 1001601. The local listfile maps these FDIDs to `spells/targetarea_*.blp`; [target-circle rendering](../investigations/target-circle-rendering.md#spell-ground-target-placement) distinguishes them from unit-selection circles and the crosshair `reticle_128.blp` 166706. The player bundle stages `data/textures/`.
+
+INFERRED: The decal radius uses positive `SpellEffect` radii only when the effect targets a destination-area unit or an area-capable effect targets `DEST_DEST`; unrelated radii do not size the decal. VERIFIED: Eagle Eye 6197 has a 100 yd effect radius but no destination-area target, so it keeps cursor targeting without an invented area decal. Flamestrike 2120 resolves to 8 yd; Death and Decay 43265 to 8 yd; Heroic Leap 6544 and Infernal Strike 189110 to 3 yd. VERIFIED: A destination spell with no authored area radius keeps cursor targeting and omits the decal rather than inventing a size.
 
 ## Description tokens
 

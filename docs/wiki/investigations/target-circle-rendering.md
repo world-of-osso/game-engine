@@ -30,6 +30,16 @@ Detection: `is_fully_opaque()` after BLP decode — if all pixels have alpha=255
 
 Both types use `StandardMaterial` with `base_color` as tint, `base_color_texture` + `emissive` + `emissive_texture` for glow, `unlit: true`, `cull_mode: None`.
 
+## Spell ground-target placement
+
+VERIFIED: `data/community-listfile.csv` maps FDIDs 1001600/1001601/1001690/1001693/1001694/1001695/1001697 to the Fire, every-base, Arcane, Frost, Holy, Nature and Shadow `spells/targetarea_*.blp` files. They are AoE placement art; 166706 `spells/reticle_128.blp` is a crosshair and is not the target-area decal. All seven BLPs exist in `data/textures/`; `scripts/player_bundle.py` stages that full directory.
+
+INFERRED: `SpellMisc.SchoolMask` selects the matching area art. The engine's spell catalog maps the single Fire/Holy/Nature/Frost/Shadow/Arcane masks and uses the documented every-base texture for Physical and composite/unlisted masks.
+
+VERIFIED: In local DB2 build 12.1.5.70448, Flamestrike 2120 has school mask 4, an 8 yd destination-area radius and `SpellTargetRestrictions.Targets=64`; DnD 43265 has school mask 32 and the same destination flag and radius. Heroic Leap 6544 and Infernal Strike 189110 have 3 yd destination radii. Consecration 26573 has school mask 2, range ID1 (Self Only), an effect 179 row with target 87, and no `SpellTargetRestrictions` row. The explicit-destination restriction separates cursor spells from the caster-centered area-trigger spell.
+
+INFERRED: The decal radius uses positive `SpellEffect` radii on destination-area targets, plus the area-capable effects that use `DEST_DEST`; unrelated ranges do not size the decal. VERIFIED: Eagle Eye 6197 has a 100 yd effect radius but its targets are not destination-area targets, so it remains a cursor spell without a fabricated 100 yd decal. VERIFIED: A destination spell without a positive area radius keeps its cursor and has no area decal.
+
 ## Resolution
 
 A `TargetCircleStyle` resource was added with a picker in `InWorldSelectionDebug` for switching between procedural and BLP-textured styles. The blend mode detection (`is_fully_opaque()`) applies automatically based on decoded alpha.

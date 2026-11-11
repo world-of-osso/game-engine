@@ -534,7 +534,7 @@ Engine subsystems and how they work.
 - [merchant-frame](systems/merchant-frame.md) — Retail MerchantFrame on the server vendor, bag contents from InventorySnapshot/Delta, right-click buy/sell/buyback, Repair All; Godot port with right-click interact, NPC cursors, vendor split, owned UDP merchant-click proof, and native selected-character MerchantFrame-only placement
 - [professions-ui](systems/professions-ui.md) — native DB2 recipe book/crafting, owner snapshots and bag counts; both-skin private craft proof linked in the spec. Retired trainer/book coverage remains distinguished.
 - [quest-ui](systems/quest-ui.md) — native dialogue/log/tracker/markers and [WorldMap-owned dock](systems/quest-ui.md#native-quest-dock--2026-10-13); typed objective-progress notices and first-post-draw yellow-message proof; measured quest scrolling and offline clipping/input proof; live quest proof, Jasperlode ground and death recovery, unresolved historical Milly mirror failure, low-FPS input and transient-error capture
-- [spell-catalog](systems/spell-catalog.md) — background-loaded 12.1.0.69933 spell DB2 catalog, bincode cache under `data/cache/`, static description token rendering and its limits
+- [spell-catalog](systems/spell-catalog.md) — background-loaded active spell DB2 catalog, bincode cache under `data/cache/`, destination targeting, school AoE art, authored area radius and description tokens
 - [talents-ui](systems/talents-ui.md) — historical retired Bevy trait window; [Talents](systems/talents.md) owns current native behavior and layout.
 - [xp-bar](systems/xp-bar.md) — [XP HUD spec](../specs/xp-bar.md), existing owner-only state, Modern named atlases and Forever flat palette/top-centre placement
 - [forever-preset](systems/forever-preset.md) — FlareUI-inspired skin/layout preset, atlas set selection, player aura lane/offline capture, current global skin lifetime and per-character Edit Mode wiring.
@@ -653,7 +653,7 @@ Root cause analyses and debug findings.
 - [character-texture-compositing](investigations/character-texture-compositing.md) — Duplicate texture injection paths in char-select
 - [helmet-hide-rules](investigations/helmet-hide-rules.md) — HelmetGeosetData/Vis + ItemDisplayInfo.GeosetGroup for hair hiding
 - [editbox-focus-rendering](investigations/editbox-focus-rendering.md) — Nine-slice fill gap preventing clean focus state visuals
-- [target-circle-rendering](investigations/target-circle-rendering.md) — Procedural vs BLP-textured selection circle approaches
+- [target-circle-rendering](investigations/target-circle-rendering.md) — Unit selection circles and Retail AoE placement decals
 - [authored-skybox-black-output](investigations/authored-skybox-black-output.md) — authored cloud zero-opacity source and bounded original/native dark-phase RGB match; active-phase/coastal parity open, separate from ordinary InWorld procedural sky
 - [character-select-roster](investigations/character-select-roster.md) — ten/twelve-entry flex shrink, footer hit interception, data-backed names and native ScrollBox input ownership; both-skin offline proof.
 - [charselect-ground-patch-dark-terrain](investigations/charselect-ground-patch-dark-terrain.md) — corrected terrain normals and removed campsite workaround plane

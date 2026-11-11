@@ -19,6 +19,12 @@ pub struct SpellRange {
     pub max_yd: [f32; 2],
 }
 
+impl SpellRange {
+    pub fn contains_hostile_distance_yd(self, distance_yd: f32) -> bool {
+        distance_yd.is_finite() && distance_yd >= self.min_yd[0] && distance_yd <= self.max_yd[0]
+    }
+}
+
 #[derive(Clone, Copy, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct SpellCooldown {
     pub recovery_ms: u32,
@@ -137,12 +143,55 @@ pub struct CatalogSpell {
     /// `SpellShapeshiftForm.BonusActionBar` of the form its MOD_SHAPESHIFT effect
     /// applies (Retail `GetBonusBarOffset` while the aura is up); 0 for none.
     pub bonus_bar: u8,
-    /// SpellEffect target87 (DEST_DEST): supplied by the ground cursor, not a unit
-    /// or caster-forward destination such as Blink's target55.
+    /// `SpellTargetRestrictions.Targets & 0x40` requires an explicit destination location.
     pub ground_targeted: bool,
+    /// Largest positive radius from a destination-area effect, if the spell has one.
+    pub ground_target_radius: Option<f32>,
 }
 
+// INFERRED: standard school masks select similarly named AoE placement art.
+// VERIFIED: these FDIDs map to targetarea_*.blp in the listfile and target-circle research.
+const TARGETAREA_EVERYBASE_FDID: u32 = 1_001_601;
+const SPELL_SCHOOL_MASK_HOLY: u32 = 0x02;
+const SPELL_SCHOOL_MASK_FIRE: u32 = 0x04;
+const SPELL_SCHOOL_MASK_NATURE: u32 = 0x08;
+const SPELL_SCHOOL_MASK_FROST: u32 = 0x10;
+const SPELL_SCHOOL_MASK_SHADOW: u32 = 0x20;
+const SPELL_SCHOOL_MASK_ARCANE: u32 = 0x40;
+const TARGETAREA_HOLY_FDID: u32 = 1_001_694;
+const TARGETAREA_FIRE_FDID: u32 = 1_001_600;
+const TARGETAREA_NATURE_FDID: u32 = 1_001_695;
+const TARGETAREA_FROST_FDID: u32 = 1_001_693;
+const TARGETAREA_SHADOW_FDID: u32 = 1_001_697;
+const TARGETAREA_ARCANE_FDID: u32 = 1_001_690;
+
 impl CatalogSpell {
+    /// The shipped Retail `targetarea_*.blp` chosen by this spell's school mask.
+    pub fn ground_target_texture_fdid(&self) -> Option<u32> {
+        if !self.ground_targeted {
+            return None;
+        }
+        Some(match self.school_mask {
+            SPELL_SCHOOL_MASK_HOLY => TARGETAREA_HOLY_FDID,
+            SPELL_SCHOOL_MASK_FIRE => TARGETAREA_FIRE_FDID,
+            SPELL_SCHOOL_MASK_NATURE => TARGETAREA_NATURE_FDID,
+            SPELL_SCHOOL_MASK_FROST => TARGETAREA_FROST_FDID,
+            SPELL_SCHOOL_MASK_SHADOW => TARGETAREA_SHADOW_FDID,
+            SPELL_SCHOOL_MASK_ARCANE => TARGETAREA_ARCANE_FDID,
+            // The authored every-base art covers physical and composite school masks.
+            _ => TARGETAREA_EVERYBASE_FDID,
+        })
+    }
+
+    /// Largest authored destination-area effect radius for a cursor-targeted spell.
+    pub fn ground_target_radius_yd(&self) -> Option<f32> {
+        if self.ground_targeted {
+            self.ground_target_radius
+        } else {
+            None
+        }
+    }
+
     pub fn effect(&self, index: u8) -> Option<&CatalogEffect> {
         self.effects.iter().find(|effect| effect.index == index)
     }

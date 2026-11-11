@@ -13,6 +13,9 @@ impl GroundTarget {
     pub fn active(&self) -> bool {
         self.intent.is_some()
     }
+    pub fn spell_id(&self) -> Option<u32> {
+        self.intent.as_ref()?.spell_id
+    }
     pub fn cancel(&mut self) {
         self.intent = None;
     }
@@ -119,10 +122,12 @@ mod tests {
         let mut ground = GroundTarget::default();
         ground.begin(infernal_strike());
         assert!(ground.active());
+        assert_eq!(ground.spell_id(), Some(189110));
         let cast = ground.place([-8910.0, 93.2, 135.0]).unwrap();
         assert_eq!(cast.spell_id, Some(189110));
         assert_eq!(cast.destination, Some([-8910.0, 93.2, 135.0]));
         assert!(!ground.active());
+        assert_eq!(ground.spell_id(), None);
         assert!(ground.place([0.0; 3]).is_none());
     }
     #[test]

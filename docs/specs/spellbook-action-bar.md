@@ -40,6 +40,8 @@ CPU scripts tests account for unavailable local icons in versioned [`scripts/ui-
 - [x] Talents displays the local class/spec/hero trees read-only; [Talents first-slice contract](talents.md). Learning/spending/loadouts/server support remains absent.
 - [x] Spells learned at later levels (the class line's and the active spec's, race-masked) follow the known ones in level order, greyed (`unlearnedTextAlpha` 0.6, icon desaturated and tinted `SPELLBOOK_UNLEARNED_TINT_COLOR`, inactive border) with "Level %d" (`SPELLBOOK_AVAILABLE_AT`); they cannot be cast.
 - [x] Clicking a known active spell's icon casts it.
+- [ ] `SpellTargetRestrictions.Targets & 0x40` selects spells that require an explicit ground destination; caster-centred area effects cast at the caster without opening targeting.
+- [ ] Ground-targeted spells with an authored destination-area radius show the `SpellMisc.SchoolMask` AoE decal at that radius; the decal is green in range and red out of range. Spells without an authored area radius keep cursor targeting and show no decal.
 - [x] Authored left-pointer-down on a known active spellbook icon or main action-bar button starts the owned native Effects click before mouse-up at `master × effects × 0.55`; release, right pointer input, keyboard casts, and spellbook reopening do not replay it.
 - [x] Main action bar (MAB.xml, EMPL.lua Modern): 12 buttons of 45×45, 2 px apart, BOTTOM y 45, gryphon end caps, `ActionButtonTemplate` art (slot background, slot art, normal/pushed/highlight), hot keys from the bindings, "1".."0","-","=" by default (12 px ArialNarrow grey, TOPRIGHT -4,-5).
 - [x] Keys 1..= (bindings `ActionSlot1..12`) and clicks use the slot: a spell sends `SpellCastIntent` with the current target's server entity bits (none without a target). The pushed art shows for 0.15 s.
@@ -88,7 +90,9 @@ Source exports under `~/.cache/wow-ui-sim/blizzard-ui/{retail,wowforever}/AddOns
 
 ## Tests asserting this spec
 
-- `godot/core/tests/spell_catalog.rs`: warrior names/icons, rendered Battle Shout description; level 1 and level 10 Arms spellbook lists with future spells by level.
+- `godot/core/tests/spell_catalog.rs`: warrior names/icons, rendered Battle Shout description; level 1 and level 10 Arms spellbook lists with future spells by level; real-ID ground-target classification, school art, destination-area radii, and hostile range bounds.
+- `godot/ui-model/src/spell_targeting.rs`: ground intent exposes its active spell ID and consumes the clicked destination once.
+- `godot/tests/ground_targeting_live.gd` (private UDP server 5993): real Flamestrike and Consecration before/after flows, valid/invalid decal tint, and destination selection.
 - `godot/ui-model/tests/spellbook_frame.rs`: column-first grid (PCG.lua examples), view continuation, Level N and cast actions, desaturation, fit including bottom tabs, exclusive page selection in both presets, N/P model routes, pinned paladin spec metadata, active marker and Activate enabled/disabled actions, bottom tab bar geometry in both presets, category tab `UpdateTabWidth` widths.
 - `godot/core/tests/input_bindings_data.rs`: P/N defaults, unbound specialization action in Interface and persisted binding inventory.
 - `godot/ui-model/tests/micro_menu.rs`: combined PlayerSpells button routes to Specialization while talents are absent.
