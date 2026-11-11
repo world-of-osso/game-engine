@@ -338,7 +338,13 @@ impl GameClient {
         }
         let pressed = pressed_action_buttons(bindings, &input);
         if let Some(tab) = tab {
+            if std::env::var_os("TALENTS_INPUT_TRACE").is_some() && n_just_pressed {
+                godot_print!("TALENTS_INPUT_TOGGLE before={}", self.spellbook_open());
+            }
             self.toggle_player_spells(tab)?;
+            if std::env::var_os("TALENTS_INPUT_TRACE").is_some() && n_just_pressed {
+                godot_print!("TALENTS_INPUT_TOGGLE after={}", self.spellbook_open());
+            }
         }
         for (bar, index) in pressed {
             let binding = self
