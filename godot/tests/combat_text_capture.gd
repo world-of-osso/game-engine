@@ -119,17 +119,20 @@ func capture_self_before() -> void:
 func capture_self() -> void:
 	var before: Image = await grab()
 	var live := 0
-	for index in 21:
+	for index in 9:
 		live = client.preview_incoming_combat_text(index)
 	freeze(0.4)
-	check(live == 20, "self combat text caps at the twenty-label Retail pool")
+	check(live == 9, "self capture shows nine message styles")
 	var labels := self_text_labels()
-	if labels.size() != 20:
-		fail("expected twenty foreground self labels, found %d" % labels.size())
+	if labels.size() != 9:
+		fail("expected nine foreground self labels, found %d" % labels.size())
 		return
 	var after: Image = await capture("self", before)
 	var diff: Dictionary = image_diff(before, after, 0.15)
 	check(diff.count > 0, "self combat text pixels render")
+	for index in range(9, 21):
+		live = client.preview_incoming_combat_text(index)
+	check(live == 20, "self combat text caps at the twenty-label Retail pool")
 	var samples := []
 	for run in 3:
 		samples.append(client.preview_combat_text_cost(2000))
