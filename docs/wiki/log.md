@@ -5,6 +5,12 @@ VERIFIED: The lead-published third fragment has 11 asset rows and 2 companion al
 ## Initial GameObject M2 receipt boundary before third-fragment publication — 2026-11-11
 
 VERIFIED: `load_visual_files` uses the Retail authored-model resolver. The FDID 1686555 resolver test passes against a receipt-qualified path with no flat file; formatter, focused test, dev build and release build pass with zero compiler warnings. The first extracted-only Paladin run reached map 1860 at start distance 0.00 with zero CASC diagnostics and no missing receipts for three target M2s. Two other map-object M2s (166432 and 1697838) had no row in the 152 canonical model-index files then present, so that checkpoint did not meet the full gate. See [[m2-product-shadowing]].
+## Ruby particle quad packing — 2026-11-11
+
+VERIFIED: The release Ruby baseline records `Culling` 1.532 ms/frame and `cull.particles` 1.147 ms/frame at the staged 38-unit pose. `ParticlePool::push` no longer zero-fills each 20-float instance before writing it; a bitwise layout test and the release particle-debug fixture pass. [[follower-combat-fps#particle-instance-buffer-zero-fill-2026-11-11]]
+
+UNVERIFIED: No paired FPS A/B exists. The pre-run `uptime` check at 10:49:15 read 11.43/13.55/22.77 and rejected the run before client launch.
+
 ## Release FPS reprofile and surface parity — 2026-11-11
 
 VERIFIED: The pinned release profiles record Stormwind (5,064 frames; p50 4.336 ms) and Ruby Life Pools out of combat (2,706 frames; p50 12.437 ms). The five largest main-system medians and render-attribution limits are in [[release-fps-reprofile-2026-11-11]]. The packed-stream change produced 25/25 byte-identical field outputs.
