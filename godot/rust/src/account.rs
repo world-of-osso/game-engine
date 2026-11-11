@@ -2589,19 +2589,7 @@ impl Account {
                     fs::write(&path, token)
                         .map_err(|error| format!("Save session {}: {error}", path.display()))?;
                 }
-                SessionEffect::RemoveSavedToken => {
-                    let path = token_path(&self.data_root, Some(&self.hostname));
-                    match fs::remove_file(&path) {
-                        Ok(()) => {}
-                        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
-                        Err(error) => {
-                            return Err(format!(
-                                "Remove saved session {}: {error}",
-                                path.display()
-                            ));
-                        }
-                    }
-                }
+                SessionEffect::RemoveSavedToken => self.remove_saved_token()?,
                 SessionEffect::SelectCharacter(request) => {
                     self.connected_bridge()?.send::<_, AuthChannel>(request)?
                 }
@@ -2624,6 +2612,15 @@ impl Account {
             }
         }
         Ok(())
+    }
+
+    fn remove_saved_token(&self) -> Result<(), String> {
+        let path = token_path(&self.data_root, Some(&self.hostname));
+        match fs::remove_file(&path) {
+            Ok(()) => Ok(()),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+            Err(error) => Err(format!("Remove saved session {}: {error}", path.display())),
+        }
     }
 
     fn format_transfer_error(&self, aborted: TransferAborted) -> Result<String, String> {
