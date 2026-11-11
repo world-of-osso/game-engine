@@ -4,8 +4,29 @@ extends "res://tests/frame_benchmark.gd"
 ## Required: GODOT_TEST_SERVER, BENCH_ACCOUNT, BENCH_CHARACTER,
 ## BENCH_TALENTS_SCREENSHOT. Optional: BENCH_SEGMENT_S, BENCH_RESOLUTION.
 const ASSET_STARTUP_TIMEOUT_MS := 180000
+const SPEC_TIMEOUT_MS := 30000
 const OPEN_TIMEOUT_MS := 60000
 const SETTLE_SECONDS := 5.0
+
+func select_specialization(spec_id: int) -> bool:
+	var error: String = client.set_specialization(spec_id)
+	if not error.is_empty():
+		fail("Could not request specialization %d: %s" % [spec_id, error])
+		return false
+	var deadline := Time.get_ticks_msec() + SPEC_TIMEOUT_MS
+	while Time.get_ticks_msec() < deadline:
+		if int(client.spells_state().get("spec", 0)) == spec_id:
+			return true
+		await process_frame
+	fail("Server did not confirm specialization %d" % spec_id)
+	return false
+
+func send_key(code: Key, pressed: bool) -> void:
+	var event := InputEventKey.new()
+	event.physical_keycode = code
+	event.keycode = code
+	event.pressed = pressed
+	Input.parse_input_event(event)
 
 func wait_for_startup_world(character: String) -> bool:
 	var deadline := Time.get_ticks_msec() + 900000
@@ -57,6 +78,13 @@ func run_test() -> void:
 	if player == null:
 		fail("No local player node WorldUnits/" + character)
 		return
+	var spec_id := int(OS.get_environment("BENCH_SPEC_ID"))
+	if spec_id > 0 and not await select_specialization(spec_id):
+		return
+	var spell_state: Dictionary = client.spells_state()
+	if int(spell_state.get("level", 0)) != 90 or int(spell_state.get("spec", 0)) <= 0:
+		fail("Talents requires a level-90 player with an active spec: " + str(spell_state))
+		return
 	var skin_error: String = client.preview_world_skin(true)
 	if not skin_error.is_empty() or client.account_state().ui_skin != "Forever":
 		fail("Could not select Forever: " + skin_error)
@@ -74,7 +102,7 @@ func run_test() -> void:
 	await measure("talents_closed", segment_s, func(_time: float): pass, true)
 	root.gui_release_focus()
 	var keypress_usec := Time.get_ticks_usec()
-	push_key(KEY_N, true)
+	send_key(KEY_N, true)
 	var panel: Control
 	var node_count := 0
 	var deadline := Time.get_ticks_msec() + OPEN_TIMEOUT_MS
@@ -86,7 +114,7 @@ func run_test() -> void:
 			if node_count > 0:
 				await RenderingServer.frame_post_draw
 				break
-	push_key(KEY_N, false)
+	send_key(KEY_N, false)
 	if panel == null or not panel.is_visible_in_tree() or node_count == 0:
 		var book := client.find_child("SpellBookRoot", true, false)
 		fail("N did not render talents: book=%s panel=%s nodes=%d focus=%s" % [book != null,

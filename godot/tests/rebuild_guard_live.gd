@@ -12,6 +12,7 @@ extends "res://tests/frame_benchmark.gd"
 ## receipt pose (`game-server-admin set-position` while the character is offline).
 
 const ASSET_STARTUP_TIMEOUT_MS := 180000
+const SPEC_TIMEOUT_MS := 30000
 
 func run_test() -> void:
 	root.size = parse_resolution(OS.get_environment("BENCH_RESOLUTION"))
@@ -96,6 +97,18 @@ func wait_for_asset_startup() -> bool:
 	return true
 
 func open_talents_panel() -> bool:
+	var spec_id := int(OS.get_environment("GUARD_SPEC_ID"))
+	if spec_id > 0:
+		var specialization_error: String = client.set_specialization(spec_id)
+		if not specialization_error.is_empty():
+			fail("Could not request talents guard specialization: " + specialization_error)
+			return false
+		var deadline := Time.get_ticks_msec() + SPEC_TIMEOUT_MS
+		while Time.get_ticks_msec() < deadline and int(client.spells_state().spec) != spec_id:
+			await process_frame
+		if int(client.spells_state().spec) != spec_id:
+			fail("Server did not confirm talents guard specialization %d" % spec_id)
+			return false
 	var skin_error: String = client.preview_world_skin(true)
 	if not skin_error.is_empty() or client.account_state().ui_skin != "Forever":
 		fail("Could not select Forever for the talents guard: " + skin_error)
