@@ -60,17 +60,25 @@ pub fn persist_token_account(
     write_private_accounts(path, &serialized)
 }
 
-/// An unknown saved token must be identified by a credential login, never guessed.
-pub fn read_token_account(path: &Path, realm: &str, token: &str) -> Result<String, String> {
+/// Find the username already authenticated for this token, without guessing an identity.
+pub fn lookup_token_account(
+    path: &Path,
+    realm: &str,
+    token: &str,
+) -> Result<Option<String>, String> {
     let accounts = read_accounts(path)?;
-    accounts
+    Ok(accounts
         .realms
         .get(realm)
         .and_then(|tokens| tokens.get(token))
-        .cloned()
-        .ok_or_else(|| {
-            "Saved session has no HUD layout account; log in with username and password".into()
-        })
+        .cloned())
+}
+
+/// An unknown saved token must be identified by a credential login, never guessed.
+pub fn read_token_account(path: &Path, realm: &str, token: &str) -> Result<String, String> {
+    lookup_token_account(path, realm, token)?.ok_or_else(|| {
+        "Saved session has no HUD layout account; log in with username and password".into()
+    })
 }
 
 fn read_accounts(path: &Path) -> Result<TokenAccounts, String> {

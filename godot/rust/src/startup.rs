@@ -27,6 +27,10 @@ fn launcher_account_token() -> Option<String> {
     std::env::var("GAME_ENGINE_ACCOUNT_TOKEN").ok()
 }
 
+fn launcher_account_name() -> Option<String> {
+    std::env::var("GAME_ENGINE_ACCOUNT_NAME").ok()
+}
+
 fn read_startup_arguments() -> Result<StartupArgs, String> {
     let arguments = Os::singleton()
         .get_cmdline_user_args()
@@ -160,9 +164,17 @@ impl GameClient {
         self.account.startup_options.startup_screen = screen;
         self.account.startup_options.auto_enter_world = enter_world;
         if let Some(token) = launcher_account_token() {
-            self.account
-                .connect_launcher(&self.server_hostname, &token)
+            let account_name = launcher_account_name();
+            let resolved_name = self
+                .account
+                .connect_launcher(&self.server_hostname, &token, account_name.as_deref())
                 .map_err(|error| error.to_string())?;
+            let Some(account_name) = resolved_name else {
+                return self.show_session_feedback();
+            };
+            if let Some(login) = self.login_ui.as_mut() {
+                login.bind_mut().prefill_login(&account_name, "")?;
+            }
         } else {
             // Preserve the original startup shortcut's configured credentials or development defaults.
             let credentials = load_login_credentials().unwrap_or(LoginCredentials {

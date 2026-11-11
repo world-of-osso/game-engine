@@ -16,7 +16,7 @@ Delete the relevant server's token file to force password re-entry.
 
 ### Launcher handoff
 
-When the signed-in launcher starts the client, it passes the saved account token in the child process's `GAME_ENGINE_ACCOUNT_TOKEN` environment. The client uses its normal token-login request; it does not receive a password or a token in command-line arguments. With no explicit `--server`, this startup connects to the Live realm and opens character select. A server rejection returns to the existing login form with its normal feedback; the client does not retry with another credential source. Direct client starts without the handoff keep their existing saved-token and configured-credential behavior.
+When the signed-in launcher starts the client, it passes the saved account token and its fingerprint-bound username in the child process's `GAME_ENGINE_ACCOUNT_TOKEN` and `GAME_ENGINE_ACCOUNT_NAME` environment. The client uses its normal token-login request and records the username↔token mapping used for per-account HUD layouts; it receives no password or token in command-line arguments. With no explicit `--server`, this startup connects to the Live realm and opens character select. A server rejection returns to the existing login form with server feedback and the username prefilled; the client does not retry with another credential source. Without a supplied username, the client uses only an existing authenticated local token mapping; if none exists, it keeps the login form open with an account-link message and does not send the unknown token. Direct client starts without the handoff keep their existing saved-token and configured-credential behavior.
 
 ## How it works
 
