@@ -142,7 +142,7 @@ func run_test() -> void:
 			node_count = panel_state.node_count
 			await RenderingServer.frame_post_draw
 			break
-send_key(KEY_N, false)
+	send_key(KEY_N, false)
 	input_probe.queue_free()
 	if panel == null or not panel.is_visible_in_tree() or node_count == 0:
 		var book := client.find_child("SpellBookRoot", true, false)
