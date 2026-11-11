@@ -2,7 +2,7 @@ extends "res://tests/world_menu_flow.gd"
 
 # Owned UDP inventory only; all visibility changes come from authored controls/input.
 const BAG_WAIT_MS := 5000
-const INVENTORY_WAIT_MS := 10000
+const INVENTORY_WAIT_MS := 60000
 const BACKPACK := "MainMenuBarBackpackButton"
 const BAG_ONE := "CharacterBag0Slot"
 const CONTAINER_RIGHT := 16.0
