@@ -2,7 +2,6 @@
 
 use crate::rebuild_guard::{Rebuild, ThemeOverrides};
 use crate::{GameClient, combat_text, replicated::UnitFields};
-use game_engine_core::combat_text_options::CombatTextOptions;
 use godot::classes::{
     Camera3D, CanvasLayer, FontFile, Label, Label3D, base_material_3d::BillboardMode,
 };
@@ -376,7 +375,7 @@ impl GameClient {
             x_dir,
             viewport: [viewport_size.x, viewport_size.y],
         };
-        let base_height = (if message.crit { 30.0 } else { 25.0 }) * scale_y;
+        let base_height = (if message.crit { 30.0 } else { 25.0 }) * viewport_size.y / 768.0;
         let (label, shadow) =
             self.create_incoming_labels(&layer, &message, base_height, viewport_size);
         let mut text = SelfFloatingText {
@@ -411,9 +410,9 @@ impl GameClient {
         base_height: f32,
         viewport: Vector2,
     ) -> (Gd<Label>, Gd<Label>) {
-        let mut shadow = self.new_incoming_label(message, base_height, viewport, Color::BLACK);
+        let shadow = self.new_incoming_label(message, base_height, viewport, Color::BLACK);
         let color = Color::from_rgb(message.color[0], message.color[1], message.color[2]);
-        let mut label = self.new_incoming_label(message, base_height, viewport, color);
+        let label = self.new_incoming_label(message, base_height, viewport, color);
         let mut layer = layer.clone();
         layer.add_child(&shadow);
         layer.add_child(&label);
