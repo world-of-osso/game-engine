@@ -430,6 +430,7 @@ impl FixtureConfig {
         if !matches!(
             screen,
             StartupScreen::Menu
+                | StartupScreen::Keybinds
                 | StartupScreen::Loot
                 | StartupScreen::Bags
                 | StartupScreen::BagsActions
