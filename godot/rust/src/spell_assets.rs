@@ -150,7 +150,8 @@ impl SpellAssets {
             insert_shared_texture(texture, &self.texture_dir, image)
                 .map_err(|error| format!("Spell effect model {fdid}: {error}"))?;
         }
-        let particles = ModelParticles::from_model(fdid, &files.model);
+        // Its textures were just registered under `texture_dir`, the shared-texture key.
+        let particles = ModelParticles::from_model(fdid, &files.model, self.texture_dir.clone());
         Ok(Rc::new(EffectModel {
             path: GString::from(files.path.to_string_lossy().as_ref()),
             model: files.model,

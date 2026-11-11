@@ -45,6 +45,9 @@ pub(crate) fn bind_visual_light(visual: &Gd<Node3D>, light: Option<&TerrainLight
         .done();
     for node in meshes.iter_shared() {
         let mesh = node.cast::<MeshInstance3D>();
+        if mesh.get_name().to_string().starts_with("M2RibbonStrip") {
+            continue;
+        }
         // M2 batches and WMO groups each have one surface and one ShaderMaterial.
         let mut material = mesh
             .get_active_material(0)
@@ -64,6 +67,7 @@ pub(crate) fn mesh_bounds(model: &Gd<Node3D>) -> Aabb {
         .get_children()
         .iter_shared()
         .filter_map(|child| child.try_cast::<MeshInstance3D>().ok())
+        .filter(|mesh| !mesh.get_name().to_string().starts_with("M2RibbonStrip"))
         .map(|mesh| mesh.get_aabb())
         .reduce(|bounds, next| bounds.merge(next))
         .unwrap_or_default()
@@ -143,12 +147,56 @@ pub(crate) enum VisualParts {
 }
 
 impl VisualParts {
+    pub fn ribbon_models(
+        &self,
+        data_root: &std::path::Path,
+    ) -> (
+        Option<Arc<crate::assets::creature::CachedModel>>,
+        Vec<(EquipmentSlot, Arc<crate::assets::creature::CachedModel>)>,
+    ) {
+        let creature = match self {
+            Self::Creature { model, .. } if !model.model.model.ribbon_emitters.is_empty() => {
+                Some(model.model.clone())
+            }
+            _ => None,
+        };
+        let models: Vec<_> = match self {
+            Self::Creature { gear, .. } => gear
+                .items
+                .iter()
+                .map(|(model, _)| model)
+                .chain(&gear.armor_models)
+                .collect(),
+            Self::Player(parts) => parts.runtime_models().iter().collect(),
+        };
+        let items = models
+            .into_iter()
+            .filter_map(|model| {
+                match crate::assets::creature::cached_model(data_root, model.product, model.fdid) {
+                    Ok(Some(cached)) if !cached.model.ribbon_emitters.is_empty() => {
+                        Some((model.slot, cached))
+                    }
+                    Ok(_) => None,
+                    Err(error) => {
+                        godot_error!("Equipment ribbon model: {error}");
+                        None
+                    }
+                }
+            })
+            .collect();
+        (creature, items)
+    }
+
     /// The particle emitters of a creature's display model (the model `build_visual`
     /// names `NpcModel`); `None` for players and emitterless models.
     pub fn particles(&self) -> Option<std::rc::Rc<crate::particles::ModelParticles>> {
         match self {
             Self::Creature { display, model, .. } => {
-                crate::particles::ModelParticles::from_model(display.model_fdid, &model.model.model)
+                crate::particles::ModelParticles::from_cached(display.model_fdid, &model.model)
+                    .unwrap_or_else(|error| {
+                        godot_error!("Creature particle model: {error}");
+                        None
+                    })
             }
             Self::Player(_) => None,
         }
@@ -184,7 +232,13 @@ impl VisualParts {
                     }
                 };
                 let particles =
-                    crate::particles::ModelParticles::from_model(model.fdid, &cached.model)?;
+                    match crate::particles::ModelParticles::from_cached(model.fdid, &cached) {
+                        Ok(particles) => particles?,
+                        Err(error) => {
+                            godot_error!("Equipment particle model: {error}");
+                            return None;
+                        }
+                    };
                 Some((model.slot, particles))
             })
             .collect()

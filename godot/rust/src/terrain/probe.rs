@@ -18,6 +18,69 @@ use crate::wmo::global::GlobalWmoScene;
 
 type Tile = (u32, u32);
 
+/// Drives one real product-root M2 through the in-world doodad placement path.
+#[derive(GodotClass)]
+#[class(base = Node3D)]
+pub struct WowRibbonWorldProbe {
+    base: Base<Node3D>,
+    objects: Option<TerrainObjects>,
+    frame: u64,
+}
+
+#[godot_api]
+impl INode3D for WowRibbonWorldProbe {
+    fn init(base: Base<Node3D>) -> Self {
+        Self {
+            base,
+            objects: None,
+            frame: 0,
+        }
+    }
+}
+
+#[godot_api]
+impl WowRibbonWorldProbe {
+    #[func]
+    fn load_model(&mut self, model_path: GString, skin_path: GString, fdid: u32) -> GString {
+        let global = |path: GString| {
+            PathBuf::from(
+                ProjectSettings::singleton()
+                    .globalize_path(&path)
+                    .to_string(),
+            )
+        };
+        let mut objects =
+            TerrainObjects::new("WorldObjects", crate::WORLD_OBJECT_BUDGET, PathBuf::new());
+        objects.enable_particles(1.0);
+        let mut parent = self.to_gd().upcast::<Node3D>();
+        match objects.attach_fixture_model(&mut parent, global(model_path), global(skin_path), fdid)
+        {
+            Ok(_) => {
+                self.objects = Some(objects);
+                GString::new()
+            }
+            Err(error) => GString::from(error.as_str()),
+        }
+    }
+
+    #[func]
+    fn advance(&mut self, camera: Gd<Camera3D>, delta: f64) {
+        let Some(objects) = &mut self.objects else {
+            return;
+        };
+        let frustum = crate::camera::frustum(&camera);
+        objects.cull_wmos(camera.get_global_position(), &frustum);
+        objects.cull_doodads(
+            camera.get_global_position(),
+            &frustum,
+            delta * 1000.0,
+            self.frame,
+        );
+        objects.update_particles(camera.get_global_transform(), &frustum, delta as f32);
+        self.frame += 1;
+    }
+}
+
 struct WmoRootSelection {
     tile: Tile,
     fdid: u32,

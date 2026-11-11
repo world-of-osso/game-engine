@@ -184,7 +184,7 @@ fn deathstate_healer_warning_renders_plain_sickness_name_both_skins() {
 }
 
 #[test]
-fn death_ipc_release_and_corpse_requests_reach_udp_server() {
+fn death_ipc_release_corpse_and_stuck_requests_reach_udp_server() {
     use game_engine_network::ipc_wire::Request;
     let mut server = DeathServerFixture::start();
     let mut account = Account::new(PathBuf::from("/unused-death-ipc-data"));
@@ -196,6 +196,7 @@ fn death_ipc_release_and_corpse_requests_reach_udp_server() {
             Request::DeathResurrectAtCorpse,
             ReceivedDeathRequest::Corpse,
         ),
+        (Request::DeathStuckEscape, ReceivedDeathRequest::Stuck),
     ] {
         assert_eq!(
             crate::ipc::send_death_ipc(&account, request).unwrap(),

@@ -26,6 +26,7 @@ pub(crate) fn send_death_ipc(
     let request = match request {
         Request::DeathReleaseSpirit => DeathRequest::Release,
         Request::DeathResurrectAtCorpse => DeathRequest::Corpse,
+        Request::DeathStuckEscape => DeathRequest::Stuck,
         _ => return Err("unsupported death request".into()),
     };
     account
@@ -39,9 +40,9 @@ impl crate::GameClient {
     pub(crate) fn world_request(&mut self, request: Request) -> Result<Response, Request> {
         let answer = match request {
             Request::DeathStatus => format_death_snapshot(self.death_flow.snapshot.as_ref()),
-            request @ (Request::DeathReleaseSpirit | Request::DeathResurrectAtCorpse) => {
-                send_death_ipc(&self.account, request)
-            }
+            request @ (Request::DeathReleaseSpirit
+            | Request::DeathResurrectAtCorpse
+            | Request::DeathStuckEscape) => send_death_ipc(&self.account, request),
             Request::CurrenciesStatus => {
                 serde_json::to_string(&self.account.currencies).map_err(|error| error.to_string())
             }

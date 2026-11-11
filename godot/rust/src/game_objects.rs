@@ -74,6 +74,7 @@ struct ObjectNode {
     node: Gd<Node3D>,
     animation: Option<GameObjectAnimation>,
     particles: Option<PlacedParticles>,
+    ribbons: Option<crate::ribbons::PlacedRibbons>,
 }
 pub(crate) struct GameObjects {
     data_root: PathBuf,
@@ -319,7 +320,7 @@ impl GameObjects {
             .get(&id)
             .is_none_or(|old| old.display_id != info.display_id);
         if changed {
-            let (visual, particle_model) = self.load_visual(info)?;
+            let (visual, particle_model, ribbon_model) = self.load_visual(info)?;
             if game_object_info_cursor(info).is_some()
                 && let Err(error) = crate::targeting::attach_pick_area(&visual, id)
             {
@@ -345,6 +346,18 @@ impl GameObjects {
                     return Err(error);
                 }
             };
+            let ribbons =
+                if let (Some(_), Some((model, texture_dir))) = (&self.particles, ribbon_model) {
+                    match crate::ribbons::PlacedRibbons::place(&model, &visual, &texture_dir) {
+                        Ok(ribbons) => ribbons,
+                        Err(error) => {
+                            node.free();
+                            return Err(format!("Game object {id} ribbon: {error}"));
+                        }
+                    }
+                } else {
+                    None
+                };
             self.objects.insert(
                 id,
                 ObjectNode {
@@ -352,6 +365,7 @@ impl GameObjects {
                     node,
                     animation: None,
                     particles,
+                    ribbons,
                 },
             );
         }
@@ -409,8 +423,7 @@ impl GameObjects {
             return Ok(None);
         };
         pools.attach(parent);
-        let (placed, errors) =
-            pools.place(&source, model, id as u32, &self.data_root.join("textures"));
+        let (placed, errors) = pools.place(&source, model, id as u32);
         if errors.is_empty() {
             Ok(Some(placed))
         } else {
@@ -420,7 +433,14 @@ impl GameObjects {
     fn load_visual(
         &mut self,
         info: &GameObjectInfo,
-    ) -> Result<(Gd<Node3D>, Option<Rc<ModelParticles>>), String> {
+    ) -> Result<
+        (
+            Gd<Node3D>,
+            Option<Rc<ModelParticles>>,
+            Option<(game_engine_core::m2::Model, PathBuf)>,
+        ),
+        String,
+    > {
         let path = self.data_root.join("db2/active/GameObjectDisplayInfo.csv");
         let displays = self
             .displays
@@ -451,6 +471,7 @@ impl GameObjects {
                 info.entry, info.display_id
             )
         })?;
+        let texture_dir = crate::assets::creature::model_texture_dir(&path)?;
         let path = GString::from(path.to_string_lossy().as_ref());
         let parsed = read_model(&path)?;
         cache_model_textures(&resolver, &self.data_root, &[0; 3], &parsed)?;
@@ -471,13 +492,22 @@ impl GameObjects {
         model.set_meta("model_file_data_id", &(fdid as i64).to_variant());
         model.set_rotation(Vector3::new(0.0, MODEL_YAW, 0.0));
         bind_visual_light(&model, self.light.as_ref());
-        Ok((model, ModelParticles::from_model(fdid, &parsed)))
+        let particles = ModelParticles::from_model(fdid, &parsed, texture_dir.clone());
+        let ribbons = (!parsed.ribbon_emitters.is_empty()).then_some((parsed, texture_dir));
+        Ok((model, particles, ribbons))
     }
     fn load_transport(
         &self,
         info: &GameObjectInfo,
         fdid: u32,
-    ) -> Result<(Gd<Node3D>, Option<Rc<ModelParticles>>), String> {
+    ) -> Result<
+        (
+            Gd<Node3D>,
+            Option<Rc<ModelParticles>>,
+            Option<(game_engine_core::m2::Model, PathBuf)>,
+        ),
+        String,
+    > {
         let mut model =
             transport_wmo::load_transport_wmo(&self.data_root, fdid, self.light.as_ref()).map_err(
                 |e| {
@@ -491,9 +521,9 @@ impl GameObjects {
         model.set_meta("model_file_data_id", &(fdid as i64).to_variant());
         // WMO and M2 local axes match (ADT MODF and MDDF share `placement_rotation`).
         model.set_rotation(Vector3::new(0.0, MODEL_YAW, 0.0));
-        Ok((model, None))
+        Ok((model, None, None))
     }
-    /// Advance emitters of visible game-object models, and defer off-screen time.
+    /// Advance visible game-object emitters and defer their off-screen time.
     pub fn update_particles(&mut self, camera: Transform3D, frustum: &[HalfSpace], delta: f32) {
         let Some(pools) = &mut self.particles else {
             return;
@@ -501,10 +531,31 @@ impl GameObjects {
         let view = view_basis(camera);
         pools.begin_frame();
         for object in self.objects.values_mut() {
+            if object.particles.is_none() && object.ribbons.is_none() {
+                continue;
+            }
+            let model = object.node.get_node_as::<Node3D>("GameObjectModel");
+            if let Some(ribbons) = &mut object.ribbons {
+                let bounds = crate::world_models::mesh_bounds(&model);
+                let v = |point: Vector3| glam::Vec3::new(point.x, point.y, point.z);
+                let visible = object.node.is_visible_in_tree()
+                    && crate::terrain::scenery::SceneryDistance::new(
+                        v(bounds.position),
+                        v(bounds.end()),
+                        crate::terrain::objects::affine(model.get_global_transform()),
+                    )
+                    .box_in_frustum(frustum);
+                if visible {
+                    if let Err(error) = ribbons.update_world_and_draw(&model, delta, 1.0) {
+                        godot_error!("Game object ribbon: {error}");
+                    }
+                } else {
+                    ribbons.hide();
+                }
+            }
             let Some(placed) = &mut object.particles else {
                 continue;
             };
-            let model = object.node.get_node_as::<Node3D>("GameObjectModel");
             let bounds = mesh_bounds(&model);
             let to_glam = |v: Vector3| glam::Vec3::new(v.x, v.y, v.z);
             let visible = model.is_visible_in_tree()

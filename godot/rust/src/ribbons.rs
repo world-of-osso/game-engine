@@ -15,20 +15,34 @@ use godot::{
 };
 use std::path::Path;
 
+struct RibbonMaterial {
+    material: Gd<ShaderMaterial>,
+    transform: Option<usize>,
+    last_matrix: Option<TextureMatrix>,
+}
+
 struct PlacedRibbon {
     source: M2RibbonEmitter,
     trail: RibbonTrail,
     meshes: Vec<Gd<MeshInstance3D>>,
-    materials: Vec<(Gd<ShaderMaterial>, Option<usize>)>,
+    materials: Vec<RibbonMaterial>,
     geometry: Gd<ArrayMesh>,
+    vertex_capacity: usize,
+    visible: bool,
 }
 
 impl PlacedRibbon {
     fn draw(&mut self, fade: f32) {
         let vertices = self.trail.triangles(fade);
-        upload_geometry(&mut self.geometry, &vertices);
-        for mesh in &mut self.meshes {
-            mesh.set_visible(!vertices.is_empty());
+        let has_geometry = !vertices.is_empty();
+        if has_geometry {
+            update_geometry(&mut self.geometry, &mut self.vertex_capacity, &vertices);
+        }
+        if self.visible != has_geometry {
+            for mesh in &mut self.meshes {
+                mesh.set_visible(has_geometry);
+            }
+            self.visible = has_geometry;
         }
     }
 }
@@ -41,6 +55,7 @@ pub(crate) struct PlacedRibbons {
     global_sequences: Vec<u32>,
     material_tracks: MaterialTracks,
     clock_ms: f64,
+    hidden: bool,
 }
 
 impl PlacedRibbons {
@@ -76,7 +91,46 @@ impl PlacedRibbons {
             global_sequences: model.global_sequences.clone(),
             material_tracks: MaterialTracks::of(model),
             clock_ms: 0.0,
+            hidden: false,
         }))
+    }
+
+    pub(crate) fn place_cached(
+        cached: &crate::assets::creature::CachedModel,
+        root: &Gd<Node3D>,
+    ) -> Result<Option<Self>, String> {
+        if cached.model.ribbon_emitters.is_empty() {
+            return Ok(None);
+        }
+        let texture_dir = crate::assets::creature::model_texture_dir(&cached.path)?;
+        Self::place(&cached.model, root, &texture_dir)
+    }
+
+    pub(crate) fn hide(&mut self) {
+        if self.hidden {
+            return;
+        }
+        for ribbon in &mut self.ribbons {
+            if ribbon.visible {
+                for mesh in &mut ribbon.meshes {
+                    mesh.set_visible(false);
+                }
+                ribbon.visible = false;
+            }
+        }
+        self.hidden = true;
+    }
+
+    pub(crate) fn update_world_and_draw(
+        &mut self,
+        root: &Gd<Node3D>,
+        delta: f32,
+        fade: f32,
+    ) -> Result<(), String> {
+        let _timing = crate::profile::node_span("M2WorldRibbon.update_and_draw");
+        #[cfg(target_os = "linux")]
+        let _cpu = crate::profile::cpu_node_span("M2WorldRibbon.cpu_ms");
+        self.update_and_draw(root, delta, fade, true)
     }
 
     pub(crate) fn update_and_draw(
@@ -86,7 +140,16 @@ impl PlacedRibbons {
         fade: f32,
         emitting: bool,
     ) -> Result<(), String> {
+        let _timing = crate::profile::node_span("M2Ribbon.update_and_draw");
+        #[cfg(target_os = "linux")]
+        let _cpu = crate::profile::cpu_node_span("M2Ribbon.cpu_ms");
         self.clock_ms += f64::from(delta) * 1000.0;
+        if self.hidden {
+            for ribbon in &mut self.ribbons {
+                ribbon.trail = RibbonTrail::new(&ribbon.source)?;
+            }
+            self.hidden = false;
+        }
         let (sequence, time_ms, global_ms) = self.playback()?;
         let time = m2::AnimTime {
             sequence,
@@ -147,13 +210,17 @@ fn place_ribbon(
             let transform = m2_ribbons::texture_transform_index(model, source, pass)?;
             let material =
                 load_ribbon_material(model, source.priority_plane, texture, material, texture_dir)?;
-            Ok((material, transform))
+            Ok(RibbonMaterial {
+                material,
+                transform,
+                last_matrix: None,
+            })
         })
         .collect::<Result<Vec<_>, String>>()?;
     let geometry = ArrayMesh::new_gd();
     let meshes = materials
         .iter()
-        .map(|(material, _)| spawn_ribbon_mesh(root, &geometry, material))
+        .map(|material| spawn_ribbon_mesh(root, &geometry, &material.material))
         .collect();
     Ok(PlacedRibbon {
         source: source.clone(),
@@ -161,6 +228,8 @@ fn place_ribbon(
         meshes,
         materials,
         geometry,
+        vertex_capacity: 0,
+        visible: false,
     })
 }
 
@@ -223,15 +292,20 @@ fn spawn_ribbon_mesh(
 }
 
 fn update_texture_transforms(
-    materials: &mut [(Gd<ShaderMaterial>, Option<usize>)],
+    materials: &mut [RibbonMaterial],
     tracks: &MaterialTracks,
     time: MaterialTime,
 ) {
-    for (material, index) in materials {
-        let matrix = index.map_or(m2_material::IDENTITY_MATRIX, |index| {
-            m2_material::texture_matrix(&tracks.transforms[index], tracks, time)
-        });
-        apply_texture_transform(material, matrix);
+    for material in materials {
+        let matrix = material
+            .transform
+            .map_or(m2_material::IDENTITY_MATRIX, |index| {
+                m2_material::texture_matrix(&tracks.transforms[index], tracks, time)
+            });
+        if material.last_matrix != Some(matrix) {
+            apply_texture_transform(&mut material.material, matrix);
+            material.last_matrix = Some(matrix);
+        }
     }
 }
 
@@ -314,7 +388,67 @@ fn upload_geometry(mesh: &mut Gd<ArrayMesh>, vertices: &[RibbonVertex]) {
     );
     arrays.set(mesh::ArrayType::TEX_UV.ord() as usize, &uvs.to_variant());
     arrays.set(mesh::ArrayType::COLOR.ord() as usize, &colors.to_variant());
-    mesh.add_surface_from_arrays(mesh::PrimitiveType::TRIANGLES, &arrays);
+    mesh.add_surface_from_arrays_ex(mesh::PrimitiveType::TRIANGLES, &arrays)
+        .flags(mesh::ArrayFormat::FLAG_USE_DYNAMIC_UPDATE)
+        .done();
+}
+
+/// Grow a surface only when its triangle capacity is exhausted; otherwise update its
+/// dynamic vertex and attribute buffers. Padded triangles repeat the last vertex.
+fn update_geometry(mesh: &mut Gd<ArrayMesh>, capacity: &mut usize, vertices: &[RibbonVertex]) {
+    let _timing = crate::profile::node_span("M2Ribbon.upload_geometry");
+    #[cfg(target_os = "linux")]
+    let _cpu = crate::profile::cpu_node_span("M2Ribbon.upload_cpu_ms");
+    let Some(last) = vertices.last().copied() else {
+        return;
+    };
+    if vertices.len() > *capacity {
+        *capacity = vertices.len().div_ceil(3).next_power_of_two() * 3;
+        let padded: Vec<_> = vertices
+            .iter()
+            .copied()
+            .chain(std::iter::repeat(last))
+            .take(*capacity)
+            .collect();
+        upload_geometry(mesh, &padded);
+    } else {
+        let mut positions = Vec::with_capacity(*capacity * 12);
+        let mut attributes = Vec::with_capacity(*capacity * 12);
+        for vertex in vertices
+            .iter()
+            .copied()
+            .chain(std::iter::repeat(last))
+            .take(*capacity)
+        {
+            for value in vertex.position {
+                positions.extend_from_slice(&value.to_ne_bytes());
+            }
+            // Godot's uncompressed COLOR/UV attribute stride is RGBA8 then two f32s
+            // (RenderingServer::mesh_surface_make_offsets_from_format).
+            for value in vertex.color {
+                attributes.push((value * 255.0).clamp(0.0, 255.0) as u8);
+            }
+            for value in vertex.uv {
+                attributes.extend_from_slice(&value.to_ne_bytes());
+            }
+        }
+        mesh.surface_update_vertex_region(0, 0, &PackedByteArray::from(&positions[..]));
+        mesh.surface_update_attribute_region(0, 0, &PackedByteArray::from(&attributes[..]));
+    }
+    let (min, max) = vertices.iter().fold(
+        (
+            glam::Vec3::splat(f32::INFINITY),
+            glam::Vec3::splat(f32::NEG_INFINITY),
+        ),
+        |(min, max), vertex| {
+            let point = glam::Vec3::from_array(vertex.position);
+            (min.min(point), max.max(point))
+        },
+    );
+    mesh.set_custom_aabb(Aabb::new(
+        Vector3::from_array(min.to_array()),
+        Vector3::from_array((max - min).to_array()),
+    ));
 }
 
 #[cfg(debug_assertions)]

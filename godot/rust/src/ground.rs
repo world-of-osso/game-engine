@@ -495,7 +495,7 @@ impl TerrainGround<'_> {
         self.terrain
             .water_surfaces_at(feet.x, feet.z)
             .into_iter()
-            .chain(liquids.filter_map(|triangle| triangle.level_at(feet.x, feet.z)))
+            .chain(liquids.flat_map(|placed| placed.levels_at(feet)))
             .min_by(|a, b| (a - feet.y).abs().total_cmp(&(b - feet.y).abs()))
     }
 
@@ -588,6 +588,7 @@ mod tests {
             terrain.parsed_tiles[&tile]
                 .wmo_liquids
                 .iter()
+                .flat_map(|placed| placed.groups.iter().flatten())
                 .any(|triangle| triangle.liquid_type == 1194
                     && triangle.level_at(feet.x, feet.z).is_some())
         );
@@ -621,6 +622,44 @@ mod tests {
         assert!(!movement.swimming);
     }
 
+    /// Windrunner Spire (map 2805) column (5212.4, 3054.8): floors at 100.31, 124.79 and
+    /// 155.7 under a hall WMO group whose MLIQ lies at 150.28, while the feet stand under
+    /// that group's box. Live 2026-11-01 03:34Z the player swam up from the 100.31 floor
+    /// to Y149 through both floors above it.
+    #[test]
+    fn windrunner_hall_liquid_does_not_reach_the_floors_under_its_group() {
+        let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
+        let assets = crate::terrain::NativeTerrainAssets::new(root.clone());
+        let mut terrain = StreamedTerrain::new(root);
+        terrain.map_wdt = Some(assets.read_map_wdt("2805").unwrap());
+        let column = Vec3::new(5212.431, 0.0, 3054.774);
+        let tile = bevy_to_tile_coords(column.x, column.z);
+        terrain
+            .parsed_tiles
+            .insert(tile, assets.read_tile("2805", tile.0, tile.1).unwrap());
+        let authored: Vec<_> = terrain.parsed_tiles[&tile]
+            .wmo_liquids
+            .iter()
+            .flat_map(|placed| placed.groups.iter().flatten())
+            .filter_map(|triangle| triangle.level_at(column.x, column.z))
+            .collect();
+        assert!(
+            authored.iter().any(|level| (level - 150.276).abs() < 0.01),
+            "hall MLIQ over the column: {authored:?}"
+        );
+        let ground = TerrainGround {
+            terrain: &terrain,
+            walls: &|_, _, _| None,
+            step_wall_blocked: &|_, _, _| false,
+            game_object_floor: &|_| None,
+        };
+        for y in [100.4, 124.8, 149.0258] {
+            let feet = column.with_y(y);
+            assert_eq!(ground.water_surface(feet), None, "liquid at {feet:?}");
+            assert!(!ground.swimming(feet), "swimming at {feet:?}");
+        }
+    }
+
     #[test]
     fn stacked_wmo_surfaces_and_m2_floors_select_by_swimmer_height() {
         use game_engine_core::wmo_liquid::LiquidTriangle;
@@ -640,10 +679,23 @@ mod tests {
                 Vec3::new(feet.x, height, feet.z + 5.0),
             ]
         };
-        data.wmo_liquids.push(LiquidTriangle {
+        // A second surface in the group holding the authored Halls pool under the feet.
+        let mut stacked = data
+            .wmo_liquids
+            .iter()
+            .find(|placed| placed.levels_at(feet).next().is_some())
+            .expect("Halls pool placement")
+            .clone();
+        let group = stacked
+            .groups
+            .iter()
+            .position(|group| group.iter().any(|t| t.level_at(feet.x, feet.z).is_some()))
+            .unwrap();
+        stacked.groups[group].push(LiquidTriangle {
             vertices: triangle(-30.0),
             liquid_type: 13,
         });
+        data.wmo_liquids.push(stacked);
         data.m2_floors.push(shared::los::LosTile::build(
             tile.0,
             tile.1,

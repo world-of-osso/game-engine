@@ -154,3 +154,31 @@ fn a_corpse_without_a_dead_clip_lies_at_the_end_of_death() {
     ));
     assert_eq!(player.time_ms, duration);
 }
+
+/// InvisibleStalker 124642 (display 16925 in Ruby Life Pools and Murder Row) has no Run
+/// clip: running plays `AnimationData.Fallback` 5 → Stand instead of failing with
+/// "M2 animation ID 5 has no base variation".
+#[test]
+fn a_creature_without_a_run_clip_stands_while_running() {
+    let data = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
+    let read = |name: &str| fs::read(data.join("models").join(name)).expect("authored fixture");
+    let model =
+        m2::parse_model_with_skeleton(&read("124642.m2"), &read("12464200.skin"), None, |fdid| {
+            fs::read(data.join(format!("models/{fdid}.anim"))).ok()
+        })
+        .expect("InvisibleStalker");
+    let fallbacks =
+        game_engine_core::spell_visual::read_animation_fallbacks(&data.join("db2/active")).unwrap();
+    let mut player = AnimationState::new(&model).expect("animated InvisibleStalker");
+    let run = creature_animation_change(None, Some(CreatureMotion::Run), None).unwrap();
+    assert_eq!(run, 5);
+    let err = player.update_locomotion(run, false, true).unwrap_err();
+    assert_eq!(err, "M2 animation ID 5 has no base variation");
+
+    let clip = player
+        .resolve_clip(run, &fallbacks)
+        .unwrap_or(super::ANIM_STAND);
+    assert_eq!(clip, super::ANIM_STAND);
+    player.update_locomotion(clip, false, true).unwrap();
+    assert_eq!(current_id(&player), super::ANIM_STAND);
+}

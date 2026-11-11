@@ -48,6 +48,84 @@ impl Drop for NodeSpan {
     }
 }
 
+/// Scheduled CPU time for short Linux rendering spans, excluding host runqueue waits.
+#[cfg(target_os = "linux")]
+pub(crate) struct CpuNodeSpan {
+    name: &'static str,
+    started: Duration,
+}
+
+#[cfg(target_os = "linux")]
+pub(crate) fn cpu_node_span(name: &'static str) -> Option<CpuNodeSpan> {
+    thread_cpu_time().map(|started| CpuNodeSpan { name, started })
+}
+
+#[cfg(target_os = "linux")]
+fn thread_cpu_time() -> Option<Duration> {
+    let mut time = libc::timespec {
+        tv_sec: 0,
+        tv_nsec: 0,
+    };
+    // SAFETY: `time` is a valid writable timespec and the thread clock needs no handle.
+    if unsafe { libc::clock_gettime(libc::CLOCK_THREAD_CPUTIME_ID, &mut time) } != 0 {
+        godot::prelude::godot_error!("Thread CPU clock: {}", std::io::Error::last_os_error());
+        return None;
+    }
+    let (Ok(seconds), Ok(nanoseconds)) = (u64::try_from(time.tv_sec), u32::try_from(time.tv_nsec))
+    else {
+        godot::prelude::godot_error!("Thread CPU clock returned a negative value");
+        return None;
+    };
+    if nanoseconds >= 1_000_000_000 {
+        godot::prelude::godot_error!("Thread CPU clock returned invalid nanoseconds {nanoseconds}");
+        return None;
+    }
+    Some(Duration::new(seconds, nanoseconds))
+}
+
+#[cfg(target_os = "linux")]
+impl Drop for CpuNodeSpan {
+    fn drop(&mut self) {
+        let Some(end) = thread_cpu_time() else {
+            return;
+        };
+        let Some(duration) = end.checked_sub(self.started) else {
+            godot::prelude::godot_error!("Thread CPU clock moved backwards");
+            return;
+        };
+        NODE_TIMES.with(|times| *times.borrow_mut().entry(self.name).or_default() += duration);
+    }
+}
+
+#[cfg(all(test, target_os = "linux"))]
+mod tests {
+    use super::{cpu_node_span, take_node_times};
+    use std::time::{Duration, Instant};
+
+    #[test]
+    fn cpu_span_excludes_sleep_and_records_work() {
+        take_node_times();
+        let wall = Instant::now();
+        let span = cpu_node_span("test.cpu").expect("Linux thread CPU clock");
+        std::thread::sleep(Duration::from_millis(50));
+        let mut sum = 0_u64;
+        for value in 0..100_000 {
+            sum = sum.wrapping_add(std::hint::black_box(value));
+        }
+        std::hint::black_box(sum);
+        drop(span);
+        let cpu_ms = take_node_times()
+            .into_iter()
+            .find_map(|(name, milliseconds)| (name == "test.cpu").then_some(milliseconds))
+            .expect("CPU sample");
+        assert!(cpu_ms > 0.0);
+        assert!(
+            cpu_ms < wall.elapsed().as_secs_f64() * 500.0,
+            "CPU {cpu_ms} ms should exclude sleep"
+        );
+    }
+}
+
 fn threshold_ms() -> Option<f64> {
     static THRESHOLD: OnceLock<Option<f64>> = OnceLock::new();
     *THRESHOLD.get_or_init(|| std::env::var("GAME_PROFILE_MS").ok()?.parse().ok())

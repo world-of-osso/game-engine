@@ -1,7 +1,7 @@
 //! Debug-only raster fixture through the production ribbon material/mesh path.
 use super::{
-    create_ribbon_material, place_ribbon, spawn_ribbon_mesh, update_texture_transforms,
-    upload_geometry,
+    RibbonMaterial, create_ribbon_material, place_ribbon, spawn_ribbon_mesh, update_geometry,
+    update_texture_transforms, upload_geometry,
 };
 use game_engine_core::{
     m2,
@@ -47,6 +47,8 @@ fn create_uv_fixture_texture() -> Result<Gd<ImageTexture>, String> {
 #[class(base = Node3D, init)]
 struct RibbonMaterialFixture {
     base: Base<Node3D>,
+    last_uv_matrix: Option<game_engine_core::m2_material::TextureMatrix>,
+    dynamic_capacity: usize,
 }
 
 #[godot_api]
@@ -68,6 +70,20 @@ impl RibbonMaterialFixture {
     }
 
     #[func]
+    fn set_dynamic_strip(
+        &mut self,
+        color: Color,
+        vertex_count: i32,
+        uv: Vector2,
+        offset_x: f32,
+    ) -> GString {
+        match self.update_dynamic_strip(color, vertex_count, uv, offset_x) {
+            Ok(()) => GString::new(),
+            Err(error) => error.as_str().into(),
+        }
+    }
+
+    #[func]
     fn sample_real_uv(&mut self, global_ms: u32) -> GString {
         match self.update_real_uv(global_ms) {
             Ok(()) => GString::new(),
@@ -77,6 +93,38 @@ impl RibbonMaterialFixture {
 }
 
 impl RibbonMaterialFixture {
+    fn update_dynamic_strip(
+        &mut self,
+        color: Color,
+        vertex_count: i32,
+        uv: Vector2,
+        offset_x: f32,
+    ) -> Result<(), String> {
+        if ![3, 6, 12].contains(&vertex_count) {
+            return Err(format!(
+                "Invalid dynamic fixture vertex count {vertex_count}"
+            ));
+        }
+        let mesh = self
+            .base()
+            .try_get_node_as::<MeshInstance3D>("M2RibbonStrip")
+            .ok_or("Dynamic fixture strip missing")?;
+        let mut geometry = mesh
+            .get_mesh()
+            .and_then(|mesh| mesh.try_cast::<ArrayMesh>().ok())
+            .ok_or("Dynamic fixture geometry missing")?;
+        let points = [[-3.0, -3.0], [3.0, -3.0], [0.0, 3.0]];
+        let vertices: Vec<_> = (0..vertex_count as usize)
+            .map(|index| RibbonVertex {
+                position: [points[index % 3][0] + offset_x, points[index % 3][1], 0.0],
+                uv: uv.to_array(),
+                color: [color.r, color.g, color.b, color.a],
+            })
+            .collect();
+        update_geometry(&mut geometry, &mut self.dynamic_capacity, &vertices);
+        Ok(())
+    }
+
     fn create_chaos_bolt_ribbons(&mut self) -> Result<(), String> {
         let base = ProjectSettings::singleton()
             .globalize_path("res://../data")
@@ -105,7 +153,11 @@ impl RibbonMaterialFixture {
             .ok_or("Real-UV fixture material missing")?;
         let texture = create_uv_fixture_texture()?;
         material.set_shader_parameter("ribbon_texture", &texture.to_variant());
-        let mut materials = [(material, index)];
+        let mut materials = [RibbonMaterial {
+            material,
+            transform: index,
+            last_matrix: self.last_uv_matrix,
+        }];
         update_texture_transforms(
             &mut materials,
             &MaterialTracks::of(&model),
@@ -114,6 +166,7 @@ impl RibbonMaterialFixture {
                 ..Default::default()
             },
         );
+        self.last_uv_matrix = materials[0].last_matrix;
         Ok(())
     }
 

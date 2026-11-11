@@ -22,6 +22,7 @@ pub(super) fn take_callbacks(animation: &mut AnimationState, active: bool) -> Ve
 
 const ACTIVE_META: &str = "m2_attachment_active";
 const SHADOW_META: &str = "m2_attachment_shadow_mode";
+const CAMERA_META: &str = "unit_camera_admitted";
 
 struct AttachmentPoint {
     index: usize,
@@ -131,7 +132,7 @@ impl AttachmentGates {
             }
             let tree_changed = generation.is_none_or(|value| value != point.tree_generation);
             if changed || tree_changed || !point.node.is_inside_tree() {
-                refresh_attachment_shadows(&point.node.clone().upcast());
+                refresh_unit_shadows(&point.node.clone().upcast());
             }
             if let Some(value) = generation {
                 point.tree_generation = value;
@@ -164,30 +165,68 @@ fn attachment_indices(model: &m2::Model) -> Vec<(u32, usize)> {
 /// Inactive outer attachments also exclude every recursively attached descendant.
 /// Absence of an attachment ancestor leaves ordinary model playback untouched.
 pub(super) fn participates(node: &Gd<Node>) -> bool {
+    !has_ancestor_meta_false(node, ACTIVE_META)
+}
+
+fn has_ancestor_meta_false(node: &Gd<Node>, meta: &str) -> bool {
     let mut ancestor = Some(node.clone());
     while let Some(node) = ancestor {
-        if node.has_meta(ACTIVE_META) && !node.get_meta(ACTIVE_META).booleanize() {
-            return false;
+        if node.has_meta(meta) && !node.get_meta(meta).booleanize() {
+            return true;
         }
         ancestor = node.get_parent();
     }
-    true
+    false
 }
 
-pub(crate) fn refresh_attachment_shadows(node: &Gd<Node>) {
+/// Marks a unit subtree admitted or rejected by the camera; `refresh_unit_shadows`
+/// applies it.
+pub(crate) fn set_camera_admitted(node: &mut Gd<Node>, admitted: bool) {
+    node.set_meta(CAMERA_META, &admitted.to_variant());
+}
+
+/// The cast-shadow mode of a geometry authored `original`: an inactive attachment
+/// casts nothing, and a camera-rejected caster keeps only its shadow. Godot cannot
+/// combine shadows-only with double-sided casting, so those stay drawn.
+pub(crate) fn shadow_mode(
+    original: ShadowCastingSetting,
+    active: bool,
+    camera_admitted: bool,
+) -> ShadowCastingSetting {
+    if !active {
+        ShadowCastingSetting::OFF
+    } else if !camera_admitted && original == ShadowCastingSetting::ON {
+        ShadowCastingSetting::SHADOWS_ONLY
+    } else {
+        original
+    }
+}
+
+/// Applies attachment participation and camera admission to every geometry under
+/// `node`, keeping each geometry's authored mode while either changes it.
+pub(crate) fn refresh_unit_shadows(node: &Gd<Node>) {
     if let Ok(mut geometry) = node.clone().try_cast::<GeometryInstance3D>() {
-        let active = participates(node);
-        if !active && !geometry.has_meta(SHADOW_META) {
-            let original = geometry.get_cast_shadows_setting().ord();
-            geometry.set_meta(SHADOW_META, &original.to_variant());
-            geometry.set_cast_shadows_setting(ShadowCastingSetting::OFF);
-        } else if active && geometry.has_meta(SHADOW_META) {
-            let original = geometry.get_meta(SHADOW_META).to::<i32>();
-            geometry.set_cast_shadows_setting(ShadowCastingSetting::from_ord(original));
+        let stored = geometry.has_meta(SHADOW_META);
+        let original = if stored {
+            ShadowCastingSetting::from_ord(geometry.get_meta(SHADOW_META).to::<i32>())
+        } else {
+            geometry.get_cast_shadows_setting()
+        };
+        let mode = shadow_mode(
+            original,
+            participates(node),
+            !has_ancestor_meta_false(node, CAMERA_META),
+        );
+        if mode != geometry.get_cast_shadows_setting() {
+            geometry.set_cast_shadows_setting(mode);
+        }
+        if mode == original && stored {
             geometry.remove_meta(SHADOW_META);
+        } else if mode != original && !stored {
+            geometry.set_meta(SHADOW_META, &original.ord().to_variant());
         }
     }
     for child in node.get_children().iter_shared() {
-        refresh_attachment_shadows(&child);
+        refresh_unit_shadows(&child);
     }
 }

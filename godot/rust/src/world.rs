@@ -52,6 +52,10 @@ mod emotes;
 mod mount;
 #[path = "world_stand.rs"]
 pub(crate) mod stand;
+#[path = "world_unit_admission_fixture.rs"]
+mod unit_admission_fixture;
+#[path = "world_unit_transform_fixture.rs"]
+mod unit_transform_fixture;
 #[path = "world_vehicle_fixture.rs"]
 mod vehicle_fixture;
 use combat::MeleeWeapon;
@@ -72,6 +76,9 @@ struct UnitNode {
     visual: Option<Gd<Node3D>>,
     /// The parts of `visual` its animation LOD reads every frame.
     lod_target: Option<LodTarget>,
+    /// Whether portal visibility admitted the unit to the camera when its subtree was
+    /// last refreshed; `None` once new geometry needs it applied.
+    camera_admitted: Option<bool>,
     /// Visual request still loading and the sheath state its virtual items are placed
     /// for; `visual` shows the previous appearance until it arrives.
     loading: Option<(u64, SheathState)>,
@@ -102,6 +109,8 @@ struct UnitNode {
     particles: Option<PlacedParticles>,
     /// The particle emitters of `visual`'s item models, on each item model node.
     item_particles: Vec<(PlacedParticles, Gd<Node3D>)>,
+    ribbons: Option<crate::ribbons::PlacedRibbons>,
+    item_ribbons: Vec<(crate::ribbons::PlacedRibbons, Gd<Node3D>)>,
     /// The clip of a held social emote (/dance) the player shows while still.
     emote: Option<u16>,
     /// A player's newest replicated stand state.
@@ -148,8 +157,11 @@ impl UnitNode {
         // The emitters were placed on the previous visual's model and item nodes.
         self.particles = None;
         self.item_particles.clear();
+        self.ribbons = None;
+        self.item_ribbons.clear();
         self.lod_target = visual.as_ref().and_then(LodTarget::of);
         self.visual = visual;
+        self.camera_admitted = None;
     }
 }
 
@@ -243,6 +255,17 @@ impl UnitMotion {
     }
 }
 
+/// Quaternion distance below which two rotations are the same facing (about 2e-5 rad).
+/// The node's quaternion is read back from its basis and differs from the one set by
+/// float rounding, and the remote slerp tail renormalizes by an ulp each frame; without
+/// a tolerance every standing unit re-sets its transform, and every mesh under it, per
+/// frame.
+const FACING_EPSILON: f32 = 1e-5;
+
+fn same_facing(a: glam::Quat, b: glam::Quat) -> bool {
+    (a - b).length().min((a + b).length()) < FACING_EPSILON
+}
+
 fn advance_unit_transform(unit: &mut UnitNode, is_local: bool, delta: f32) {
     let position = unit.node.get_position();
     let rotation = unit.node.get_quaternion();
@@ -258,7 +281,7 @@ fn advance_unit_transform(unit: &mut UnitNode, is_local: bool, delta: f32) {
             pose.position.z,
         ));
     }
-    if pose.rotation != current.rotation {
+    if !same_facing(pose.rotation, current.rotation) {
         let rotation = pose.rotation.to_array();
         unit.node.set_quaternion(Quaternion::new(
             rotation[0],
@@ -326,6 +349,7 @@ fn spawn_unit(
         appearance: None,
         visual: None,
         lod_target: None,
+        camera_admitted: None,
         loading: None,
         visual_player_model: None,
         death_applied: false,
@@ -341,6 +365,8 @@ fn spawn_unit(
         main_hand_subclass: None,
         particles: None,
         item_particles: Vec::new(),
+        ribbons: None,
+        item_ribbons: Vec::new(),
         emote: None,
         stand_state: None,
         stand_anim: None,
@@ -565,8 +591,12 @@ fn attach_unit_visual(
     sheath: SheathState,
     models: &WorldModels,
     light: Option<&TerrainLight>,
-    particles: Option<(&mut ParticlePools, &std::path::Path)>,
+    particles: Option<&mut ParticlePools>,
 ) {
+    let ribbon_models = loaded
+        .as_ref()
+        .ok()
+        .map(|parts| parts.ribbon_models(models.data_root()));
     let model_particles = loaded.as_ref().ok().and_then(VisualParts::particles);
     let item_particles = loaded
         .as_ref()
@@ -595,13 +625,47 @@ fn attach_unit_visual(
             bind_visual_light(&visual, light);
             unit.node.add_child(&visual);
             unit.replace_visual(Some(visual.clone()));
-            if let Some((pools, texture_dir)) = particles {
+            if let Some(pools) = particles {
+                if let Some((creature, items)) = ribbon_models {
+                    if let (Some(source), Some(model)) =
+                        (creature, visual.try_get_node_as::<Node3D>("NpcModel"))
+                    {
+                        match crate::ribbons::PlacedRibbons::place_cached(&source, &model) {
+                            Ok(ribbons) => unit.ribbons = ribbons,
+                            Err(error) => {
+                                godot_error!(
+                                    "{} ribbon: {error}",
+                                    appearance.describe_unit(server_id)
+                                );
+                            }
+                        }
+                    }
+                    for (slot, source) in items {
+                        let Some(item) = visual
+                            .find_child_ex(&format!("Equipment{slot:?}"))
+                            .owned(false)
+                            .done()
+                            .and_then(|node| node.try_cast::<Node3D>().ok())
+                        else {
+                            continue;
+                        };
+                        match crate::ribbons::PlacedRibbons::place_cached(&source, &item) {
+                            Ok(Some(ribbons)) => unit.item_ribbons.push((ribbons, item)),
+                            Ok(None) => {}
+                            Err(error) => {
+                                godot_error!(
+                                    "{} {slot:?} ribbon: {error}",
+                                    appearance.describe_unit(server_id)
+                                );
+                            }
+                        }
+                    }
+                }
                 if let (Some(model_particles), Some(model)) = (
                     model_particles,
                     visual.try_get_node_as::<Node3D>("NpcModel"),
                 ) {
-                    let (placed, errors) =
-                        pools.place(&model_particles, &model, server_id as u32, texture_dir);
+                    let (placed, errors) = pools.place(&model_particles, &model, server_id as u32);
                     for error in errors {
                         godot_error!("{}: {error}", appearance.describe_unit(server_id));
                     }
@@ -617,7 +681,7 @@ fn attach_unit_visual(
                         continue;
                     };
                     let seed = (server_id as u32).wrapping_add(slot as u32 + 1);
-                    let (placed, errors) = pools.place(&item_particles, &item, seed, texture_dir);
+                    let (placed, errors) = pools.place(&item_particles, &item, seed);
                     for error in errors {
                         godot_error!("{} {slot:?}: {error}", appearance.describe_unit(server_id));
                     }
@@ -984,9 +1048,15 @@ fn sync_unit_animation(unit: &mut UnitNode, snapshot: Unit, fallbacks: &HashMap<
         return;
     };
     unit.animation = Some(id);
+    // A walk or run the model lacks plays its `AnimationData.Fallback` chain (Run 5 →
+    // Stand) too.
+    let clip = animation
+        .bind()
+        .resolve_clip(id, fallbacks)
+        .unwrap_or(ANIM_STAND);
     if let Err(error) = animation
         .bind_mut()
-        .update_locomotion(id, false, id == ANIM_RUN)
+        .update_locomotion(clip, false, id == ANIM_RUN)
     {
         godot_error!("NPC {} animation {id}: {error}", snapshot.server_id);
     }
@@ -1143,7 +1213,11 @@ impl WorldUnits {
         let view = view_basis(camera);
         pools.begin_frame();
         for unit in self.units.values_mut() {
-            if unit.particles.is_none() && unit.item_particles.is_empty() {
+            if unit.particles.is_none()
+                && unit.item_particles.is_empty()
+                && unit.ribbons.is_none()
+                && unit.item_ribbons.is_empty()
+            {
                 continue;
             }
             let Some(model) = unit.visual.as_ref().and_then(|visual| {
@@ -1175,6 +1249,24 @@ impl WorldUnits {
                     placed.update_and_draw(item, delta, 1.0, &view, pools);
                 } else {
                     placed.defer(delta);
+                }
+            }
+            if let Some(ribbons) = &mut unit.ribbons {
+                if in_frustum {
+                    if let Err(error) = ribbons.update_world_and_draw(&model, delta, 1.0) {
+                        godot_error!("Unit ribbon: {error}");
+                    }
+                } else {
+                    ribbons.hide();
+                }
+            }
+            for (ribbons, item) in &mut unit.item_ribbons {
+                if in_frustum && item.is_visible_in_tree() {
+                    if let Err(error) = ribbons.update_world_and_draw(item, delta, 1.0) {
+                        godot_error!("Item ribbon: {error}");
+                    }
+                } else {
+                    ribbons.hide();
                 }
             }
         }
@@ -1347,6 +1439,7 @@ impl WorldUnits {
                         bind_visual_light(&model, self.light.as_ref());
                         unit.node.add_child(&model);
                         mount.node = Some(model);
+                        unit.camera_admitted = None;
                         mount::seat_rider(unit);
                     }
                     Err(error) => {
@@ -1369,12 +1462,11 @@ impl WorldUnits {
             let (_, sheath) = unit.loading.take().expect("matched a loading unit");
             let prepared_result_ok = loaded.is_ok();
             let existing_visual = unit.visual.is_some();
-            let texture_dir = self.data_root.join("textures");
             let pools = self.particles.as_mut().map(|pools| {
                 if let Some(root) = self.root.as_mut() {
                     pools.attach(root);
                 }
-                (pools, texture_dir.as_path())
+                pools
             });
             attach_unit_visual(
                 unit,
@@ -1571,6 +1663,25 @@ impl WorldUnits {
             if let Some(materials) = &mut target.materials {
                 materials.bind_mut().set_sampling(sampling);
             }
+        }
+    }
+
+    /// Rejects remote units outside portal visibility from the camera while keeping
+    /// their shadows: the outdoor admission of terrain and doodads applied to each
+    /// unit's model and mount boxes. The local player is always admitted.
+    pub fn cull_outdoor(&mut self, windows: Option<&[Vec<HalfSpace>]>, interiors: &[(Vec3, Vec3)]) {
+        for (id, unit) in &mut self.units {
+            let admitted = Some(*id) == self.local_player_id
+                || unit_world_box(unit).is_none_or(|(min, max)| {
+                    crate::terrain::scenery::outdoor_box_admitted(min, max, windows, interiors)
+                });
+            if unit.camera_admitted == Some(admitted) {
+                continue;
+            }
+            let mut node = unit.node.clone().upcast::<godot::classes::Node>();
+            crate::animation::set_camera_admitted(&mut node, admitted);
+            crate::animation::refresh_unit_shadows(&node);
+            unit.camera_admitted = Some(admitted);
         }
     }
 
@@ -1849,6 +1960,40 @@ impl WorldUnits {
     }
 }
 
+/// Held items and animation reach past a model's bind-pose mesh bounds.
+const UNIT_BOX_MARGIN: f32 = 1.0;
+
+/// World box of a unit's model and its mount's model, grown by `UNIT_BOX_MARGIN`;
+/// `None` while it shows neither.
+fn unit_world_box(unit: &UnitNode) -> Option<(Vec3, Vec3)> {
+    let mount = unit.mount.as_ref().and_then(|mount| mount.node.as_ref());
+    [unit.visual.as_ref(), mount]
+        .into_iter()
+        .flatten()
+        .filter_map(|visual| {
+            visual
+                .try_get_node_as::<Node3D>("NpcModel")
+                .or_else(|| visual.try_get_node_as::<Node3D>("PlayerModel"))
+        })
+        .map(|model| {
+            let bounds = crate::world_models::mesh_bounds(&model);
+            let to_glam = |v: Vector3| Vec3::new(v.x, v.y, v.z);
+            SceneryDistance::new(
+                to_glam(bounds.position),
+                to_glam(bounds.end()),
+                crate::terrain::objects::affine(model.get_global_transform()),
+            )
+            .world_bounds()
+        })
+        .reduce(|(low, high), (min, max)| (low.min(min), high.max(max)))
+        .map(|(min, max)| {
+            (
+                min - Vec3::splat(UNIT_BOX_MARGIN),
+                max + Vec3::splat(UNIT_BOX_MARGIN),
+            )
+        })
+}
+
 /// The NPC animation rate for model-space `bounds` placed by `world_from_model`: by
 /// the model's camera distance and whether its world box is in the view `frustum`,
 /// the doodad box-vs-frustum test (`SceneryDistance::box_in_frustum`).
@@ -1910,6 +2055,18 @@ mod tests {
         assert_eq!(lod_at(Vec3::new(10.3, 0.0, -10.0)), AnimationLod::Full);
         assert!(lod_at(Vec3::new(0.0, 0.0, -10.0)).samples_frame(7, 3));
         assert!(!lod_at(Vec3::new(0.0, 0.0, 10.0)).samples_frame(7, 3));
+    }
+
+    /// q and -q are one rotation; a visible turn is not absorbed by the tolerance.
+    #[test]
+    fn same_facing_ignores_quaternion_sign_and_rounding_but_not_turns() {
+        let facing = glam::Quat::from_rotation_y(1.3);
+        assert!(same_facing(facing, -facing));
+        assert!(same_facing(facing, glam::Quat::from_rotation_y(1.3 + 1e-6)));
+        assert!(!same_facing(
+            facing,
+            glam::Quat::from_rotation_y(1.3 + 1e-3)
+        ));
     }
 
     const PLAYER_ID: u64 = 42;

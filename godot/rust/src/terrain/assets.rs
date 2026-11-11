@@ -101,7 +101,7 @@ pub(crate) struct NativeTerrainAssets {
             (
                 Vec<Arc<WmoGroupCollision>>,
                 Option<FootstepSurface>,
-                Vec<game_engine_core::wmo_liquid::LiquidTriangle>,
+                Vec<Vec<game_engine_core::wmo_liquid::LiquidTriangle>>,
             ),
         >,
     >,
@@ -135,7 +135,7 @@ pub(crate) struct NativeTerrainTile {
     /// Their floors are the player's ground and their faces physics walls from the moment the
     /// tile is parsed, before any WMO node spawns. A WMO spanning tiles is in each tile's list.
     pub wmo_floors: Vec<(u32, WmoCollision)>,
-    pub wmo_liquids: Vec<game_engine_core::wmo_liquid::LiquidTriangle>,
+    pub wmo_liquids: Vec<crate::wmo::placement::PlacedLiquid>,
     /// Authored M2 hulls, including the neighbouring centroid tiles. Loaded on the
     /// worker before ground prediction, independent of render-node spawning/culling.
     pub m2_floors: Vec<shared::los::LosTile>,
@@ -463,7 +463,7 @@ impl NativeTerrainAssets {
     ) -> (
         Vec<(u32, WmoCollision)>,
         Vec<(WmoSurfaceBounds, FootstepSurface)>,
-        Vec<game_engine_core::wmo_liquid::LiquidTriangle>,
+        Vec<crate::wmo::placement::PlacedLiquid>,
     ) {
         let mut floors = Vec::new();
         let mut surfaces = Vec::new();
@@ -471,16 +471,13 @@ impl NativeTerrainAssets {
         for placement in placements {
             match self.read_wmo_groups(placement) {
                 Ok((groups, surface, triangles)) => {
-                    let transform = crate::wmo::placement::adt_world_from_local(placement, tile);
-                    liquids.extend(
-                        triangles
-                            .iter()
-                            .map(|triangle| triangle.transformed(transform)),
-                    );
-                    floors.push((
-                        placement.unique_id,
-                        crate::wmo::placement::adt_wmo_collision(placement, tile, groups),
+                    let collision =
+                        crate::wmo::placement::adt_wmo_collision(placement, tile, groups);
+                    liquids.extend(crate::wmo::placement::PlacedLiquid::new(
+                        collision.clone(),
+                        &triangles,
                     ));
+                    floors.push((placement.unique_id, collision));
                     if let Some(surface) = surface {
                         surfaces.push((wmo_surface_bounds(placement, false), surface));
                     }
@@ -501,7 +498,7 @@ impl NativeTerrainAssets {
         (
             Vec<Arc<WmoGroupCollision>>,
             Option<FootstepSurface>,
-            Vec<game_engine_core::wmo_liquid::LiquidTriangle>,
+            Vec<Vec<game_engine_core::wmo_liquid::LiquidTriangle>>,
         ),
         String,
     > {

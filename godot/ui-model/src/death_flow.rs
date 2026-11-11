@@ -14,6 +14,7 @@ const DEATH_KEYS: [&str; 4] = [DEATH_POPUP, CORPSE_POPUP, HEALER_POPUP, RESURREC
 pub enum DeathRequest {
     Release,
     Corpse,
+    Stuck,
     SpiritHealer,
     Resurrection {
         caster: u64,

@@ -64,6 +64,7 @@ The Godot camera rays hit only physics bodies, and only terrain chunks had any: 
 
 ## See Also
 
+- [[halls-interior-opening]]: group and portal evidence for a separate interior opening
 - [[stormwind-hilly-plaza]]: the portal traversal these fixes refine
 - [[collision-system]]: camera collision policy
 - [[wmo-format]]: MODD/MODI

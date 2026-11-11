@@ -105,7 +105,7 @@ impl SceneryDistance {
         AnimationLod::new(self.center.distance(camera), self.box_in_frustum(frustum))
     }
 
-    pub(super) fn world_bounds(&self) -> (Vec3, Vec3) {
+    pub(crate) fn world_bounds(&self) -> (Vec3, Vec3) {
         (self.world_min, self.world_max)
     }
 

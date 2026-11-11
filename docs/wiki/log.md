@@ -1,3 +1,14 @@
+## 2026-11-02 — Halls interior opening
+
+[Halls interior opening](investigations/halls-interior-opening.md) records the group and portal evidence, the independent MOGI admission rule, and the unknown Retail background.
+
+## 2026-11-01 — World ribbon cost
+
+[Stormwind FPS](investigations/godot-stormwind-fps.md#world-ribbon-cost-2026-11-01) records matched thread-CPU samples and the qualified NPC equipment check.
+## 2026-11-01 — Godot Vulkan present thread
+
+[Vulkan present thread](investigations/godot-vulkan-present-thread.md) records the blocking NVIDIA Wayland present, the present-thread patch and the instrumented before/after.
+
 ## 2026-10-31 — Ruby Life Pools flame wall
 
 [Ruby flame wall](investigations/ruby-flame-wall.md) records the GO377194 open-state fix, measured particle drain and qualified distance comparison.

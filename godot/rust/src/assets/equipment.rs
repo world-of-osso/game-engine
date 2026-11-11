@@ -26,8 +26,7 @@ use super::{
     },
 };
 use crate::equipment_appearance_data::{
-    EquipmentSlot, RuntimeModelAppearance, collection_mesh_part_in_slot, model_attachment_id,
-    runtime_mesh_part_allowed, slot_attachment_id,
+    EquipmentSlot, RuntimeModelAppearance, model_attachment_id, slot_attachment_id,
 };
 
 use game_engine_core::asset::m2_format::m2_bone_names as bone_names;
@@ -199,7 +198,7 @@ pub(crate) fn place_equipment(
             .done();
     }
     item.set_visible(true);
-    crate::animation::refresh_attachment_shadows(&item.upcast());
+    crate::animation::refresh_unit_shadows(&item.upcast());
     Ok(())
 }
 
@@ -248,7 +247,7 @@ impl EquipmentContext<'_> {
         let mut parent = self.parent_for(definition.slot, authored_path, bound)?;
         let path = GString::from(cached.path.to_string_lossy().as_ref());
         cache_model_textures(&resolver, self.data_root, &[0; 3], parsed)?;
-        let textures = self.load_item_textures(definition, parsed, bound)?;
+        let textures = self.load_item_textures(definition, parsed)?;
         let skin = if bound {
             Some(self.bound_skin(parsed)?)
         } else {
@@ -260,7 +259,7 @@ impl EquipmentContext<'_> {
             &definition.skin_fdids,
             None,
             Some(&textures),
-            |part| equipment_mesh_part_allowed(definition.slot, bound, part),
+            |part| definition.geosets.shows(definition.slot, part),
         )?;
         if !missing.is_empty() {
             item.free();
@@ -286,13 +285,12 @@ impl EquipmentContext<'_> {
         &self,
         definition: &RuntimeModelAppearance,
         model: &m2::Model,
-        bound: bool,
     ) -> Result<HashMap<u32, Gd<ImageTexture>>, String> {
-        check_item_batch_textures(definition, model, |part| {
-            equipment_mesh_part_allowed(definition.slot, bound, part)
+        let unbound = unbound_replaceable_types(definition, model, |part| {
+            definition.geosets.shows(definition.slot, part)
         })?;
         let mut missing = PackedInt32Array::new();
-        equipment_texture_replacements(definition)?
+        let mut textures = equipment_texture_replacements(definition)?
             .into_iter()
             .map(|(kind, source)| {
                 let address = cache_authored_texture(self.data_root, source)?;
@@ -306,7 +304,13 @@ impl EquipmentContext<'_> {
                     })?;
                 Ok((kind, texture))
             })
-            .collect()
+            .collect::<Result<HashMap<_, _>, String>>()?;
+        for kind in unbound {
+            if !textures.contains_key(&kind) {
+                textures.insert(kind, super::material::white_texture()?);
+            }
+        }
+        Ok(textures)
     }
 
     fn parent_for(
@@ -353,34 +357,39 @@ impl EquipmentContext<'_> {
     }
 }
 
-/// Concrete textures sampled by an item batch, including per-model-column declarations.
+/// Texture type and concrete texture sampled by each slot of an item batch, including
+/// per-model-column declarations.
 fn item_batch_texture_fdids(
     definition: &RuntimeModelAppearance,
     model: &m2::Model,
     unit: &m2::TextureUnit,
-) -> Result<Vec<Option<u32>>, String> {
+) -> Result<Vec<(u32, Option<u32>)>, String> {
     let binding =
         game_engine_core::m2_material::batch_binding(model, unit, &definition.skin_fdids)?;
     Ok(binding
         .texture_types
         .iter()
         .zip(binding.textures)
-        .map(|(kind, fdid)| {
-            definition
+        .map(|(&kind, fdid)| {
+            let replacement = definition
                 .texture_replacements
                 .iter()
-                .find(|(ty, _)| ty == kind)
-                .map(|&(_, texture)| texture.fdid)
-                .or(fdid)
+                .find(|(ty, _)| *ty == kind)
+                .map(|&(_, texture)| texture.fdid);
+            (kind, replacement.or(fdid))
         })
         .collect())
 }
 
-fn check_item_batch_textures(
+/// Replaceable texture types the allowed batches sample that neither the model nor the
+/// display binds: retail draws them with a white texture (no ModelMatRes row for the
+/// type). An unresolved hardcoded (type 0) texture remains an error.
+fn unbound_replaceable_types(
     definition: &RuntimeModelAppearance,
     model: &m2::Model,
     allowed: impl Fn(u16) -> bool,
-) -> Result<(), String> {
+) -> Result<std::collections::BTreeSet<u32>, String> {
+    let mut unbound = std::collections::BTreeSet::new();
     let trace = std::env::var_os("GAME_ENGINE_EQUIPMENT_TEXTURE_DIAGNOSTICS").is_some();
     for (index, unit) in model.batches.iter().enumerate() {
         let part = model
@@ -404,25 +413,22 @@ fn check_item_batch_textures(
                 definition.fdid
             );
         }
-        if fdids.iter().any(Option::is_none) {
-            return Err(format!(
-                "Equipment {:?} FDID {} batch {index}: unresolved textures {fdids:?}",
-                definition.slot, definition.fdid
-            ));
+        for (kind, fdid) in fdids {
+            match (kind, fdid) {
+                (_, Some(_)) => {}
+                (0, None) => {
+                    return Err(format!(
+                        "Equipment {:?} FDID {} batch {index}: unresolved hardcoded texture",
+                        definition.slot, definition.fdid
+                    ));
+                }
+                (kind, None) => {
+                    unbound.insert(kind);
+                }
+            }
         }
     }
-    Ok(())
-}
-
-fn equipment_mesh_part_allowed(slot: EquipmentSlot, bound: bool, mesh_part: u16) -> bool {
-    if slot == EquipmentSlot::Waist && !bound {
-        return true;
-    }
-    if bound {
-        collection_mesh_part_in_slot(slot, mesh_part)
-    } else {
-        runtime_mesh_part_allowed(slot, mesh_part)
-    }
+    Ok(unbound)
 }
 
 /// A skin binding `model`'s bones to the matching character skeleton joints.
@@ -568,7 +574,9 @@ mod tests {
                 .iter()
                 .any(|part| part.mesh_part_id == 2702)
         );
-        assert!(equipment_mesh_part_allowed(definition.slot, bound, 2702));
+        // GeosetGroupOverride 0 selects 2701, so the helm's 2702 card stays hidden.
+        assert!(definition.geosets.shows(definition.slot, 0));
+        assert!(!definition.geosets.shows(definition.slot, 2702));
     }
 
     #[test]
@@ -608,9 +616,13 @@ mod tests {
                 let cached = load_model_files(&resolver, &data, definition.fdid).unwrap();
                 let parsed = &cached.model;
                 assert!(!parsed.batches.is_empty());
-                check_item_batch_textures(&definition, parsed, |_| true).unwrap();
+                assert!(
+                    unbound_replaceable_types(&definition, parsed, |_| true)
+                        .unwrap()
+                        .is_empty()
+                );
                 for unit in &parsed.batches {
-                    for fdid in item_batch_texture_fdids(&definition, parsed, unit).unwrap() {
+                    for (_, fdid) in item_batch_texture_fdids(&definition, parsed, unit).unwrap() {
                         let fdid = fdid.expect("every sampled texture must be bound");
                         let bytes =
                             std::fs::read(data.join(format!("textures/{fdid}.blp"))).unwrap();
@@ -644,6 +656,115 @@ mod tests {
                 }
             }
         }
+    }
+
+    fn earthen_male_models(
+        slot: shared::components::EquipmentVisualSlot,
+        display_info_id: u32,
+        inventory_type: u8,
+    ) -> Vec<RuntimeModelAppearance> {
+        use shared::components::{EquipmentAppearance, EquippedAppearanceEntry};
+        let data = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data");
+        let catalog = game_engine_core::outfit_data::OutfitData::load(&data);
+        let appearance = EquipmentAppearance {
+            entries: vec![EquippedAppearanceEntry {
+                slot,
+                item_id: None,
+                definition_source: Some(shared::item_data::ItemDefinitionSource::Retail),
+                display_info_id: Some(display_info_id),
+                inventory_type,
+                hidden: false,
+            }],
+        };
+        crate::equipment_appearance_data::resolve_equipment_appearance(&appearance, &catalog, 84, 0)
+            .unwrap()
+            .runtime_models
+    }
+
+    fn load_definition_model(
+        definition: &RuntimeModelAppearance,
+    ) -> Arc<crate::assets::creature::CachedModel> {
+        let data = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data");
+        let resolver = authored_model_resolver(&data, definition.product, definition.fdid).unwrap();
+        load_model_files(&resolver, &data, definition.fdid).unwrap()
+    }
+
+    /// (FDID, drawn mesh parts) of each model `display_info_id` attaches to an Earthen male.
+    fn drawn_parts(
+        slot: shared::components::EquipmentVisualSlot,
+        display_info_id: u32,
+        inventory_type: u8,
+    ) -> Vec<(u32, std::collections::BTreeSet<u16>)> {
+        earthen_male_models(slot, display_info_id, inventory_type)
+            .iter()
+            .map(|definition| {
+                let parts = load_definition_model(definition)
+                    .model
+                    .submeshes
+                    .iter()
+                    .map(|part| part.mesh_part_id)
+                    .filter(|&part| definition.geosets.shows(definition.slot, part))
+                    .collect();
+                (definition.fdid, parts)
+            })
+            .collect()
+    }
+
+    /// Rookery Earthen gear (retail 70688 selectors): a helm, shoulder or belt buckle's
+    /// GeosetGroupOverride picks the 27xx/26xx/18xx glow variant; a collection shows only
+    /// its AttachmentGeosetGroup parts; ModelType -1 keeps legs 678904 off the character.
+    #[test]
+    fn item_geoset_variants_follow_the_display_selectors() {
+        use crate::equipment_appearance_data::ItemGeosets;
+        use shared::components::EquipmentVisualSlot::{Chest, Head, Legs, Shoulder, Waist};
+        use std::collections::BTreeSet;
+        let parts = |values: &[u16]| BTreeSet::from_iter(values.iter().copied());
+        assert_eq!(drawn_parts(Head, 671846, 1), [(5172261, parts(&[0, 2702]))]);
+        assert_eq!(drawn_parts(Head, 671820, 1), [(5172261, parts(&[0]))]);
+        assert_eq!(
+            drawn_parts(Shoulder, 671847, 3),
+            [(5172294, parts(&[0, 2602])), (5172295, parts(&[0, 2602]))]
+        );
+        assert_eq!(
+            drawn_parts(Shoulder, 671821, 3),
+            [(5172294, parts(&[0])), (5172295, parts(&[0]))]
+        );
+        assert_eq!(drawn_parts(Chest, 671827, 5), [(5686565, parts(&[2201]))]);
+        assert!(earthen_male_models(Legs, 678904, 7).is_empty());
+        // The buckle's override selects 1801 or 1802; the model authors only 1802.
+        let [buckle] = earthen_male_models(Waist, 671845, 6).try_into().unwrap();
+        assert_eq!(buckle.geosets, ItemGeosets::Attachment(Some(1801)));
+        assert_eq!(drawn_parts(Waist, 671845, 6), [(5172296, parts(&[0]))]);
+        assert_eq!(
+            drawn_parts(Waist, 671819, 6),
+            [(5172296, parts(&[0, 1802]))]
+        );
+    }
+
+    /// Display 678904's shape (no model material, no ModelMatRes row) on its sibling
+    /// 672583's legs: the type-2 slot draws retail's white instead of failing.
+    #[test]
+    fn item_display_without_a_material_row_leaves_its_replaceable_type_unbound() {
+        let [definition] =
+            earthen_male_models(shared::components::EquipmentVisualSlot::Legs, 672583, 7)
+                .try_into()
+                .unwrap();
+        let model = load_definition_model(&definition);
+        let unbound = |definition: &RuntimeModelAppearance| {
+            unbound_replaceable_types(definition, &model.model, |part| {
+                definition.geosets.shows(definition.slot, part)
+            })
+            .unwrap()
+        };
+        assert_eq!(definition.fdid, 5686565);
+        assert!(unbound(&definition).is_empty());
+        let bare = RuntimeModelAppearance {
+            skin_fdids: [0; 3],
+            skin_products: [None; 3],
+            texture_replacements: Vec::new(),
+            ..definition
+        };
+        assert_eq!(unbound(&bare), std::collections::BTreeSet::from([2]));
     }
 
     #[test]
@@ -680,23 +801,10 @@ mod tests {
     }
 
     #[test]
-    fn native_waist_base_mesh_and_skeletal_collection_keep_their_parts() {
+    fn native_waist_buckle_keeps_its_base_mesh() {
+        use crate::equipment_appearance_data::ItemGeosets;
         assert_eq!(slot_attachment_id(EquipmentSlot::Waist), 53);
-        assert!(equipment_mesh_part_allowed(EquipmentSlot::Waist, false, 0));
-        for part in [1801, 1802] {
-            assert!(equipment_mesh_part_allowed(
-                EquipmentSlot::Waist,
-                true,
-                part
-            ));
-        }
-        for part in [0, 2201] {
-            assert!(!equipment_mesh_part_allowed(
-                EquipmentSlot::Waist,
-                true,
-                part
-            ));
-        }
+        assert!(ItemGeosets::Attachment(None).shows(EquipmentSlot::Waist, 0));
     }
 
     #[test]

@@ -1312,6 +1312,7 @@ impl Account {
         use game_engine_ui_model::death_flow::DeathRequest;
         use shared::protocol::{
             AcceptSpiritHealerResurrection, DeathChannel, ReleaseSpirit, ResurrectAtCorpse,
+            UseStuckEscape,
         };
         let bridge = self.bridge()?;
         match request {
@@ -1326,6 +1327,7 @@ impl Account {
             }),
             DeathRequest::Release => bridge.send::<_, DeathChannel>(ReleaseSpirit),
             DeathRequest::Corpse => bridge.send::<_, DeathChannel>(ResurrectAtCorpse),
+            DeathRequest::Stuck => bridge.send::<_, DeathChannel>(UseStuckEscape),
             DeathRequest::SpiritHealer => {
                 bridge.send::<_, DeathChannel>(AcceptSpiritHealerResurrection)
             }

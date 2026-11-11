@@ -43,6 +43,8 @@ thread_local! {
     /// placement: building textures per material uploaded a copy for every doodad.
     static TEXTURES: RefCell<HashMap<TextureKey, Gd<ImageTexture>>> =
         RefCell::new(HashMap::new());
+    /// The 1×1 opaque white an unbound replaceable item slot samples.
+    static WHITE_TEXTURE: RefCell<Option<Gd<ImageTexture>>> = const { RefCell::new(None) };
     /// `batch_shaders` by pipeline state.
     static BATCH_SHADERS: RefCell<HashMap<Pipeline, (Gd<Shader>, Option<Gd<Shader>>)>> =
         RefCell::new(HashMap::new());
@@ -114,6 +116,7 @@ pub(crate) fn ribbon_material_shader(material: &m2::Material) -> Result<(Gd<Shad
 pub(crate) fn clear_shared_shaders() {
     SHADERS.with_borrow_mut(HashMap::clear);
     TEXTURES.with_borrow_mut(HashMap::clear);
+    WHITE_TEXTURE.take();
     BATCH_SHADERS.with_borrow_mut(HashMap::clear);
     SCENERY_MATERIALS.with_borrow_mut(HashMap::clear);
     SCENERY_SHADER_DEFAULTS.with_borrow_mut(HashMap::clear);
@@ -736,12 +739,18 @@ fn with_render_mode(source: &str, pipeline: Pipeline, fading: bool) -> Result<St
     Ok(source.replace(RENDER_MODE, &pipeline.render_mode(fading)))
 }
 
+/// Texture `fdid` in `dir`, or in its owning product build when `dir` is published.
+fn texture_path(fdid: u32, dir: &Path) -> Result<PathBuf, String> {
+    super::dependent_asset_path(&dir.join(format!("{fdid}.blp")), fdid, "blp")
+}
+
 pub(crate) fn load_texture(
     fdid: u32,
     dir: &Path,
     missing: &mut PackedInt32Array,
 ) -> Result<Option<DecodedTexture>, String> {
-    let Some(bytes) = read_texture_file(fdid, dir, |fdid| missing.push(fdid as i32))? else {
+    let path = texture_path(fdid, dir)?;
+    let Some(bytes) = read_texture_file(fdid, &path, |fdid| missing.push(fdid as i32))? else {
         return Ok(None);
     };
     let rgba = blp::decode_rgba(&bytes).map_err(|error| format!("Texture {fdid}: {error}"))?;
@@ -791,7 +800,8 @@ pub(crate) fn shared_texture(
     }
     let _span = crate::profile::span(|| format!("material.shared_texture {fdid}"));
     let io = crate::profile::span(|| "phase.asset_io.blp_main".to_owned());
-    let Some(bytes) = read_texture_file(fdid, dir, |fdid| missing.push(fdid as i32))? else {
+    let path = texture_path(fdid, dir)?;
+    let Some(bytes) = read_texture_file(fdid, &path, |fdid| missing.push(fdid as i32))? else {
         return Ok(None);
     };
     drop(io);
@@ -801,6 +811,18 @@ pub(crate) fn shared_texture(
     let texture = texture_from_gpu_image(image)?;
     TEXTURES.with_borrow_mut(|textures| textures.insert(key, texture.clone()));
     Ok(Some(texture))
+}
+
+/// The cached 1×1 opaque white (0xFFFFFFFF) retail binds to a replaceable item slot
+/// whose display has no ItemDisplayInfoModelMatRes row for its type; the batch's
+/// material modulates it.
+pub(crate) fn white_texture() -> Result<Gd<ImageTexture>, String> {
+    if let Some(texture) = WHITE_TEXTURE.with_borrow(Clone::clone) {
+        return Ok(texture);
+    }
+    let texture = texture_from_rgba(&[0xFF; 4], 1, 1)?;
+    WHITE_TEXTURE.with_borrow_mut(|white| *white = Some(texture.clone()));
+    Ok(texture)
 }
 
 /// Make `image`, decoded off the main thread, the shared texture of file `fdid` in

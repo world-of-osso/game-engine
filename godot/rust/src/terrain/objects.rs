@@ -154,10 +154,10 @@ fn load_asset(data_root: &Path, asset: ObjectAsset) -> Result<LoadedAsset, Strin
 /// A built doodad node, its M2 header render box in engine axes, and its emitters.
 struct BuiltDoodad {
     node: Gd<Node3D>,
-    texture_dir: PathBuf,
     render_box: (Vec3, Vec3),
     rigid_without_attachments: bool,
     particles: Option<std::rc::Rc<ModelParticles>>,
+    ribbons: Option<Arc<CachedModel>>,
 }
 
 /// A WMO placement whose node is being built over frames.
@@ -205,6 +205,7 @@ struct CulledDoodad {
     portal_cull_safe: bool,
     /// Particle emitters, when the model has any and particle effects are on.
     particles: Option<PlacedParticles>,
+    ribbons: Option<crate::ribbons::PlacedRibbons>,
 }
 
 impl CulledDoodad {
@@ -235,6 +236,7 @@ impl CulledDoodad {
             wmo_groups,
             portal_cull_safe,
             particles: None,
+            ribbons: None,
         }
     }
 
@@ -731,12 +733,15 @@ impl TerrainObjects {
         }
         match (asset, loaded) {
             (ObjectAsset::Model(product, fdid), Ok(LoadedAsset::Model(cached, _))) => {
-                let parsed = Ok(ParsedModel {
-                    path: GString::from(cached.path.to_string_lossy().as_ref()),
-                    particles: ModelParticles::from_model(fdid, &cached.model),
-                    collision: doodad_collision::collision_shape(cached.model.collision.as_ref()),
-                    model: cached,
-                });
+                let parsed =
+                    ModelParticles::from_cached(fdid, &cached).map(|particles| ParsedModel {
+                        path: GString::from(cached.path.to_string_lossy().as_ref()),
+                        particles,
+                        collision: doodad_collision::collision_shape(
+                            cached.model.collision.as_ref(),
+                        ),
+                        model: cached,
+                    });
                 self.models.insert((product, fdid), parsed);
             }
             (ObjectAsset::Wmo(product, fdid), Ok(LoadedAsset::Wmo(wmo, _))) => {
@@ -976,6 +981,47 @@ impl TerrainObjects {
             .add_child(model);
     }
 
+    /// Fixture entry for a real M2 copied into a product directory. It goes through
+    /// the same model build, attachment and culling path as a streamed doodad.
+    pub(super) fn attach_fixture_model(
+        &mut self,
+        parent: &mut Gd<Node3D>,
+        path: PathBuf,
+        skin: PathBuf,
+        fdid: u32,
+    ) -> Result<Gd<Node3D>, String> {
+        let bytes = std::fs::read(&path).map_err(|error| error.to_string())?;
+        let skin = std::fs::read(&skin).map_err(|error| error.to_string())?;
+        let cached = Arc::new(CachedModel {
+            path: path.clone(),
+            model: game_engine_core::m2::parse_model(&bytes, &skin)?,
+        });
+        let particles = ModelParticles::from_cached(fdid, &cached)?;
+        let collision = doodad_collision::collision_shape(cached.model.collision.as_ref());
+        let product = AssetProduct::Retail;
+        self.source_product = Some(product);
+        self.models.insert(
+            (product, fdid),
+            Ok(ParsedModel {
+                path: GString::from(path.to_string_lossy().as_ref()),
+                model: cached,
+                particles,
+                collision,
+            }),
+        );
+        let mut built = self.build_doodad_model(fdid)?;
+        built.node.set_name("DoodadRibbonFixture");
+        let scenery =
+            SceneryDistance::new(built.render_box.0, built.render_box.1, Affine3A::IDENTITY);
+        let node = built.node.clone();
+        if let Some(pools) = &mut self.particles {
+            pools.attach(parent);
+        }
+        self.attach(parent, &node);
+        self.push_doodad(built, scenery, 1, None);
+        Ok(node)
+    }
+
     /// Tracks a spawned doodad for culling, with its particle emitters when enabled.
     fn push_doodad(
         &mut self,
@@ -990,16 +1036,26 @@ impl TerrainObjects {
             unique_id,
             wmo_groups,
             self.light.is_some(),
-            built.rigid_without_attachments && built.particles.is_none(),
+            built.rigid_without_attachments && built.particles.is_none() && built.ribbons.is_none(),
         );
         if let (Some(pools), Some(particles)) = (&mut self.particles, &built.particles) {
-            let (placed, errors) =
-                pools.place(particles, &doodad.node, unique_id, &built.texture_dir);
+            let (placed, errors) = pools.place(particles, &doodad.node, unique_id);
             for error in errors {
                 self.failures += 1;
                 godot_error!("{}: {error}", self.name);
             }
             doodad.particles = Some(placed);
+        }
+        if self.particles.is_some()
+            && let Some(model) = &built.ribbons
+        {
+            match crate::ribbons::PlacedRibbons::place_cached(model, &doodad.node) {
+                Ok(ribbons) => doodad.ribbons = ribbons,
+                Err(error) => {
+                    self.failures += 1;
+                    godot_error!("{} ribbon: {error}", self.name);
+                }
+            }
         }
         let animated = doodad.bones.is_some() || doodad.materials.is_some();
         self.scenery_index.push(doodad.scenery, animated);
@@ -1065,11 +1121,11 @@ impl TerrainObjects {
         );
         let rigid_without_attachments = rigid && !model.has_node("ElasticTree");
         Ok(BuiltDoodad {
-            texture_dir: model_asset_root(&parsed.model)?.join("textures"),
             node: model,
             render_box,
             rigid_without_attachments,
             particles: parsed.particles.clone(),
+            ribbons: (!parsed.model.model.ribbon_emitters.is_empty()).then(|| parsed.model.clone()),
         })
     }
 
@@ -1267,14 +1323,28 @@ impl TerrainObjects {
         pools.begin_frame();
         let mut updated = 0;
         for doodad in &mut self.doodads {
-            let Some(placed) = &mut doodad.particles else {
+            if doodad.particles.is_none() && doodad.ribbons.is_none() {
                 continue;
-            };
-            if doodad.opacity > 0.0 && doodad.scenery.box_in_frustum(frustum) {
-                placed.update_and_draw(&doodad.node, delta, doodad.opacity, &view, pools);
-                updated += placed.emitter_count();
-            } else {
-                placed.defer(delta);
+            }
+            let visible = doodad.opacity > 0.0 && doodad.scenery.box_in_frustum(frustum);
+            if let Some(placed) = &mut doodad.particles {
+                if visible {
+                    placed.update_and_draw(&doodad.node, delta, doodad.opacity, &view, pools);
+                    updated += placed.emitter_count();
+                } else {
+                    placed.defer(delta);
+                }
+            }
+            if let Some(ribbons) = &mut doodad.ribbons {
+                if visible {
+                    if let Err(error) =
+                        ribbons.update_world_and_draw(&doodad.node, delta, doodad.opacity)
+                    {
+                        godot_error!("{} ribbon: {error}", self.name);
+                    }
+                } else {
+                    ribbons.hide();
+                }
             }
         }
         let simulated = Instant::now();

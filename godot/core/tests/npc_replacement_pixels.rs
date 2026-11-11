@@ -326,9 +326,10 @@ fn real_missing_blp_errors_before_source_unselected_omission() {
     let dir = std::env::temp_dir().join(format!("npc-missing-blp-{}", std::process::id()));
     std::fs::create_dir(&dir).unwrap();
     let fdid = 3613861;
+    let blp = dir.join(format!("{fdid}.blp"));
     let mut missing = Vec::new();
     assert_eq!(
-        texture_file::read_texture_file(fdid, &dir, |id| missing.push(id)).unwrap(),
+        texture_file::read_texture_file(fdid, &blp, |id| missing.push(id)).unwrap(),
         None
     );
     assert_eq!(missing, vec![fdid]);
@@ -360,7 +361,8 @@ fn real_file_receipts_distinguish_inactive_and_required_slots() {
     let inactive = inactive_npc_texture_types(&fixture(), &[(38, 3613861)], 202);
     let mut missing = Vec::new();
     let fdid = 3613861;
-    texture_file::read_texture_file(fdid, &dir, |id| missing.push(id)).unwrap();
+    let blp = dir.join(format!("{fdid}.blp"));
+    texture_file::read_texture_file(fdid, &blp, |id| missing.push(id)).unwrap();
     let textures = HashMap::from([(20, ())]);
     assert_eq!(
         npc_pass_active(
@@ -384,14 +386,10 @@ fn real_file_receipts_distinguish_inactive_and_required_slots() {
         )
         .is_err()
     );
-    std::fs::write(
-        dir.join(format!("{fdid}.blp")),
-        b"owned read-boundary bytes",
-    )
-    .unwrap();
+    std::fs::write(&blp, b"owned read-boundary bytes").unwrap();
     missing.clear();
     assert_eq!(
-        texture_file::read_texture_file(fdid, &dir, |id| missing.push(id)).unwrap(),
+        texture_file::read_texture_file(fdid, &blp, |id| missing.push(id)).unwrap(),
         Some(b"owned read-boundary bytes".to_vec())
     );
     assert!(missing.is_empty());
@@ -420,7 +418,9 @@ fn texture_read_error_is_not_an_absence_receipt() {
     std::fs::create_dir(&dir).unwrap();
     std::fs::create_dir(dir.join("3613861.blp")).unwrap();
     let mut missing = Vec::new();
-    let error = texture_file::read_texture_file(3613861, &dir, |id| missing.push(id)).unwrap_err();
+    let error =
+        texture_file::read_texture_file(3613861, &dir.join("3613861.blp"), |id| missing.push(id))
+            .unwrap_err();
     assert!(error.starts_with("Cannot read texture 3613861:"));
     assert!(missing.is_empty());
     std::fs::remove_dir_all(&dir).unwrap();

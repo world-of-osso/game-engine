@@ -1,4 +1,15 @@
 # data/-relative files uploaded for `scripts/engine-build.py --test`; see docs/remote-builds.md.
+# Nether Drake ribbon dependency regression.
+models/125168.m2
+models/12516800.skin
+# Ashbringer world-doodad ribbon fixture and its authored textures.
+models/148234.m2
+models/14823400.skin
+textures/167227.blp
+textures/167226.blp
+textures/137243.blp
+textures/166494.blp
+textures/249237.blp
 # Kokia's Retail model and child/parent animation banks.
 products/wow/88d5e8ef05ec5a8446cdec93d142d7c6/models/1630402.m2
 products/wow/88d5e8ef05ec5a8446cdec93d142d7c6/models/1630584.skin
@@ -60,6 +71,19 @@ model:wow:3719271:skin
 cache/model-asset-index-bg-head-7321940.json
 model:wow:7321940:m2
 model:wow:7530107:skin
+# Rookery Earthen legs 5686565: display 678904 lacks a ModelMatRes row, 672583 binds one.
+model:wow:5686565:m2
+model:wow:5694576:skin
+# Earthen head 5172261 and shoulders 5172294/5: GeosetGroupOverride 0 vs 1 displays.
+model:wow:5172261:m2
+model:wow:5333732:skin
+model:wow:5172294:m2
+model:wow:5338823:skin
+model:wow:5172295:m2
+model:wow:5338827:skin
+# Earthen waist buckle 5172296: displays 671845 (GeosetGroupOverride 0) and 671819 (1).
+model:wow:5172296:m2
+model:wow:5338834:skin
 # Historical parser-isolation fixture intentionally exercises its recorded 70391 namespace.
 products/wow/334a36cf5f3c32a5f7a167405487fa14/models/7321940.m2
 products/wow/334a36cf5f3c32a5f7a167405487fa14/models/7530107.skin
@@ -323,6 +347,8 @@ models/1013009.anim
 models/101165300.skin
 models/1012989.anim
 models/1012994.anim
+models/124642.m2
+models/12464200.skin
 models/1000764.m2
 models/100076400.skin
 models/1000764.skel
@@ -554,6 +580,7 @@ terrain/2703_31_37_obj0.adt
 terrain/2703_31_36_obj0.adt
 terrain/6252664.adt
 terrain/791060.wdt
+terrain/6120027.wdt
 community-listfile.csv
 db2/HelmetGeosetData.db2
 CharStartOutfit.csv

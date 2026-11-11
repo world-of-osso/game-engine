@@ -46,7 +46,7 @@ class RootProductTests(unittest.TestCase):
             "CREATE TABLE creature_displays(display_id,model_fdid,skin_fdid_0,skin_fdid_1,skin_fdid_2,skin_fdid_3,source_product);",
         )
         self.cache(
-            "outfit_links-v5.sqlite",
+            "outfit_links-v6.sqlite",
             "CREATE TABLE display_info(id,model_res_0,model_res_1,model_mat_res_0,model_mat_res_1); CREATE TABLE model_to_fdid(model_resource_id,model_order,file_data_id); CREATE TABLE material_textures(material_resource_id,file_order,texture_fdid); CREATE TABLE display_materials(display_info_id,component_section,material_resource_id); CREATE TABLE asset_resource_sources(table_name,resource_id,source_product);",
         )
 
@@ -195,7 +195,7 @@ class RootProductTests(unittest.TestCase):
 
     def test_equipment_model_and_material_keep_independent_resource_sources(self):
         self.cache(
-            "outfit_links-v5.sqlite",
+            "outfit_links-v6.sqlite",
             "INSERT INTO display_info VALUES(30,50,0,60,0); INSERT INTO model_to_fdid VALUES(50,0,10); INSERT INTO material_textures VALUES(60,0,12); INSERT INTO asset_resource_sources VALUES('display_info',30,'wow_classic_beta'),('model_to_fdid',50,'wow'),('material_textures',60,'wow_classic_beta');",
         )
         self.put(
@@ -222,7 +222,7 @@ class RootProductTests(unittest.TestCase):
 
     def test_owned_item_without_definition_source_remains_an_explicit_gap(self):
         self.cache(
-            "outfit_links-v5.sqlite",
+            "outfit_links-v6.sqlite",
             "INSERT INTO display_info VALUES(30,50,0,0,0); INSERT INTO model_to_fdid VALUES(50,0,10); INSERT INTO asset_resource_sources VALUES('model_to_fdid',50,'wow');",
         )
         self.put("db2/fixture/ItemDisplayInfo.csv", b"ID,ModelResourcesID_0\n30,50\n")
@@ -275,7 +275,7 @@ class RootProductTests(unittest.TestCase):
             self.publish(product, fdid, "m2", model())
         # Shared NPC row points elsewhere and cannot satisfy owned item source lookup.
         self.cache(
-            "outfit_links-v5.sqlite",
+            "outfit_links-v6.sqlite",
             "INSERT INTO display_info VALUES(30,90,0,0,0); INSERT INTO model_to_fdid VALUES(90,0,999); INSERT INTO asset_resource_sources VALUES('model_to_fdid',90,'wow');",
         )
         with closing(sqlite3.connect(":memory:")) as world:

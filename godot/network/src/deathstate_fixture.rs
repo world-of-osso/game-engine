@@ -3,7 +3,7 @@ use super::*;
 use lightyear::prelude::{LinkOf, ReplicationSender, server};
 use shared::protocol::{
     AcceptSpiritHealerResurrection, DeathChannel, DeathStateUpdate, ReleaseSpirit,
-    ResurrectAtCorpse,
+    ResurrectAtCorpse, UseStuckEscape,
 };
 use std::net::UdpSocket;
 use std::sync::atomic::{AtomicU16, Ordering};
@@ -12,6 +12,7 @@ use std::sync::atomic::{AtomicU16, Ordering};
 pub enum ReceivedDeathRequest {
     Release,
     Corpse,
+    Stuck,
     SpiritHealer,
     Resurrection {
         caster: u64,
@@ -26,6 +27,7 @@ struct DeathRequests(Vec<ReceivedDeathRequest>);
 fn capture_requests(
     mut releases: Query<&mut MessageReceiver<ReleaseSpirit>>,
     mut corpses: Query<&mut MessageReceiver<ResurrectAtCorpse>>,
+    mut stuck: Query<&mut MessageReceiver<UseStuckEscape>>,
     mut healers: Query<&mut MessageReceiver<AcceptSpiritHealerResurrection>>,
     mut resurrections: Query<&mut MessageReceiver<shared::protocol::ResurrectionResponse>>,
     mut received: ResMut<DeathRequests>,
@@ -50,6 +52,11 @@ fn capture_requests(
         received
             .0
             .extend(receiver.receive().map(|_| ReceivedDeathRequest::Corpse));
+    }
+    for mut receiver in &mut stuck {
+        received
+            .0
+            .extend(receiver.receive().map(|_| ReceivedDeathRequest::Stuck));
     }
     for mut receiver in &mut healers {
         received.0.extend(
