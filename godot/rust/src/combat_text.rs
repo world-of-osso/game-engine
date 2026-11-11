@@ -24,7 +24,7 @@ use game_engine_core::combat_text_options::CombatTextOptions;
 use godot::prelude::*;
 use shared::protocol::{CombatLogEvent, CombatLogKind, MissKind};
 
-/// `WorldTextStartPosRandomness_v2`: sideways start spread either side, in units.
+/// `WorldTextStartPosRandomness_v2` default bounds the engine's sideways start spread.
 const START_POS_RANDOMNESS: f32 = 1.0;
 /// Current stack's starting lift, multiplied by the text em. The native meaning of
 /// `WorldTextRandomZMin_v2` is not decoded; this deterministic stack is an engine layout policy.
@@ -318,8 +318,8 @@ pub(crate) const TEXT_FONT_SIZE: i32 = 64;
 pub(crate) const SPREAD_HEIGHTS: f32 = 1.5;
 
 /// Start height of the next number on a unit whose live numbers rise by `(ascend, height)` each:
-/// the sum of every live number's own travel plus its height, so a rising number can never
-/// reach the slot above it. `WorldTextRandomZMin_v2` floors the first slot.
+/// sum every live number's travel and height so a rising number cannot reach the next slot.
+/// The initial lift is an engine layout choice, not a decoded Retail random-Z rule.
 pub(crate) fn stack_offset(live: &[(f32, f32)], own_height: f32) -> f32 {
     let travel: f32 = live.iter().map(|(ascend, height)| ascend + height).sum();
     travel + RANDOM_Z_MIN * own_height
@@ -332,9 +332,8 @@ pub(crate) const CRIT_SCALE: f32 = CRIT_SCREEN_Y / SCREEN_Y;
 /// both axes, so numbers spawned together never share a start.
 const R2: [f32; 2] = [0.754_877_7, 0.569_840_3];
 
-/// Sideways start of the `index`th number relative to the anchor over the target's head, along
-/// the camera's right. `WorldTextStartPosRandomness_v2` gives the range; the vertical axis is
-/// the per-slot ladder in `spells::floating_text`, so numbers on one unit never share a row.
+/// Deterministic sideways start offset within the Retail CVar's default range. The vertical
+/// axis uses the engine's per-slot ladder, so one unit's labels do not share a row.
 pub(crate) fn side_offset(index: u32, camera_right: Vector3, unit: f32) -> Vector3 {
     let u = (0.5 + R2[0] * index as f32).fract();
     camera_right.normalized() * (START_POS_RANDOMNESS * (2.0 * u - 1.0)) * unit
