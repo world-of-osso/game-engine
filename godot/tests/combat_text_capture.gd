@@ -13,7 +13,7 @@ extends SceneTree
 ## Captures are 960x540 JPEGs, each paired with the same frame before any text so the diff is
 ## the text alone.
 
-const OUT_DIR := "/home/osso/Projects/world-of-osso/game-engine/data/diagnostics/combat-text-parity-2026-11-08/"
+var OUT_DIR := OS.get_environment("COMBAT_TEXT_CAPTURE_DIR")
 ## File-name prefix: "master-" for the before-everything baseline.
 var file_prefix := OS.get_environment("CAPTURE_PREFIX")
 ## Open ground inside the Stormwind wall (the healer-ring capture's flat row).
@@ -44,13 +44,18 @@ func run() -> void:
 		fail("CAPTURE_CASE is required")
 		return
 	root.size = Vector2i(1280, 720)
+	if OUT_DIR == "":
+		fail("COMBAT_TEXT_CAPTURE_DIR is required")
+		return
 	DirAccess.make_dir_recursive_absolute(OUT_DIR)
 	client = load("res://scenes/client.tscn").instantiate()
 	root.add_child(client)
 	await wait_ms(1500)
-	var skin_error: String = client.preview_world_skin(true)
-	if skin_error != "" or client.account_state().ui_skin != "Forever":
-		fail("Forever skin unavailable: " + skin_error)
+	var forever := OS.get_environment("COMBAT_TEXT_SKIN") != "Modern"
+	var expected_skin := "Forever" if forever else "Modern"
+	var skin_error: String = client.preview_world_skin(forever)
+	if skin_error != "" or client.account_state().ui_skin != expected_skin:
+		fail(expected_skin + " skin unavailable: " + skin_error)
 		return
 	if not await load_world(ROW):
 		return
@@ -69,6 +74,8 @@ func run() -> void:
 			await capture_set()
 		"limit":
 			await capture_limit()
+		"cross-unit":
+			await capture_cross_unit()
 		"spread":
 			await capture_spread()
 		"perf":
@@ -85,6 +92,20 @@ func run() -> void:
 	quit(0)
 
 ## One target: a hit, a crit and a heal on the same unit, at 10 or 30 yards.
+func capture_cross_unit() -> void:
+	var before: Image = await grab()
+	for style in [PET_MELEE, PET_SPELL, HEAL, DODGE]:
+		client.preview_combat_text(style, 6000, anchor(Vector3(-2.0, 0.0, 0.0)))
+	for style in [HIT, PERIODIC, ABSORB, HEAL_CRIT, PERIODIC]:
+		client.preview_combat_text(style, 6001, anchor(Vector3(2.0, 0.0, 0.0)))
+	freeze(0.4)
+	await capture("cross-unit", before)
+	var retained := false
+	for label in text_labels():
+		retained = retained or label.text == "Dodge"
+	check(retained, "a full unit must not evict another unit's Dodge")
+	check(client.spells_state().combat_text == 8, "two units retain four slots each")
+
 func capture_single() -> void:
 	var before: Image = await grab()
 	for style in [HIT, CRIT, HEAL]:

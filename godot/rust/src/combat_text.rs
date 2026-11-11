@@ -368,7 +368,7 @@ mod tests {
         let mut crit = event(CombatLogKind::Damage, 99);
         crit.crit = true;
         let text = text_for(&crit, Attacker::Player).expect("crit draws");
-        assert_eq!(text.text, "99!");
+        assert_eq!(text.text, "99");
         assert_eq!(text.style, SPELL_CRIT);
         assert!(text.crit && text.spell_crit);
         assert_eq!(text.style.ascend, 0.0);
@@ -425,8 +425,8 @@ mod tests {
         assert_eq!(heal.text, "+900");
         let mut crit = event(CombatLogKind::Damage, 2345);
         crit.crit = true;
-        assert_eq!(text_for(&crit, Attacker::Player).unwrap().text, "2345!");
-        for text in [hit.text, heal.text, "2345!".to_owned()] {
+        assert_eq!(text_for(&crit, Attacker::Player).unwrap().text, "2345");
+        for text in [hit.text, heal.text, "2345".to_owned()] {
             assert!(!text.contains('.'), "{text} carries a decimal fraction");
             let digits: String = text.chars().filter(char::is_ascii_digit).collect();
             assert!(digits.parse::<u64>().is_ok(), "{text} is not an integer");
