@@ -94,11 +94,20 @@ fn launcher_handoff_rejection_shows_login_feedback_without_password_retry() {
             success: false,
             token: String::new(),
             characters: vec![],
-            error: Some("Session expired. Please log in again.".into()),
+            error: Some("Saved session expired. Please log in again.".into()),
         },
         SessionOptions::default(),
     );
     assert_eq!(session.screen, SessionScreen::Login);
+    assert!(
+        session.token.is_none(),
+        "stale launcher token must be cleared"
+    );
+    assert!(
+        effects
+            .iter()
+            .any(|effect| matches!(effect, SessionEffect::RemoveSavedToken))
+    );
     assert!(
         session
             .feedback
