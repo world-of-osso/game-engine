@@ -8,6 +8,8 @@ use ui_toolkit::{rsx, widget_def::Element, widgets::font_string::GameFont};
 
 const ROW_HEIGHT: f32 = 20.0;
 const MENU_INSET: f32 = 8.0;
+const WOW_STYLE1_TEXT_TOP: f32 = 8.0;
+const WOW_STYLE1_TEXT_HEIGHT: f32 = 10.0;
 const MENU_BOTTOM: f32 = 15.0;
 const DIVIDER_HEIGHT: f32 = 13.0;
 const SPACER_HEIGHT: f32 = 10.0;
@@ -232,7 +234,7 @@ fn dropdown_text(props: DropdownButton<'_>, state: DropdownState<'_>) -> Element
         width: {rect.2}, height: {rect.3}, text: {props.text},
         font: GameFont::FrizQuadrata, font_size: 12.0, font_color: color,
         shadow_color: "0.0,0.0,0.0,1.0", shadow_offset: "1,-1",
-        justify_h: justify, word_wrap: false, max_lines: 1,
+        justify_h: justify, justify_v: "MIDDLE", word_wrap: false, max_lines: 1,
         pos_type: "absolute", left: {rect.0}, top: {rect.1},
     } }
 }
@@ -242,9 +244,14 @@ fn calculate_dropdown_text_rect(
     style: DropdownStyle,
 ) -> (f32, f32, f32, f32) {
     match style {
-        // Retail's 10px FontString becomes a 15px-minimum native Label. Center
-        // that label in the button, retaining the source horizontal text/arrow anchors.
-        DropdownStyle::WowStyle1 => (8.0, 0.0, props.width - 34.0, props.height),
+        // Keep the native Label tall enough for its font, but center its line on Retail's
+        // Text region: TOPLEFT(8, -8), height10. Its center is 0.5px below a 25px owner.
+        DropdownStyle::WowStyle1 => (
+            8.0,
+            WOW_STYLE1_TEXT_TOP + WOW_STYLE1_TEXT_HEIGHT / 2.0 - props.height / 2.0,
+            props.width - 34.0,
+            props.height,
+        ),
         DropdownStyle::Filter => (0.0, 0.0, props.width, 20.0),
         DropdownStyle::WowStyle2 => (13.0, (props.height - 20.0) / 2.0, props.width - 26.0, 20.0),
     }

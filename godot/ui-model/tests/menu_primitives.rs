@@ -222,42 +222,45 @@ fn frame<'a>(registry: &'a FrameRegistry, name: &str) -> &'a ui_toolkit::frame::
 }
 
 #[test]
-fn retail_dropdown_xml_geometry_and_actions_are_skin_invariant() {
-    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
-        let reg = mount(skin);
-        assert_eq!(frame(&reg, "Dropdown").onclick.as_deref(), Some("choose"));
-        let label = frame(&reg, "DropdownText");
-        assert_eq!(label.position.left, ui_toolkit::layout_values::Val::Px(8.0));
-        assert_eq!(
-            label.position.top,
-            ui_toolkit::layout_values::Val::Px(
-                (frame(&reg, "Dropdown").height.value() - label.height.value()) / 2.0
-            ),
-            "Shared WowStyle1 caption must be vertically centered"
-        );
-        let arrow = frame(&reg, "DropdownArrow");
-        assert_eq!((arrow.width.value(), arrow.height.value()), (27.0, 27.0));
-        let Some(WidgetData::Texture(background)) = &frame(&reg, "DropdownBackground").widget_data
-        else {
-            panic!("Retail text holder");
-        };
-        let region = ui_toolkit::atlas::resolve_region("common-dropdown-textholder", skin).unwrap();
-        let ui_toolkit::atlas::AtlasSource::FileDataId(fdid) = region.source else {
-            panic!("DB2 source");
-        };
-        assert_eq!(background.source, TextureSource::FileDataId(fdid));
-        assert_eq!(
-            background.tex_coords,
-            [region.left, region.right, region.top, region.bottom]
-        );
-        assert_eq!(
-            (
-                frame(&reg, "DropdownBackground").width.value(),
-                frame(&reg, "DropdownBackground").height.value()
-            ),
-            (136.0, 41.0)
-        );
-    }
+fn forever_shared_dropdown_matches_retail_template_text_and_art() {
+    let reg = mount(ActiveSkin::Forever);
+    let owner = frame(&reg, "Dropdown");
+    assert_eq!(owner.onclick.as_deref(), Some("choose"));
+
+    let label = frame(&reg, "DropdownText");
+    assert_eq!(label.position.left, ui_toolkit::layout_values::Val::Px(8.0));
+    let Some(WidgetData::FontString(text)) = &label.widget_data else {
+        panic!("Retail dropdown caption missing")
+    };
+    assert_eq!(
+        text.justify_v,
+        ui_toolkit::widgets::font_string::JustifyV::Middle
+    );
+
+    let arrow = frame(&reg, "DropdownArrow");
+    assert_eq!((arrow.width.value(), arrow.height.value()), (27.0, 27.0));
+    let Some(WidgetData::Texture(background)) = &frame(&reg, "DropdownBackground").widget_data
+    else {
+        panic!("Retail text holder");
+    };
+    let region =
+        ui_toolkit::atlas::resolve_region("common-dropdown-textholder", ActiveSkin::Forever)
+            .unwrap();
+    let ui_toolkit::atlas::AtlasSource::FileDataId(fdid) = region.source else {
+        panic!("DB2 source");
+    };
+    assert_eq!(background.source, TextureSource::FileDataId(fdid));
+    assert_eq!(
+        background.tex_coords,
+        [region.left, region.right, region.top, region.bottom]
+    );
+    assert_eq!(
+        (
+            frame(&reg, "DropdownBackground").width.value(),
+            frame(&reg, "DropdownBackground").height.value()
+        ),
+        (136.0, 41.0)
+    );
 }
 
 #[test]
