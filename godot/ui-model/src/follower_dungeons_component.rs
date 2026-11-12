@@ -491,7 +491,7 @@ fn dungeon_list(shared: &SharedContext, view: &View) -> Element {
 fn dungeon_row(view: &View, id: u32, title: &str, index: usize) -> Element {
     let name = format!("LFDQueueFrameFollowerDungeon{id}");
     let top = index as f32 * ROW_HEIGHT as f32;
-    let enabled = !view.pending && !view.matched();
+    let enabled = view.can_select(id);
     let mut art = texture(
         format!("{name}CheckBox"),
         130_755,

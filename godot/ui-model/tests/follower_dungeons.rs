@@ -22,11 +22,14 @@ fn catalog() -> FollowerDungeons {
         }],
     }
 }
-fn render(view: View, skin: ActiveSkin) -> FrameRegistry {
+fn set_data_root() {
     game_engine_ui_model::paths::set_data_root(
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
     )
     .unwrap();
+}
+fn render(view: View, skin: ActiveSkin) -> FrameRegistry {
+    set_data_root();
     set_thread_skin(skin);
     let mut shared = SharedContext::new();
     shared.insert(skin);
@@ -348,6 +351,123 @@ fn follower_group_finder_both_skins_use_the_server_catalog_and_real_queue_action
         );
     }
 }
+#[test]
+fn follower_group_finder_queues_entries_from_server_catalog_without_local_level_filter() {
+    let mut view = View {
+        visible: true,
+        ..Default::default()
+    };
+    view.receive_catalog(FollowerDungeons {
+        entries: vec![
+            FollowerDungeonEntry {
+                id: 2436,
+                name: "Ruby Life Pools".into(),
+                map_id: 2521,
+            },
+            FollowerDungeonEntry {
+                id: 2439,
+                name: "Brackenhide Hollow".into(),
+                map_id: 2520,
+            },
+        ],
+    });
+    assert_eq!(view.action("follower:select:2439"), None);
+    assert_eq!(view.selected, Some(2439));
+    assert_eq!(
+        view.action("follower:queue"),
+        Some(Action::Queue(QueueForLfg {
+            role: GroupRoleSnapshot::Damage,
+            dungeon_ids: vec![2439],
+        }))
+    );
+
+    let mut displayed = View {
+        visible: true,
+        ..Default::default()
+    };
+    displayed.receive_catalog(FollowerDungeons {
+        entries: vec![FollowerDungeonEntry {
+            id: 2439,
+            name: "Brackenhide Hollow".into(),
+            map_id: 2520,
+        }],
+    });
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let registry = render(displayed.clone(), skin);
+        assert_eq!(
+            button(&registry, "LFDQueueFrameFollowerDungeon2439").0,
+            ButtonState::Normal
+        );
+        assert!(
+            registry
+                .get_by_name("LFDQueueFrameFollowerDungeon2439CheckBox")
+                .is_some()
+        );
+        assert!(
+            registry
+                .get_by_name("LFDQueueFrameFollowerDungeon2439LockedIndicator")
+                .is_none()
+        );
+    }
+}
+
+#[test]
+fn follower_group_finder_localizes_unavailable_gear_source_error() {
+    set_data_root();
+    let mut view = View {
+        visible: true,
+        ..Default::default()
+    };
+    view.receive_catalog(catalog());
+    view.receive(LfgStateUpdate {
+        snapshot: None,
+        message: None,
+        error: Some("FOLLOWER_GEAR_SOURCE_UNAVAILABLE".into()),
+    });
+    let registry = render(view, ActiveSkin::Forever);
+    let description = registry
+        .get(
+            registry
+                .get_by_name("LFDQueueFrameFollowerDescription")
+                .unwrap(),
+        )
+        .unwrap();
+    let Some(WidgetData::FontString(description)) = &description.widget_data else {
+        panic!("follower error should remain visible in the Group Finder description");
+    };
+    assert_eq!(
+        description.text,
+        "You cannot enter. This instance is temporarily disabled."
+    );
+}
+
+#[test]
+fn follower_group_finder_localizes_server_level_refusal() {
+    set_data_root();
+    let mut view = View {
+        visible: true,
+        ..Default::default()
+    };
+    view.receive_catalog(catalog());
+    view.receive(LfgStateUpdate {
+        snapshot: None,
+        message: None,
+        error: Some("LFG_LOCKSTATUS_TOO_LOW_LEVEL".into()),
+    });
+    let registry = render(view, ActiveSkin::Forever);
+    let description = registry
+        .get(
+            registry
+                .get_by_name("LFDQueueFrameFollowerDescription")
+                .unwrap(),
+        )
+        .unwrap();
+    let Some(WidgetData::FontString(description)) = &description.widget_data else {
+        panic!("server level refusal should remain visible in the Group Finder description");
+    };
+    assert_eq!(description.text, "You must advance to a higher level.");
+}
+
 #[test]
 fn follower_group_finder_empty_catalog_and_stale_selection_cannot_queue() {
     let mut view = View {

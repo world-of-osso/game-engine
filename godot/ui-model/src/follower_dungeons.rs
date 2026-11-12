@@ -66,6 +66,16 @@ pub enum Action {
     Pvp,
 }
 
+pub fn localize_error(error: &str) -> String {
+    let tag = match error {
+        "FOLLOWER_GEAR_SOURCE_UNAVAILABLE" => "INSTANCE_UNAVAILABLE_SELF_TEMPORARILY_DISABLED",
+        "LFG_LOCKSTATUS_TOO_LOW_LEVEL" => "INSTANCE_UNAVAILABLE_SELF_LEVEL_TOO_LOW",
+        "LFG_LOCKSTATUS_TOO_HIGH_LEVEL" => "INSTANCE_UNAVAILABLE_SELF_LEVEL_TOO_HIGH",
+        _ => return error.to_owned(),
+    };
+    crate::auction_mail::text(tag).to_owned()
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct View {
     pub visible: bool,
@@ -136,11 +146,14 @@ impl View {
         let selected_id = action
             .strip_prefix("follower:select:")
             .and_then(|id| id.parse().ok());
-        if let Some(id) = selected_id.filter(|id| self.contains(*id)) {
+        if let Some(id) = selected_id.filter(|id| self.can_select(*id)) {
             self.selected = (self.selected != Some(id)).then_some(id);
         }
     }
-    pub fn receive(&mut self, update: LfgStateUpdate) {
+    pub fn receive(&mut self, mut update: LfgStateUpdate) {
+        if let Some(error) = &mut update.error {
+            *error = localize_error(error);
+        }
         let refused = update.error.is_some();
         let matched = update
             .snapshot
@@ -160,9 +173,11 @@ impl View {
         }
         self.catalog = Some(catalog);
     }
+    pub fn can_select(&self, id: u32) -> bool {
+        !self.pending && !self.matched() && self.contains(id)
+    }
     pub fn can_queue(&self) -> bool {
-        let idle = !self.pending && !self.matched();
-        idle && self.selected.is_some_and(|id| self.contains(id))
+        !self.pending && !self.matched() && self.selected.is_some_and(|id| self.contains(id))
     }
     pub fn matched(&self) -> bool {
         self.state

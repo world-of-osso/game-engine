@@ -30,6 +30,9 @@ INFERRED: The previous full-owner Label rectangle centered at y12.5, while Forev
 VERIFIED: The Forever preview's default Style2 background uses the set-1 c60 idle member (FDID8069112, crop144,85,39×39), not the gray Modern/set-0 crop. After the source's 12px side slices, both preview side borders match idle with zero RGB error; hover-1 and open are separate members. The component needs no idle-art fix. The 3× comparison and measurements are in `data/diagnostics/dropdown-valign-2026-11-11/live-client-group-finder/visual-review/`.
 
 UNVERIFIED: This is RegistryUi preview evidence, not a full GameClient Group Finder capture. The latter remains blocked until capacity grants ADD for UDP5992.
+## Follower-dungeon level authority — 2026-11-12
+
+VERIFIED: deployment seed tests3/3; server signed-bound test1/1, queue refusal/source tests2/2 and spawn-failure log test1/1; engine UI-model11/11 and account/chat4/4. These assert local-seed requirements, existing/absent runtime-file behavior, signed LFG bounds with squish fallback, pre-transfer level refusal, server-catalog selection and localized Group Finder/system-chat errors. INFERRED: `TargetLevelMin/TargetLevelMax` identify the intended queue bounds; the server contract records this boundary. VERIFIED (private UDP 5996 on November 11, 2026): the level-10 Paladin entered Ruby Life Pools map2521 instance2 and remained with `Follower1`–`Follower4` in scene captures 116.298 seconds apart and party-frame captures 116.446 seconds apart. VERIFIED (separate server log): a natural party selection with Warlock pet entry417 failed, returned to origin and exposed a separate spawn-data gap that remains unchanged. Exact logs, captures and scope are in [[follower-dungeons#server-authoritative-level-eligibility--2026-11-12]] and the private proof ledger under `data/diagnostics/follower-join-fail-2026-11-11/private-run/`.
 
 ## Ruby emitter frustum cache — 2026-11-11
 
