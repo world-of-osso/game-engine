@@ -495,8 +495,21 @@ fn dungeon_row(view: &View, id: u32, title: &str, index: usize) -> Element {
     let name = format!("LFDQueueFrameFollowerDungeon{id}");
     let top = index as f32 * ROW_HEIGHT as f32;
     let lock_reason = view.level_lock_reason(id);
-    let locked = lock_reason.is_some();
     let enabled = view.can_select(id);
+    let mut art = dungeon_row_icon(&name, id, view, lock_reason.is_some());
+    art.extend(dungeon_row_label(&name, title, enabled));
+    crate::selection_list::row_with_disabled_tooltip(
+        name,
+        &format!("follower:select:{id}"),
+        enabled,
+        (0.0, top, 295.0, ROW_HEIGHT as f32),
+        (&crate::selection_list::AUTHORED, view.selected == Some(id)),
+        art,
+        lock_reason.as_deref(),
+    )
+}
+
+fn dungeon_row_icon(name: &str, id: u32, view: &View, locked: bool) -> Element {
     let mut art = if locked {
         named_atlas_texture(
             format!("{name}LockedIndicator"),
@@ -519,24 +532,19 @@ fn dungeon_row(view: &View, id: u32, title: &str, index: usize) -> Element {
             "1,1,1,1",
         ));
     }
-    let name_color = if enabled {
+    art
+}
+
+fn dungeon_row_label(name: &str, title: &str, enabled: bool) -> Element {
+    let color = if enabled {
         NORMAL_FONT_COLOR
     } else {
         "0.5,0.5,0.5,1"
     };
-    art.extend(label(
+    label(
         format!("{name}InstanceName"),
         title,
         (40.0, 0.0, 255.0, 20.0),
-        (13.0, name_color, "LEFT"),
-    ));
-    crate::selection_list::row_with_disabled_tooltip(
-        name,
-        &format!("follower:select:{id}"),
-        enabled,
-        (0.0, top, 295.0, ROW_HEIGHT as f32),
-        (&crate::selection_list::AUTHORED, view.selected == Some(id)),
-        art,
-        lock_reason.as_deref(),
+        (13.0, color, "LEFT"),
     )
 }
