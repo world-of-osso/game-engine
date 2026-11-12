@@ -1,5 +1,6 @@
 //! Offline player slot using the production asynchronous portrait owner and real HD model.
 use game_engine_network::replica::Replica;
+use game_engine_ui_model::character_frame::{CharacterFrameView, MODE_TAB_PORTRAIT};
 use game_engine_ui_model::inworld_unit_frames_component::{InWorldUnitFramesState, UnitFrameState};
 use godot::classes::{Node, ProjectSettings};
 use godot::prelude::*;
@@ -40,7 +41,18 @@ impl PlayerPortraitFixture {
     #[func]
     fn initialize(&mut self, forever: bool) -> GString {
         GString::from(
-            self.mount_player(forever)
+            self.mount_ui(forever, false)
+                .err()
+                .unwrap_or_default()
+                .as_str(),
+        )
+    }
+
+    #[func]
+    fn initialize_character_tab(&mut self, forever: bool) -> GString {
+        self.portrait.set_slot(MODE_TAB_PORTRAIT);
+        GString::from(
+            self.mount_ui(forever, true)
                 .err()
                 .unwrap_or_default()
                 .as_str(),
@@ -53,7 +65,7 @@ impl PlayerPortraitFixture {
         let host = self
             .ui
             .as_ref()
-            .and_then(|ui| ui.bind().frame_control(PLAYER_PORTRAIT.frame));
+            .and_then(|ui| ui.bind().frame_control(self.portrait.slot.frame));
         let player = Player {
             name: "Buffcancel".into(),
             race: 1,
@@ -86,7 +98,7 @@ impl PlayerPortraitFixture {
 }
 
 impl PlayerPortraitFixture {
-    fn mount_player(&mut self, forever: bool) -> Result<(), String> {
+    fn mount_ui(&mut self, forever: bool, character_frame: bool) -> Result<(), String> {
         let path = ProjectSettings::singleton().globalize_path("res://../data");
         game_engine_ui_model::paths::set_data_root(std::path::PathBuf::from(path.to_string()))?;
         let skin = if forever {
@@ -97,7 +109,14 @@ impl PlayerPortraitFixture {
         ui_toolkit::atlas::set_thread_skin(skin);
         let mut ui = RegistryUi::new_alloc();
         self.base_mut().add_child(&ui);
-        ui.bind_mut().show_unit_frames(player_frame())?;
+        if character_frame {
+            ui.bind_mut().show_character_frame(CharacterFrameView {
+                visible: true,
+                ..Default::default()
+            })?;
+        } else {
+            ui.bind_mut().show_unit_frames(player_frame())?;
+        }
         self.ui = Some(ui);
         Ok(())
     }

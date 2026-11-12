@@ -44,12 +44,21 @@ func cases(forever: bool) -> Array:
 	result.append({"name": "CastingBar", "method": "show_castbaranim_preview", "args": [], "hover": "", "regions": [["CastingBarFlash", true], ["CastingBarEnergyGlow", true]]})
 	result.append({"name": "Minimap", "method": "show_minimap_zoom_preview", "args": [forever, 3], "hover": "MinimapZoomIn", "regions": [["MinimapZoomIn", false]]})
 	result.append({"name": "Transmog", "method": "show_template_blend_preview", "args": [forever, "Transmog"], "hover": "TransmogSlot16", "regions": [["TransmogSlot16", true]]})
+	result.append({"name": "CharacterPaperDoll", "class": "PlayerPortraitFixture", "method": "initialize_character_tab", "args": [forever], "hover": "", "regions": []})
+	result.append({"name": "CharacterReputation", "method": "show_buttonfit_service_preview", "args": ["reputation", forever], "hover": "", "regions": []})
+	result.append({"name": "MailInbox", "method": "show_buttonfit_service_preview", "args": ["inbox", forever], "hover": "", "regions": []})
+	result.append({"name": "MailSend", "method": "show_buttonfit_service_preview", "args": ["send", forever], "hover": "", "regions": []})
+	result.append({"name": "AuctionBrowse", "method": "show_buttonfit_auction_preview", "args": [forever], "hover": "", "regions": []})
+	result.append({"name": "AuctionOwned", "method": "show_forever_auction_preview" if forever else "show_auction_preview", "args": [], "auction_view": "owned", "hover": "", "regions": []})
+	result.append({"name": "AuctionBids", "method": "show_forever_auction_preview" if forever else "show_auction_preview", "args": [], "auction_view": "bids", "hover": "", "regions": []})
+	result.append({"name": "ProfessionsOrders", "method": "show_customer_orders_preview", "args": [forever, false, false], "hover": "", "regions": []})
+	result.append({"name": "Battleground", "method": "show_gameplay_panels_preview", "args": [forever, "scoreboard"], "hover": "", "regions": []})
 	return result
 
 func run_cases() -> void:
 	root.size = Vector2i(1920, 1080)
 	root.content_scale_size = Vector2i.ZERO
-	completion = preload("res://tests/completion.gd").new(self, 21)
+	completion = preload("res://tests/completion.gd").new(self, 30)
 	var output := OS.get_environment("UI_TEMPLATE_BLEND_CAPTURES")
 	if not completion.require(not output.is_empty(), "UI_TEMPLATE_BLEND_CAPTURES required"):
 		return
@@ -75,11 +84,21 @@ func check_panel(panel: Dictionary, forever: bool, output: String) -> bool:
 	OS.set_environment("GODOT_CASTBAR_PHASE", "finish")
 	OS.set_environment("GODOT_CASTBAR_TIME", "100.1")
 	OS.set_environment("GODOT_BANK_PURCHASE", "0")
+	if panel.has("auction_view"):
+		OS.set_environment("GODOT_AUCTION_VIEW", panel.auction_view)
 	var owner: Node = ClassDB.instantiate(panel.get("class", "RegistryUi"))
 	root.add_child(owner)
 	var error: String = owner.callv(panel.method, panel.args)
 	if not error.is_empty():
 		failures.append(panel.name + ": " + error)
+	if panel.name == "CharacterPaperDoll":
+		await wait_for_portrait(owner, panel.name)
+	elif panel.name == "ProfessionsOrders":
+		var portrait := owner.find_child("CustomerOrdersPreviewPortrait", true, false) as Node
+		if portrait == null:
+			failures.append("ProfessionsOrders missing customer-orders portrait fixture")
+		else:
+			await wait_for_portrait(portrait, panel.name)
 	await frames(8)
 	var modes: Array = []
 	if panel.name == "AdventureGuide":
@@ -122,6 +141,21 @@ func check_panel(panel: Dictionary, forever: bool, output: String) -> bool:
 	owner.free()
 	await frames(2)
 	return failures.size() == before
+
+func wait_for_portrait(portrait: Node, label: String) -> bool:
+	var deadline := Time.get_ticks_msec() + 30000
+	while Time.get_ticks_msec() < deadline:
+		var error: String = portrait.call("tick")
+		if not error.is_empty():
+			failures.append(label + " portrait: " + error)
+			return false
+		await frames(1)
+		await RenderingServer.frame_post_draw
+		var state = portrait.call("portrait_state")
+		if state.get("model_shown", false):
+			return true
+	failures.append(label + " portrait model did not load")
+	return false
 
 func hover_control(owner: Node, name: String, entering: bool) -> void:
 	var target := owner.find_child(name, true, false) as Control
