@@ -179,12 +179,12 @@ impl View {
         if self.pending || self.matched() {
             return false;
         }
-        self.contains(id) && self.level_lock_reason(id).is_none()
+        self.contains(id) && self.level_lock_key(id).is_none()
     }
     pub fn can_queue(&self) -> bool {
         self.selected.is_some_and(|id| self.can_select(id))
     }
-    pub fn level_lock_reason(&self, id: u32) -> Option<String> {
+    pub fn level_lock_key(&self, id: u32) -> Option<&'static str> {
         let level = u32::from(self.player_level?);
         let entry = self
             .catalog
@@ -192,14 +192,13 @@ impl View {
             .entries
             .iter()
             .find(|entry| entry.id == id)?;
-        let reason = if level < entry.min_level {
-            Some("LFG_LOCKSTATUS_TOO_LOW_LEVEL")
-        } else if level > entry.max_level {
-            Some("LFG_LOCKSTATUS_TOO_HIGH_LEVEL")
-        } else {
-            None
-        }?;
-        Some(localize_error(reason))
+        if level < entry.min_level {
+            return Some("LFG_LOCKSTATUS_TOO_LOW_LEVEL");
+        }
+        if level > entry.max_level {
+            return Some("LFG_LOCKSTATUS_TOO_HIGH_LEVEL");
+        }
+        None
     }
     pub fn matched(&self) -> bool {
         self.state

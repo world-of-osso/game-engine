@@ -370,8 +370,8 @@ fn follower_group_finder_locks_out_of_range_rows_and_blocks_queueing() {
     };
     below_range.receive_catalog(catalog());
     assert_eq!(
-        below_range.level_lock_reason(2436).as_deref(),
-        Some("You must advance to a higher level.")
+        below_range.level_lock_key(2436),
+        Some("LFG_LOCKSTATUS_TOO_LOW_LEVEL")
     );
     assert!(!below_range.can_select(2436));
     assert_eq!(below_range.action("follower:select:2436"), None);
@@ -403,7 +403,7 @@ fn follower_group_finder_locks_out_of_range_rows_and_blocks_queueing() {
         ..Default::default()
     };
     in_range.receive_catalog(catalog());
-    assert_eq!(in_range.level_lock_reason(2436), None);
+    assert_eq!(in_range.level_lock_key(2436), None);
     assert!(in_range.can_select(2436));
     let unlocked = render(in_range.clone(), ActiveSkin::Forever);
     assert_eq!(button(&unlocked, row_name).0, ButtonState::Normal);
@@ -432,8 +432,8 @@ fn follower_group_finder_locks_out_of_range_rows_and_blocks_queueing() {
     };
     above_range.receive_catalog(catalog());
     assert_eq!(
-        above_range.level_lock_reason(2436).as_deref(),
-        Some("Your level is too high.")
+        above_range.level_lock_key(2436),
+        Some("LFG_LOCKSTATUS_TOO_HIGH_LEVEL")
     );
 }
 

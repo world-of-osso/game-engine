@@ -1,6 +1,6 @@
 //! LFDFrame.xml: follower roles, type dropdown, explanation, ScrollBox and Find Group.
 use crate::bank_art::{WHITE, label, texture};
-use crate::follower_dungeons::View;
+use crate::follower_dungeons::{View, localize_error};
 use crate::menu_primitives::{
     ContextMenu, ContextMenuItem, DropdownButton, DropdownState, MenuElementKind,
     context_menu_with_rows, dropdown_button_with_state, menu_element, menu_row_rect_with_heading,
@@ -494,7 +494,7 @@ fn dungeon_list(shared: &SharedContext, view: &View) -> Element {
 fn dungeon_row(view: &View, id: u32, title: &str, index: usize) -> Element {
     let name = format!("LFDQueueFrameFollowerDungeon{id}");
     let top = index as f32 * ROW_HEIGHT as f32;
-    let lock_reason = view.level_lock_reason(id);
+    let lock_reason = view.level_lock_key(id).map(localize_error);
     let enabled = view.can_select(id);
     let mut art = dungeon_row_icon(&name, id, view, lock_reason.is_some());
     art.extend(dungeon_row_label(&name, title, enabled));
