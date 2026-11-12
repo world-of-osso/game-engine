@@ -256,7 +256,7 @@ func check_item_hover_tooltips(client: Node) -> bool:
 	# Re-show before leaving the whole bag, so away-hide is not a vacuous check.
 	if not await hover_bag_slot(client, 1) or not await wait_item_tooltip(client, "Linen Cloth", Color.WHITE, "39", "Item ID: 2589"):
 		return false
-	await move_tooltip_pointer(Vector2(64.0, 64.0))
+	await move_mouse(Vector2(64.0, 64.0))
 	if not await wait_item_tooltip_hidden(client) or not await quiet_tooltip_inventory(client, true, backpack_rect):
 		return false
 	# Close via keyboard while the captured physical pointer remains on the item.
@@ -289,16 +289,8 @@ func hover_bag_slot(client: Node, slot: int) -> bool:
 	if control == null or not control.is_visible_in_tree() or not control.get_global_rect().has_area():
 		fail("Missing real authored backpack hover slot: %s" % slot)
 		return false
-	await move_tooltip_pointer(control.get_global_rect().get_center())
+	await move_mouse(control.get_global_rect().get_center())
 	return true
-
-func move_tooltip_pointer(point: Vector2) -> void:
-	Input.warp_mouse(point)
-	var motion := InputEventMouseMotion.new()
-	motion.position = point
-	motion.global_position = point
-	root.push_input(motion, true)
-	await process_frame
 
 func wait_item_tooltip(client: Node, title_text: String, title_color: Color, copper: String, item_id_line: String) -> bool:
 	var deadline := Time.get_ticks_msec() + BAG_WAIT_MS
