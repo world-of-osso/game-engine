@@ -10,9 +10,6 @@ const SETTLE_SECONDS := 5.0
 
 var world_trace_seconds := 0.0
 var world_trace_path := ""
-var world_trace_started_usec := 0
-var world_trace_skip_first := false
-var world_trace_frames: Array[Dictionary] = []
 var world_trace_finished := false
 var world_trace_prefetched_at_entry := false
 var loading_prewarm_seen := false
@@ -24,48 +21,31 @@ class InputEventProbe extends Node:
 		if event is InputEventKey and event.physical_keycode == KEY_N and event.pressed:
 			n_pressed_events += 1
 
-func _process(delta: float) -> bool:
-	record_world_trace_frame()
-	return super._process(delta)
-
-func begin_world_trace() -> void:
-	if world_trace_seconds <= 0.0 or world_trace_started_usec != 0:
-		return
-	world_trace_started_usec = Time.get_ticks_usec()
-	world_trace_skip_first = true
+func capture_world_trace() -> void:
 	world_trace_prefetched_at_entry = client.get_node_or_null("SpellBookPrewarmUI") != null
-	print("TALENTS_PANEL_WORLD_TRACE_START ", JSON.stringify({"ticks_usec": world_trace_started_usec,
-		"prefetched_ui_at_entry": world_trace_prefetched_at_entry}))
-
-func record_world_trace_frame() -> void:
-	if world_trace_seconds <= 0.0 or world_trace_started_usec == 0 or world_trace_finished:
-		return
-	if world_trace_skip_first:
-		world_trace_skip_first = false
-		return
-	var now_usec := Time.get_ticks_usec()
-	var elapsed_usec := now_usec - world_trace_started_usec
-	if elapsed_usec >= int(world_trace_seconds * 1000000.0):
-		write_world_trace()
-		return
-	world_trace_frames.append({
-		"elapsed_ms": float(elapsed_usec) / 1000.0,
-		"frame_interval_ms": float(now_usec - last_usec) / 1000.0,
-		"client_process_ms": client.process_ms()
-	})
-
-func write_world_trace() -> void:
+	print("TALENTS_PANEL_WORLD_TRACE_START ", JSON.stringify({"prefetched_ui_at_entry": world_trace_prefetched_at_entry}))
+	await measure("talents_first_10s_inworld", world_trace_seconds, func(_time: float): pass)
 	world_trace_finished = true
+	if intervals.size() != client_ms.size():
+		fail("In-world frame trace has mismatched interval and process samples")
+		return
+	var elapsed_ms := 0.0
+	var frames: Array[Dictionary] = []
+	for index in range(intervals.size()):
+		var interval_ms := intervals[index]
+		elapsed_ms += interval_ms
+		frames.append({"elapsed_ms": elapsed_ms, "frame_interval_ms": interval_ms,
+			"client_process_ms": client_ms[index]})
 	var file := FileAccess.open(world_trace_path, FileAccess.WRITE)
 	if file == null:
 		fail("Could not save in-world frame trace %s: %s" % [world_trace_path, FileAccess.get_open_error()])
 		return
 	file.store_line(JSON.stringify({"duration_s": world_trace_seconds,
 		"prefetched_ui_at_entry": world_trace_prefetched_at_entry,
-		"loading_prewarm_seen": loading_prewarm_seen, "frames": world_trace_frames}))
+		"loading_prewarm_seen": loading_prewarm_seen, "frames": frames}))
 	file.close()
 	print("TALENTS_PANEL_WORLD_TRACE_PASS ", JSON.stringify({"path": world_trace_path,
-		"duration_s": world_trace_seconds, "frames": world_trace_frames.size(),
+		"duration_s": world_trace_seconds, "frames": frames.size(), "recorded_ms": elapsed_ms,
 		"prefetched_ui_at_entry": world_trace_prefetched_at_entry,
 		"loading_prewarm_seen": loading_prewarm_seen}))
 
@@ -111,8 +91,8 @@ func wait_for_startup_world(character: String) -> bool:
 		var state: Dictionary = client.account_state()
 		if state.screen == "Loading" and OS.get_environment("BENCH_REQUIRE_LOADING_PREWARM") == "1":
 			loading_prewarm_seen = loading_prewarm_seen or client.get_node_or_null("SpellBookPrewarmUI") != null
-		if state.screen == "InWorld":
-			begin_world_trace()
+		if state.screen == "InWorld" and world_trace_seconds > 0.0 and not world_trace_finished:
+			await capture_world_trace()
 		if state.screen == "InWorld" and Readiness.is_ready(state) and state.local_player_position != null \
 				and (world_trace_seconds <= 0.0 or world_trace_finished):
 			print("TALENTS_PANEL_INWORLD_READY ", JSON.stringify({
