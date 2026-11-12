@@ -772,6 +772,15 @@ impl RegistryModel {
             }
             _ => return None,
         };
+        let is_mount_journal = self
+            .shared
+            .get::<game_engine_ui_collections::mount_journal::MountJournalView>()
+            .is_some();
+        if is_mount_journal
+            && action != game_engine_ui_collections::mount_journal::RANDOM_FAVORITE_MOUNT_ACTION
+        {
+            return None;
+        }
         Some(crate::bag_cursor::BagInput::Click {
             owner,
             action,
@@ -2941,6 +2950,9 @@ impl RegistryUi {
             .registry
             .set_pos(id, x, y)
             .map_err(|error| format!("Window {root} position: {error:?}"))?;
+        crate::rebuild_guard::count_detail(crate::rebuild_guard::Rebuild::UiLayout, 1, || {
+            Some(root.to_owned())
+        });
         self.projection
             .as_mut()
             .ok_or("Window projection missing")?

@@ -383,10 +383,15 @@ fn pet_row(view: &PetJournalView, row: &PetRow, top: f32) -> Element {
         (43.0, 24.0, 203.0, 16.0),
         (10.0, WHITE, "LEFT"),
     ));
-    if let Some(icon) = view.icons.get(&row.species) {
+    if let Some(icon) = view
+        .icons
+        .get(&row.species)
+        .copied()
+        .filter(|fdid| *fdid != 0)
+    {
         children.extend(texture(
             format!("{prefix}Icon"),
-            *icon,
+            icon,
             (3.0, 5.0, 36.0, 36.0),
             WHITE,
         ));
@@ -429,10 +434,15 @@ fn pet_card(view: &PetJournalView) -> Element {
             (342.0, 96.0, 280.0, 12.0),
             (12.0, WHITE, "LEFT"),
         ));
-        if let Some(icon) = view.icons.get(&row.species) {
+        if let Some(icon) = view
+            .icons
+            .get(&row.species)
+            .copied()
+            .filter(|fdid| *fdid != 0)
+        {
             out.extend(texture(
                 "PetJournalPetCardIcon".into(),
-                *icon,
+                icon,
                 (300.0, 70.0, 38.0, 38.0),
                 WHITE,
             ));

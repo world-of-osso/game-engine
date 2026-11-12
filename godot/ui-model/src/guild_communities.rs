@@ -2,7 +2,7 @@
 use crate::bank_art::label;
 use crate::guild_ranks::{CommunitiesTab, GuildRanksSession, GuildRosterSort};
 use crate::minimal_scroll_bar::{MinimalScrollBar, Unscrollable, pixel_geometry, scroll_list_attr};
-use crate::quest_art::{DynName, panel_button, window_chrome};
+use crate::quest_art::{DynName, named_atlas_texture, panel_button, window_chrome};
 use crate::selection_list::row;
 use shared::protocol::*;
 use std::collections::HashMap;
@@ -19,6 +19,10 @@ pub fn shell(session: &GuildRanksSession, shared: &SharedContext) -> Element {
         "Guild & Communities",
         "guild:close",
     );
+    if has_no_guild_state(session) {
+        children.extend(no_guild_communities());
+        return children;
+    }
     children.extend(guild_portrait(session));
     children.extend(tabs(session.communities_tab));
     children.extend(guild_selector(session));
@@ -76,6 +80,111 @@ pub fn shell(session: &GuildRanksSession, shared: &SharedContext) -> Element {
         }
     }
     children
+}
+
+fn has_no_guild_state(session: &GuildRanksSession) -> bool {
+    session
+        .state()
+        .is_some_and(|state| state.error == Some(GuildRankError::NotInGuild))
+}
+
+/// Retail/Forever CommunitiesFrame.lua:429–450/466–487, CommunitiesFrame.xml:475–492/484–501.
+fn no_guild_communities() -> Element {
+    let mut children = no_guild_entries();
+    children.extend(guild_finder());
+    children
+}
+
+fn no_guild_entries() -> Element {
+    // CommunitiesList.lua:185–244 gets invitations from C_Club, absent from GuildRanksSession.
+    const ENTRIES: [(&str, &str, Option<&str>); 3] = [
+        ("CommunitiesGuildFinderEntry", "Guild Finder", None),
+        (
+            "CommunitiesFindCommunityEntry",
+            "Find a Community",
+            Some("communities-icon-searchmagnifyingglass"),
+        ),
+        (
+            "CommunitiesJoinCommunityEntry",
+            "Join or create a Community",
+            Some("communities-icon-addgroupplus"),
+        ),
+    ];
+    let rows: Element = ENTRIES
+        .into_iter()
+        .enumerate()
+        .flat_map(|(index, (name, text, icon))| {
+            no_guild_entry(name, text, icon, index == 0, 40.0 + index as f32 * 68.0)
+        })
+        .collect();
+    rsx! { r#frame { name: "CommunitiesList", width: 171.0, height: 374.0, left: -1.0, top: 23.0, pos_type: "absolute", {rows} } }
+}
+
+/// CommunitiesList.xml:5–12,26–35,112–120 and CommunitiesList.lua:581–690.
+fn no_guild_entry(name: &str, text: &str, icon: Option<&str>, selected: bool, top: f32) -> Element {
+    let mut content = no_guild_entry_background(name, selected);
+    if selected {
+        content.extend(rsx! {
+            texture { name: {DynName(format!("{name}TabardBackground"))},
+                texture_atlas: "communities-guildbanner-background", width: 52.0, height: 51.0,
+                left: 6.0, top: 11.0, vertex_color: "0.7,0.7,0.7,1.0",
+                draw_layer: "BACKGROUND", pos_type: "absolute" }
+            texture { name: {DynName(format!("{name}TabardBorder"))},
+                texture_atlas: "communities-guildbanner-border", width: 52.0, height: 51.0,
+                left: 6.0, top: 11.0, vertex_color: "0.7,0.7,0.7,1.0",
+                draw_layer: "OVERLAY", pos_type: "absolute" }
+        });
+    }
+    if let Some(icon) = icon {
+        content.extend(named_atlas_texture(
+            format!("{name}Icon"),
+            icon,
+            (17.0, 18.0, 30.0, 30.0),
+        ));
+    }
+    content.extend(label(
+        format!("{name}Name"),
+        text,
+        (60.0, 6.0, 94.0, 56.0),
+        (12.0, "0.1,1.0,0.1,1.0", "LEFT"),
+    ));
+    rsx! { r#frame { name: {DynName(name.into())}, width: 178.0, height: 68.0, left: 0.0, top, pos_type: "absolute", {content} } }
+}
+
+fn no_guild_entry_background(name: &str, selected: bool) -> Element {
+    let mut background = if selected {
+        named_atlas_texture(
+            format!("{name}Background"),
+            "communities-nav-button-green-normal",
+            (0.0, -6.0, 178.0, 80.0),
+        )
+    } else {
+        texture(
+            &format!("{name}Background"),
+            593_918,
+            "0.00390625,0.87890625,0.75195313,0.83007813",
+            (0.0, -6.0, 178.0, 80.0),
+        )
+    };
+    if selected {
+        background.extend(named_atlas_texture(
+            format!("{name}Selection"),
+            "communities-nav-button-green-pressed",
+            (0.0, -6.0, 178.0, 80.0),
+        ));
+    }
+    background
+}
+
+/// The no-guild default is the Guild Finder, never the member roster.
+fn guild_finder() -> Element {
+    let heading = label(
+        "GuildFinderHeading".into(),
+        "Guild Finder",
+        (0.0, 24.0, 611.0, 28.0),
+        (18.0, "1,1,1,1", "CENTER"),
+    );
+    rsx! { r#frame { name: "GuildFinderFrame", width: 611.0, height: 314.0, left: 194.0, top: 83.0, pos_type: "absolute", {heading} } }
 }
 
 /// CommunitiesFrame.xml328–353 and GuildUtil.lua115–127,180–202.
@@ -146,12 +255,11 @@ fn tabs(selected: CommunitiesTab) -> Element {
 }
 
 fn guild_selector(session: &GuildRanksSession) -> Element {
-    // CommunitiesListFrameTemplate: one actual guild, no fabricated clubs or tabard emblem.
-    let guild = session
-        .profile
-        .as_ref()
-        .map(|p| p.guild_name.as_str())
-        .unwrap_or("");
+    // CommunitiesListFrameTemplate: render only a real profile, never an empty guild placeholder.
+    let Some(profile) = session.profile.as_ref() else {
+        return vec![];
+    };
+    let guild = profile.guild_name.as_str();
     let mut content = texture(
         "CommunitiesGuildEntryBackground",
         593918,

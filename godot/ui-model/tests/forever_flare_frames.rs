@@ -17,8 +17,8 @@ use game_engine_ui_model::inworld_unit_frames_component::inworld_unit_frames_art
     atlas_size, sized_atlas_texture,
 };
 use game_engine_ui_model::inworld_unit_frames_component::{
-    InWorldUnitFramesState, PetFrameState, PowerBarState, SmallUnitFrameState, UnitFrameMenuState,
-    UnitFrameState, inworld_unit_frames_screen,
+    InWorldUnitFramesState, PetFrameState, PlayerAuraIconState, PowerBarState, SmallUnitFrameState,
+    TargetAuraIconState, UnitFrameMenuState, UnitFrameState, inworld_unit_frames_screen,
 };
 use game_engine_ui_model::status::{ClassBarPlayer, ClassBarResource};
 use shared::components::{CreatureClassification, PowerEntry, PowerType, UnitPowers, UnitRunes};
@@ -330,6 +330,29 @@ fn forevergaps_live_player_auras_grow_outward_above_both_corners_with_timers() {
     assert_eq!(label(&registry, "PlayerBuffIcon0Count").font_size, 9.0);
     let modern = unit_frames_with_player(ActiveSkin::Modern, player);
     assert!(modern.get_by_name("PlayerBuffIcon0").is_none());
+}
+
+#[test]
+fn unresolved_player_aura_keeps_timer_without_requesting_texture_zero() {
+    load_atlas_tables();
+    let mut player = unit("Fbflare", PowerType::Mana);
+    player.player_auras.push(PlayerAuraIconState {
+        icon: TargetAuraIconState {
+            spell_id: 999_999,
+            icon_fdid: 0,
+            stacks: 1,
+            dispel_color: None,
+            large: false,
+            timed: true,
+        },
+        is_debuff: false,
+        timer: "7 s".into(),
+    });
+    let registry = unit_frames_with_player(ActiveSkin::Forever, player);
+
+    assert!(registry.get_by_name("PlayerBuffIcon0").is_some());
+    assert!(registry.get_by_name("PlayerBuffIcon0Texture").is_none());
+    assert_eq!(label(&registry, "PlayerBuffIcon0Duration").text, "7 s");
 }
 
 #[test]

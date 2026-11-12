@@ -1,8 +1,50 @@
+## Guild no-guild Communities display — 2026-11-11
+
+VERIFIED, SOURCE: Retail and Forever select `GUILD_FINDER` with no subscribed clubs and no guild; that mode shows `CommunitiesList` and `GuildFinderFrame`, not the member roster. The source list adds finder/join entries by feature and account permissions, and invitation entries only from `C_Club` results.
+
+VERIFIED, CODE: The guild-only model previously rendered a row with an empty name when its profile was absent. It now routes `NotInGuild` to a finder presentation and omits the missing-profile row. The Forever-only integration filter passes 2/2 tests. Live screenshot and dev/release build gates remain pending.
+## Profession micro-button unavailable — 2026-11-11
+
+VERIFIED: Shipped engine source `3d8feea93` assigned `ProfessionMicroButton` the `SYSTEM_DISABLED` message. Engine commits `3a6dfaba8` through `aab84e3a4` add the separate native book, snapshot/DB2 rows and available micro-button. The empty/learned book tests pass 2/2, the micro-button test 1/1, the account snapshot test 1/1, and `cargo fmt --all -- --check` passes.
+
+VERIFIED: The native `--cli` build exited 0 and produced the extension and CLI. The exact `data/cache/professions.sqlite` path was absent before and after one exact-path unlink attempt (no file was removed).
+
+GATE BLOCKED: The full native build records a transitive `libquickjs-sys` C warning at generated `quickjs.c:27172` (`-Wdiscarded-qualifiers`); the required zero-warning gate is not met. No suppression or dependency patch was applied.
+
+UNVERIFIED: No live book screenshots; NPC/source not verified. The user directed that private-server provisioning stop, so no private server or client was started. See [[profession-micro-button-unavailable]].
+VERIFIED, CODE: The guild-only model previously rendered a row with an empty name when its profile was absent. It now routes `NotInGuild` to a finder presentation and omits the missing-profile row; the Forever-only integration filter passes 2/2 tests. VERIFIED, BUILD: debug and release extension builds exit0 with zero warnings, and `cargo fmt --all --check` passes. VERIFIED, CAPTURE: the native client renders the Forever offline `NotInGuild` fixture at `/syncthing/AgentShared/2026-11-11/guild-no-guild-state/forever-after.png`; it shows Guild Finder, Find a Community and Join or create a Community, with no guild row or roster. The supplied before image is `/syncthing/AgentShared/2026-11-11/guild-no-guild-state/forever-before.png`. This capture does not prove authenticated server state.
+## Bag hover Xvfb harness — 2026-11-11
+
+VERIFIED: The old X11 fixture warp left the target slot unhovered; relative `root.push_input` without `Input.warp_mouse` makes the full Forever bag fixture pass at 1920×1080 and 2560×1440. The direct pinned-Godot/Xvfb run exits0; its deliberate child kill is not normal-shutdown proof. INFERRED: the original tooltip failure was an Xvfb input-harness issue, not a client regression. See [[godot-conversion#xvfb-bag-hover-harness-follow-up-2026-11-11]] and persistent triage note `/home/osso/Projects/world-of-osso/game-engine/data/diagnostics/backpack-icon-gap-2026-11-11/xvfb-hover-triage-2026-11-11.txt`.
+## Ground spell targeting — 2026-11-11
+
+VERIFIED: Local 12.1 DB2 distinguishes cursor destinations through `SpellTargetRestrictions.Targets=64`; Consecration 26573 has `DEST_DEST`, range ID1 (Self Only), and no restriction row, while Flamestrike 2120 and DnD 43265 have the explicit destination flag. The native catalog now maps school masks to the sourced AoE `targetarea_*.blp` textures. See [[spell-catalog#ground-destination-and-aoe-decal--2026-11-11]] and [[target-circle-rendering#spell-ground-target-placement]].
+
+VERIFIED: Private Forever phases pass: Flamestrike 2120 proves green/red range tint and one-time placement; ordinary Consecration 26573 sends without opening the cursor. VERIFIED: The 3× review shows broad filled Fire art beside the user's thin-ring crop. UNVERIFIED: Exact visual parity, and private live behavior for Raging Consecration 50915; details are in [[target-circle-rendering#private-forever-proof--2026-11-11]].
+## WowStyle1 dropdown caption alignment — 2026-11-11
+
+INFERRED: The previous full-owner Label rectangle centered at y12.5, while Forever's authored 10px Text region centered at y13. VERIFIED: Commit `65168d644` aligns the shared native line box to the source-region center and preserves the one-line caption contract. VERIFIED: `ea6d3e4ff` removes a redundant vertical-justification attribute; MIDDLE is already the FontString default. VERIFIED: `3cdec84d7` names the source Text and Arrow insets without changing the geometry. VERIFIED: Current Quest Log source has no shared dropdown callsite. VERIFIED: Final rendered preview, targeted test and helper-build proof pass; full GameClient Group Finder Type proof remains pending. See [[menu-primitives#wowstyle1-caption-source-region-alignment-2026-11-11]].
+
+## WowStyle2 Forever idle atlas verification — 2026-11-11
+
+VERIFIED: The Forever preview's default Style2 background uses the set-1 c60 idle member (FDID8069112, crop144,85,39×39), not the gray Modern/set-0 crop. After the source's 12px side slices, both preview side borders match idle with zero RGB error; hover-1 and open are separate members. The component needs no idle-art fix. The 3× comparison and measurements are in `data/diagnostics/dropdown-valign-2026-11-11/live-client-group-finder/visual-review/`.
+
+UNVERIFIED: This is RegistryUi preview evidence, not a full GameClient Group Finder capture. The latter remains blocked until capacity grants ADD for UDP5992.
+## Follower-dungeon level authority — 2026-11-12
+
+VERIFIED: deployment seed tests3/3; server signed-bound test1/1, queue refusal/source tests2/2 and spawn-failure log test1/1; engine UI-model11/11 and account/chat4/4. These assert local-seed requirements, existing/absent runtime-file behavior, signed LFG bounds with squish fallback, pre-transfer level refusal, server-catalog selection and localized Group Finder/system-chat errors. INFERRED: `TargetLevelMin/TargetLevelMax` identify the intended queue bounds; the server contract records this boundary. VERIFIED (private UDP 5996 on November 11, 2026): the level-10 Paladin entered Ruby Life Pools map2521 instance2 and remained with `Follower1`–`Follower4` in scene captures 116.298 seconds apart and party-frame captures 116.446 seconds apart. VERIFIED (separate server log): a natural party selection with Warlock pet entry417 failed, returned to origin and exposed a separate spawn-data gap that remains unchanged. Exact logs, captures and scope are in [[follower-dungeons#server-authoritative-level-eligibility--2026-11-12]] and the private proof ledger under `data/diagnostics/follower-join-fail-2026-11-11/private-run/`.
+## SpellMisc spell lookup key — 2026-11-11
+
+VERIFIED: The random-mount icon used the SpellMisc row ID instead of its `SpellID` key; the engine constant and rendered-view test now use the Retail-resolved icon. See [[db2-format#installed-csv-column-order-and-signed-selections]].
+
 ## Ruby emitter frustum cache — 2026-11-11
 
 VERIFIED: `TerrainObjects::update_particles` reuses doodad frustum admission when the exact plane list is unchanged; the bit-field fixture matches fresh AABB culling for 25 bounds across changed and unchanged views. Particle simulation and deferral still run each frame. See [[follower-combat-fps#emitter-frustum-admission-cache-2026-11-11]].
 
 UNVERIFIED: No paired A/B was run because the 1-minute `uptime` average was 14.56 at 13:21:18; no performance effect is claimed.
+## Starting-kit item source selection — 2026-11-11
+
+VERIFIED: `items: starting` now mirrors `NewCharacterKit` Purpose-9 source-build, RaceMask and TDB-override rules. The targeted player-source tests pass 5/5: a Troll Shaman's item 157655 reaches Retail FDID 464822, race 95 reaches Forever70205 FDID 464823, and wrong-source/build or wrong-mask rows stay out; the root-product tests pass 6/6, including unresolved bare item IDs. Code: `scripts/closure_seeds.py`, `scripts/closure_player_roots.py`; proof: `scripts/tests/test_closure_player_sources.py` and `scripts/tests/test_closure_root_products.py`.
 
 ## GameObject M2 receipt gate closed — 2026-11-11
 

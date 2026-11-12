@@ -13,7 +13,9 @@ use crate::{
     },
     lighting::TerrainLight,
     particles::{ModelParticles, ParticlePools, PlacedParticles, view_basis},
-    world_models::bind_visual_light,
+    terrain::scenery::SceneryDistance,
+    wmo::portals::HalfSpace,
+    world_models::{bind_visual_light, mesh_bounds},
 };
 use game_engine_core::{
     asset_loader::{AssetLoader, Priority},
@@ -699,13 +701,8 @@ impl GameObjects {
         model.set_rotation(Vector3::new(0.0, MODEL_YAW, 0.0));
         Ok(model)
     }
-    /// Advance the source emitters of each replicated, loaded game-object model.
-    pub fn update_particles(
-        &mut self,
-        camera: Transform3D,
-        frustum: &[crate::wmo::portals::HalfSpace],
-        delta: f32,
-    ) {
+    /// Advance visible game-object emitters and defer their off-screen time.
+    pub fn update_particles(&mut self, camera: Transform3D, frustum: &[HalfSpace], delta: f32) {
         let Some(pools) = &mut self.particles else {
             return;
         };
@@ -737,7 +734,20 @@ impl GameObjects {
             let Some(placed) = &mut object.particles else {
                 continue;
             };
-            placed.update_and_draw(&model, delta, 1.0, &view, pools);
+            let bounds = mesh_bounds(&model);
+            let to_glam = |v: Vector3| glam::Vec3::new(v.x, v.y, v.z);
+            let visible = model.is_visible_in_tree()
+                && SceneryDistance::new(
+                    to_glam(bounds.position),
+                    to_glam(bounds.end()),
+                    crate::terrain::objects::affine(model.get_global_transform()),
+                )
+                .box_in_frustum(frustum);
+            if visible {
+                placed.update_and_draw(&model, delta, 1.0, &view, pools);
+            } else {
+                placed.defer(delta);
+            }
             object.node.set_meta(
                 "game_object_particle_emitters",
                 &(placed.emitter_count() as i64).to_variant(),

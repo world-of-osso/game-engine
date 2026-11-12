@@ -3,8 +3,9 @@
 //! its `UI-HUD-MicroMenu-*` atlas member.
 
 use game_engine_ui_model::micro_menu::{
-    ACTION_CHARACTER, CHARACTER_PORTRAIT, MICRO_BUTTONS, MicroButtonState, MicroMenuView,
-    OpenWindows, micro_button_index, micro_button_tooltip, micro_menu_screen, unavailable_message,
+    ACTION_CHARACTER, ACTION_PROFESSIONS, CHARACTER_PORTRAIT, MICRO_BUTTONS, MicroButtonState,
+    MicroMenuView, OpenWindows, micro_button_index, micro_button_tooltip, micro_menu_screen,
+    unavailable_message,
 };
 use ui_toolkit::atlas::{ActiveSkin, resolve_region};
 use ui_toolkit::frame::WidgetData;
@@ -219,15 +220,49 @@ fn an_unconverted_button_is_lit_clickable_and_says_why_on_click() {
         Some("This feature becomes available at level 10.")
     );
     assert_eq!(unavailable_message(ACTION_CHARACTER), None);
+    assert_eq!(unavailable_message(ACTION_PROFESSIONS), None);
+    let (profession_state, profession_alpha, profession_action) =
+        button_state(&registry, "ProfessionMicroButton");
+    assert_eq!(
+        (profession_state, profession_alpha),
+        (ButtonState::Normal, 1.0)
+    );
+    assert_eq!(profession_action.as_deref(), Some(ACTION_PROFESSIONS));
     let (state, alpha, onclick) = button_state(&registry, "CharacterMicroButton");
     assert_eq!((state, alpha), (ButtonState::Normal, 1.0));
     assert_eq!(onclick.as_deref(), Some(ACTION_CHARACTER));
 }
 
 #[test]
+fn professions_micro_button_is_available_and_pushes_for_the_open_book() {
+    let closed = build(MicroMenuView::default());
+    let (state, alpha, action) = button_state(&closed, "ProfessionMicroButton");
+    assert_eq!((state, alpha), (ButtonState::Normal, 1.0));
+    assert_eq!(action.as_deref(), Some(ACTION_PROFESSIONS));
+    assert_eq!(unavailable_message(ACTION_PROFESSIONS), None);
+
+    let open = build(MicroMenuView {
+        open: OpenWindows {
+            professions_book: true,
+            ..OpenWindows::default()
+        },
+        ..MicroMenuView::default()
+    });
+    assert_ne!(
+        atlas(&open, "ProfessionMicroButtonArt0"),
+        atlas(&closed, "ProfessionMicroButtonArt0")
+    );
+    assert_ne!(
+        atlas(&open, "ProfessionMicroButtonArt1"),
+        atlas(&closed, "ProfessionMicroButtonArt1")
+    );
+}
+
+#[test]
 fn hover_shows_the_mouseover_atlas_and_an_open_window_pushes_its_button() {
     let view = MicroMenuView {
         open: OpenWindows {
+            professions_book: true,
             quest_log: true,
             ..OpenWindows::default()
         },
@@ -246,7 +281,12 @@ fn hover_shows_the_mouseover_atlas_and_an_open_window_pushes_its_button() {
         atlas(&idle, "PlayerSpellsMicroButtonArt1")
     );
     // The open window's button draws its down icon over the down background.
-    for part in ["QuestLogMicroButtonArt0", "QuestLogMicroButtonArt1"] {
+    for part in [
+        "ProfessionMicroButtonArt0",
+        "ProfessionMicroButtonArt1",
+        "QuestLogMicroButtonArt0",
+        "QuestLogMicroButtonArt1",
+    ] {
         assert_ne!(atlas(&registry, part), atlas(&idle, part), "{part}");
     }
     // An untouched button keeps its up art.
@@ -403,10 +443,19 @@ fn an_open_game_menu_pushes_its_button_and_disables_the_rest_without_tooltips() 
 
 #[test]
 fn follower_group_finder_micro_button_is_enabled_with_native_action() {
-    data_root();
-    let registry = build(MicroMenuView::default());
-    let (state, _, action) = button_state(&registry, "LFDMicroButton");
-    assert_ne!(state, ButtonState::Disabled);
-    assert_eq!(action.as_deref(), Some("micro:LFDMicroButton"));
+    use game_engine_core::input_bindings_data::{InputAction, InputBindingsData};
+    let view = MicroMenuView::default();
+    let index = index("LFDMicroButton");
+    let binding_action = MICRO_BUTTONS[index].binding.expect("Group Finder binding");
+    let binding = InputBindingsData::default()
+        .binding(binding_action)
+        .expect("Group Finder default key")
+        .display();
+    assert_eq!(binding_action, InputAction::ToggleGroupFinder);
+    assert_ne!(view.state(index), MicroButtonState::Disabled);
+    assert_eq!(
+        tooltip_rows(&view, "LFDMicroButton", Some(&binding)).unwrap(),
+        ["Group Finder (I)"]
+    );
     assert_eq!(unavailable_message("micro:LFDMicroButton"), None);
 }

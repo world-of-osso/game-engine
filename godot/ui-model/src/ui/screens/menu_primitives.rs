@@ -8,6 +8,10 @@ use ui_toolkit::{rsx, widget_def::Element, widgets::font_string::GameFont};
 
 const ROW_HEIGHT: f32 = 20.0;
 const MENU_INSET: f32 = 8.0;
+const WOW_STYLE1_TEXT_LEFT: f32 = 8.0;
+const WOW_STYLE1_TEXT_TOP: f32 = 8.0;
+const WOW_STYLE1_TEXT_HEIGHT: f32 = 10.0;
+const WOW_STYLE1_ARROW_LEFT_INSET: f32 = 26.0;
 const MENU_BOTTOM: f32 = 15.0;
 const DIVIDER_HEIGHT: f32 = 13.0;
 const SPACER_HEIGHT: f32 = 10.0;
@@ -242,9 +246,21 @@ fn calculate_dropdown_text_rect(
     style: DropdownStyle,
 ) -> (f32, f32, f32, f32) {
     match style {
-        // Retail's 10px FontString becomes a 15px-minimum native Label. Center
-        // that label in the button, retaining the source horizontal text/arrow anchors.
-        DropdownStyle::WowStyle1 => (8.0, 0.0, props.width - 34.0, props.height),
+        // Keep the native Label centered on Retail Text, inside the owner, with an integer
+        // top; Taffy rounds half-pixel positions at UI scale1 and shifts a 25px Label by0.5.
+        DropdownStyle::WowStyle1 => {
+            let text_center_y = WOW_STYLE1_TEXT_TOP + WOW_STYLE1_TEXT_HEIGHT / 2.0;
+            let available_below_center = (props.height - text_center_y).max(0.0);
+            let label_half_height = text_center_y.min(available_below_center).floor();
+            let label_height = label_half_height * 2.0;
+            let label_top = text_center_y - label_half_height;
+            (
+                WOW_STYLE1_TEXT_LEFT,
+                label_top,
+                props.width - WOW_STYLE1_TEXT_LEFT - WOW_STYLE1_ARROW_LEFT_INSET,
+                label_height,
+            )
+        }
         DropdownStyle::Filter => (0.0, 0.0, props.width, 20.0),
         DropdownStyle::WowStyle2 => (13.0, (props.height - 20.0) / 2.0, props.width - 26.0, 20.0),
     }

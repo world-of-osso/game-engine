@@ -29,11 +29,11 @@ Filter dropdowns, expansion switcher, tooltips, unlearn, Specializations / Craft
 
 Verified source: 2026-10-07. `godot/network` relays `ProfessionSnapshot`; `account.rs` emits an owner event. `professions.rs` retains snapshots during Loading and clears owner state on WorldReset. The existing inventory consumer remains authoritative for reagent removal and created items.
 
-`professions_catalog.rs` loads pinned SkillLine/SkillLineAbility, TradeSkillCategory, SpellReagents and CREATE_ITEM SpellEffect metadata on a worker. Existing spell and item catalogs supply names/icons. `ProfessionBook` groups/filter learned recipes and derives cast limits from actual bag stacks; equipment is excluded. `ProfessionView` projects onto native skin-aware panel chrome and MinimalScrollBar. K and learned profession spell entries open the window; Escape closes it. CastFailed text reuses the existing Retail error path.
+`professions_catalog.rs` loads pinned SkillLine/SkillLineAbility, TradeSkillCategory, SpellReagents and CREATE_ITEM SpellEffect metadata on a worker. Existing spell and item catalogs supply names/icons. `ProfessionBook` groups/filter learned recipes and derives cast limits from actual bag stacks; equipment is excluded. `ProfessionView` projects onto native skin-aware panel chrome and MinimalScrollBar. **VERIFIED in source:** K and ProfessionMicroButton toggle the separate ProfessionsBookFrame; learned opener buttons open the crafting frame, and Escape closes the active profession window. The book projects empty primary hints and fixed Cooking/Fishing/Archaeology rows, or learned summaries from ProfessionSnapshot and DB2 SkillLine metadata. **VERIFIED by targeted tests:** empty rows are asserted in both skins, learned Tailoring/Cooking rows in Forever, and micro-button availability/open art. **UNVERIFIED:** this lane did not capture live book screenshots; NPC/source not verified. CastFailed text reuses the existing Retail error path.
 
 `SpellReagents` item/count fields are signed. Spell44864 has `ReagentCount_0=-1`; parse it as signed and retain only positive item/count pairs, matching the server. An actual-data regression fixture prevents unrelated sentinel rows from disabling the whole recipe catalog.
 
-The [native coverage section](../../specs/professions-frame.md#native-godot-coverage-2026-10-07) owns test/live proof, inspected Modern/Forever captures, exact cleanup and remaining gaps. Native trainers and exact Retail book-entry/art/layout parity are not implemented here.
+The [native coverage section](../../specs/professions-frame.md#native-godot-coverage-2026-10-07) owns test/live proof, inspected Modern/Forever captures, exact cleanup and remaining gaps. The [micro-button investigation](../investigations/profession-micro-button-unavailable.md) records the newer book-frame tests and the unverified live/NPC boundary. Native trainers and exact Retail book-entry/art/layout parity are not implemented here.
 
 ## Presentation crate ownership
 
@@ -43,7 +43,8 @@ The [native coverage section](../../specs/professions-frame.md#native-godot-cove
 
 - [Professions contract](../../specs/professions-frame.md) — Retail citations and bounded native proof.
 - [Native host](../../../godot/rust/src/professions.rs) — owner event, catalog worker, inputs and authoritative refresh.
-- [Pure book](../../../godot/ui-model/src/professions.rs) and [screen](../../../godot/ui-professions/src/professions_frame.rs) — bag counts, requests and projection.
+- [Pure crafting book](../../../godot/ui-model/src/professions.rs) and [crafting screen](../../../godot/ui-professions/src/professions_frame.rs) — bag counts, requests and projection.
+- [ProfessionsBookFrame](../../../godot/ui-professions/src/professions_book_frame.rs) — empty and learned profession rows.
 
 ## See Also
 

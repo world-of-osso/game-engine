@@ -8,6 +8,7 @@ use ui_toolkit::rsx;
 use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 
+use crate::panel_style_data::MetalTopLeft;
 use crate::ui::screens::merchant_frame_component::{MoneyAlign, money};
 use crate::ui::screens::quest_art::{
     DynName, HIGHLIGHT_FONT_COLOR, named_atlas_texture, portrait_flat_chrome,
@@ -38,6 +39,8 @@ pub const BACKPACK_PORTRAIT: u32 = 133_633;
 /// TOPLEFT (-4, 1); the host rounds it with `TempPortraitAlphaMask`
 /// (SharedUIPanelTemplates.xml:564-572 `CircleMask`).
 const PORTRAIT: (f32, f32, f32) = (-4.0, -1.0, 36.0);
+/// PortraitFrameBaseTemplate's PortraitContainer (`SharedUIPanelTemplates.xml:574`).
+const PORTRAIT_FRAME_LEVEL: f32 = 400.0;
 /// The dimmed icon of a slot whose item is on the cursor.
 pub const LOCKED_ICON: &str = "0.5,0.5,0.5,1.0";
 /// `ContainerFrameBackpackMixin:GetPaddingHeight` adds 30 for the search box
@@ -102,8 +105,9 @@ pub struct BagContainerState {
     pub bag_index: usize,
     pub title: String,
     /// `UpdateMiscellaneousFrames` (ContainerFrame.lua:823-829): the backpack's
-    /// [`BACKPACK_PORTRAIT`], another bag's item icon (`SetPortraitToBag`).
-    pub portrait_fdid: u32,
+    /// [`BACKPACK_PORTRAIT`], another bag's item icon (`SetPortraitToBag`), or `None` when
+    /// the bag has no equipped item portrait.
+    pub portrait_fdid: Option<u32>,
     pub slots: Vec<BagSlotState>,
     pub visible: bool,
 }
@@ -164,8 +168,16 @@ fn bag_container(bag: &BagContainerState, state: &BagFrameState) -> Element {
     let hide = !bag.visible;
     let prefix = format!("ContainerFrame{}", bag.bag_index);
     let close = format!("{ACTION_BAG_CLOSE_PREFIX}{}", bag.bag_index);
-    let mut children = portrait_flat_chrome(&prefix, size, (&bag.title, TITLE_LEFT), &close);
-    children.extend(portrait(&prefix, bag.portrait_fdid));
+    let mut children = portrait_flat_chrome(
+        &prefix,
+        size,
+        (&bag.title, TITLE_LEFT),
+        &close,
+        MetalTopLeft::container_frame(),
+    );
+    if let Some(fdid) = bag.portrait_fdid {
+        children.extend(portrait(&prefix, fdid));
+    }
     let backpack = bag.bag_index == 0;
     if backpack {
         children.extend(search_box(&state.search));
@@ -216,6 +228,7 @@ fn portrait(prefix: &str, fdid: u32) -> Element {
             name: {DynName(format!("{prefix}Portrait"))},
             width: size,
             height: size,
+            frame_level: PORTRAIT_FRAME_LEVEL,
             texture_fdid: fdid,
             pos_type: "absolute",
             left: x,

@@ -442,15 +442,15 @@ fn follower_group_finder_account_dispatches_catalog_and_authoritative_state() {
     let update = shared::protocol::LfgStateUpdate {
         snapshot: None,
         message: None,
-        error: None,
+        error: Some("LFG_LOCKSTATUS_TOO_LOW_LEVEL".into()),
     };
     account
         .dispatch_message(ProtocolMessage::for_tests(update.clone()), &mut output)
         .unwrap();
-    assert_eq!(account.lfg, Some(update));
-    assert_eq!(
-        output.len(),
-        1,
-        "LFG state must reach both the native window and IPC status"
-    );
+    assert_eq!(account.lfg, Some(update.clone()));
+    assert!(matches!(
+        output.as_slice(),
+        [AccountEvent::GroupNotice(text), AccountEvent::Lfg(state)]
+            if text == "LFG_LOCKSTATUS_TOO_LOW_LEVEL" && state == &update
+    ));
 }

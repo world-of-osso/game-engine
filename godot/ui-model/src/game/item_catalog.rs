@@ -184,6 +184,7 @@ pub fn item_subclass_name_for(
 
 /// Start loading the catalog on a background thread, once.
 pub fn warm_item_catalog() {
+    crate::item_icons::warm_item_icon_catalog();
     static STARTED: Once = Once::new();
     STARTED.call_once(|| {
         let worker = std::thread::Builder::new()

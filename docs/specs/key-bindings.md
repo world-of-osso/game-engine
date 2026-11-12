@@ -22,6 +22,7 @@ Sources:
 - [x] Pet bar: Ctrl-1..Ctrl-0 for `BONUSACTIONBUTTON1-10` (DefaultBindings.wtf:53-62, `BINDING_HEADER_ACTIONBAR`), listed in the Action Bar section; they press pet bar buttons only while it is shown, and Ctrl-N never presses `ACTIONBUTTONn` (Ctrl shadowing). Hotkeys show `c-1`..`c-0` (`CTRL_KEY_TEXT_ABBR`).
 - [x] Frames:
   - C character, P spellbook, L quest log, M world map;
+  - I `TOGGLEGROUPFINDER` toggles the native Group Finder; it follows Social and precedes Collections in the Interface list, and the LFDMicroButton tooltip uses the live binding (`Bindings_Standard.xml:1311-1313`).
   - Shift-P `TOGGLECOLLECTIONS` toggles the Collections owner, including its active journal tab (`Bindings_Standard.xml:1326-1330`). Assignable in Interface; the micro-menu tooltip uses the live binding.
   - Ctrl-R `TOGGLEFPS`;
   - Escape game menu and Enter, `/` and R chat. These five keys are fixed, not rebindable.
@@ -52,7 +53,7 @@ Sources:
 These defaults are in the table, or Retail has them, but the Godot client has no frame for them yet:
 - `TOGGLETALENTS` N, `TOGGLEACHIEVEMENT` Y, `TOGGLESTATISTICS` Shift-Y, `TOGGLEPROFESSIONBOOK` K.
 - `TOGGLESOCIAL` O, `TOGGLEGUILDTAB` J, `TOGGLEENCOUNTERJOURNAL` Shift-J.
-- `TOGGLEGROUPFINDER` I, `TOGGLEDUNGEONSANDRAIDS` Ctrl-I.
+- `TOGGLEDUNGEONSANDRAIDS` Ctrl-I.
 - `TOGGLEPETBOOK` Shift-I.
 - `TOGGLECHARACTER2` U (reputation), `TOGGLECHARACTER4` (pet tab).
 - `TOGGLEBATTLEFIELDMINIMAP` Shift-M, `TOGGLECHANNELPULLOUT` Shift-O, `TOGGLEWORLDSTATESCORES` Shift-Space, `TOGGLEGEARSETS` Shift-G.
@@ -80,9 +81,12 @@ These are not changed here:
 ## Tests
 - `godot/rust/src/ui/options_keybindings_tests.rs`: left-click then Q binds Action Bar 2 Button 1 and the button reads "Q"; right-click at a button unbinds that action and a click on the label does nothing; Escape cancels listening with the bindings unchanged; S on Move Forward moves it from Move Backward, which reads "Not Bound", with "Action Move Backward is Now Unbound!"; the page's edits survive saving and reloading the options file.
 - `godot/rust/src/ui/scroll_lists_tests.rs`: Action Bar 2's last button scrolls into the area by wheel and its first out, the wheel stops at both ends; dragging the thumb to the bottom shows the last row; another page starts at its top; Sound has no scroll bar; on every page and section the shown rows stay inside the area at every position and the panel fits the canvas.
-- `godot/core/tests/input_bindings_data.rs`: the inventory, sections and defaults, the token grammar (including `NumpadAdd`/`NumpadSubtract`), Shift shadowing, Action Bar 2/3 actions unbound and persisted through the options file, and Retail hotkey text.
+- `godot/core/tests/input_bindings_data.rs`: the inventory, sections and defaults, including Group Finder I; the token grammar (including `NumpadAdd`/`NumpadSubtract`), Shift shadowing, Action Bar 2/3 actions unbound and persisted through the options file, and Retail hotkey text.
+- `godot/ui-model/tests/options_policy.rs` (`group_finder_binding_is_projected_in_interface_source_order`): the non-rendered Interface model lists Toggle Group Finder (I) between Social and Collections. The Retail/Forever binding token is `TOGGLEGROUPFINDER` (`Bindings_Standard.xml:1311-1313`).
+- `godot/tests/world_keybinds_flow.gd` (`native_input_fixture keybinds`): I opens and closes Group Finder and the live Options page lists the binding in Interface.
 - `godot/ui-model/tests/forever_action_bars.rs` (`extra_bar_bindings_press_their_slot_and_label_their_button`): a key on `MULTIACTIONBAR1BUTTON3` presses slot 63 and labels `MultiBarBottomLeftButton3`; Shift-1 and middle mouse on Action Bar 3; unbound buttons blank; 0 still presses main bar button 10 under Forever.
 - `godot/tests/world_keybinds_flow.gd` (`native_input_fixture keybinds`, owned UDP) presses real keys:
+  - I opens and closes the native Group Finder;
   - B, Shift-B and F8–F11 against bags 0/1/2/4;
   - Tab, Shift-Tab and F against the vendor, wolf and remote player;
   - Num Pad +/− against minimap zoom 0→1→2→1→0.

@@ -1,7 +1,9 @@
 use game_engine_core::client_options_data::{
     CameraOptionsFile, GraphicsOptionsFile, HudOptionsFile, SoundOptionsFile,
 };
-use game_engine_core::input_bindings_data::{BindingSection, InputAction, InputBindingsData};
+use game_engine_core::input_bindings_data::{
+    BindingSection, InputAction, InputBindingsData, actions_for_section,
+};
 use game_engine_ui_model::game_menu_component::GameMenuView;
 use game_engine_ui_model::options_menu_component::OptionsCategory;
 use game_engine_ui_model::options_menu_data::*;
@@ -95,6 +97,30 @@ fn model() -> OptionsModel {
         binding_capture: BindingCapture::None,
         layout: Default::default(),
     }
+}
+
+#[test]
+fn group_finder_binding_is_projected_in_interface_source_order() {
+    let mut state = model();
+    state.category = OptionsCategory::Keybindings;
+    state.binding_section = BindingSection::Interface;
+
+    let view = build_view_model(&state);
+    let rows = &view.options.bindings.rows;
+    assert_eq!(
+        rows.iter()
+            .map(|row| row.action)
+            .collect::<Vec<_>>()
+            .as_slice(),
+        actions_for_section(BindingSection::Interface)
+    );
+    let row = rows
+        .iter()
+        .find(|row| row.action == InputAction::ToggleGroupFinder)
+        .expect("Retail TOGGLEGROUPFINDER is in the Interface catalog");
+    assert_eq!(row.action.label(), "Toggle Group Finder");
+    assert_eq!(row.label, "Toggle Group Finder");
+    assert_eq!(row.binding_text.as_deref(), Some("I"));
 }
 
 #[test]

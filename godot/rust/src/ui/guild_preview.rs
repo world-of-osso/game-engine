@@ -3,7 +3,7 @@ use godot::prelude::*;
 
 use super::{RegistryUi, party_preview};
 use game_engine_ui_model::guild_ranks::GuildRanksSession;
-use shared::protocol::GuildRankRequest;
+use shared::protocol::{GuildRankError, GuildRankRequest, GuildRanksState};
 
 #[derive(Clone)]
 struct PendingGuildPreview(GuildRankRequest);
@@ -89,6 +89,25 @@ impl RegistryUi {
                 .collect(),
         });
         session.apply(state);
+        GString::from(self.set_state(session).err().unwrap_or_default().as_str())
+    }
+
+    /// Render an offline NotInGuild reply through the production Forever Communities screen.
+    #[func]
+    pub fn show_forever_guild_no_guild_preview(&mut self) -> GString {
+        let error = self.show_guild_preview_skin(ui_toolkit::atlas::ActiveSkin::Forever);
+        if !error.is_empty() {
+            return error;
+        }
+        let mut session = GuildRanksSession::default();
+        session.open();
+        session.apply(GuildRanksState {
+            own_rank: 0,
+            ranks: vec![],
+            members: vec![],
+            tab_names: vec![],
+            error: Some(GuildRankError::NotInGuild),
+        });
         GString::from(self.set_state(session).err().unwrap_or_default().as_str())
     }
 

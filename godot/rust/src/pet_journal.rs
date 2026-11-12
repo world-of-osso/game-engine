@@ -13,6 +13,7 @@ pub(crate) struct CompanionJournal {
     pub(crate) view: PetJournalView,
     ui: Option<Gd<RegistryUi>>,
     icons_loaded: bool,
+    load_error: Option<String>,
     previews: [PetPreview; 4],
     scene_ids: std::collections::BTreeMap<u32, [u32; 2]>,
     model_scenes: std::collections::BTreeMap<u32, game_engine_core::pet_model_scene::PetModelScene>,
@@ -80,7 +81,14 @@ impl GameClient {
             return Ok(());
         }
         if self.pet_journal.view.visible {
-            self.load_pet_icons()?;
+            if let Some(error) = self.pet_journal.load_error.clone() {
+                self.pet_journal.view.error = error;
+            } else if let Err(error) = self.load_pet_icons() {
+                let message = format!("Pet Journal: {error}");
+                crate::frame_error::report_once(&message);
+                self.pet_journal.load_error = Some(error.clone());
+                self.pet_journal.view.error = error;
+            }
         }
         self.poll_pet_journal_inputs()?;
         if self.pet_journal.view.visible || self.pet_journal.view.queue_ready() {
@@ -127,6 +135,7 @@ impl GameClient {
         for icon in icons.values_mut() {
             *icon = self.drawable_fdid(*icon);
         }
+        icons.retain(|_, fdid| *fdid != 0);
         let path = self.data_root.join("battle-pet-model-scenes.json");
         let scenes: Vec<game_engine_core::pet_model_scene::PetModelScene> = serde_json::from_slice(
             &std::fs::read(&path).map_err(|error| format!("{}: {error}", path.display()))?,

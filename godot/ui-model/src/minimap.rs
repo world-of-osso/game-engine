@@ -46,6 +46,8 @@ pub const MINIMAP_CLUSTER: &str = "MinimapCluster";
 pub const MINIMAP_DISPLAY: &str = "MinimapDisplay";
 pub const MINIMAP_ARROW: &str = "MinimapPlayerArrow";
 pub const MINIMAP_ZONE_TEXT: &str = "MinimapZoneText";
+/// Minimap.xml:272 `HighlightTexture` uses this file with alphaMode="ADD".
+const MINIMAP_LAUNCHER_HIGHLIGHT_FDID: u32 = 136_477;
 pub const MINIMAP_CLOCK_TEXT: &str = "TimeManagerClockTicker";
 pub const MINIMAP_ZOOM_IN: &str = "MinimapZoomIn";
 pub const MINIMAP_ZOOM_OUT: &str = "MinimapZoomOut";
@@ -291,7 +293,12 @@ pub fn calendar_art(day: u32) -> Option<SheetArt> {
 /// Art the cluster draws under either skin, for hosts that copy textures out of local
 /// CASC on demand.
 pub fn minimap_texture_fdids(state: &MinimapClusterState, skin: ActiveSkin) -> Vec<u32> {
-    let mut fdids = vec![FRAME.fdid, EDGE_LEFT.fdid, ARROW_FDID];
+    let mut fdids = vec![
+        FRAME.fdid,
+        EDGE_LEFT.fdid,
+        ARROW_FDID,
+        MINIMAP_LAUNCHER_HIGHLIGHT_FDID,
+    ];
     fdids.extend(metal_sheet_fdids(MetalTopLeft::Plain));
     fdids.push(BORDER_FDID);
     if skin == ActiveSkin::Forever {
@@ -450,6 +457,8 @@ fn launcher_button(cluster_size: f32, skin: ActiveSkin) -> Element {
         button {
             name: "MinimapLauncherButton", width: ICON_SIZE, height: ICON_SIZE,
             text: "", button_default_skin: false, onclick: crate::launcher::ACTION_OPEN,
+            button_fdid_highlight: MINIMAP_LAUNCHER_HIGHLIGHT_FDID,
+            button_highlight_blend_mode: "ADD", tooltip_title: "Open Launcher",
             pos_type: "absolute", left, top,
             texture {
                 name: "MinimapLauncherIcon", width: ICON_SIZE, height: ICON_SIZE,

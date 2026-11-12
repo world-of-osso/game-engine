@@ -200,8 +200,12 @@ pub(super) fn run(
     let cleanup = bags::cleanup_owned_child(child, readers);
     result?;
     cleanup?;
-    println!(
-        "PASS: KEYBINDS bag/targeting bindings, three tiled world maps and quest window raise; deliberate cleanup complete"
-    );
+    let scenario =
+        if std::env::var("GODOT_TEST_KEYBINDS_GROUP_FINDER_ONLY").is_ok_and(|value| value == "1") {
+            "Group Finder toggle and Interface binding row"
+        } else {
+            "bag/targeting bindings, three tiled world maps and quest window raise"
+        };
+    println!("PASS: KEYBINDS {scenario}; deliberate cleanup complete");
     Ok(())
 }

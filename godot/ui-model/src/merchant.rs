@@ -379,15 +379,16 @@ impl MerchantSession {
 
     /// `UpdateMiscellaneousFrames` (ContainerFrame.lua:823-829): the backpack's own
     /// icon, an equipped bag's item icon.
-    fn bag_portrait(&self, bag: usize) -> u32 {
+    fn bag_portrait(&self, bag: usize) -> Option<u32> {
         if bag == 0 {
-            return crate::bag_frame_component::BACKPACK_PORTRAIT;
+            return Some(crate::bag_frame_component::BACKPACK_PORTRAIT);
         }
         u8::try_from(bag)
             .ok()
             .and_then(shared::protocol::EquipmentSlot::from_bag_index)
             .and_then(|slot| self.inventory.equipped(slot))
-            .map_or(0, |item| item.icon_fdid)
+            .map(|item| item.icon_fdid)
+            .filter(|fdid| *fdid != 0)
     }
 
     /// The split frame, BOTTOMLEFT on its vendor cell's TOPLEFT.

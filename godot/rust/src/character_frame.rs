@@ -18,8 +18,9 @@ use game_engine_ui_model::damage_meter_data::class_color;
 use game_engine_ui_model::item_catalog::item_catalog_entry_for;
 use game_engine_ui_model::merchant::Click;
 use game_engine_ui_model::micro_menu::{
-    ACTION_CHARACTER, ACTION_MAIN_MENU, ACTION_QUEST_LOG, CHARACTER_PORTRAIT, MICRO_BUTTONS,
-    MicroMenuView, OpenWindows, micro_button_index, player_spells_micro_tab, unavailable_message,
+    ACTION_CHARACTER, ACTION_MAIN_MENU, ACTION_PROFESSIONS, ACTION_QUEST_LOG, CHARACTER_PORTRAIT,
+    MICRO_BUTTONS, MicroMenuView, OpenWindows, micro_button_index, player_spells_micro_tab,
+    unavailable_message,
 };
 use godot::prelude::*;
 use shared::components::{CombatRatings, DerivedStats, Player, UnitLevel, UnitStats};
@@ -269,8 +270,7 @@ impl GameClient {
         Ok(())
     }
 
-    /// A micro-menu button toggles its native window; a button whose window is not
-    /// converted yet shows its Retail unavailable line in the error frame.
+    /// Toggle a native micro-menu window or report its Retail unavailable line.
     pub(super) fn micro_button_click(&mut self, action: &str) -> Result<(), FrameError> {
         if let Some(tab) = player_spells_micro_tab(action) {
             if self.spellbook_open() {
@@ -282,6 +282,7 @@ impl GameClient {
         }
         match action {
             ACTION_CHARACTER => self.toggle_character_frame(),
+            ACTION_PROFESSIONS => self.toggle_professions_book()?,
             ACTION_QUEST_LOG => self.toggle_quest_log(),
             ACTION_MAIN_MENU => self.toggle_game_menu_from_micro_button()?,
             "micro:GuildMicroButton" => self.toggle_guild_ranks()?,
@@ -323,6 +324,7 @@ impl GameClient {
         MicroMenuView {
             open: OpenWindows {
                 character: self.character_frame.open,
+                professions_book: self.professions.book_frame_visible,
                 player_spells: self.spellbook_open(),
                 quest_log: self.world_map.quest_log_is_open(),
                 game_menu: self.game_menu_ui.is_some(),

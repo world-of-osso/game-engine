@@ -1,9 +1,9 @@
 //! Spellbook, main action bar and casting (docs/specs/spellbook-action-bar.md).
 //!
-//! The server owns known spells, the action bar and every cast: a bar button's bound key
-//! (`ACTIONBUTTON1..12` on 1..=, Action Bar 2/3 unbound by default) or a click on
-//! a bar button (or a known spell in the spellbook) send `SpellCastIntent` with
-//! the current target; `CastFailed` shows in UIErrorsFrame, `SpellCooldownUpdate`
+//! The server owns known spells, the action bar and every cast: ordinary spell actions
+//! send `SpellCastIntent` with the current target. Mount Journal spell 150544 routes to its
+//! existing collection request. Bar keys are `ACTIONBUTTON1..12` on 1..= (Action Bar 2/3
+//! unbound by default); `CastFailed` shows in UIErrorsFrame, `SpellCooldownUpdate`
 //! sweeps the buttons, the local player's replicated `CastState` fills the cast bar,
 //! and the caster's `CombatLogEvent` damage floats over the target.
 
@@ -70,6 +70,7 @@ pub(crate) struct SpellsHud {
     /// Exact last text handed to DisplayServer; diagnostics, not OS delivery proof.
     pub(crate) talent_export_clipboard: Option<String>,
     book_position: Option<[f32; 2]>,
+    book_position_applied: Option<[f32; 2]>,
     book_drag: Option<WindowDrag>,
     book: SpellbookFrameState,
     /// Last page whose textures were resolved; input mutates `book` before sync.
@@ -98,7 +99,8 @@ pub(crate) struct SpellsHud {
     ground: game_engine_ui_model::spell_targeting::GroundTarget,
     ground_toy: Option<u32>,
     item: game_engine_ui_model::spell_targeting::ItemTarget,
-    reticle: Option<Gd<godot::classes::MeshInstance3D>>,
+    reticle: Option<Gd<godot::classes::Decal>>,
+    reticle_valid: Option<bool>,
 }
 
 impl Default for SpellsHud {
@@ -112,6 +114,7 @@ impl Default for SpellsHud {
             book_ui: None,
             talent_export_clipboard: None,
             book_position: None,
+            book_position_applied: None,
             book_drag: None,
             book: SpellbookFrameState::default(),
             book_art_state: None,
@@ -133,6 +136,7 @@ impl Default for SpellsHud {
             ground_toy: None,
             item: Default::default(),
             reticle: None,
+            reticle_valid: None,
         }
     }
 }
@@ -191,6 +195,7 @@ impl SpellsHud {
         }
         self.held_cast_bindings.clear();
         self.book_position = None;
+        self.book_position_applied = None;
         self.book_drag = None;
         self.book = SpellbookFrameState::default();
         self.book_art_state = None;

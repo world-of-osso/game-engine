@@ -1,4 +1,5 @@
 use game_engine_ui_model::follower_dungeons::{Action, View, follower_screen};
+use game_engine_ui_model::game_tooltip::GameTooltip;
 use shared::protocol::*;
 use ui_toolkit::{
     atlas::{ActiveSkin, set_thread_skin},
@@ -6,7 +7,11 @@ use ui_toolkit::{
     layout_values::Val,
     registry::FrameRegistry,
     screen::{Screen, SharedContext},
-    widgets::button::ButtonState,
+    tooltip::tooltip_owner,
+    widgets::{
+        button::ButtonState,
+        texture::{BlendMode, TextureSource},
+    },
 };
 
 const PVE_FRAME_WIDTH: f32 = 563.0;
@@ -24,11 +29,14 @@ fn catalog() -> FollowerDungeons {
         }],
     }
 }
-fn render(view: View, skin: ActiveSkin) -> FrameRegistry {
+fn set_data_root() {
     game_engine_ui_model::paths::set_data_root(
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
     )
     .unwrap();
+}
+fn render(view: View, skin: ActiveSkin) -> FrameRegistry {
+    set_data_root();
     set_thread_skin(skin);
     let mut shared = SharedContext::new();
     shared.insert(skin);
@@ -38,6 +46,18 @@ fn render(view: View, skin: ActiveSkin) -> FrameRegistry {
     game_engine_ui_model::follower_dungeons::apply_follower_postsetup(&mut registry);
     registry
 }
+fn hovered_tooltip(registry: &FrameRegistry, id: u64) -> Option<GameTooltip> {
+    let frame = registry.get(id)?;
+    let Some(WidgetData::Button(button)) = &frame.widget_data else {
+        return None;
+    };
+    if !button.hovered {
+        return None;
+    }
+    let (_, binding) = tooltip_owner(registry, id)?;
+    GameTooltip::from_binding(binding, button.state != ButtonState::Disabled, [0.0; 4])
+}
+
 #[test]
 fn follower_group_finder_role_templates_include_solo_leader_and_centered_backgrounds() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
@@ -82,6 +102,73 @@ fn follower_group_finder_role_templates_include_solo_leader_and_centered_backgro
                 ui_toolkit::strata::DrawLayer::Background
             );
         }
+    }
+}
+
+#[test]
+fn follower_group_finder_role_hover_shows_checkbox_highlight_and_globalstring_until_leave() {
+    let mut registry = render(
+        View {
+            visible: true,
+            ..Default::default()
+        },
+        ActiveSkin::Forever,
+    );
+    for (role, description) in [
+        (
+            "Tank",
+            "Indicates that you are willing to protect allies from harm by ensuring that enemies are attacking you instead of them.",
+        ),
+        (
+            "Healer",
+            "Indicates that you are willing to heal your allies when they take damage.",
+        ),
+        (
+            "DPS",
+            "Indicates that you are willing to take on the role of dealing damage to enemies.",
+        ),
+    ] {
+        let name = format!("LFDQueueFrameRoleButton{role}");
+        let id = registry.get_by_name(&name).unwrap();
+        assert_eq!(button(&registry, &name).0, ButtonState::Normal);
+        assert!(hovered_tooltip(&registry, id).is_none());
+        assert!(match &registry.get(id).unwrap().widget_data {
+            Some(WidgetData::Button(button)) => button.highlight_region().is_none(),
+            _ => false,
+        });
+
+        let Some(WidgetData::Button(button)) = registry
+            .get_mut(id)
+            .and_then(|frame| frame.widget_data.as_mut())
+        else {
+            panic!("{name} is not a button")
+        };
+        button.hovered = true;
+        let Some(WidgetData::Button(button)) = &registry.get(id).unwrap().widget_data else {
+            panic!("{name} is not a button")
+        };
+        let highlight = button.highlight_region().expect("hover highlight appears");
+        assert_eq!(
+            highlight.source,
+            TextureSource::Atlas("checkbox-minimal".into())
+        );
+        assert_eq!(highlight.blend_mode, BlendMode::Additive);
+        assert_eq!(highlight.size, Some([21.0, 20.3]));
+        assert_eq!(highlight.offset, [-17.0, 16.65]);
+        assert_eq!(
+            hovered_tooltip(&registry, id).unwrap().content.title,
+            description
+        );
+
+        let Some(WidgetData::Button(button)) = registry
+            .get_mut(id)
+            .and_then(|frame| frame.widget_data.as_mut())
+        else {
+            panic!("{name} is not a button")
+        };
+        button.hovered = false;
+        assert!(button.highlight_region().is_none());
+        assert!(hovered_tooltip(&registry, id).is_none());
     }
 }
 
@@ -271,6 +358,123 @@ fn follower_group_finder_both_skins_use_the_server_catalog_and_real_queue_action
         );
     }
 }
+#[test]
+fn follower_group_finder_queues_entries_from_server_catalog_without_local_level_filter() {
+    let mut view = View {
+        visible: true,
+        ..Default::default()
+    };
+    view.receive_catalog(FollowerDungeons {
+        entries: vec![
+            FollowerDungeonEntry {
+                id: 2436,
+                name: "Ruby Life Pools".into(),
+                map_id: 2521,
+            },
+            FollowerDungeonEntry {
+                id: 2439,
+                name: "Brackenhide Hollow".into(),
+                map_id: 2520,
+            },
+        ],
+    });
+    assert_eq!(view.action("follower:select:2439"), None);
+    assert_eq!(view.selected, Some(2439));
+    assert_eq!(
+        view.action("follower:queue"),
+        Some(Action::Queue(QueueForLfg {
+            role: GroupRoleSnapshot::Damage,
+            dungeon_ids: vec![2439],
+        }))
+    );
+
+    let mut displayed = View {
+        visible: true,
+        ..Default::default()
+    };
+    displayed.receive_catalog(FollowerDungeons {
+        entries: vec![FollowerDungeonEntry {
+            id: 2439,
+            name: "Brackenhide Hollow".into(),
+            map_id: 2520,
+        }],
+    });
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let registry = render(displayed.clone(), skin);
+        assert_eq!(
+            button(&registry, "LFDQueueFrameFollowerDungeon2439").0,
+            ButtonState::Normal
+        );
+        assert!(
+            registry
+                .get_by_name("LFDQueueFrameFollowerDungeon2439CheckBox")
+                .is_some()
+        );
+        assert!(
+            registry
+                .get_by_name("LFDQueueFrameFollowerDungeon2439LockedIndicator")
+                .is_none()
+        );
+    }
+}
+
+#[test]
+fn follower_group_finder_localizes_unavailable_gear_source_error() {
+    set_data_root();
+    let mut view = View {
+        visible: true,
+        ..Default::default()
+    };
+    view.receive_catalog(catalog());
+    view.receive(LfgStateUpdate {
+        snapshot: None,
+        message: None,
+        error: Some("FOLLOWER_GEAR_SOURCE_UNAVAILABLE".into()),
+    });
+    let registry = render(view, ActiveSkin::Forever);
+    let description = registry
+        .get(
+            registry
+                .get_by_name("LFDQueueFrameFollowerDescription")
+                .unwrap(),
+        )
+        .unwrap();
+    let Some(WidgetData::FontString(description)) = &description.widget_data else {
+        panic!("follower error should remain visible in the Group Finder description");
+    };
+    assert_eq!(
+        description.text,
+        "You cannot enter. This instance is temporarily disabled."
+    );
+}
+
+#[test]
+fn follower_group_finder_localizes_server_level_refusal() {
+    set_data_root();
+    let mut view = View {
+        visible: true,
+        ..Default::default()
+    };
+    view.receive_catalog(catalog());
+    view.receive(LfgStateUpdate {
+        snapshot: None,
+        message: None,
+        error: Some("LFG_LOCKSTATUS_TOO_LOW_LEVEL".into()),
+    });
+    let registry = render(view, ActiveSkin::Forever);
+    let description = registry
+        .get(
+            registry
+                .get_by_name("LFDQueueFrameFollowerDescription")
+                .unwrap(),
+        )
+        .unwrap();
+    let Some(WidgetData::FontString(description)) = &description.widget_data else {
+        panic!("server level refusal should remain visible in the Group Finder description");
+    };
+    assert_eq!(description.text, "You must advance to a higher level.");
+}
+
 #[test]
 fn follower_group_finder_empty_catalog_and_stale_selection_cannot_queue() {
     let mut view = View {

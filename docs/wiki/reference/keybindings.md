@@ -16,7 +16,7 @@ Persisted with client options; configurable via Options → Keybindings.
 
 **Audio**: toggle mute (Ctrl+S)
 
-**Interface**: panel toggles — character C, professions K, achievements Y, talents N, adventure guide J, social O, mail unbound (mailbox opens it), loot rules L, world map M
+**Interface**: panel toggles — character C, professions K, achievements Y, talents N, adventure guide J, social O, Group Finder I, mail unbound (mailbox opens it), loot rules L, world map M
 
 Bindings are a key, Shift+key, Ctrl+key, or mouse button; defaults follow Retail with no duplicates. All fire only in World input mode (no focused editbox, no game menu); see `src/ui_input_mode.rs`.
 
@@ -45,6 +45,10 @@ If scope expands, the source document should be updated before implementation so
 
 ## Sources
 
+- [key-bindings spec](../../specs/key-bindings.md) — Retail action names, keys and behavior contract
+- `godot/core/src/input_bindings_data.rs` — persisted actions, sections and default keys
+- `godot/rust/src/follower_dungeons.rs` — Group Finder key handling
+- `godot/tests/world_keybinds_flow.gd` — Interface row and physical I toggle behavior
 - [keybindings-scope.md](../../keybindings-scope.md) — scope definition and rationale
 
 ## See Also
