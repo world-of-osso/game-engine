@@ -246,14 +246,21 @@ fn calculate_dropdown_text_rect(
     style: DropdownStyle,
 ) -> (f32, f32, f32, f32) {
     match style {
-        // Keep the native Label tall enough for its font, but center its line on Retail's
-        // Text region: TOPLEFT(8, -8), height10; its right edge meets Arrow.LEFT.
-        DropdownStyle::WowStyle1 => (
-            WOW_STYLE1_TEXT_LEFT,
-            WOW_STYLE1_TEXT_TOP + WOW_STYLE1_TEXT_HEIGHT / 2.0 - props.height / 2.0,
-            props.width - WOW_STYLE1_TEXT_LEFT - WOW_STYLE1_ARROW_LEFT_INSET,
-            props.height,
-        ),
+        // Keep the native Label centered on Retail Text, inside the owner, with an integer
+        // top; Taffy rounds half-pixel positions at UI scale1 and shifts a 25px Label by0.5.
+        DropdownStyle::WowStyle1 => {
+            let text_center_y = WOW_STYLE1_TEXT_TOP + WOW_STYLE1_TEXT_HEIGHT / 2.0;
+            let available_below_center = (props.height - text_center_y).max(0.0);
+            let label_half_height = text_center_y.min(available_below_center).floor();
+            let label_height = label_half_height * 2.0;
+            let label_top = text_center_y - label_half_height;
+            (
+                WOW_STYLE1_TEXT_LEFT,
+                label_top,
+                props.width - WOW_STYLE1_TEXT_LEFT - WOW_STYLE1_ARROW_LEFT_INSET,
+                label_height,
+            )
+        }
         DropdownStyle::Filter => (0.0, 0.0, props.width, 20.0),
         DropdownStyle::WowStyle2 => (13.0, (props.height - 20.0) / 2.0, props.width - 26.0, 20.0),
     }

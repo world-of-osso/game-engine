@@ -229,6 +229,14 @@ fn forever_shared_dropdown_matches_retail_template_text_and_art() {
 
     let label = frame(&reg, "DropdownText");
     assert_eq!(label.position.left, ui_toolkit::layout_values::Val::Px(8.0));
+    let ui_toolkit::layout_values::Val::Px(label_top) = label.position.top else {
+        panic!("Retail caption top is a fixed inset");
+    };
+    let label_height = label.height.value();
+    assert_eq!(label_top.fract(), 0.0);
+    assert_eq!(label_top + label_height / 2.0, 13.0);
+    assert!(label_top >= 0.0);
+    assert!(label_top + label_height <= owner.height.value());
     let Some(WidgetData::FontString(text)) = &label.widget_data else {
         panic!("Retail dropdown caption missing")
     };
