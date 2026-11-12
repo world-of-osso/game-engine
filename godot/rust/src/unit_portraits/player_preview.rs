@@ -70,7 +70,7 @@ impl PlayerPortraitFixture {
     }
 
     #[func]
-    fn attach_character_frame(&mut self, ui: Gd<RegistryUi>) -> GString {
+    fn attach_portraits_to_character_frame(&mut self, ui: Gd<RegistryUi>) -> GString {
         if let Err(error) = game_engine_ui_model::paths::set_data_root(data_root_path()) {
             return GString::from(error.as_str());
         }

@@ -97,7 +97,7 @@ func check_panel(panel: Dictionary, forever: bool, output: String) -> bool:
 	elif panel.name in ["CharacterCurrency", "CharacterReputation"]:
 		var portrait: Node = ClassDB.instantiate("PlayerPortraitFixture")
 		owner.add_child(portrait)
-		var portrait_error: String = portrait.call("attach_character_frame", owner)
+		var portrait_error: String = portrait.call("attach_portraits_to_character_frame", owner)
 		if not portrait_error.is_empty():
 			failures.append(panel.name + " portrait attach: " + portrait_error)
 		else:
