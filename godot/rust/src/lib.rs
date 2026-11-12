@@ -632,27 +632,8 @@ impl INode3D for GameClient {
     }
 
     fn input(&mut self, event: Gd<godot::classes::InputEvent>) {
-        let trace_key = std::env::var_os("TALENTS_INPUT_TRACE")
-            .and_then(|_| {
-                event
-                    .clone()
-                    .try_cast::<godot::classes::InputEventKey>()
-                    .ok()
-            })
-            .filter(|key| key.get_physical_keycode() == godot::global::Key::N);
-        if let Some(key) = trace_key.as_ref() {
-            godot_print!("TALENTS_INPUT_CALLBACK pressed={}", key.is_pressed());
-        }
         self.physical_input.capture_pointer(&event);
-        let priority_handled = self.dispatch_priority_input(&event);
-        if let Some(key) = trace_key.as_ref() {
-            godot_print!(
-                "TALENTS_INPUT_PRIORITY pressed={} handled={}",
-                key.is_pressed(),
-                priority_handled
-            );
-        }
-        if priority_handled {
+        if self.dispatch_priority_input(&event) {
             return;
         }
         match self.hud_edit_pointer(&event) {
@@ -712,15 +693,6 @@ impl INode3D for GameClient {
                 .clone()
                 .try_cast::<godot::classes::InputEventKey>()
                 .is_ok();
-        if trace_key.is_some() {
-            godot_print!(
-                "TALENTS_INPUT_CAPTURE game_menu={} split_key={} launcher={} hud_editor={}",
-                self.game_menu_ui.is_some(),
-                split_key_event,
-                self.launcher.view.open,
-                self.hud_editor.draft.active
-            );
-        }
         if self.game_menu_ui.is_none()
             && !split_key_event
             && !self.launcher.view.open
