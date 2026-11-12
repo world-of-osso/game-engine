@@ -74,7 +74,7 @@ func run_test() -> void:
 	await click(backpack)
 	if not await wait_container(client, 0, true):
 		return
-	if not check_container(client, 0, 16, 0, "3") or not check_solo_position(client):
+	if not check_container(client, 0, 16, 0, "3") or not check_solo_position(client, 0):
 		return
 	if not await capture_bags("single-backpack.png"):
 		return
