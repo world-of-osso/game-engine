@@ -1,5 +1,8 @@
 extends SceneTree
 
+# WowStyle2 has a 20px Text region in a 25px owner, so its 2.5px top rounds to3.
+const STYLE2_LINE_CENTER_TOLERANCE := 0.5
+
 var completion
 
 func _initialize() -> void:
@@ -98,24 +101,23 @@ func dropdown_captions(view: String) -> Array:
 				{"name": "ClosedDropdown", "center": 13.0},
 				{"name": "OpenDropdown", "center": 13.0},
 				{"name": "FilterDropdown", "center": 10.0},
-				# The 20px Text region needs a 2.5px top; Taffy rounds it to 3 at UI scale 1.
-				{"name": "Style2Dropdown", "center": 12.5, "line_center_tolerance": 0.5},
+				{"name": "Style2Dropdown", "center": 12.5, "line_center_tolerance": STYLE2_LINE_CENTER_TOLERANCE},
 			]
 		"group_finder":
 			return [{"name": "LFDQueueFrameTypeDropdown", "center": 13.0}]
 		"options_interface":
 			return [
-				{"name": "Choiceencounter_view", "center": 12.5},
-				{"name": "Choicestatus_text_display", "center": 12.5},
+				{"name": "Choiceencounter_view", "center": 12.5, "line_center_tolerance": STYLE2_LINE_CENTER_TOLERANCE},
+				{"name": "Choicestatus_text_display", "center": 12.5, "line_center_tolerance": STYLE2_LINE_CENTER_TOLERANCE},
 			]
 		"options_hud":
 			return [
-				{"name": "Choiceui_layout", "center": 12.5},
-				{"name": "Choicelayout_system", "center": 12.5},
-				{"name": "Choicelayout_font", "center": 12.5},
+				{"name": "Choiceui_layout", "center": 12.5, "line_center_tolerance": STYLE2_LINE_CENTER_TOLERANCE},
+				{"name": "Choicelayout_system", "center": 12.5, "line_center_tolerance": STYLE2_LINE_CENTER_TOLERANCE},
+				{"name": "Choicelayout_font", "center": 12.5, "line_center_tolerance": STYLE2_LINE_CENTER_TOLERANCE},
 			]
 		"options_accessibility":
-			return [{"name": "Choiceinteract_key_icons", "center": 12.5}]
+			return [{"name": "Choiceinteract_key_icons", "center": 12.5, "line_center_tolerance": STYLE2_LINE_CENTER_TOLERANCE}]
 	return []
 
 func verify_caption(ui: Node, item: Dictionary) -> bool:
