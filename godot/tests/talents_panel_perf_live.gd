@@ -15,6 +15,7 @@ var world_trace_path := ""
 var world_trace_finished := false
 var world_trace_prefetched_at_entry := false
 var loading_prewarm_seen := false
+var loading_started_usec := 0
 var prewarm_frame_counts: Dictionary = {}
 var prewarm_talent_node_count := 0
 
@@ -152,14 +153,18 @@ func wait_for_startup_world(character: String) -> bool:
 		await process_frame
 		max_process_frame_ms = maxf(max_process_frame_ms, Performance.get_monitor(Performance.TIME_PROCESS) * 1000.0)
 		var state: Dictionary = client.account_state()
+		if state.screen == "Loading" and loading_started_usec == 0:
+			loading_started_usec = Time.get_ticks_usec()
 		if state.screen == "Loading" and OS.get_environment("BENCH_REQUIRE_LOADING_PREWARM") == "1":
 			capture_loading_prewarm_tree()
 		if state.screen == "InWorld" and world_trace_seconds > 0.0 and not world_trace_finished:
 			await capture_world_trace()
 		if state.screen == "InWorld" and Readiness.is_ready(state) and state.local_player_position != null \
 				and (world_trace_seconds <= 0.0 or world_trace_finished):
+			var loading_ms := float(Time.get_ticks_usec() - loading_started_usec) / 1000.0 if loading_started_usec > 0 else -1.0
 			print("TALENTS_PANEL_INWORLD_READY ", JSON.stringify({
 				"elapsed_ms": float(Time.get_ticks_usec() - started_usec) / 1000.0,
+				"loading_ms": loading_ms,
 				"max_process_frame_ms": max_process_frame_ms
 			}))
 			return true
