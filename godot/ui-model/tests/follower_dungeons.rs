@@ -312,6 +312,15 @@ fn follower_group_finder_disables_and_refuses_dungeons_below_player_level() {
     });
     assert_eq!(view.action("follower:select:2436"), None);
     assert_eq!(view.selected, Some(2436));
+    let mut ruby_view = view.clone();
+    assert_eq!(
+        ruby_view.action("follower:queue"),
+        Some(Action::Queue(QueueForLfg {
+            role: GroupRoleSnapshot::Damage,
+            dungeon_ids: vec![2436],
+        }))
+    );
+    assert!(ruby_view.pending);
     view.action("follower:select:2436");
     assert_eq!(view.action("follower:select:2439"), None);
     assert_eq!(view.selected, None);
