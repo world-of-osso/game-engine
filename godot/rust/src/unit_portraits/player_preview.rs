@@ -4,7 +4,7 @@ use game_engine_ui_model::character_frame::{
     CharacterFrameView, MODE_TAB_PORTRAIT, PORTRAIT as CHARACTER_FRAME_PORTRAIT,
 };
 use game_engine_ui_model::inworld_unit_frames_component::{InWorldUnitFramesState, UnitFrameState};
-use godot::classes::{Node, ProjectSettings};
+use godot::classes::{Control, Node, ProjectSettings};
 use godot::prelude::*;
 use shared::components::{CharacterAppearance, EquipmentAppearance, Player};
 
