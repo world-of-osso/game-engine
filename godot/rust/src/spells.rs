@@ -187,6 +187,7 @@ impl SpellsHud {
         let prefetched_book_key = self.prefetched_book_key.take();
         let prefetched_book_created_frame = self.prefetched_book_created_frame.take();
         let talent_prewarm_attempted_key = self.talent_prewarm_attempted_key.take();
+        let book_art_state = self.book_art_state.take();
         let book_position = self.book_position;
         let book_position_applied = self.book_position_applied;
         self.close();
@@ -194,6 +195,7 @@ impl SpellsHud {
         self.prefetched_book_key = prefetched_book_key;
         self.prefetched_book_created_frame = prefetched_book_created_frame;
         self.talent_prewarm_attempted_key = talent_prewarm_attempted_key;
+        self.book_art_state = book_art_state;
         self.book_position = book_position;
         self.book_position_applied = book_position_applied;
     }

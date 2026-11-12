@@ -263,6 +263,8 @@ func run_test() -> void:
 	var open_wait_frames := 0
 	var lookup_total_usec := 0
 	var lookup_max_usec := 0
+	var tree_visible_ms := -1.0
+	var draw_wait_ms := -1.0
 	var first_frame_ms := -1.0
 	var deadline := Time.get_ticks_msec() + OPEN_TIMEOUT_MS
 	while Time.get_ticks_msec() < deadline:
@@ -276,7 +278,10 @@ func run_test() -> void:
 		if not panel_state.is_empty():
 			panel = panel_state.panel
 			node_count = panel_state.node_count
+			tree_visible_ms = float(Time.get_ticks_usec() - keypress_usec) / 1000.0
+			var draw_started_usec := Time.get_ticks_usec()
 			await RenderingServer.frame_post_draw
+			draw_wait_ms = float(Time.get_ticks_usec() - draw_started_usec) / 1000.0
 			first_frame_ms = float(Time.get_ticks_usec() - keypress_usec) / 1000.0
 			break
 	send_key(KEY_N, false)
@@ -331,7 +336,8 @@ func run_test() -> void:
 		fail("Default Loadout caption is clipped: %s lines=%s" % [caption.text, caption.get_line_count()])
 	print("TALENTS_PANEL_FOOTER_PASS ", JSON.stringify({"dropdown_width": dropdown_width,
 		"gap_to_search": dropdown_gap, "caption": caption.text, "caption_lines": caption.get_line_count()}))
-	print("TALENTS_PANEL_FIRST_FRAME ", JSON.stringify({"open_ms": first_frame_ms, "talent_nodes": node_count,
+	print("TALENTS_PANEL_FIRST_FRAME ", JSON.stringify({"open_ms": first_frame_ms, "tree_visible_ms": tree_visible_ms,
+		"draw_wait_ms": draw_wait_ms, "talent_nodes": node_count,
 		"talent_node_controls": panel_state.node_control_count, "wait_frames": open_wait_frames,
 		"lookup_total_ms": float(lookup_total_usec) / 1000.0,
 		"lookup_max_ms": float(lookup_max_usec) / 1000.0, "ui_skin": client.account_state().ui_skin}))
