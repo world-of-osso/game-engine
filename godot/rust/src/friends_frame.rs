@@ -79,7 +79,7 @@ impl GameClient {
             self.friends_frame.free_ui();
             return Ok(());
         }
-        self.read_friends_frame_inputs();
+        self.read_friends_frame_inputs()?;
         self.poll_friends_frame_actions()?;
         if self.friends_frame.state.open {
             self.sync_friends_frame_ui()?;
@@ -133,16 +133,22 @@ impl GameClient {
         }
     }
 
-    fn read_friends_frame_inputs(&mut self) {
+    /// Drain queued native text edits before copying them into FriendsFrameState.
+    fn read_friends_frame_inputs(&mut self) -> Result<(), FrameError> {
         let Some(ui) = self.friends_frame.ui.as_ref() else {
-            return;
+            return Ok(());
         };
+        let error = ui.bind_mut().sync_input();
+        if !error.is_empty() {
+            return Err(error.to_string().into());
+        }
         if let Some(text) = editbox_text(ui, WHO_QUERY_EDIT_BOX) {
             self.friends_frame.state.who_query = text;
         }
         if let Some(text) = editbox_text(ui, ADD_FRIEND_EDIT_BOX) {
             self.friends_frame.state.add_friend_name = text;
         }
+        Ok(())
     }
 
     fn poll_friends_frame_actions(&mut self) -> Result<(), FrameError> {
