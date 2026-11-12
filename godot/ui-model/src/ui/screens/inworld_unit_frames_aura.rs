@@ -305,17 +305,24 @@ fn flare_player_aura_button(
         .is_debuff
         .then(|| dispel_border(&name, &aura.icon, size))
         .unwrap_or_default();
+    let texture = if let Some(fdid) = resolved_icon(&aura.icon) {
+        rsx! {
+            texture {
+                name: {dyn_name(format!("{name}Texture"))},
+                width: {size - 2.0}, height: {size - 2.0},
+                texture_fdid: fdid, tex_coords: "0.08,0.92,0.08,0.92",
+                pos_type: "absolute", left: 1.0, top: 1.0,
+            }
+        }
+    } else {
+        Element::default()
+    };
     rsx! {
         r#frame {
             name: {dyn_name(name.clone())}, width: size, height: size,
             background_color: "0,0,0,1", mouse_enabled: true,
             pos_type: "absolute", left: x, top: y,
-            texture {
-                name: {dyn_name(format!("{name}Texture"))},
-                width: {size - 2.0}, height: {size - 2.0},
-                texture_fdid: {aura.icon.icon_fdid}, tex_coords: "0.08,0.92,0.08,0.92",
-                pos_type: "absolute", left: 1.0, top: 1.0,
-            }
+            {texture}
             {border}
             fontstring {
                 name: {dyn_name(format!("{name}Duration"))},
@@ -433,6 +440,39 @@ fn aura_icon_texture(name: &str, fdid: u32, size: f32) -> Element {
             left: 0.0,
             top: 0.0,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use ui_toolkit::{
+        registry::FrameRegistry,
+        screen::{Screen, SharedContext},
+    };
+
+    #[test]
+    fn unresolved_player_aura_keeps_timer_without_requesting_zero_texture() {
+        let aura = PlayerAuraIconState {
+            icon: TargetAuraIconState {
+                spell_id: 1,
+                icon_fdid: 0,
+                stacks: 1,
+                dispel_color: None,
+                large: false,
+                timed: true,
+            },
+            is_debuff: false,
+            timer: "7 s".into(),
+        };
+        let mut registry = FrameRegistry::new(1280.0, 720.0);
+        let mut screen =
+            Screen::new(move |_| flare_player_auras(std::slice::from_ref(&aura), 200.0));
+        screen.sync(&SharedContext::new(), &mut registry);
+
+        assert!(registry.get_by_name("PlayerBuffIcon0").is_some());
+        assert!(registry.get_by_name("PlayerBuffIcon0Texture").is_none());
+        assert!(registry.get_by_name("PlayerBuffIcon0Duration").is_some());
     }
 }
 
