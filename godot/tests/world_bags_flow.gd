@@ -289,13 +289,21 @@ func hover_bag_slot(client: Node, slot: int) -> bool:
 	if control == null or not control.is_visible_in_tree() or not control.get_global_rect().has_area():
 		fail("Missing real authored backpack hover slot: %s" % slot)
 		return false
-	await move_tooltip_pointer(control.get_global_rect().get_center())
+	var entered := [false]
+	control.mouse_entered.connect(func(): entered[0] = true, CONNECT_ONE_SHOT)
+	await move_tooltip_pointer(control, control.get_global_rect().get_center())
+	if not entered[0]:
+		var point := control.get_global_rect().get_center()
+		var local_point := control.get_global_transform().affine_inverse() * point
+		print("BAGS HOVER NOT ENTERED slot=", slot, " requested=", point, " viewport_mouse=", root.get_mouse_position(), " input_mouse=", Input.get_mouse_position(), " rect=", control.get_global_rect(), " local_point=", local_point, " hit=", control.has_point(local_point), " filter=", control.mouse_filter)
 	return true
 
-func move_tooltip_pointer(point: Vector2) -> void:
+func move_tooltip_pointer(control: Control, point: Vector2) -> void:
+	var previous := root.get_mouse_position()
 	var motion := InputEventMouseMotion.new()
 	motion.position = point
 	motion.global_position = point
+	motion.relative = point - previous
 	root.push_input(motion, true)
 	Input.warp_mouse(point)
 	for frame in range(3):
