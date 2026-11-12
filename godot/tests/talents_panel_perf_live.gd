@@ -149,7 +149,7 @@ func capture_loading_prewarm_tree() -> bool:
 			fail("Loading prewarm has %d numeric TalentNode roots; expected 88" % prewarm_talent_node_count)
 			return false
 		print("TALENTS_PANEL_LOADING_PREWARM ", JSON.stringify({
-			"visible": prewarm.is_visible(), "visible_in_tree": prewarm.is_visible_in_tree(),
+			"visible": prewarm.is_visible(),
 			"layer": prewarm.get_layer(), "loading_visible": loading != null and loading.is_visible(),
 			"loading_layer": loading.get_layer() if loading != null else null,
 			"talent_nodes": prewarm_talent_node_count,
@@ -190,7 +190,7 @@ func wait_for_startup_world(character: String) -> bool:
 				and (world_trace_seconds <= 0.0 or world_trace_finished):
 			if OS.get_environment("BENCH_REQUIRE_LOADING_PREWARM") == "1":
 				var prewarm := client.get_node_or_null("SpellBookPrewarmUI") as CanvasLayer
-				if prewarm == null or prewarm.is_visible_in_tree():
+				if prewarm == null or prewarm.is_visible():
 					fail("Talent prewarm remained visible after Loading")
 					return false
 			var loading_ms := float(Time.get_ticks_usec() - loading_started_usec) / 1000.0 if loading_started_usec > 0 else -1.0
