@@ -494,14 +494,24 @@ fn dungeon_list(shared: &SharedContext, view: &View) -> Element {
 fn dungeon_row(view: &View, id: u32, title: &str, index: usize) -> Element {
     let name = format!("LFDQueueFrameFollowerDungeon{id}");
     let top = index as f32 * ROW_HEIGHT as f32;
+    let lock_reason = view.level_lock_reason(id);
+    let locked = lock_reason.is_some();
     let enabled = view.can_select(id);
-    let mut art = texture(
-        format!("{name}CheckBox"),
-        130_755,
-        (15.0, 0.0, 20.0, 20.0),
-        "1,1,1,1",
-    );
-    if view.selected == Some(id) {
+    let mut art = if locked {
+        named_atlas_texture(
+            format!("{name}LockedIndicator"),
+            "LFG-lock",
+            (25.0, 3.0, 12.0, 14.0),
+        )
+    } else {
+        texture(
+            format!("{name}CheckBox"),
+            130_755,
+            (15.0, 0.0, 20.0, 20.0),
+            "1,1,1,1",
+        )
+    };
+    if !locked && view.selected == Some(id) {
         art.extend(texture(
             format!("{name}Check"),
             130_751,
@@ -509,18 +519,24 @@ fn dungeon_row(view: &View, id: u32, title: &str, index: usize) -> Element {
             "1,1,1,1",
         ));
     }
+    let name_color = if enabled {
+        NORMAL_FONT_COLOR
+    } else {
+        "0.5,0.5,0.5,1"
+    };
     art.extend(label(
         format!("{name}InstanceName"),
         title,
         (40.0, 0.0, 255.0, 20.0),
-        (13.0, NORMAL_FONT_COLOR, "LEFT"),
+        (13.0, name_color, "LEFT"),
     ));
-    crate::selection_list::row(
+    crate::selection_list::row_with_disabled_tooltip(
         name,
         &format!("follower:select:{id}"),
         enabled,
         (0.0, top, 295.0, ROW_HEIGHT as f32),
         (&crate::selection_list::AUTHORED, view.selected == Some(id)),
         art,
+        lock_reason.as_deref(),
     )
 }
