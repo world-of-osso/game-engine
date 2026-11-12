@@ -163,41 +163,6 @@ fn inventory_defaults_and_sections_are_exact() {
         BindingSection::ALL.map(|s| actions_for_section(s).len()),
         [8, 6, 14, 22, 12, 12, 12, 12, 1, 31, 7, 20]
     );
-    let interface = actions_for_section(BindingSection::Interface);
-    let expected_interface_order = [
-        InputAction::ToggleCharacter,              // TOGGLECHARACTER0
-        InputAction::ToggleCharacterReputation,    // TOGGLECHARACTER2
-        InputAction::ToggleCurrency,               // TOGGLECURRENCY
-        InputAction::ToggleSpellbook,              // TOGGLESPELLBOOK
-        InputAction::ToggleProfessions,            // TOGGLEPROFESSIONBOOK
-        InputAction::ToggleTalents,                // TOGGLETALENTS
-        InputAction::ToggleCooldownViewerSettings, // TOGGLECOOLDOWNVIEWERSETTINGS
-        InputAction::ToggleAchievements,           // TOGGLEACHIEVEMENT
-        InputAction::ToggleStatistics,             // TOGGLESTATISTICS
-        InputAction::ToggleQuestLog,               // TOGGLEQUESTLOG
-        InputAction::ToggleHousingDashboard,       // TOGGLEHOUSINGDASHBOARD
-        InputAction::ToggleWorldMap,               // TOGGLEWORLDMAP
-        InputAction::ToggleWorldMapSize,           // TOGGLEWORLDMAPSIZE
-        InputAction::ToggleMinimap,                // TOGGLEMINIMAP
-        InputAction::ToggleWorldStateScores,       // TOGGLEWORLDSTATESCORES
-        InputAction::ToggleGuildTab,               // TOGGLEGUILDTAB
-        InputAction::ToggleSocial,                 // TOGGLESOCIAL
-        InputAction::ToggleGroupFinder,            // TOGGLEGROUPFINDER
-        InputAction::ToggleDungeonsAndRaids,       // TOGGLEDUNGEONSANDRAIDS
-        InputAction::ToggleCharacterPvp,           // TOGGLECHARACTER4
-        InputAction::ToggleCollections,            // TOGGLECOLLECTIONS
-        InputAction::ToggleMountJournal,           // TOGGLECOLLECTIONSMOUNTJOURNAL
-        InputAction::TogglePetJournal,             // TOGGLECOLLECTIONSPETJOURNAL
-        InputAction::ToggleToyBox,                 // TOGGLECOLLECTIONSTOYBOX
-        InputAction::ToggleEncounterJournal,       // TOGGLEENCOUNTERJOURNAL
-        InputAction::ToggleLauncher,
-        InputAction::ToggleSpecialization,
-        InputAction::ToggleLootRules,
-        InputAction::ToggleFramerate,
-        InputAction::MinimapZoomIn,
-        InputAction::MinimapZoomOut,
-    ];
-    assert_eq!(interface, &expected_interface_order);
     assert_eq!(
         actions_for_section(BindingSection::Bags),
         &[
@@ -210,42 +175,6 @@ fn inventory_defaults_and_sections_are_exact() {
             InputAction::OpenAllBags,
         ]
     );
-    let housing = actions_for_section(BindingSection::Housing);
-    assert_eq!(
-        housing
-            .iter()
-            .map(|action| action.key())
-            .collect::<Vec<_>>(),
-        [
-            "HOUSING_TOGGLEBASICDECORMODE",
-            "HOUSING_TOGGLEEXPERTDECORMODE",
-            "HOUSING_TOGGLECLEANUPMODE",
-            "HOUSING_BASICDECOR_ROTATELEFT",
-            "HOUSING_BASICDECOR_ROTATERIGHT",
-            "HOUSING_REMOVEDECOR",
-            "HOUSING_EXPERTDECORTRANSLATESUBMODE",
-            "HOUSING_EXPERTDECORROTATESUBMODE",
-            "HOUSING_EXPERTDECORSCALESUBMODE",
-            "HOUSING_EXPERTDECORINCREMENT_LEFT",
-            "HOUSING_EXPERTDECORINCREMENT_RIGHT",
-            "HOUSING_EXPERTDECORINCREMENT_FORWARD",
-            "HOUSING_EXPERTDECORINCREMENT_BACK",
-            "HOUSING_EXPERTDECORINCREMENT_UP",
-            "HOUSING_EXPERTDECORINCREMENT_DOWN",
-            "HOUSING_EXPERTDECORINCREMENT_SCALEUP",
-            "HOUSING_EXPERTDECORINCREMENT_SCALEDOWN",
-            "HOUSING_EXPERTDECORINCREMENT_ROTATELEFT",
-            "HOUSING_EXPERTDECORINCREMENT_ROTATERIGHT",
-            "HOUSING_EXPERTDECORROTATION_NEXTAXIS",
-        ]
-    );
-    for action in housing {
-        assert_eq!(
-            bindings.binding(*action),
-            None,
-            "Housing defaults require source data"
-        );
-    }
     let mut seen = std::collections::BTreeSet::new();
     for action in InputAction::ALL {
         assert!(seen.insert(action));
@@ -295,13 +224,6 @@ fn inventory_defaults_and_sections_are_exact() {
         assert_eq!(action.toggled_bag(), bag, "{action:?}");
         assert_eq!(action.section(), BindingSection::Bags);
     }
-    assert_eq!(InputAction::ToggleReagentBag.label(), "Toggle Reagent Bag");
-    assert_eq!(bindings.binding(InputAction::ToggleReagentBag), None);
-    assert_eq!(InputAction::ToggleReagentBag.toggled_bag(), Some(5));
-    assert_eq!(
-        InputAction::ToggleReagentBag.section(),
-        BindingSection::Bags
-    );
     // Retail MINIMAPZOOMIN Num Pad +, MINIMAPZOOMOUT Num Pad -.
     assert_eq!(
         bindings.binding(InputAction::MinimapZoomIn),
@@ -341,7 +263,66 @@ fn inventory_defaults_and_sections_are_exact() {
         bindings.binding(InputAction::ToggleGroupFinder),
         Some(InputBinding::Keyboard(BindingKey::KeyI))
     );
-    let verified_interface_defaults = [
+    assert_eq!(
+        InputAction::ToggleFramerate.label(),
+        "Toggle Framerate Display"
+    );
+    // Retail `SITORSTAND` (`BINDING_NAME_SITORSTAND` "Sit/Move Down"): X, descends while swimming.
+    assert_eq!(
+        bindings.binding(InputAction::SitOrStand),
+        Some(InputBinding::Keyboard(BindingKey::KeyX))
+    );
+    assert_eq!(InputAction::SitOrStand.label(), "Sit/Move Down");
+    assert_eq!(InputAction::SitOrStand.section(), BindingSection::Movement);
+    let ron = ron::to_string(&bindings).unwrap();
+    assert!(
+        ron.contains("ToggleMute") && ron.contains("ctrl+key:KeyS"),
+        "{ron}"
+    );
+    let restored: InputBindingsData = ron::from_str(&ron).unwrap();
+    assert_eq!(restored, bindings);
+}
+
+#[test]
+fn interface_catalog_matches_retail_source_order_and_defaults() {
+    let bindings = InputBindingsData::default();
+    let interface = actions_for_section(BindingSection::Interface);
+    let expected = [
+        InputAction::ToggleCharacter,              // TOGGLECHARACTER0
+        InputAction::ToggleCharacterReputation,    // TOGGLECHARACTER2
+        InputAction::ToggleCurrency,               // TOGGLECURRENCY
+        InputAction::ToggleSpellbook,              // TOGGLESPELLBOOK
+        InputAction::ToggleProfessions,            // TOGGLEPROFESSIONBOOK
+        InputAction::ToggleTalents,                // TOGGLETALENTS
+        InputAction::ToggleCooldownViewerSettings, // TOGGLECOOLDOWNVIEWERSETTINGS
+        InputAction::ToggleAchievements,           // TOGGLEACHIEVEMENT
+        InputAction::ToggleStatistics,             // TOGGLESTATISTICS
+        InputAction::ToggleQuestLog,               // TOGGLEQUESTLOG
+        InputAction::ToggleHousingDashboard,       // TOGGLEHOUSINGDASHBOARD
+        InputAction::ToggleWorldMap,               // TOGGLEWORLDMAP
+        InputAction::ToggleWorldMapSize,           // TOGGLEWORLDMAPSIZE
+        InputAction::ToggleMinimap,                // TOGGLEMINIMAP
+        InputAction::ToggleWorldStateScores,       // TOGGLEWORLDSTATESCORES
+        InputAction::ToggleGuildTab,               // TOGGLEGUILDTAB
+        InputAction::ToggleSocial,                 // TOGGLESOCIAL
+        InputAction::ToggleGroupFinder,            // TOGGLEGROUPFINDER
+        InputAction::ToggleDungeonsAndRaids,       // TOGGLEDUNGEONSANDRAIDS
+        InputAction::ToggleCharacterPvp,           // TOGGLECHARACTER4
+        InputAction::ToggleCollections,            // TOGGLECOLLECTIONS
+        InputAction::ToggleMountJournal,           // TOGGLECOLLECTIONSMOUNTJOURNAL
+        InputAction::TogglePetJournal,             // TOGGLECOLLECTIONSPETJOURNAL
+        InputAction::ToggleToyBox,                 // TOGGLECOLLECTIONSTOYBOX
+        InputAction::ToggleEncounterJournal,       // TOGGLEENCOUNTERJOURNAL
+        InputAction::ToggleLauncher,
+        InputAction::ToggleSpecialization,
+        InputAction::ToggleLootRules,
+        InputAction::ToggleFramerate,
+        InputAction::MinimapZoomIn,
+        InputAction::MinimapZoomOut,
+    ];
+    assert_eq!(interface, &expected);
+
+    for (action, label, binding) in [
         (
             InputAction::ToggleCharacterReputation,
             "Reputation",
@@ -384,8 +365,7 @@ fn inventory_defaults_and_sections_are_exact() {
         (InputAction::ToggleMountJournal, "Mount Journal", None),
         (InputAction::TogglePetJournal, "Pet Journal", None),
         (InputAction::ToggleToyBox, "Toy Box", None),
-    ];
-    for (action, label, binding) in verified_interface_defaults {
+    ] {
         assert_eq!(action.label(), label, "{action:?}");
         assert_eq!(action.section(), BindingSection::Interface, "{action:?}");
         assert_eq!(bindings.binding(action), binding, "{action:?}");
@@ -394,24 +374,48 @@ fn inventory_defaults_and_sections_are_exact() {
         bindings.binding(InputAction::ToggleEncounterJournal),
         Some(InputBinding::ShiftKeyboard(BindingKey::KeyJ))
     );
+    let reagent_bag = InputAction::ToggleReagentBag;
+    assert_eq!(reagent_bag.label(), "Toggle Reagent Bag");
+    assert_eq!(reagent_bag.section(), BindingSection::Bags);
+    assert_eq!(bindings.binding(reagent_bag), None);
+    assert_eq!(reagent_bag.toggled_bag(), Some(5));
+}
+
+#[test]
+fn housing_actions_remain_in_source_order_and_unbound() {
+    let bindings = InputBindingsData::default();
+    let housing = actions_for_section(BindingSection::Housing);
     assert_eq!(
-        InputAction::ToggleFramerate.label(),
-        "Toggle Framerate Display"
+        housing
+            .iter()
+            .map(|action| action.key())
+            .collect::<Vec<_>>(),
+        [
+            "HOUSING_TOGGLEBASICDECORMODE",
+            "HOUSING_TOGGLEEXPERTDECORMODE",
+            "HOUSING_TOGGLECLEANUPMODE",
+            "HOUSING_BASICDECOR_ROTATELEFT",
+            "HOUSING_BASICDECOR_ROTATERIGHT",
+            "HOUSING_REMOVEDECOR",
+            "HOUSING_EXPERTDECORTRANSLATESUBMODE",
+            "HOUSING_EXPERTDECORROTATESUBMODE",
+            "HOUSING_EXPERTDECORSCALESUBMODE",
+            "HOUSING_EXPERTDECORINCREMENT_LEFT",
+            "HOUSING_EXPERTDECORINCREMENT_RIGHT",
+            "HOUSING_EXPERTDECORINCREMENT_FORWARD",
+            "HOUSING_EXPERTDECORINCREMENT_BACK",
+            "HOUSING_EXPERTDECORINCREMENT_UP",
+            "HOUSING_EXPERTDECORINCREMENT_DOWN",
+            "HOUSING_EXPERTDECORINCREMENT_SCALEUP",
+            "HOUSING_EXPERTDECORINCREMENT_SCALEDOWN",
+            "HOUSING_EXPERTDECORINCREMENT_ROTATELEFT",
+            "HOUSING_EXPERTDECORINCREMENT_ROTATERIGHT",
+            "HOUSING_EXPERTDECORROTATION_NEXTAXIS",
+        ]
     );
-    // Retail `SITORSTAND` (`BINDING_NAME_SITORSTAND` "Sit/Move Down"): X, descends while swimming.
-    assert_eq!(
-        bindings.binding(InputAction::SitOrStand),
-        Some(InputBinding::Keyboard(BindingKey::KeyX))
-    );
-    assert_eq!(InputAction::SitOrStand.label(), "Sit/Move Down");
-    assert_eq!(InputAction::SitOrStand.section(), BindingSection::Movement);
-    let ron = ron::to_string(&bindings).unwrap();
-    assert!(
-        ron.contains("ToggleMute") && ron.contains("ctrl+key:KeyS"),
-        "{ron}"
-    );
-    let restored: InputBindingsData = ron::from_str(&ron).unwrap();
-    assert_eq!(restored, bindings);
+    for action in housing {
+        assert_eq!(bindings.binding(*action), None);
+    }
 }
 
 #[test]
