@@ -3,8 +3,8 @@ extends SceneTree
 const CAPTURE_SIZE := Vector2i(1920, 1080)
 const TILE_WAIT_MS := 30000
 const MAP_CASES := [
-	{"panel": "DazarAlorWorldMap", "tile_prefix": "WorldMapTile", "capture": "dazar-alor.png"},
-	{"panel": "HousingFinderMap", "tile_prefix": "HouseFinderMapTile", "capture": "founders-point.png"},
+	{"panel": "DazarAlorWorldMap", "tile_prefix": "WorldMapTile", "expected_tiles": 150, "capture": "dazar-alor.png"},
+	{"panel": "HousingFinderMap", "tile_prefix": "HouseFinderMapTile", "expected_tiles": 150, "capture": "founders-point.png"},
 ]
 
 func _initialize() -> void:
@@ -33,7 +33,7 @@ func capture_map(map_case: Dictionary, output: String) -> bool:
 	if not error.is_empty():
 		owner.free()
 		return fail_map(map_case.panel, error)
-	var result := await wait_for_map_tiles(owner, map_case.tile_prefix)
+	var result := await wait_for_map_tiles(owner, map_case.tile_prefix, map_case.expected_tiles)
 	if not result.error.is_empty():
 		owner.free()
 		return fail_map(map_case.panel, result.error)
@@ -54,19 +54,19 @@ func capture_map(map_case: Dictionary, output: String) -> bool:
 	await process_frame
 	return true
 
-func wait_for_map_tiles(owner: Node, prefix: String) -> Dictionary:
+func wait_for_map_tiles(owner: Node, prefix: String, expected_count: int) -> Dictionary:
 	var deadline := Time.get_ticks_msec() + TILE_WAIT_MS
 	var tiles: Array[Node] = []
 	var missing: Array[String] = []
 	while Time.get_ticks_msec() < deadline:
 		tiles = owner.find_children(prefix + "*", "", true, false)
 		missing = missing_map_tiles(tiles)
-		if not tiles.is_empty() and missing.is_empty():
+		if tiles.size() == expected_count and missing.is_empty():
 			return {"tile_count": tiles.size(), "error": ""}
 		await process_frame
 	return {
 		"tile_count": tiles.size(),
-		"error": "Tile load timed out: expected visible textures for " + str(missing),
+		"error": "Loaded %d of %d map tiles; textures not loaded for %s" % [tiles.size(), expected_count, str(missing)],
 	}
 
 func missing_map_tiles(tiles: Array[Node]) -> Array[String]:

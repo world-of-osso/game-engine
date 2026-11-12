@@ -26,7 +26,7 @@ Linux and Windows players share one staged project/data bundle. Publisher: `depl
 
 ## Tests asserting this spec
 
-- `scripts/tests/test_player_bundle.py` discovers literal client data-root file reads and verifies bundle selection, and covers active-DB2 World/Housing map texture closure, Zandalar/Neighborhood map tiles, exclusion of unrendered map systems, active UI atlas sheets and Forever set-1 sheets, `battle-pets.json` and staged-manifest sources. `test_launcher_packs.py`, `test_mapped_deploy.py`, and `test_verified_upload.py` cover source drift, removed files, pack output, and verified upload promotion. Existing allowlist, product namespace and native-file cases remain required.
+- `scripts/tests/test_player_bundle.py` discovers literal client data-root file reads and verifies bundle selection, and covers active-DB2 World/Housing map texture closure, Zandalar/Neighborhood map tiles, exclusion of unrendered map systems, active UI atlas sheets and Forever set-1 sheets, `battle-pets.json` and staged-manifest sources. `godot/tests/player_bundle_map_assets.gd` checks all Forever Dazar'alor and Founder's Point map tiles load in the renderer. `test_launcher_packs.py`, `test_mapped_deploy.py`, and `test_verified_upload.py` cover source drift, removed files, pack output, and verified upload promotion. Existing allowlist, product namespace and native-file cases remain required.
 
 ## Out of scope
 
