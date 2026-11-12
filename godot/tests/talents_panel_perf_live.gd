@@ -172,13 +172,16 @@ func run_test() -> void:
 	if dropdown == null or search == null or caption == null:
 		fail("Talents footer is missing the loadout caption or SearchBox")
 		return
-	var ui_scale := search.size.y / 30.0
-	var dropdown_gap := (search.global_position.x - dropdown.global_position.x - dropdown.size.x) / ui_scale
-	if absf(dropdown.size.x / ui_scale - 200.0) > 0.5 or absf(dropdown_gap - 20.0) > 0.5:
-		fail("Loadout footer geometry differs from Retail: width=%s gap=%s" % [dropdown.size.x / ui_scale, dropdown_gap])
+	var dropdown_rect := dropdown.get_global_rect()
+	var search_rect := search.get_global_rect()
+	var ui_scale := search_rect.size.y / 30.0
+	var dropdown_width := dropdown_rect.size.x / ui_scale
+	var dropdown_gap := (search_rect.position.x - dropdown_rect.end.x) / ui_scale
+	if absf(dropdown_width - 200.0) > 0.5 or absf(dropdown_gap - 20.0) > 0.5:
+		fail("Loadout footer geometry differs from Retail: width=%s gap=%s" % [dropdown_width, dropdown_gap])
 	if caption.text != "Default Loadout" or caption.get_line_count() != 1:
 		fail("Default Loadout caption is clipped: %s lines=%s" % [caption.text, caption.get_line_count()])
-	print("TALENTS_PANEL_FOOTER_PASS ", JSON.stringify({"dropdown_width": dropdown.size.x / ui_scale,
+	print("TALENTS_PANEL_FOOTER_PASS ", JSON.stringify({"dropdown_width": dropdown_width,
 		"gap_to_search": dropdown_gap, "caption": caption.text, "caption_lines": caption.get_line_count()}))
 	var first_frame_ms := float(Time.get_ticks_usec() - keypress_usec) / 1000.0
 	print("TALENTS_PANEL_FIRST_FRAME ", JSON.stringify({"open_ms": first_frame_ms, "talent_nodes": node_count,
