@@ -4,6 +4,8 @@ const MOUNT_ID := 18
 const ITEM_ID := 5655
 const SPELL_ID := 6648
 const RANDOM_FAVORITE_SPELL_ID := 150544
+const RANDOM_FAVORITE_ACTION_BAR_INDEX := 8
+const RANDOM_FAVORITE_ACTION_BAR_BUTTON := "ActionButton9"
 var client: Node
 var shots := OS.get_environment("MOUNT_SHOTS")
 var skin := OS.get_environment("MOUNT_SKIN")
@@ -117,13 +119,13 @@ func run_fixture() -> void:
 	await capture("random-favourite")
 	await click("MountJournalMountButton")
 	if not await wait_until(func(): return dismounted(), "dismount before action-bar proof"): return
-	await drag_to("MountJournalSummonRandomFavorite", "ActionButton12")
+	await drag_to("MountJournalSummonRandomFavorite", RANDOM_FAVORITE_ACTION_BAR_BUTTON)
 	if not await wait_until(func(): return has_random_favorite_action_slot(), "random favorite action-bar assignment"): return
 	await tap(KEY_ESCAPE)
 	if not await wait_until(func(): return control("MountJournalSearchBox") == null, "close journal before action-bar activation"): return
 	if not await reconnect_same_character(selected_character_name): return
 	await capture("random-favorite-bar-slot")
-	await click("ActionButton12")
+	await click(RANDOM_FAVORITE_ACTION_BAR_BUTTON)
 	if not await wait_until(func(): return mounted(), "action-bar random favorite summon", 60000): return
 	await capture("random-favorite-mounted-from-bar")
 	print("MOUNT_JOURNAL_LIVE PASS skin=", skin, " relog=", relog, " state=", client.mount_journal_state())
@@ -154,7 +156,7 @@ func reconnect_same_character(character_name: String) -> bool:
 
 func has_random_favorite_action_slot() -> bool:
 	var bar: Array = client.spells_state().bar
-	return bar.size() > 11 and int(bar[11]) == RANDOM_FAVORITE_SPELL_ID
+	return bar.size() > RANDOM_FAVORITE_ACTION_BAR_INDEX and int(bar[RANDOM_FAVORITE_ACTION_BAR_INDEX]) == RANDOM_FAVORITE_SPELL_ID
 
 func buy_mare() -> bool:
 	if not await open_vendor(): return false
