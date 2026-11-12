@@ -30,6 +30,8 @@ DATA_FILE_GLOBS = (
 RENDERED_UI_MAP_SYSTEMS = {0, 2}
 # ui-model::paths configures atlas lookup from both DB2 exports.
 ATLAS_DB2_VERSIONS = ('active', '1.60.1.69913')
+# These DB2 atlas rows point to files absent from the installed CASC build; see the player-bundle spec.
+KNOWN_UNAVAILABLE_UI_TEXTURE_FDIDS = frozenset({3307666, 6227333})
 LIBRARIES = {
     'linux-x86_64': ('linux.x86_64', 'libgame_engine_godot.so'),
     'windows-x86_64': ('windows.x86_64', 'game_engine_godot.dll'),
@@ -186,7 +188,7 @@ def ui_texture_fdids(root):
             if int(row['ID']) in atlas_ids and int(row['FileDataID']) > 0
             and (version == 'active' or int(row['UiTextureAtlasSetID']) == 1)
         )
-    return fdids
+    return fdids - KNOWN_UNAVAILABLE_UI_TEXTURE_FDIDS
 
 
 def extract_ui_texture_ids(root, texture_dir, missing):

@@ -299,11 +299,12 @@ class PlayerBundleTest(unittest.TestCase):
             forever_tables = data / 'db2/1.60.1.69913'
             forever_tables.mkdir(parents=True, exist_ok=True)
             (forever_tables / 'UiTextureAtlasMember.csv').write_text(
-                'ID,UiTextureAtlasID\n1,4100\n2,4101\n3,4102\n'
+                'ID,UiTextureAtlasID\n1,4100\n2,4101\n3,4102\n4,4103\n'
             )
             (forever_tables / 'UiTextureAtlas.csv').write_text(
                 'ID,FileDataID,UiTextureAtlasSetID\n'
                 '4100,6855432,1\n4101,999998,2\n4102,999997,0\n'
+                '4103,6227333,1\n'
             )
             (data / 'cache/model-asset-index.json').write_text('{"version":1,"assets":[]}')
             (data / 'battle-pets.json').write_text('[]\n')
@@ -317,8 +318,8 @@ class PlayerBundleTest(unittest.TestCase):
                 'UiMapArtTile': 'UiMapArtID,LayerIndex,FileDataID\n887,0,1599407\n900,0,1603193\n1143,0,2133758\n2056,0,7438338\n1143,1,999999\n998,0,777779\n999,0,777780\n1000,0,777781\n',
                 'WorldMapOverlay': 'ID,UiMapArtID\n80,887\n81,2056\n82,998\n83,999\n',
                 'WorldMapOverlayTile': 'WorldMapOverlayID,LayerIndex,FileDataID\n80,0,2034162\n81,0,0\n80,1,777782\n82,0,777783\n83,0,777784\n',
-                'UiTextureAtlasMember': 'ID,UiTextureAtlasID\n1,3215\n2,3963\n',
-                'UiTextureAtlas': 'ID,FileDataID\n3215,6875169\n3963,8040088\n9999,555000\n',
+                'UiTextureAtlasMember': 'ID,UiTextureAtlasID\n1,3215\n2,3963\n3,9999\n',
+                'UiTextureAtlas': 'ID,FileDataID\n3215,6875169\n3963,8040088\n9999,3307666\n10000,555000\n',
             }
             for name, content in rows.items():
                 (tables / f'{name}.csv').write_text(content)
@@ -328,6 +329,8 @@ class PlayerBundleTest(unittest.TestCase):
                 2168041, 2168254, 6875169, 8040088, 6855432,
             }
             self.assertEqual(bundle.ui_texture_fdids(root), expected_fdids)
+            self.assertNotIn(3307666, expected_fdids)
+            self.assertNotIn(6227333, expected_fdids)
             selected = set(bundle.data_files(root))
             for fdid in expected_fdids:
                 self.assertIn(Path(f'textures/{fdid}.blp'), selected)
