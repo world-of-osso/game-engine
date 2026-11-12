@@ -4,7 +4,7 @@ Dropdowns, context menus and breadcrumb navigation implement Retail Mainline `Bl
 
 ## What it must do
 
-- [ ] Shared WowStyle1 dropdown uses the XML text-holder, 27px arrow and horizontal Text anchors while preserving callback names and caller dimensions. The rendered caption line must center on the source Text region (`TOPLEFT 8,-8`, height10, default `justifyV=MIDDLE`), even when the native Label needs a taller box. AH retains its Number12Font/RIGHT caller override. Filter remains a 20px Text region anchored TOP; WowStyle2 remains a centered 20px Text region. All dropdown captions retain the templates' `wordwrap=false`: long selected captions remain one line with the existing single-line truncation rather than wrapping.
+- [x] Shared WowStyle1 dropdown uses the XML text-holder, 27px arrow and horizontal Text anchors while preserving callback names and caller dimensions. The rendered caption line must center on the source Text region (`TOPLEFT 8,-8`, height10, default `justifyV=MIDDLE`), even when the native Label needs a taller box. AH retains its Number12Font/RIGHT caller override. Filter remains a 20px Text region anchored TOP; WowStyle2 remains a centered 20px Text region. All dropdown captions retain the templates' `wordwrap=false`: long selected captions remain one line with the existing single-line truncation rather than wrapping.
 - [x] Filter and WowStyle2 variants expose open/disabled state and the 23px reset control; Filter follows measured-text+60 source resizing.
 - [x] Context menus use MenuStyle1 backdrop/insets and sourced button, checkbox, radio, title, divider and submenu elements; disabled entries lose responders and selection-art saturation. An empty title omits title/divider rows. Uniform radio root descriptions, including the follower dungeon type selector, retain their selected radio marker rather than using a push-button row.
 - [x] Menu proxies use `FULLSCREEN_DIALOG`, matching Mainline `Menu.lua:2080–2094` and `UIDropDownMenu.xml:3`. Shared backdrop, row and label order stays above dialog owners regardless of their frame levels; pointer selection remains unchanged. Godot projects distinct `(strata, level, raise, draw-layer)` layers densely below the existing highlight plane; excess distinct layers fail explicitly and report once, never clamp. Frames sharing a layer do not consume extra z capacity.
@@ -34,7 +34,7 @@ Dropdowns, context menus and breadcrumb navigation implement Retail Mainline `Bl
 
 ## Known gaps (current cycle)
 
-- [ ] Run the new Forever rendered-caption test against the source Text centers and capture each affected dropdown.
+- [ ] Capture and inspect Group Finder Type from a full GameClient against the private loopback server; current rendered caption captures use RegistryUi previews and do not prove live startup.
 
 Source textures used by these templates are present in canonical `data/textures/`; no extraction performed.
 

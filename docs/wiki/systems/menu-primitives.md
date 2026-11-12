@@ -34,7 +34,7 @@ VERIFIED: Commit `5a0fc9369` preserves explicit `wordwrap=false` and one-line pr
 
 VERIFIED: AH `duration_top` retains its `+2` owner offset because Forever AH XML anchors the control at y=-2; it is not a caption correction. VERIFIED: Current Quest Log source has no shared dropdown helper callsite, so its requested screenshot is a control view, not evidence for this component.
 
-UNVERIFIED: The new Forever rendered-caption test, after screenshots, and helper-driven debug/release builds have not run. VERIFIED: Commits `65168d644`, `ea6d3e4ff`, and `3cdec84d7` contain the current source-region implementation; its geometry and behavior remain subject to those gates.
+VERIFIED: The final rendered-caption harness passes7/7 preview views and12 caption checks at1920×1080. The targeted UI-model integration filter passes7/7 (721 filtered), `cargo fmt --check` passes, and the helper-driven debug/release extension builds completed with zero Rust warning/error lines. Style1 line centers are exact; the seven Style2 lines differ from source by only±0.5px because of integer Taffy rounding. These captures are RegistryUi/UiAuditProbe previews, not full GameClient proof. UNVERIFIED: A full in-world Group Finder Type capture remains pending.
 
 ### Historical native proof (2026-10-15)
 
@@ -43,6 +43,14 @@ VERIFIED (historical): The first native implementation used the XML 10px Text he
 VERIFIED (historical): Commit `5421b1f0c` changed the WowStyle1 Label rectangle to full owner height. VERIFIED (historical): The old proof measured a zero rectangle-center delta after that change, kept long captions to one line, and found unchanged Filter/WowStyle2 controls; it did not assert the rendered line center against the Retail Text region. VERIFIED (historical): The capture ledger is `data/diagnostics/ui-questlog-dropdown-centering-2026-10-15/caption-centering-proof-ledger.json`.
 
 VERIFIED: Toolkit core's explicit `word_wrap` and `max_lines` attribute contract is documented in [FontString layout](../../../../ui-toolkit/docs/specs/font-string-layout.md); these flags remain separate from the vertical-position correction.
+
+## WowStyle2 Forever atlas state audit (2026-11-11)
+
+VERIFIED: Forever `Blizzard_Menu/MenuTemplates.xml:4,18–35` assigns `common-dropdown-c-button` to Background. `Blizzard_Menu/MenuTemplates.lua:1077–1092` selects that idle atlas only when enabled, not hovered/down, and the menu is closed; hover, pressed, pressed-hover, open and disabled states use their separate source atlas names.
+
+VERIFIED: Forever `UiTextureAtlasElement.csv` maps ElementID25502 to `common-dropdown-c-button`. Its set-1 idle member38760 uses atlas3976 / FDID8069112 at `(144,85,39,39)`; hover-1 member38762 uses `(257,29,39,39)`; open member38765 uses `(298,29,39,39)`. The Forever resolver prefers set1 and groups members by ElementID name, so the `-c60` committed member names resolve under the canonical atlas names.
+
+VERIFIED: The RegistryUi Style2 preview passes `open=false`, `enabled=true`, and its drawn border matches the set-1 idle crop exactly across both 12px side slices (mean RGB error0). The brighter hover-1 and open crops are distinct. The earlier gray comparison used Modern/set0 FDID5390329 and is not a valid Forever reference. No shared-component art change or defect test is needed. The pointer-state probe images are identical; they do not establish live-client hover behavior.
 
 ## Source-decimal gotcha
 
@@ -78,7 +86,9 @@ Both-skin full-HD Quest/Mail/Bank/Settings before/after views and two comparison
 - Retail `Blizzard_Menu/Mainline/MenuTemplates.lua` — MenuStyle1 backdrop alpha/insets.
 - Retail `Blizzard_Menu/{MenuVariants.lua,Mainline/MenuVariants.lua}` — menu entry height, ticks, divider/highlight/submenu source art.
 - Retail `Blizzard_FrameXML/Mainline/NavigationBar.{xml,lua}` — home, breadcrumb, overflow art/sizing and collapse decisions.
-- `UiTextureAtlas*.csv`, local `community-listfile.csv` — authored crops and source FDIDs.
+- `data/db2/1.60.1.69913/UiTextureAtlas{,Element,Member}.csv` and local `community-listfile.csv` — Forever c60 atlas sets, member IDs, authored crops and source FDIDs.
+- `godot/ui-model/src/ui/screens/menu_primitives.rs` and `ui-toolkit/core/src/atlas/db2.rs` — Style2 state atlas names and active-skin member resolution.
+- Forever `Blizzard_Menu/{MenuTemplates.xml,MenuTemplates.lua}` — Style2 Background template and idle/hover/open state selection.
 - `/home/osso/Projects/wow/wow-ui-sim/data/atlas.rs:16139,16156-16158` — Retail atlas slice metadata exported from the client.
 
 ## See Also
