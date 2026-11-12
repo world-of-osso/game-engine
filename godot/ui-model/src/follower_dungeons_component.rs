@@ -26,6 +26,9 @@ const TABS_LEFT: f32 = 19.0;
 // scaled by 0.7, matching LFGRole.xml's BOTTOMLEFT checkbox anchor.
 const ROLE_CHECKBOX_HIGHLIGHT_SIZE: &str = "21,20.3";
 const ROLE_CHECKBOX_HIGHLIGHT_OFFSET: &str = "-17,16.65";
+const RETAIL_DUNGEON_LOCK_ICON_FDID: u32 = 340_023;
+const RETAIL_DUNGEON_LOCK_ICON_TEX_COORDS: &str = "0,0.71875,0,0.875";
+const RETAIL_DUNGEON_LOCK_ICON_RECT: (f32, f32, f32, f32) = (25.0, 3.0, 12.0, 14.0);
 
 pub(super) fn screen(shared: &SharedContext) -> Element {
     let view = shared.get::<View>().cloned().unwrap_or_default();
@@ -511,11 +514,7 @@ fn dungeon_row(view: &View, id: u32, title: &str, index: usize) -> Element {
 
 fn build_dungeon_row_icon(name: &str, id: u32, view: &View, locked: bool) -> Element {
     let mut art = if locked {
-        named_atlas_texture(
-            format!("{name}LockedIndicator"),
-            "LFG-lock",
-            (25.0, 3.0, 12.0, 14.0),
-        )
+        build_retail_dungeon_lock_icon(name)
     } else {
         texture(
             format!("{name}CheckBox"),
@@ -533,6 +532,16 @@ fn build_dungeon_row_icon(name: &str, id: u32, view: &View, locked: bool) -> Ele
         ));
     }
     art
+}
+
+fn build_retail_dungeon_lock_icon(name: &str) -> Element {
+    let (left, top, width, height) = RETAIL_DUNGEON_LOCK_ICON_RECT;
+    rsx! { texture {
+        name: {DynName(format!("{name}LockedIndicator"))},
+        width, height, texture_fdid: RETAIL_DUNGEON_LOCK_ICON_FDID,
+        tex_coords: RETAIL_DUNGEON_LOCK_ICON_TEX_COORDS,
+        left, top, pos_type: "absolute", draw_layer: "ARTWORK",
+    } }
 }
 
 fn build_dungeon_row_label(name: &str, title: &str, enabled: bool) -> Element {

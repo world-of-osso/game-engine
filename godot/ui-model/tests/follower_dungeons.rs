@@ -384,11 +384,22 @@ fn follower_group_finder_locks_out_of_range_rows_and_blocks_queueing() {
             .get_by_name("LFDQueueFrameFollowerDungeon2436CheckBox")
             .is_none()
     );
-    assert!(
-        locked
-            .get_by_name("LFDQueueFrameFollowerDungeon2436LockedIndicator")
-            .is_some()
+    let locked_indicator_id = locked
+        .get_by_name("LFDQueueFrameFollowerDungeon2436LockedIndicator")
+        .expect("locked row has a Retail lock image");
+    let locked_indicator = locked.get(locked_indicator_id).unwrap();
+    assert_eq!(
+        (
+            locked_indicator.width.value(),
+            locked_indicator.height.value()
+        ),
+        (12.0, 14.0)
     );
+    let Some(WidgetData::Texture(lock_image)) = &locked_indicator.widget_data else {
+        panic!("locked row image")
+    };
+    assert_eq!(lock_image.source, TextureSource::FileDataId(340_023));
+    assert_eq!(lock_image.tex_coords, [0.0, 0.71875, 0.0, 0.875]);
     let row_id = locked.get_by_name(row_name).unwrap();
     let (_, binding) = tooltip_owner(&locked, row_id).expect("locked row has a tooltip");
     let tooltip = GameTooltip::from_binding(binding, false, [0.0; 4]).unwrap();
