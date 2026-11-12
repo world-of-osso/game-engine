@@ -860,7 +860,7 @@ mod tests {
             bags: vec![BagContainerState {
                 bag_index: 0,
                 title: "Backpack".into(),
-                portrait_fdid: BACKPACK_PORTRAIT,
+                portrait_fdid: Some(BACKPACK_PORTRAIT),
                 slots: Vec::new(),
                 visible: true,
             }],

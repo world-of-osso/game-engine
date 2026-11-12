@@ -362,9 +362,10 @@ pub fn portrait_flat_chrome(
     (width, height): (f32, f32),
     (title, title_left): (&str, f32),
     close_action: &str,
+    layout: MetalTopLeft,
 ) -> Element {
     let mut elements = flat_background(prefix, (2.0, 20.0, width - 2.0, height - 3.0));
-    elements.extend(metal_border(prefix, width, height, MetalTopLeft::Portrait));
+    elements.extend(metal_border(prefix, width, height, layout));
     elements.extend(window_title(prefix, width, title, title_left));
     elements.extend(close_button(prefix, width, close_action));
     elements
@@ -475,19 +476,18 @@ pub(crate) fn metal_border(prefix: &str, width: f32, height: f32, layout: MetalT
             top: {-top},
         }
     };
-    if layout == MetalTopLeft::Portrait {
-        elements.extend(portrait_ring(prefix));
+    if let Some(atlas) = layout.ring_atlas() {
+        elements.extend(portrait_ring(prefix, atlas));
     }
     elements
 }
 
-/// NineSliceLayouts.lua:20 OVERLAY portrait corner. Keep it above the frame-level-500
+/// NineSliceLayouts.lua OVERLAY portrait corner. Keep it above the frame-level-500
 /// NineSlice, and above the level-400 portrait host, so neither can cover the gold rim.
-fn portrait_ring(prefix: &str) -> Element {
-    let art = read_active_atlas_art("UI-Frame-PortraitMetal-CornerTopLeft");
+fn portrait_ring(prefix: &str, atlas: &str) -> Element {
+    let art = read_active_atlas_art(atlas);
     let coords = art.tex_coords(1.0);
-    let region = resolve_region("UI-Frame-PortraitMetal-CornerTopLeft", thread_skin())
-        .expect("portrait metal corner atlas");
+    let region = resolve_region(atlas, thread_skin()).expect("portrait metal corner atlas");
     rsx! { texture {
         name: {DynName(format!("{prefix}PortraitRing"))},
         width: {region.width / 2.0},
