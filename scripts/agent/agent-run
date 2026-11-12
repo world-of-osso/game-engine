@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # Run a command inside the capped agents.slice, grouped per agent, so that
-#   systemctl --user stop agents-<name>.slice   stops everything one agent started
+#   systemctl --user stop agents-<normalized-name>.slice
+# stops one agent's work. `agent-run` maps characters other than letters, digits and `_` to `_`.
 #   systemctl --user stop agents.slice          stops everything every agent started
-# and the whole group never takes more than the slice's CPU/memory cap
+# The whole group never takes more than the slice's CPU/memory cap
 # (~/.config/systemd/user/agents.slice).
 #
 # Usage: scripts/agent/agent-run <agent-name> <command> [args...]
