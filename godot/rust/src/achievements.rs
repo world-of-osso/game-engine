@@ -96,6 +96,17 @@ impl GameClient {
         self.send_achievement_requests(requests)?;
         Ok(())
     }
+    fn toggle_achievement_statistics(&mut self) -> Result<(), FrameError> {
+        if self.account.achievements.visible && self.account.achievements.statistics {
+            self.close_achievements();
+            return Ok(());
+        }
+        if !self.account.achievements.visible {
+            self.toggle_achievements()?;
+        }
+        let requests = self.account.achievements.action("achievement:statistics");
+        self.send_achievement_requests(requests)
+    }
     pub(super) fn send_achievement_requests(
         &mut self,
         requests: Vec<QueryAchievementCatalog>,
@@ -133,11 +144,10 @@ impl GameClient {
         self.load_achievement_tracking()?;
         if self.account.session.gameplay_input_allowed() && self.keyboard_free() {
             let input = self.physical_input.gameplay_state(true);
-            if self
-                .client_options
-                .bindings
-                .is_just_pressed(InputAction::ToggleAchievements, &input)
-            {
+            let bindings = &self.client_options.bindings;
+            if bindings.is_just_pressed(InputAction::ToggleStatistics, &input) {
+                self.toggle_achievement_statistics()?;
+            } else if bindings.is_just_pressed(InputAction::ToggleAchievements, &input) {
                 self.toggle_achievements()?;
             }
         }

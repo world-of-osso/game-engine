@@ -1,3 +1,5 @@
+- [Native Calendar panel](systems/calendar-panel.md) — Forever-only CalendarFrame, server-snapshot filtering, dark other-month dates, full year label, and fresh private 3× proof with no world bleed.
+- [Calendar panel rendering](investigations/calendar-panel-rendering.md) — causes and fixes for day shading and title clipping; records the remaining edge-specific UV limit and before/after crops.
 - [Crowded combat FPS](investigations/crowd-combat-fps.md) — 40 geared warriors at the Stormwind dummies: Battle Shout ground kits froze the client 9-62 s. Query cuts, a drape cache, one copy per M2 LOS file, WMO batches once per column and worker-thread draping (kits hidden until draped) bring the Shout phase to 319-493 frames per 20 s with about 1-2 ms of main-thread draping per frame; output identical to master.
 - [Release FPS reprofile — 2026-11-11](investigations/release-fps-reprofile-2026-11-11.md) — standard Stormwind and Ruby profiles, top-five main-system costs, 25/25 byte parity; a trustworthy same-pose FPS A/B remains open.
 - [Dungeon camera below ADT](investigations/dungeon-camera-adt.md) — VERIFIED generic mesh-ray correction: Ruby's 15 yd Forever view is restored; outdoor terrain collision remains. Native camera tests pass17/17, core camera tests pass9/9, and debug/release checks have zero warnings.
@@ -268,7 +270,7 @@
 - [Expert housing sound events](systems/housing.md#expert-submode-sound-scheduling--implementation2026-10-15) — distinct source pointer/key kits, native nominal stream/mute properties and both-skin held-drag conservation; dummy driver excludes audible/full-audio parity.
 - [Trading Post menu sounds](systems/trading-post.md#menu-lifecycle-sounds--bounded-proof-october15) — source show/hide kits,15 exact70391 variants/gains; both-skin eight decoded native playback/lifecycle observations and inspected PNGs; canonical15-file closure verified; close pitch remains a named gap.
 
-- [Shared WowStyle1 caption centering](systems/menu-primitives.md#wowstyle1-caption-centering-2026-10-15) — native font-minimum adaptation, paired core attribute wiring and explicit one-line policy; both-skin AH/shared caption deltas0 and unchanged Filter/Style2 control pixels.
+- [Shared WowStyle1 caption alignment](systems/menu-primitives.md#wowstyle1-caption-source-region-alignment-2026-11-11) and [WowStyle2 Forever atlas audit](systems/menu-primitives.md#wowstyle2-forever-atlas-state-audit-2026-11-11) — VERIFIED: preview and full-GameClient Group Finder Type captions align to the source Text region; Forever set-1 c60 idle art matches the preview. The live proof covers one control, not whole-screen parity.
 
 - [IoC NPC attachment](systems/battlegrounds.md#ioc-npc-attachment--implementation2026-10-15) — native synthetic scene RED→GREEN plus real-UDP NPC identity/release; merged consumer gates pass; actual models/both-skin driving/fire remain open.
 
@@ -339,7 +341,7 @@
 
 - [Shared Retail menu primitives](systems/menu-primitives.md) — source dropdown/filter/reset/menu elements and measured NavBar; native decimal-alpha regression fixture and [bounded native menu order](systems/menu-primitives.md#native-menu-order-2026-10-18).
 
-- [Native follower dungeon Group Finder](systems/follower-dungeons.md) — source role/type/checkbox list, authoritative catalog and both-skin private native admission/five roles/14m follow; combat, camera/geometry/gear and whole-dungeon acceptance remain open.
+- [Native follower dungeon Group Finder](systems/follower-dungeons.md) — server-authoritative level eligibility, localized refusals, and prior both-skin Paladin admission proof; VERIFIED private level-10 Ruby queue naturally selected Warlock spec266 and retained four followers for271.258s. The server source/test evidence and private run ledger are linked from the page.
 
 - [Source-private summons](systems/toy-box.md#source-private-summon-proof-2026-10-12) — real two-peer owner-only UDP repair/public control and both-skin owner sign model/scale/natural expiry; census337 unchanged.
 
@@ -435,7 +437,7 @@
 
 - [Offline asset closure — round 4](systems/offline-asset-closure.md#round-4-local-fixed-point--verified-2026-10-10) — local fixed point, precise root/metadata residuals, authenticated no-clobber recovery and backed-up runtime-index regeneration; no no-install certificate. Historical round-3 dataset remains linked in the same page.
 - [M2 product shadowing](investigations/m2-product-shadowing.md) — authenticated character/equipment isolation; [terrain model579120/skin579121 collision](investigations/m2-product-shadowing.md#terrain-collision-reproduced-2026-10-21) proves flat Forever/Retail mixing persists outside that boundary.
-- [Offline asset closure](systems/offline-asset-closure.md) — full-catalog traversal and authenticated no-clobber extraction; [70338 recheck](systems/offline-asset-closure.md#recorded-gap-recovery--verified-2026-10-10) recovers seven bakes, vehicle7476985 and204 IV8 failures. Optional joins/no-install acceptance remain open.
+- [Offline asset closure](systems/offline-asset-closure.md) — full-catalog traversal and authenticated no-clobber extraction; starting kits follow native Retail/Forever source selection. [70338 recheck](systems/offline-asset-closure.md#recorded-gap-recovery--verified-2026-10-10) recovers seven bakes, vehicle7476985 and204 IV8 failures. Optional joins/no-install acceptance remain open.
 
 - [Zephras sky/minimap diagnosis](investigations/zephras-sky-minimap.md) — map2991 listfile-only tile loss and wrong M2 dual-crossfade; shader/tile RED/GREEN and inspected rebuilt private before/after; whole-day sky parity unclaimed.
 
@@ -537,7 +539,7 @@ Engine subsystems and how they work.
 - [merchant-frame](systems/merchant-frame.md) — Retail MerchantFrame on the server vendor, bag contents from InventorySnapshot/Delta, right-click buy/sell/buyback, Repair All; Godot port with right-click interact, NPC cursors, vendor split, owned UDP merchant-click proof, and native selected-character MerchantFrame-only placement
 - [professions-ui](systems/professions-ui.md) — VERIFIED in targeted tests: empty/learned ProfessionsBookFrame rows and ProfessionMicroButton availability; native DB2 crafting, owner snapshots and bag counts. UNVERIFIED: no live book screenshots; NPC/source not verified.
 - [quest-ui](systems/quest-ui.md) — native dialogue/log/tracker/markers and [WorldMap-owned dock](systems/quest-ui.md#native-quest-dock--2026-10-13); typed objective-progress notices and first-post-draw yellow-message proof; measured quest scrolling and offline clipping/input proof; live quest proof, Jasperlode ground and death recovery, unresolved historical Milly mirror failure, low-FPS input and transient-error capture
-- [spell-catalog](systems/spell-catalog.md) — background-loaded 12.1.0.69933 spell DB2 catalog, bincode cache under `data/cache/`, static description token rendering and its limits
+- [spell-catalog](systems/spell-catalog.md) — background-loaded active spell DB2 catalog, bincode cache under `data/cache/`, destination targeting, school AoE art, authored area radius and description tokens
 - [talents-ui](systems/talents-ui.md) — historical retired Bevy trait window; [Talents](systems/talents.md) owns current native behavior and layout.
 - [xp-bar](systems/xp-bar.md) — [XP HUD spec](../specs/xp-bar.md), existing owner-only state, Modern named atlases and Forever flat palette/top-centre placement
 - [forever-preset](systems/forever-preset.md) — FlareUI-inspired skin/layout preset, atlas set selection, player aura lane/offline capture, current global skin lifetime and per-character Edit Mode wiring.
@@ -660,7 +662,7 @@ Root cause analyses and debug findings.
 - [character-texture-compositing](investigations/character-texture-compositing.md) — Duplicate texture injection paths in char-select
 - [helmet-hide-rules](investigations/helmet-hide-rules.md) — HelmetGeosetData/Vis + ItemDisplayInfo.GeosetGroup for hair hiding
 - [editbox-focus-rendering](investigations/editbox-focus-rendering.md) — Nine-slice fill gap preventing clean focus state visuals
-- [target-circle-rendering](investigations/target-circle-rendering.md) — Procedural vs BLP-textured selection circle approaches
+- [target-circle-rendering](investigations/target-circle-rendering.md) — Unit selection circles and Retail AoE placement decals
 - [authored-skybox-black-output](investigations/authored-skybox-black-output.md) — authored cloud zero-opacity source and bounded original/native dark-phase RGB match; active-phase/coastal parity open, separate from ordinary InWorld procedural sky
 - [character-select-roster](investigations/character-select-roster.md) — ten/twelve-entry flex shrink, footer hit interception, data-backed names and native ScrollBox input ownership; both-skin offline proof.
 - [charselect-ground-patch-dark-terrain](investigations/charselect-ground-patch-dark-terrain.md) — corrected terrain normals and removed campsite workaround plane
@@ -684,7 +686,7 @@ External resources and asset lists.
 
 - [open-source-wow-clients](reference/open-source-wow-clients.md) — Clients, renderers, viewers, editors, format libraries
 - [test-assets](reference/test-assets.md) — Available local test files; [Zaralda fixture](reference/test-assets.md#zaralda-native-merchant-fixture-2026-10-01) historical 0/3; matched-protocol InWorld then binding fix/real torso pick; faction-0 AutoAttack observed, faction-35 native success observed; artifact gate116 scoped PASS, server SSOT for content/CLI proof
-- [keybindings](reference/keybindings.md) — Bindable actions vs fixed inputs, scope boundaries
+- [keybindings](reference/keybindings.md) — Rebindable actions, fixed inputs, and the 26-candidate Retail Interface audit; VERIFIED, CODE: 15 supported native mappings, 11 exclusions, verified defaults only
 - [audio-libraries](reference/audio-libraries.md) — Audio engines and spatial audio tools (AudioNimbus, etc.)
 
 - [TargetSelf Options rebind evidence](systems/godot-conversion.md#native-main-menu-boundary) — Test-only `685cbe83`, `target-binding-options/run1.log` exit 0; real Targeting capture F1 → T → F1, labels/canonical ownership, inactive old keys, same-player ring/TargetFrame and cleanup. Prior helpers/full Menu UDP/Exit pass; unchanged compiled `mb61bqgcj2`, no new Depot/production change. Independent gate accepted bounded saved-runtime/source PASS (eight PASS messages, not eight framework cases); no all-bindings/conflict/server-ack/movement-rebind/fresh-process acceptance.
@@ -693,7 +695,7 @@ External resources and asset lists.
 
 [SettingsReload](systems/godot-conversion.md#native-settingsreload--bounded-two-process-proof): accepted independent bounded saved-artifact functional reload and scoped Rust formatting PASS; byte equality at observation boundaries, deliberate SIGKILL not normal shutdown. Partial/full conversion remains open; no all-options/geometry upgrade.
 
-[Standalone bag tooltip checkpoint](systems/godot-conversion.md#standalone-bag-item-tooltip--red-integration-proof-pending): native `ac7c16d7` + shared `0e41239a`, test `1c00b32a` + oracle `88b0505f`: MAIN-observed bounded GREEN with corrected runtime, CPU native5/shared4, registry2, same-build regressions and inspected Linen/Poor captures. Verifier1415 accepted bounded PASS after MAIN read the full report. Authentic RED101 retained; first GREEN attempt101 false oracle, not production failure; pure gear proof is not native gear hover. Prior bounded foreign gate and exclusions unchanged.
+[Standalone bag tooltip checkpoint](systems/godot-conversion.md#standalone-bag-item-tooltip--red-integration-proof-pending): native `ac7c16d7` + shared `0e41239a`, test `1c00b32a` + oracle `88b0505f`: MAIN-observed bounded GREEN with corrected runtime, CPU native5/shared4, registry2, same-build regressions and inspected Linen/Poor captures. Verifier1415 accepted bounded PASS after MAIN read the full report. Authentic RED101 retained; first GREEN attempt101 false oracle, not production failure; pure gear proof is not native gear hover. Prior bounded foreign gate and exclusions unchanged. See [Xvfb hover evidence](systems/godot-conversion.md#xvfb-bag-hover-harness-follow-up-2026-11-11). VERIFIED: Xvfb follow-up at 1920×1080 and 2560×1440 passes the full bags fixture after relative `root.push_input` replaces OS pointer warp; INFERRED: the prior tooltip failure was harness-only, not a client bug.
 
 - [Zaralda observed native success](investigations/npc-stance-gear.md#native-fixture-boundary-follow-up-evidence-date-2026-10-01) — saved exit0 interaction; source/import and renderer gates distinct; independent artifact gate116 scoped PASS, no whole-world PASS.
 

@@ -610,7 +610,7 @@ impl GameClient {
         self.world_map.display.quest_details = false;
     }
 
-    fn world_map_toggle_pressed(&self) -> bool {
+    fn world_map_binding_pressed(&self, action: InputAction) -> bool {
         let Some(viewport) = self.base().get_viewport() else {
             return false;
         };
@@ -618,9 +618,7 @@ impl GameClient {
             .gui_get_focus_owner()
             .is_some_and(|focus| focus.is_class("LineEdit") || focus.is_class("TextEdit"));
         let input = self.physical_input.gameplay_state(keyboard);
-        self.client_options
-            .bindings
-            .is_just_pressed(InputAction::ToggleWorldMap, &input)
+        self.client_options.bindings.is_just_pressed(action, &input)
     }
 
     /// Per frame: the toggle binding, frame actions, and the live view model. A map
@@ -647,7 +645,12 @@ impl GameClient {
         if self.game_menu_ui.is_some() {
             return Ok(None);
         }
-        if self.world_map_toggle_pressed() {
+        if self.world_map_binding_pressed(InputAction::ToggleWorldMapSize) {
+            self.world_map.display.maximized = !self.world_map.display.maximized;
+            self.world_map.drag = None;
+            self.world_map.hovered = None;
+        }
+        if self.world_map_binding_pressed(InputAction::ToggleWorldMap) {
             self.toggle_world_map()?;
         }
         let quest_action = self.poll_world_map_actions()?;

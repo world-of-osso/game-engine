@@ -45,6 +45,7 @@ const ALERT_NO_POINTS: AtlasArt = AtlasArt {
     ..ALERT_BACKGROUND
 };
 const STATISTIC_ROW_HEIGHT: f32 = 24.0;
+const STATISTICS_TAB_OFFSET: f32 = -5.0;
 const CRITERIA_AREA_LEFT: f32 = 80.0;
 const CRITERIA_AREA_WIDTH: f32 = 398.0;
 // Mainline AchievementProgressBarTemplate, XML510–569.
@@ -478,7 +479,9 @@ fn summary_achievement_row(entry: &AchievementCatalogEntry, y: f32) -> Element {
 }
 
 fn browse_controls(window: &AchievementWindow) -> Element {
-    use game_engine_ui_model::merchant_frame_component::{TabGeometry, TabLabel, tab, tab_width};
+    use game_engine_ui_model::merchant_frame_component::{
+        PANEL_TABS_ANCHOR_OFFSET, TabGeometry, TabLabel, next_panel_tab_left, tab, tab_width,
+    };
     let mut left = 17.0;
     let mut content = Vec::new();
     for (index, (name, title, action, selected)) in [
@@ -512,8 +515,13 @@ fn browse_controls(window: &AchievementWindow) -> Element {
             selected,
             action,
         ));
-        // PanelTemplates_AnchorTabs +3; AchievementFrame_SetTabs overrides Statistics−5.
-        left += width + if index == 0 { 3.0 } else { -5.0 };
+        // AchievementFrame_SetTabs overrides the shared +3 anchor for later tabs with -5.
+        let offset = if index == 0 {
+            PANEL_TABS_ANCHOR_OFFSET
+        } else {
+            STATISTICS_TAB_OFFSET
+        };
+        left = next_panel_tab_left(left, width, offset);
     }
     let search_left = header_filter_left(window) - HEADER_FILTER_SPACING - HEADER_SEARCH_WIDTH;
     content.extend(artwork::search_box(&window.search_text, search_left));

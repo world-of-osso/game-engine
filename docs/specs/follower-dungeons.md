@@ -2,10 +2,16 @@
 
 Server gameplay contract: [follower dungeons](../../../game-server/docs/specs/follower-dungeons.md).
 
-- Group Finder opens from `LFDMicroButton` into Retail Mainline `PVEFrame`/`LFDQueueFrame` follower mode. It requests the prepared server catalog, selects one authored entry and a tank/healer/damage role, and sends `QueueForLfg` on reliable `LfgChannel`. Unprepared entries are not invented or offered. The existing PvP tab remains available; Raid Finder and Premade Groups remain unavailable.
+- Group Finder opens through `MinimapLauncherButton` and `LauncherEntryLFDMicroButton` into Retail Mainline `PVEFrame`/`LFDQueueFrame` follower mode. It requests the prepared server catalog, selects one authored entry and a tank/healer/damage role, and sends `QueueForLfg` on reliable `LfgChannel`. Unprepared entries are not invented or offered. The existing PvP tab remains available; Raid Finder and Premade Groups remain unavailable.
 - The follower type dropdown, role icons/checks, source20px dungeon checkbox rows and ScrollBox/MinimalScrollBar use the same elements in Modern and Forever. Pending requests and active matches disable repeat admission; server refusals remain visible in the follower description and IPC status.
 - Native `lfg queue <role> <dungeon IDs>` retains the same selected-role transport for diagnostics. Difficulty205 selects a follower dungeon in the imported server catalog.
 - Queue-send acknowledgment is not server acceptance. `lfg status` exposes the latest authoritative snapshot, match roster and refusal; reconnect clears stale state.
+## Server-authoritative eligibility
+
+- [x] The client displays entries from the server catalog and does not use local DB2 bounds or player level to hide, disable, or refuse a listed dungeon. It sends the selected catalog ID; the server checks eligibility before map transfer.
+- [x] Server refusal keys use Retail GlobalStrings in the Group Finder description and system chat.
+- [x] VERIFIED (private UDP 5996 on November 11, 2026): a level-10 Paladin queued Ruby Life Pools (dungeon2436, map2521) and entered instance2. Scene captures at 23:44:57.030 and 23:46:53.328 CST, 116.298 seconds apart, and party-frame captures at 23:44:57.602 and 23:46:54.048 CST, 116.446 seconds apart, show the Paladin with `Follower1`–`Follower4`. The private server log and captures are under `data/diagnostics/follower-join-fail-2026-11-11/private-run/`; this proof covers the selected party only.
+- [x] VERIFIED (private UDP 5996 on November 12, 2026): after three natural non-Warlock queues, Ruby Life Pools selected Warlock spec266 in instance5. Scene and party-frame captures at `2026-11-12T10:43:56Z` and `10:48:27Z`, 271.258 seconds apart, show the same four follower names and positions. The private evidence is under `data/diagnostics/follower-join-fail-2026-11-11/private-run-warlock-2026-11-12/`; this does not prove full dungeon movement or completion.
 - Existing LFG dequeue/role-check requests use the same transport. Completed follower admission is a running instance, not a human matchmaking queue entry.
 - Both Modern and Forever show the same replicated followers and existing party frames; no skin-specific gameplay or invented UI frames.
 - Local user-approved server workaround uses labelled-spec player spells and same-map Normal population/entrance; absent Rogue/DK/DH identities and full-rotation gaps remain explicit in the server contract.
@@ -22,9 +28,10 @@ Server gameplay contract: [follower dungeons](../../../game-server/docs/specs/fo
 ## Tests
 
 - `godot/tests/follower_layout_capture.gd` — native rendered Control rectangles from XML/Lua, all three tab anchors and parent clipping;1920×1080 Modern/Forever closed/open dropdown PNGs. `GODOT_FOLLOWER_LAYOUT_ASSERT=1` enables the geometry gate.
-- `ui-model/tests/follower_dungeons.rs` — real both-skin registry, sourced catalog selection, selected-role queue actions, pending/refusal/match state and absent/stale-catalog refusal.
+- `ui-model/tests/follower_dungeons.rs` — real Modern/Forever registries, server-catalog row visibility and queue action without local level filtering, localized gear-source and level-refusal descriptions, selected-role queue actions and pending/refusal/match state.
+- `godot/rust/src/chat_tests.rs::follower_refusals_are_localized_in_system_chat` — level and gear-source refusal keys become localized system lines.
 - `network/src/wire_tests.rs::follower_group_finder_default_bridge_receives_catalog_over_udp` — default bridge, real loopback UDP catalog delivery.
-- `account_dungeonclient_tests.rs::follower_group_finder_account_dispatches_catalog_and_authoritative_state` — decoded catalog and LFG state reach the native host while IPC retains authoritative state.
+- `godot/rust/src/account_dungeonclient_tests.rs::follower_group_finder_account_dispatches_catalog_and_authoritative_state` — decoded catalog and refusal reach the native host while IPC retains authoritative state.
 - Private UDP5761 Group Finder admission now has both-skin proof: actual native microbutton/type/role/dungeon/Find Group clicks, authoritative five-member party and four companions following14m movement. [Exact proof and limits](../wiki/systems/follower-dungeons.md#both-skin-native-admission--2026-10-13). This does not prove combat, the walked route or dungeon completion.
 
 - `account_dungeonclient_tests.rs::follower_queue_native_account_retains_server_rejection_and_match_state` — actual decoded account traffic.

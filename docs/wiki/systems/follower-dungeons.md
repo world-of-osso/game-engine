@@ -6,6 +6,22 @@ Retail Mainline's `LFDMicroButton` opens the native follower-mode `PVEFrame`/`LF
 
 `QueryFollowerDungeons`/`FollowerDungeons` use reliable `LfgChannel`. Server publishes only imported difficulty205 entries with prepared population and an authored entrance. Client keeps IDs/names/maps from that snapshot; absent/stale choices cannot queue. `QueueForLfg` sends the selected role and single dungeon. `LfgStateUpdate` reaches both the native view and retained IPC status; initial request acknowledgment is not successful admission. Pending requests/active matches disable duplicate admission. Refusal clears pending and remains visible. Reconnect destroys the native view/catalog.
 
+## Server-authoritative level eligibility — 2026-11-12
+
+VERIFIED (server-combat tests at `e9b46e3f08` and engine UI-model tests at `0a473ee2`): the client lists and queues server-catalog entries without loading local level ranges; the server rejects out-of-range queue requests before map transfer. The parser reads signed LFG bounds and uses a valid squish pair when the LFG pair is invalid. The meaning of DB2 `TargetLevelMin/TargetLevelMax` as queue bounds remains INFERRED; see the [server contract](../../../../game-server/docs/specs/follower-dungeons.md#queue-level-eligibility).
+
+VERIFIED (engine UI-model 11/11 at `0a473ee2`, native account/chat 4/4 at `b8eeaf814`): Retail GlobalStrings localize level and unavailable-gear refusals in the Group Finder description and system chat. These tests do not prove a live admission.
+
+VERIFIED (private server log, UDP 5996, November 11, 2026): a level-10 Paladin entered Ruby Life Pools map2521 instance2. VERIFIED (same server log): the normal queue selected follower specs `[104, 264, 64, 254]`. VERIFIED (scene and party-frame captures): samples at 23:44:57.030/23:44:57.602 and 23:46:53.328/23:46:54.048 CST, 116.298/116.446 seconds apart, show `Fjpaladin` and `Follower1`–`Follower4` at the dungeon entrance. The private logs, proof ledger and captures are under `data/diagnostics/follower-join-fail-2026-11-11/private-run/`.
+
+VERIFIED (historical private server log): an earlier natural party selection with Warlock spec265 failed because pet entry417 resolved zero learned native summons and returned the character to map0. The server-side root cause and fix are recorded in the local [follower-data investigation](../../../../game-server-s1/docs/wiki/investigations/follower-data.md#level-10-warlock-native-pet-selection--2026-11-12).
+
+## Level-10 Warlock live proof — 2026-11-12
+
+VERIFIED (private server log, UDP5996): after three normal queues without a Warlock, the fourth naturally selected spec266 in Ruby Life Pools instance5 at difficulty205. The server spawned specs `[66,105,102,266]` without the earlier pet-entry failure. VERIFIED (scene/UI and client IPC): the same `Follower1`–`Follower4` positions and party frames appear in snapshots 271.258 seconds apart; `game-engine-cli ping` returned `pong` at the second sample. The [private run ledger](../../../data/diagnostics/follower-join-fail-2026-11-11/private-run-warlock-2026-11-12/proof-ledger.txt) contains revisions, hashes, queue seeds, captures and cleanup. This proves one naturally selected Warlock party, not other compositions, movement or dungeon completion.
+
+VERIFIED (server startup log): Fury spec72 was excluded once at level10 because the Journal source pool had no ItemSpec72-eligible one-handed pair. See the server [follower-data investigation](../../../../game-server-s1/docs/wiki/investigations/follower-data.md#level-10-warlock-native-pet-selection--2026-11-12) for the source and targeted-test evidence.
+
 ## Native frames
 
 `follower_dungeons_component.rs` constructs source role icons/checks, follower type dropdown, description,20px checkbox list, MinimalScrollBar and Find Group button. `RegistryUi` supplies actual input, skin resolution and existing HUD parent. `follower_dungeons.rs` hosts the screen, routes actions and catalog/state events, and retains the existing PvP tab. Raid Finder/Premade Groups are not implemented by this slice.
@@ -48,7 +64,8 @@ Initial private appearance snapshot lacked current `uses_display_geosets`; refre
 - Local `Blizzard_SharedXMLBase/TextureUtil.lua` — `UI-LFG-RoleIcon-*` atlas names.
 - Local `data/community-listfile.csv` — source quest-paper337492, blue-menu593918/593919/593917, role background517165, checkbox130755/check130751 and Group Finder art IDs.
 - [Contract](../../specs/follower-dungeons.md) — behavior and acceptance boundary.
-- [Server catalog](../../../../game-server/crates/server/src/lfg/follower_catalog.rs) — prepared source-backed entries.
+- [Server catalog](../../../../game-server/crates/server-combat/src/lfg/follower_catalog.rs) — prepared source-backed entries.
+- [Server level ranges](../../../../game-server/crates/server-combat/src/followers/catalog.rs) — signed LFG bounds, valid squish fallback and pre-transfer admission checks.
 
 ## See Also
 

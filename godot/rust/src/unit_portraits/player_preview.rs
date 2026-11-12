@@ -1,7 +1,10 @@
-//! Offline player slot using the production asynchronous portrait owner and real HD model.
+//! Offline player portrait fixtures using the production asynchronous owner and real HD model.
 use game_engine_network::replica::Replica;
+use game_engine_ui_model::character_frame::{
+    CharacterFrameView, MODE_TAB_PORTRAIT, PORTRAIT as CHARACTER_FRAME_PORTRAIT,
+};
 use game_engine_ui_model::inworld_unit_frames_component::{InWorldUnitFramesState, UnitFrameState};
-use godot::classes::{Node, ProjectSettings};
+use godot::classes::{Control, Node, ProjectSettings};
 use godot::prelude::*;
 use shared::components::{CharacterAppearance, EquipmentAppearance, Player};
 
@@ -14,23 +17,30 @@ struct PlayerPortraitFixture {
     base: Base<Node>,
     ui: Option<Gd<RegistryUi>>,
     world: WorldUnits,
-    portrait: Portrait,
+    player_frame_portrait: Portrait,
+    character_frame_portrait: Portrait,
+    character_tab_portrait: Portrait,
+    character_frame_mode: bool,
 }
 
 #[godot_api]
 impl INode for PlayerPortraitFixture {
     fn init(base: Base<Node>) -> Self {
-        let path = ProjectSettings::singleton().globalize_path("res://../data");
         Self {
             base,
             ui: None,
-            world: WorldUnits::new(std::path::PathBuf::from(path.to_string())),
-            portrait: Portrait::new(PLAYER_PORTRAIT),
+            world: WorldUnits::new(data_root_path()),
+            player_frame_portrait: Portrait::new(PLAYER_PORTRAIT),
+            character_frame_portrait: Portrait::new(CHARACTER_FRAME_PORTRAIT),
+            character_tab_portrait: Portrait::new(MODE_TAB_PORTRAIT),
+            character_frame_mode: false,
         }
     }
 
     fn exit_tree(&mut self) {
-        self.portrait.clear(&mut self.world);
+        self.player_frame_portrait.clear(&mut self.world);
+        self.character_frame_portrait.clear(&mut self.world);
+        self.character_tab_portrait.clear(&mut self.world);
         self.world.reset();
     }
 }
@@ -39,56 +49,113 @@ impl INode for PlayerPortraitFixture {
 impl PlayerPortraitFixture {
     #[func]
     fn initialize(&mut self, forever: bool) -> GString {
+        self.character_frame_mode = false;
         GString::from(
-            self.mount_player(forever)
+            self.mount_ui(forever, false)
                 .err()
                 .unwrap_or_default()
                 .as_str(),
         )
+    }
+
+    #[func]
+    fn initialize_character_tab(&mut self, forever: bool) -> GString {
+        self.character_frame_mode = true;
+        GString::from(
+            self.mount_ui(forever, true)
+                .err()
+                .unwrap_or_default()
+                .as_str(),
+        )
+    }
+
+    #[func]
+    fn attach_portraits_to_character_frame(&mut self, ui: Gd<RegistryUi>) -> GString {
+        if let Err(error) = game_engine_ui_model::paths::set_data_root(data_root_path()) {
+            return GString::from(error.as_str());
+        }
+        self.character_frame_mode = true;
+        self.ui = Some(ui);
+        GString::from("")
     }
 
     #[func]
     fn tick(&mut self) -> GString {
         self.world.attach_loaded_visuals(&Replica::default());
-        let host = self
-            .ui
-            .as_ref()
-            .and_then(|ui| ui.bind().frame_control(PLAYER_PORTRAIT.frame));
-        let player = Player {
-            name: "Buffcancel".into(),
-            race: 1,
-            class: 8,
-            appearance: CharacterAppearance::default(),
+        let result = if self.character_frame_mode {
+            self.sync_character_frame_portraits()
+        } else {
+            self.sync_player_frame_portrait()
         };
-        let appearance =
-            UnitAppearance::Player((&player).into(), EquipmentAppearance::default(), None);
-        GString::from(
-            self.portrait
-                .sync(&mut self.world, host, Some(appearance))
-                .err()
-                .unwrap_or_default()
-                .as_str(),
-        )
+        GString::from(result.err().unwrap_or_default().as_str())
     }
 
     #[func]
     fn portrait_state(&self) -> VarDictionary {
-        self.portrait.snapshot()
+        if self.character_frame_mode {
+            let mut state = self.character_tab_portrait.snapshot();
+            state.set(
+                "character_frame_model_ready",
+                self.character_frame_portrait.model_ready(),
+            );
+            state.set(
+                "character_tab_model_ready",
+                self.character_tab_portrait.model_ready(),
+            );
+            state
+        } else {
+            self.player_frame_portrait.snapshot()
+        }
+    }
+
+    #[func]
+    fn portrait_model_ready(&self) -> bool {
+        if self.character_frame_mode {
+            self.character_frame_portrait.model_ready() && self.character_tab_portrait.model_ready()
+        } else {
+            self.player_frame_portrait.model_ready()
+        }
     }
 
     /// Diagnostic control only, never used to satisfy the normal readiness oracle.
     #[func]
     fn redraw(&mut self) {
-        if let Some(scene) = self.portrait.scene.as_mut() {
-            scene.render_once();
+        if self.character_frame_mode {
+            render_portrait(&mut self.character_frame_portrait);
+            render_portrait(&mut self.character_tab_portrait);
+        } else {
+            render_portrait(&mut self.player_frame_portrait);
         }
     }
 }
 
 impl PlayerPortraitFixture {
-    fn mount_player(&mut self, forever: bool) -> Result<(), String> {
-        let path = ProjectSettings::singleton().globalize_path("res://../data");
-        game_engine_ui_model::paths::set_data_root(std::path::PathBuf::from(path.to_string()))?;
+    fn sync_player_frame_portrait(&mut self) -> Result<(), String> {
+        let host = self.frame_host(self.player_frame_portrait.slot.frame);
+        self.player_frame_portrait
+            .sync(&mut self.world, host, Some(player_appearance()))
+    }
+
+    fn sync_character_frame_portraits(&mut self) -> Result<(), String> {
+        let frame_host = self.frame_host(self.character_frame_portrait.slot.frame);
+        let tab_host = self.frame_host(self.character_tab_portrait.slot.frame);
+        self.character_frame_portrait.sync(
+            &mut self.world,
+            frame_host,
+            Some(player_appearance()),
+        )?;
+        self.character_tab_portrait
+            .sync(&mut self.world, tab_host, Some(player_appearance()))
+    }
+
+    fn frame_host(&self, frame: &'static str) -> Option<Gd<Control>> {
+        self.ui
+            .as_ref()
+            .and_then(|ui| ui.bind().frame_control(frame))
+    }
+
+    fn mount_ui(&mut self, forever: bool, character_frame: bool) -> Result<(), String> {
+        game_engine_ui_model::paths::set_data_root(data_root_path())?;
         let skin = if forever {
             ui_toolkit::atlas::ActiveSkin::Forever
         } else {
@@ -97,9 +164,38 @@ impl PlayerPortraitFixture {
         ui_toolkit::atlas::set_thread_skin(skin);
         let mut ui = RegistryUi::new_alloc();
         self.base_mut().add_child(&ui);
-        ui.bind_mut().show_unit_frames(player_frame())?;
+        if character_frame {
+            ui.bind_mut().set_ui_scale(1.0)?;
+            ui.bind_mut().show_character_frame(CharacterFrameView {
+                visible: true,
+                ..Default::default()
+            })?;
+        } else {
+            ui.bind_mut().show_unit_frames(player_frame())?;
+        }
         self.ui = Some(ui);
         Ok(())
+    }
+}
+
+fn data_root_path() -> std::path::PathBuf {
+    let path = ProjectSettings::singleton().globalize_path("res://../data");
+    std::path::PathBuf::from(path.to_string())
+}
+
+fn player_appearance() -> UnitAppearance {
+    let player = Player {
+        name: "Buffcancel".into(),
+        race: 1,
+        class: 8,
+        appearance: CharacterAppearance::default(),
+    };
+    UnitAppearance::Player((&player).into(), EquipmentAppearance::default(), None)
+}
+
+fn render_portrait(portrait: &mut Portrait) {
+    if let Some(scene) = portrait.scene.as_mut() {
+        scene.render_once();
     }
 }
 

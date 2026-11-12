@@ -1,5 +1,6 @@
 //! Native PvP queue, entry dialog, objective HUD and match score/results.
 use crate::{GameClient, frame_error::FrameError, ui::RegistryUi};
+use game_engine_core::input_bindings_data::InputAction;
 use game_engine_session::SessionScreen;
 use game_engine_ui_pvp::battleground::{PvpView, pvp_screen};
 use godot::prelude::*;
@@ -53,6 +54,7 @@ impl GameClient {
         if self.account.session.screen != SessionScreen::InWorld {
             return Ok(());
         }
+        self.apply_battleground_bindings()?;
         if let Some(mut ui) = self.battleground.ui.clone() {
             loop {
                 let action = ui.bind_mut().pop_action().to_string();
@@ -77,6 +79,31 @@ impl GameClient {
         self.sync_battleground()?;
         Ok(())
     }
+    fn apply_battleground_bindings(&mut self) -> Result<(), FrameError> {
+        if !self.account.session.gameplay_input_allowed() {
+            return Ok(());
+        }
+        if self.game_menu_ui.is_some() {
+            return Ok(());
+        }
+        if !self.keyboard_free() {
+            return Ok(());
+        }
+        let input = self.physical_input.gameplay_state(true);
+        let bindings = &self.client_options.bindings;
+        if bindings.is_just_pressed(InputAction::ToggleWorldStateScores, &input) {
+            if self.battleground.view.battleground().is_some() {
+                if !self.battleground.view.visible {
+                    self.toggle_pvp()?;
+                }
+                let _ = self.battleground.view.action("pvp:scoreboard");
+            }
+        } else if bindings.is_just_pressed(InputAction::ToggleCharacterPvp, &input) {
+            self.toggle_pvp()?;
+        }
+        Ok(())
+    }
+
     fn sync_battleground(&mut self) -> Result<(), String> {
         let scale = self.effective_ui_scale();
         let size = self

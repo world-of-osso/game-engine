@@ -7,6 +7,7 @@ User-approved2026-10-11: Retail Mainline Collections→Mounts in both skins; For
 - [x] List authentic Mount.db2 identities, selected details/source text, search, collected/not-collected and source filters; five capability-derived type categories and authored hidden/server-only flags. Tests assert filtering and readable vendor/zone/cost text. The fixed90px Retail Filter dropdown opens a content-fit shared menu; its authored ten-pixel spacer and row actions remain intact.
 - [x] Learn authentic mount items through normal UseItem, consuming one item atomically with ownership; duplicate learning preserves the item. No fabricated starter collection.
 - [x] Persist collection/favourites account-wide across characters/restarts; share changes only with the same account. Existing authentic spell-learning results grant account ownership.
+- [ ] Render the Retail spell-150544 icon button in the Mount Journal; drag it to an action-bar slot, retain that slot after relog, and summon an owned usable favorite when activated.
 - [x] Summon through normal spell/riding/area rules; dismount cancels the real aura. Random favourites use owned usable candidates, never fabricated display mounting; combat/unowned requests refuse.
 - [x] Import every local MountXDisplay appearance root into a new cache preserving all prior profiles/choices/geosets/coverage; reject conflicting rows/replacement. Extract missing assets from local CASC only.
 - [x] Both skins show the same Mainline703×606 shell/tab/list layout and a rotating authentic3D preview; native item learning, right-click favourite, summon/dismount/random, and alternate-character persistence must pass the privateUDP5901 fixture.
@@ -29,14 +30,17 @@ User-approved2026-10-11: Retail Mainline Collections→Mounts in both skins; For
 
 - `godot/ui-model/src/mount_journal.rs`, `mount_source.rs` — journal state, shared layout and source presentation.
 - `godot/rust/src/mount_journal.rs`, `mount_journal_snapshot.rs` — lifecycle, native input, detached preview and read-only observations.
+- `godot/ui-collections/src/mount_journal.rs`, `collections_component.rs` — Retail spell-150544 frame, icon button and Forever art.
+- `godot/rust/src/spells/assignment.rs`, `spells/action_bar.rs`, `tooltip_sources.rs` — random-mount drag assignment, action activation and tooltip.
 - `godot/rust/src/account.rs`, `godot/network/src/lib.rs` — authoritative catalog/request transport.
 - `scripts/import_mount_appearance.py` — strict read-only-base mount-root importer.
 - Server `mount_journal.rs`, `persistence_mounts.rs`; protocol `mount_messages.rs` — catalog, ordinary casting and account persistence.
 
 ## Tests asserting this spec
 
-- `godot/ui-model/tests/mount_journal.rs`.
-- `godot/tests/mount_journal_live.gd`, `mount_auction_live.gd`; both-skin paid vendor, native favourite/mount/random, alternate-character and two-account AH/mail/learn proofs.
+- `godot/ui-model/tests/mount_journal.rs`; `godot/ui-collections/tests/mount_journal.rs` — authored icon source, frame geometry and button art.
+- `godot/tests/mount_journal_live.gd`, `mount_auction_live.gd`; the live fixture asserts random-mount drag, action-bar activation, native favourite/mount/random and alternate-character persistence.
+- Server `crates/server-combat/src/class_progression_tests.rs` — action-bar storage and relog restoration.
 - `scripts/test_import_mount_appearance.py`.
 - Server `mount_journal_tests.rs`, `item_use_tests.rs`, `item_templates_tests.rs`, `persistence_mounts.rs`, `collection_tests.rs`.
 - Protocol `tests/mount_journal.rs`; existing server `auras/mount_tests.rs` owns flight/riding rules.

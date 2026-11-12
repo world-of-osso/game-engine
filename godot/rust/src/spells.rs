@@ -1,9 +1,9 @@
 //! Spellbook, main action bar and casting (docs/specs/spellbook-action-bar.md).
 //!
-//! The server owns known spells, the action bar and every cast: a bar button's bound key
-//! (`ACTIONBUTTON1..12` on 1..=, Action Bar 2/3 unbound by default) or a click on
-//! a bar button (or a known spell in the spellbook) send `SpellCastIntent` with
-//! the current target; `CastFailed` shows in UIErrorsFrame, `SpellCooldownUpdate`
+//! The server owns known spells, the action bar and every cast: ordinary spell actions
+//! send `SpellCastIntent` with the current target. Mount Journal spell 150544 routes to its
+//! existing collection request. Bar keys are `ACTIONBUTTON1..12` on 1..= (Action Bar 2/3
+//! unbound by default); `CastFailed` shows in UIErrorsFrame, `SpellCooldownUpdate`
 //! sweeps the buttons, the local player's replicated `CastState` fills the cast bar,
 //! and the caster's `CombatLogEvent` damage floats over the target.
 
@@ -67,9 +67,17 @@ pub(crate) struct SpellsHud {
     pub(crate) vigor_ui: Option<Gd<RegistryUi>>,
     cast_ui: Option<Gd<RegistryUi>>,
     book_ui: Option<Gd<RegistryUi>>,
+    prefetched_book_ui: Option<Gd<RegistryUi>>,
+    prefetched_book_key: Option<(u32, u32)>,
+    /// Frame that created the matching UI, so world entry waits one rendered loading frame.
+    prefetched_book_created_frame: Option<u64>,
+    /// Stops a failed local prewarm from repeating on each Loading frame.
+    talent_prewarm_attempted_key: Option<(u32, u32)>,
+    book_ui_talent_key: Option<(u32, u32)>,
     /// Exact last text handed to DisplayServer; diagnostics, not OS delivery proof.
     pub(crate) talent_export_clipboard: Option<String>,
     book_position: Option<[f32; 2]>,
+    book_position_applied: Option<[f32; 2]>,
     book_drag: Option<WindowDrag>,
     book: SpellbookFrameState,
     /// Last page whose textures were resolved; input mutates `book` before sync.
@@ -98,7 +106,8 @@ pub(crate) struct SpellsHud {
     ground: game_engine_ui_model::spell_targeting::GroundTarget,
     ground_toy: Option<u32>,
     item: game_engine_ui_model::spell_targeting::ItemTarget,
-    reticle: Option<Gd<godot::classes::MeshInstance3D>>,
+    reticle: Option<Gd<godot::classes::Decal>>,
+    reticle_valid: Option<bool>,
 }
 
 impl Default for SpellsHud {
@@ -110,8 +119,14 @@ impl Default for SpellsHud {
             vigor_ui: None,
             cast_ui: None,
             book_ui: None,
+            prefetched_book_ui: None,
+            prefetched_book_key: None,
+            prefetched_book_created_frame: None,
+            talent_prewarm_attempted_key: None,
+            book_ui_talent_key: None,
             talent_export_clipboard: None,
             book_position: None,
+            book_position_applied: None,
             book_drag: None,
             book: SpellbookFrameState::default(),
             book_art_state: None,
@@ -133,6 +148,7 @@ impl Default for SpellsHud {
             ground_toy: None,
             item: Default::default(),
             reticle: None,
+            reticle_valid: None,
         }
     }
 }
@@ -151,6 +167,7 @@ impl SpellsHud {
             &mut self.vigor_ui,
             &mut self.cast_ui,
             &mut self.book_ui,
+            &mut self.prefetched_book_ui,
             &mut self.cooldowns.ui,
         ] {
             if let Some(ui) = ui {
@@ -167,6 +184,24 @@ impl SpellsHud {
         }
     }
 
+    fn close_for_loading(&mut self) {
+        let prefetched_book_ui = self.prefetched_book_ui.take();
+        let prefetched_book_key = self.prefetched_book_key.take();
+        let prefetched_book_created_frame = self.prefetched_book_created_frame.take();
+        let talent_prewarm_attempted_key = self.talent_prewarm_attempted_key.take();
+        let book_art_state = self.book_art_state.take();
+        let book_position = self.book_position;
+        let book_position_applied = self.book_position_applied;
+        self.close();
+        self.prefetched_book_ui = prefetched_book_ui;
+        self.prefetched_book_key = prefetched_book_key;
+        self.prefetched_book_created_frame = prefetched_book_created_frame;
+        self.talent_prewarm_attempted_key = talent_prewarm_attempted_key;
+        self.book_art_state = book_art_state;
+        self.book_position = book_position;
+        self.book_position_applied = book_position_applied;
+    }
+
     fn close(&mut self) {
         self.cancel_ground_target();
         self.cooldowns.close();
@@ -175,6 +210,7 @@ impl SpellsHud {
             self.vigor_ui.take(),
             self.cast_ui.take(),
             self.book_ui.take(),
+            self.prefetched_book_ui.take(),
         ]
         .into_iter()
         .flatten()
@@ -191,7 +227,12 @@ impl SpellsHud {
         }
         self.held_cast_bindings.clear();
         self.book_position = None;
+        self.book_position_applied = None;
         self.book_drag = None;
+        self.prefetched_book_key = None;
+        self.prefetched_book_created_frame = None;
+        self.talent_prewarm_attempted_key = None;
+        self.book_ui_talent_key = None;
         self.book = SpellbookFrameState::default();
         self.book_art_state = None;
     }
@@ -273,6 +314,13 @@ impl GameClient {
     }
 
     fn drive_spells(&mut self, delta: f32) -> Result<(), FrameError> {
+        if self.account.session.screen == SessionScreen::Loading {
+            self.spells.close_for_loading();
+            if self.spellbook_player().is_some() {
+                self.spells.poll_catalog(&self.data_root);
+            }
+            return Ok(());
+        }
         if self.account.session.screen != SessionScreen::InWorld {
             self.spells.close();
             return Ok(());

@@ -7,6 +7,30 @@ VERIFIED: In the private 127.0.0.1:5998 run, Friendbeta saw Friendalpha in Frien
 VERIFIED: Raid Info was disabled with no saved-instance data, matching Retail's enable condition; the Raid Info window did not open.
 
 UNVERIFIED: AFK/DND and offline friend rows, and opening Raid Info with saved-instance data. See [[friends-who-snapshots]] and [[friends-frame]].
+## Retail Interface keybinding audit — 2026-11-11
+
+VERIFIED, SOURCE: The local Retail `Bindings_Standard.xml` supplies Interface action names, handlers and order, but no default key assignments. This host has no `DefaultBindings.wtf` in the Retail decompile or wow-ui-sim cache; account `bindings-cache.wtf` files are overrides.
+
+VERIFIED, PRIOR CAPTURE: the five defaults retained from the previous spec are U, Shift-Y, Shift-Space, J and Ctrl-I; other supported candidates stay unbound. The previous spec cites `~/Repos/worldofwhatever/DefaultBindings.wtf` for those values, but that path is absent on this host.
+
+VERIFIED, SOURCE: Retail `TOGGLECHARACTER4` calls `TogglePVPUI()` when available. VERIFIED, CODE: this checkout has a matching Housing Dashboard toggle, so that action is included despite the task's missing-panel example. The catalog contains 15 supported candidates and excludes 11 without matching native panels or operations. INFERRED, BEHAVIOR: `TOGGLEWORLDMAPSIZE` toggles the existing normal/maximized state because Retail's handler is a TODO.
+
+VERIFIED, TEST: the core input-binding suite passes 17/17, and the UI-model Interface-order/default test passes 1/1. VERIFIED, BUILD: the native extension and `native_input_fixture` build through `scripts/engine-build.py --fixture native_input_fixture`, exit 0.
+
+VERIFIED, FOREVER LIVE: the owned-UDP `keybinds` filter passes on `127.0.0.1:55974`. It checks U/Reputation, Shift-Y/Statistics, Ctrl-I/Group Finder, J/Guild, Shift-J/Adventure Guide, and a captured F7 binding that closes/reopens Minimap. It asserts the Forever UI skin; this does not claim the other keybind flow cases passed. VERIFIED, LIVE LOG: the same run logged unresolved negative-geoset rows and an excluded QuestPOIBlob, outside the binding assertions.
+## Native Calendar panel — 2026-11-12
+
+VERIFIED, CODE: `GameTimeFrame` opens the native CalendarFrame only in Forever; `CalendarStateUpdate` snapshots populate the local-date grid. No local holiday/event fallback or invented full-frame backdrop was added. The follow-up darkens other-month cells and raises the year plaque/label above the overlapping month art without changing their anchors.
+
+VERIFIED, TEST: The focused calendar integration filter passes 5/5 tests, including November 29–30 unchanged, December 1–12 shaded, and previous-month shading. Native dev and local release helper builds pass; `cargo fmt --all` passes.
+
+VERIFIED, LIVE: A fresh private client on UDP `127.0.0.1:5995` opened the panel, navigated November 2026 to December and back, closed it, and reopened it from `GameTimeFrame`. The final tree has 12 dark frames, 24 `CalendarShadows` textures, and no `EventBackground` frames. Client logs have no JS automation, authentication, or UI texture-load errors.
+
+VERIFIED, IMAGE: The fresh 3× header/grid capture shows no world bleed. The 4× crop shows November 29–30 normal and December 1–12 dark; the 8× crop shows all of `2026` at its XML anchor. Evidence is under `/syncthing/AgentShared/2026-11-12/calendar-panel/`. See [[calendar-panel-rendering]].
+
+VERIFIED, CLEANUP: The owned client and server stopped, and UDP port 5995 is free. The server used a private database copy under the engine target; no build or data write occurred in the game-server checkout.
+
+UNVERIFIED, LIVE: The final image contains no event title, so non-empty event rendering was not proven against a live server; the model test supplies a concrete `CalendarEventSnapshot`.
 
 ## Guild no-guild Communities display — 2026-11-11
 
@@ -23,12 +47,44 @@ GATE BLOCKED: The full native build records a transitive `libquickjs-sys` C warn
 
 UNVERIFIED: No live book screenshots; NPC/source not verified. The user directed that private-server provisioning stop, so no private server or client was started. See [[profession-micro-button-unavailable]].
 VERIFIED, CODE: The guild-only model previously rendered a row with an empty name when its profile was absent. It now routes `NotInGuild` to a finder presentation and omits the missing-profile row; the Forever-only integration filter passes 2/2 tests. VERIFIED, BUILD: debug and release extension builds exit0 with zero warnings, and `cargo fmt --all --check` passes. VERIFIED, CAPTURE: the native client renders the Forever offline `NotInGuild` fixture at `/syncthing/AgentShared/2026-11-11/guild-no-guild-state/forever-after.png`; it shows Guild Finder, Find a Community and Join or create a Community, with no guild row or roster. The supplied before image is `/syncthing/AgentShared/2026-11-11/guild-no-guild-state/forever-before.png`. This capture does not prove authenticated server state.
+## Bag hover Xvfb harness — 2026-11-11
+
+VERIFIED: The old X11 fixture warp left the target slot unhovered; relative `root.push_input` without `Input.warp_mouse` makes the full Forever bag fixture pass at 1920×1080 and 2560×1440. The direct pinned-Godot/Xvfb run exits0; its deliberate child kill is not normal-shutdown proof. INFERRED: the original tooltip failure was an Xvfb input-harness issue, not a client regression. See [[godot-conversion#xvfb-bag-hover-harness-follow-up-2026-11-11]] and persistent triage note `/home/osso/Projects/world-of-osso/game-engine/data/diagnostics/backpack-icon-gap-2026-11-11/xvfb-hover-triage-2026-11-11.txt`.
+## Ground spell targeting — 2026-11-11
+
+VERIFIED: Local 12.1 DB2 distinguishes cursor destinations through `SpellTargetRestrictions.Targets=64`; Consecration 26573 has `DEST_DEST`, range ID1 (Self Only), and no restriction row, while Flamestrike 2120 and DnD 43265 have the explicit destination flag. The native catalog now maps school masks to the sourced AoE `targetarea_*.blp` textures. See [[spell-catalog#ground-destination-and-aoe-decal--2026-11-11]] and [[target-circle-rendering#spell-ground-target-placement]].
+
+VERIFIED: Private Forever phases pass: Flamestrike 2120 proves green/red range tint and one-time placement; ordinary Consecration 26573 sends without opening the cursor. VERIFIED: The 3× review shows broad filled Fire art beside the user's thin-ring crop. UNVERIFIED: Exact visual parity, and private live behavior for Raging Consecration 50915; details are in [[target-circle-rendering#private-forever-proof--2026-11-11]].
+## WowStyle1 dropdown caption alignment — 2026-11-11
+
+INFERRED: The previous full-owner Label rectangle centered at y12.5, while Forever's authored 10px Text region centered at y13. VERIFIED: Commit `65168d644` aligns the shared native line box to the source-region center and preserves the one-line caption contract. VERIFIED: `ea6d3e4ff` removes a redundant vertical-justification attribute; MIDDLE is already the FontString default. VERIFIED: `3cdec84d7` names the source Text and Arrow insets without changing the geometry. VERIFIED: Current Quest Log source has no shared dropdown callsite. VERIFIED: Preview harness, targeted test and pre-merge debug/release builds passed. UNVERIFIED (as of November 11, 2026): Full GameClient Group Finder Type proof remained pending at that checkpoint. See [[menu-primitives#wowstyle1-caption-source-region-alignment-2026-11-11]].
+
+## WowStyle2 Forever idle atlas verification — 2026-11-11
+
+VERIFIED: The Forever preview's default Style2 background uses the set-1 c60 idle member (FDID8069112, crop144,85,39×39), not the gray Modern/set-0 crop. After the source's 12px side slices, both preview side borders match idle with zero RGB error; hover-1 and open are separate members. The component needs no idle-art fix. The 3× comparison and measurements are in `data/diagnostics/dropdown-valign-2026-11-11/live-client-group-finder/visual-review/`.
+
+## Full GameClient Group Finder Type capture — 2026-11-12
+
+VERIFIED: The lead-directed local master merge brought `9eef093da` into `dropdown-valign` without fetch or branch switch. The debug extension rebuild completed in 459.9 seconds with zero compiler warnings/errors.
+
+VERIFIED: On November 12, 2026 local time, the pinned full GameClient used the default `I` keybind against the private loopback server and opened Group Finder Type without changing the default Forever layout. The UI tree records the visible button at `(455,200,200,25)` and its caption region at `(463,201,166,24)`, centered at y=13 relative to the button top. The 1280×720 capture and inspected nearest-neighbour Retail comparison cover this control only, not whole-screen parity. See [[menu-primitives#full-gameclient-capture-2026-11-12]] and the run-local proof ledger under `data/diagnostics/dropdown-valign-2026-11-11/live-client-group-finder/`.
+
+## Follower-dungeon level authority — 2026-11-12
+
+VERIFIED: deployment seed tests3/3; server signed-bound test1/1, queue refusal/source tests2/2 and spawn-failure log test1/1; engine UI-model11/11 and account/chat4/4. These assert local-seed requirements, existing/absent runtime-file behavior, signed LFG bounds with squish fallback, pre-transfer level refusal, server-catalog selection and localized Group Finder/system-chat errors. INFERRED: `TargetLevelMin/TargetLevelMax` identify the intended queue bounds; the server contract records this boundary. VERIFIED (private UDP 5996 on November 11, 2026): the level-10 Paladin entered Ruby Life Pools map2521 instance2 and remained with `Follower1`–`Follower4` in scene captures 116.298 seconds apart and party-frame captures 116.446 seconds apart. VERIFIED (separate server log): a natural party selection with Warlock pet entry417 failed, returned to origin and exposed a separate spawn-data gap that remains unchanged. Exact logs, captures and scope are in [[follower-dungeons#server-authoritative-level-eligibility--2026-11-12]] and the private proof ledger under `data/diagnostics/follower-join-fail-2026-11-11/private-run/`.
+## SpellMisc spell lookup key — 2026-11-11
+
+VERIFIED: The random-mount icon used the SpellMisc row ID instead of its `SpellID` key; the engine constant and rendered-view test now use the Retail-resolved icon. See [[db2-format#installed-csv-column-order-and-signed-selections]].
+VERIFIED: deployment seed tests3/3; server signed-bound test1/1, queue refusal/source tests2/2 and spawn-failure log test1/1; engine UI-model11/11 and account/chat4/4. These assert local-seed requirements, existing/absent runtime-file behavior, signed LFG bounds with squish fallback, pre-transfer level refusal, server-catalog selection and localized Group Finder/system-chat errors. INFERRED: `TargetLevelMin/TargetLevelMax` identify the intended queue bounds; the server contract records this boundary. VERIFIED (private UDP 5996 on November 11, 2026): the level-10 Paladin entered Ruby Life Pools map2521 instance2 and remained with `Follower1`–`Follower4` in scene captures 116.298 seconds apart and party-frame captures 116.446 seconds apart. VERIFIED (private UDP5996 on November12, 2026): after three natural queues without a Warlock, the fourth selected spec266; the same four followers remained in scene/UI snapshots271.258 seconds apart and client IPC ping returned `pong`. The earlier spec265 pet417 failure is fixed; see the [server investigation](../../../game-server-s1/docs/wiki/investigations/follower-data.md#level-10-warlock-native-pet-selection--2026-11-12). Exact logs and captures are in `data/diagnostics/follower-join-fail-2026-11-11/private-run-warlock-2026-11-12/`; both live proofs cover only their selected parties, not full dungeon completion.
 
 ## Ruby emitter frustum cache — 2026-11-11
 
 VERIFIED: `TerrainObjects::update_particles` reuses doodad frustum admission when the exact plane list is unchanged; the bit-field fixture matches fresh AABB culling for 25 bounds across changed and unchanged views. Particle simulation and deferral still run each frame. See [[follower-combat-fps#emitter-frustum-admission-cache-2026-11-11]].
 
 UNVERIFIED: No paired A/B was run because the 1-minute `uptime` average was 14.56 at 13:21:18; no performance effect is claimed.
+## Starting-kit item source selection — 2026-11-11
+
+VERIFIED: `items: starting` now mirrors `NewCharacterKit` Purpose-9 source-build, RaceMask and TDB-override rules. The targeted player-source tests pass 5/5: a Zandalari Troll (race 31) Shaman's item 157655 reaches Retail FDID 464822, race 95 reaches Forever70205 FDID 464823, and wrong-source/build or wrong-mask rows stay out; the root-product tests pass 6/6, including unresolved bare item IDs. Code: `scripts/closure_seeds.py`, `scripts/closure_player_roots.py`; proof: `scripts/tests/test_closure_player_sources.py` and `scripts/tests/test_closure_root_products.py`.
 
 ## GameObject M2 receipt gate closed — 2026-11-11
 

@@ -647,7 +647,7 @@ fn forever_header(state: &MinimapClusterState, style: &ClusterStyle) -> Element 
     if let Some(art) = state.calendar_day.and_then(calendar_art) {
         let calendar_top =
             top + (FOREVER_HEADER_H - CALENDAR_SIZE[1]) / 2.0 + FOREVER_CALENDAR_DROP;
-        elements.extend(art_texture(
+        elements.extend(calendar_date_button(
             "GameTimeFrame".into(),
             art,
             [
@@ -659,6 +659,29 @@ fn forever_header(state: &MinimapClusterState, style: &ClusterStyle) -> Element 
         ));
     }
     elements
+}
+
+fn calendar_date_button(
+    name: String,
+    art: SheetArt,
+    [left, top, width, height]: [f32; 4],
+) -> Element {
+    let file_data_id = art.fdid.to_string();
+    let tex_coords = art.tex_coords();
+    rsx! {
+        button {
+            name: {DynName(name)},
+            width,
+            height,
+            onclick: crate::calendar_data::ACTION_TOGGLE,
+            button_default_skin: false,
+            button_fdid_up: {file_data_id.as_str()},
+            button_up_tex_coords: {tex_coords.as_str()},
+            pos_type: "absolute",
+            left,
+            top,
+        }
+    }
 }
 
 fn player_arrow([cx, cy]: [f32; 2]) -> Element {

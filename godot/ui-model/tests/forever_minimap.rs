@@ -269,7 +269,6 @@ fn forever_header_holds_the_zone_name_and_the_clock_at_its_top_right() {
     for name in [
         "MinimapClusterTrackingBackground",
         "MinimapClusterTrackingButton",
-        "GameTimeFrame",
     ] {
         assert_eq!(
             frame(&registry, name).widget_data,
@@ -282,6 +281,13 @@ fn forever_header_holds_the_zone_name_and_the_clock_at_its_top_right() {
         );
         assert!(!frame(&registry, name).hidden);
     }
+    let calendar_button = frame(&registry, "GameTimeFrame");
+    assert_eq!(calendar_button.onclick.as_deref(), Some("calendar:toggle"));
+    assert!(calendar_button.mouse_enabled);
+    assert!(
+        frame(&modern, "GameTimeFrame").onclick.is_none(),
+        "the CalendarFrame action is Forever-only"
+    );
     let text = |name: &str| match frame(&registry, name).widget_data.as_ref() {
         Some(WidgetData::FontString(text)) => text.clone(),
         other => panic!("{name}: {other:?}"),

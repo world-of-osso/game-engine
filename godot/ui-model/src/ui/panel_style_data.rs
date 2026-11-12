@@ -29,6 +29,8 @@ pub const METAL_FRAME_NO_PORTRAIT_PANEL_STYLE: &str = "metal_frame_no_portrait";
 pub enum MetalTopLeft {
     /// `ui-frame-portraitmetal-cornertopleft-2x` (8504): `PortraitFrameTemplate`.
     Portrait,
+    /// `ui-frame-portraitmetal-cornertopleftsmall` (`HeldBagLayout`).
+    HeldBag,
     /// `ui-frame-metal-cornertopleft-2x` (8501): `ButtonFrameTemplateNoPortrait`.
     Plain,
 }
@@ -37,7 +39,24 @@ impl MetalTopLeft {
     fn atlas(self) -> &'static str {
         match self {
             Self::Portrait => "UI-Frame-PortraitMetal-CornerTopLeft",
+            Self::HeldBag => "ui-frame-portraitmetal-cornertopleftsmall",
             Self::Plain => "UI-Frame-Metal-CornerTopLeft",
+        }
+    }
+
+    pub fn ring_atlas(self) -> Option<&'static str> {
+        match self {
+            Self::Portrait | Self::HeldBag => Some(self.atlas()),
+            Self::Plain => None,
+        }
+    }
+
+    /// Forever `ContainerFrameTemplate` uses `HeldBagLayout`; Modern keeps its existing
+    /// `PortraitFrameTemplate` corner.
+    pub fn container_frame() -> Self {
+        match thread_skin() {
+            ActiveSkin::Modern => Self::Portrait,
+            ActiveSkin::Forever => Self::HeldBag,
         }
     }
 
@@ -49,7 +68,7 @@ impl MetalTopLeft {
     /// (`Blizzard_SharedXML/Camelot/NineSliceLayoutOverrides.lua:2-25`).
     pub fn outset(self) -> [f32; 4] {
         let left = match self {
-            Self::Portrait => 13.0,
+            Self::Portrait | Self::HeldBag => 13.0,
             Self::Plain => 8.0,
         };
         match thread_skin() {
@@ -60,7 +79,7 @@ impl MetalTopLeft {
 
     pub fn style_name(self) -> &'static str {
         match self {
-            Self::Portrait => METAL_FRAME_PANEL_STYLE,
+            Self::Portrait | Self::HeldBag => METAL_FRAME_PANEL_STYLE,
             Self::Plain => METAL_FRAME_NO_PORTRAIT_PANEL_STYLE,
         }
     }

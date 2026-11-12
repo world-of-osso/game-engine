@@ -21,7 +21,9 @@ func run_audit() -> void:
 	var methods: Array[String] = []
 	for entry in inventory.get_method_list():
 		var method := String(entry.name)
-		if method.begins_with("show_") and entry.args.is_empty() and (method.ends_with("preview") or method in ["show_portrait_party", "show_forever_portrait_party", "show_login", "show_loading", "show_character_select", "show_character_create"]):
+		var forever_preview := method.begins_with("show_forever_") and method.ends_with("preview")
+		var forever_portrait_party := method == "show_forever_portrait_party"
+		if entry.args.is_empty() and (forever_preview or forever_portrait_party):
 			methods.append(method)
 	inventory.free()
 	methods.append_array(["show_launcher_candidate", "show_buttonfit_auction_preview"])

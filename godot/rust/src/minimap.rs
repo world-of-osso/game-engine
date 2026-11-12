@@ -19,6 +19,7 @@ use game_engine_core::minimap_data::{
     tint_quest_areas, zoom_in, zoom_out,
 };
 use game_engine_session::SessionScreen;
+use game_engine_ui_model::calendar_data::ACTION_TOGGLE as ACTION_TOGGLE_CALENDAR;
 use game_engine_ui_model::game_tooltip::GameTooltip;
 use game_engine_ui_model::game_tooltip::hud::zone_tooltip;
 use game_engine_ui_model::minimap::{
@@ -306,17 +307,49 @@ pub(crate) fn local_time() -> (u32, u32, u32) {
 }
 
 impl GameClient {
-    /// Per frame in world: quest-giver queries, frame actions, and the cluster view.
+    /// Per frame in world: minimap bindings, frame actions, and the cluster view.
     pub(super) fn update_minimap(&mut self) -> Result<(), FrameError> {
-        if self.account.session.screen != SessionScreen::InWorld
-            || !self.client_options.hud.show_minimap
-        {
+        if self.account.session.screen != SessionScreen::InWorld {
+            self.minimap.free_ui();
+            return Ok(());
+        }
+        self.apply_minimap_visibility_binding()?;
+        if !self.client_options.hud.show_minimap {
             self.minimap.free_ui();
             return Ok(());
         }
         self.apply_minimap_zoom_bindings();
         self.poll_minimap_actions()?;
         Ok(self.sync_minimap()?)
+    }
+
+    /// Retail `TOGGLEMINIMAP` controls the same persisted visibility setting as Options.
+    fn apply_minimap_visibility_binding(&mut self) -> Result<(), String> {
+        if self.game_menu_ui.is_some() {
+            return Ok(());
+        }
+        if !self.account.session.gameplay_input_allowed() {
+            return Ok(());
+        }
+        if !self.keyboard_free() {
+            return Ok(());
+        }
+        let input = self.physical_input.gameplay_state(true);
+        if !self
+            .client_options
+            .bindings
+            .is_just_pressed(InputAction::ToggleMinimap, &input)
+        {
+            return Ok(());
+        }
+        let mut options = self.client_options.clone();
+        options.hud.show_minimap = !options.hud.show_minimap;
+        game_engine_core::client_options_data::save_options_file_to_path(
+            &game_engine_core::client_options_data::options_path(),
+            &options,
+        )?;
+        self.client_options = options;
+        Ok(())
     }
 
     /// Retail `MINIMAPZOOMIN`/`MINIMAPZOOMOUT` (Bindings_Standard.xml:1378-1383).
@@ -341,6 +374,7 @@ impl GameClient {
             game_engine_ui_model::launcher::ACTION_OPEN => self.open_launcher()?,
             ACTION_ZOOM_IN => self.minimap.zoom = zoom_in(self.minimap.zoom),
             ACTION_ZOOM_OUT => self.minimap.zoom = zoom_out(self.minimap.zoom),
+            ACTION_TOGGLE_CALENDAR => self.toggle_calendar().map_err(|error| error.to_string())?,
             ACTION_TOGGLE_WORLD_MAP => {
                 // As the M binding: a map failure is reported and closes the map.
                 if let Err(error) = self.toggle_world_map() {

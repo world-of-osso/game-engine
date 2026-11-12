@@ -8,6 +8,7 @@ use ui_toolkit::rsx;
 use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 
+use crate::panel_style_data::MetalTopLeft;
 use crate::ui::screens::merchant_frame_component::{MoneyAlign, money};
 use crate::ui::screens::quest_art::{
     DynName, HIGHLIGHT_FONT_COLOR, named_atlas_texture, portrait_flat_chrome,
@@ -104,8 +105,9 @@ pub struct BagContainerState {
     pub bag_index: usize,
     pub title: String,
     /// `UpdateMiscellaneousFrames` (ContainerFrame.lua:823-829): the backpack's
-    /// [`BACKPACK_PORTRAIT`], another bag's item icon (`SetPortraitToBag`).
-    pub portrait_fdid: u32,
+    /// [`BACKPACK_PORTRAIT`], another bag's item icon (`SetPortraitToBag`), or `None` when
+    /// the bag has no equipped item portrait.
+    pub portrait_fdid: Option<u32>,
     pub slots: Vec<BagSlotState>,
     pub visible: bool,
 }
@@ -166,8 +168,16 @@ fn bag_container(bag: &BagContainerState, state: &BagFrameState) -> Element {
     let hide = !bag.visible;
     let prefix = format!("ContainerFrame{}", bag.bag_index);
     let close = format!("{ACTION_BAG_CLOSE_PREFIX}{}", bag.bag_index);
-    let mut children = portrait_flat_chrome(&prefix, size, (&bag.title, TITLE_LEFT), &close);
-    children.extend(portrait(&prefix, bag.portrait_fdid));
+    let mut children = portrait_flat_chrome(
+        &prefix,
+        size,
+        (&bag.title, TITLE_LEFT),
+        &close,
+        MetalTopLeft::container_frame(),
+    );
+    if let Some(fdid) = bag.portrait_fdid {
+        children.extend(portrait(&prefix, fdid));
+    }
     let backpack = bag.bag_index == 0;
     if backpack {
         children.extend(search_box(&state.search));

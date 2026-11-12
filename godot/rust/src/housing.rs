@@ -2,6 +2,7 @@
 use crate::replicated::UnitFields;
 use crate::{GameClient, frame_error::FrameError, ui::RegistryUi};
 use game_engine_core::housing::HousingCatalog;
+use game_engine_core::input_bindings_data::InputAction;
 use game_engine_session::SessionScreen;
 use game_engine_ui_housing::housing::{
     BulletinBoard, CollectionFilter, DashboardTab, HousingAuthority, HousingDashboard,
@@ -240,6 +241,19 @@ impl GameClient {
             self.housing.authority.clear();
             self.housing.decor.clear();
             return Ok(());
+        }
+        if self.account.session.gameplay_input_allowed()
+            && self.game_menu_ui.is_none()
+            && self.keyboard_free()
+        {
+            let input = self.physical_input.gameplay_state(true);
+            if self
+                .client_options
+                .bindings
+                .is_just_pressed(InputAction::ToggleHousingDashboard, &input)
+            {
+                self.toggle_housing()?;
+            }
         }
         self.sync_housing_layout()?;
         self.advance_housing_precision()?;

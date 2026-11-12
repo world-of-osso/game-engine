@@ -24,11 +24,11 @@ pub mod ui {
         pub(crate) use crate::screen_title;
         pub use crate::{
             auction_house_frame_component, bag_frame_component, bags_bar_component, bank_art,
-            bank_frame_component, buff_frame_component, compact_unit_frame_component,
-            cursor_item_component, default_button_atlas, friends_frame_component,
-            game_menu_component, group_frames_component, guild_bank_frame_component,
-            inworld_unit_frames_component, loot_frame_component, mail_frame_component,
-            menu_primitives, merchant_frame_component, minimal_scroll_bar,
+            bank_frame_component, buff_frame_component, calendar_frame_component,
+            compact_unit_frame_component, cursor_item_component, default_button_atlas,
+            friends_frame_component, game_menu_component, group_frames_component,
+            guild_bank_frame_component, inworld_unit_frames_component, loot_frame_component,
+            mail_frame_component, menu_primitives, merchant_frame_component, minimal_scroll_bar,
             objective_tracker_component, options_menu_active_sections, options_menu_component,
             options_menu_sections, quest_art, quest_frame_component, quest_log_frame_component,
             ready_check_frame_component, selection_debug_component, stack_split_frame_component,
@@ -280,6 +280,10 @@ pub mod loot_data;
 pub mod loot_frame_component;
 #[path = "loot_frame_data.rs"]
 pub mod loot_frame_data;
+
+pub mod calendar_data;
+#[path = "ui/screens/calendar_frame_component.rs"]
+pub mod calendar_frame_component;
 
 // Native CharacterFrame / paperdoll (docs/specs/character-frame.md).
 pub mod character_frame;

@@ -1,5 +1,8 @@
 extends SceneTree
 
+const PANEL_TAB_ANCHOR_GAP := 3.0
+const PANEL_TAB_HEIGHT := 32.0
+
 # Same native Group Finder projection as the live window; offline catalog snapshot.
 func _initialize() -> void:
 	call_deferred("capture")
@@ -43,7 +46,7 @@ func capture() -> void:
 				return
 			ui.queue_free()
 			await process_frame
-	print("PASS both-skin Group Finder capture at 1920x1080")
+	print("PASS Forever Group Finder capture at 1920x1080")
 	quit(0)
 
 # PVEFrame.xml + LFDFrame.xml values, observed after native Control layout.
@@ -104,8 +107,14 @@ func verify_xml_geometry(ui: Node) -> bool:
 	var first: Rect2 = tab1.get_global_rect()
 	var second: Rect2 = tab2.get_global_rect()
 	var third: Rect2 = tab3.get_global_rect()
-	if first.position != Vector2(119, 510) or first.size.y != 32 or second.position != Vector2(first.end.x - 16, first.position.y) or third.position != Vector2(second.end.x - 16, second.position.y):
-		push_error("PanelTabButtonTemplate BOTTOMLEFT19,-30 and LEFT-to-RIGHT -16 anchors differ")
+	if not first.position.is_equal_approx(Vector2(119, 510)) or first.size.y != PANEL_TAB_HEIGHT:
+		push_error("First PanelTabButtonTemplate must retain the PVEFrame XML anchor")
+		return false
+	if not second.position.is_equal_approx(Vector2(first.end.x + PANEL_TAB_ANCHOR_GAP, first.position.y)):
+		push_error("Second PanelTabButtonTemplate must anchor at previous RIGHT +3")
+		return false
+	if not third.position.is_equal_approx(Vector2(second.end.x + PANEL_TAB_ANCHOR_GAP, second.position.y)):
+		push_error("Third PanelTabButtonTemplate must anchor at previous RIGHT +3")
 		return false
 	return true
 

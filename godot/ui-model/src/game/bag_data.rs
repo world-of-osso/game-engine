@@ -159,8 +159,8 @@ pub fn stack_slot_in_catalog(
     )
 }
 
-/// `slot` with its item's icon, quality and name. While the catalog loads, the item
-/// has `INV_Misc_QuestionMark` and no name until `InventoryState::refresh_item_data`.
+/// `slot` with its local icon, quality and name. The compact icon index resolves at once;
+/// name and quality wait for `InventoryState::refresh_item_data`.
 fn with_item_data(slot: InventorySlot) -> InventorySlot {
     let catalog = crate::item_catalog::item_catalog_for(slot.definition_source);
     with_catalog_item_data(slot, catalog)
@@ -172,8 +172,7 @@ pub fn with_catalog_item_data(
 ) -> InventorySlot {
     let entry = catalog.and_then(|catalog| catalog.get(slot.item_id));
     InventorySlot {
-        icon_fdid: catalog
-            .and_then(|catalog| catalog.icon_fdid(slot.item_id))
+        icon_fdid: crate::item_icons::item_icon_fdid_for(slot.definition_source, slot.item_id)
             .unwrap_or(UNKNOWN_ICON_FDID),
         quality: entry.map_or(ItemQuality::Common, |entry| {
             ItemQuality::from_id(entry.quality)

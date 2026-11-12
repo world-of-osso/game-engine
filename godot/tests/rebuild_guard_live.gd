@@ -4,11 +4,15 @@ extends "res://tests/frame_benchmark.gd"
 ## server's live clock (no `set_world_minutes`, as the Windows receipt harness), holds the
 ## camera at BENCH_CAMERA_YAW, waits GUARD_SETTLE_S seconds (default 10) for the loading
 ## fade and late placements, then counts rebuilds over GUARD_SEGMENT_S seconds (default 10)
-## of idle frames. Fails when a rebuild_guard.gd category averages above its allowlist
+## of idle frames. GUARD_TALENTS=1 switches to Forever, opens N, and guards the talents panel.
+## Fails when a rebuild_guard.gd category averages above its allowlist
 ## budget, naming the category and its first call site. Stormwind's NPCs walk in and out
 ## of view: a window in which a unit visual entered the scene is not steady, so it is
 ## reported and measured again, up to GUARD_WINDOWS (default 3) windows. Run once per
 ## receipt pose (`game-server-admin set-position` while the character is offline).
+
+const ASSET_STARTUP_TIMEOUT_MS := 180000
+const SPEC_TIMEOUT_MS := 30000
 
 func run_test() -> void:
 	root.size = parse_resolution(OS.get_environment("BENCH_RESOLUTION"))
@@ -24,11 +28,20 @@ func run_test() -> void:
 	var windows := int(OS.get_environment("GUARD_WINDOWS")) if OS.get_environment("GUARD_WINDOWS") != "" else 3
 	client = load("res://scenes/client.tscn").instantiate()
 	root.add_child(client)
-	var error = client.connect_account(server, account, PASSWORD, false)
-	if error != "":
-		fail("Fixture connection: " + error)
-		return
-	if not await enter_world(character):
+	var talents := OS.get_environment("GUARD_TALENTS") == "1"
+	if talents:
+		if not await wait_for_startup_world(character):
+			return
+	else:
+		if not await wait_for_asset_startup():
+			return
+		var error = client.connect_account(server, account, PASSWORD, false)
+		if error != "":
+			fail("Fixture connection: " + error)
+			return
+		if not await enter_world(character):
+			return
+	if talents and not await open_talents_panel():
 		return
 	client.set_camera_orbit(yaw, PITCH, DISTANCE)
 	await create_timer(settle_s).timeout
@@ -63,3 +76,61 @@ func run_test() -> void:
 	print("FIXTURE REBUILD_GUARD_PASS")
 	client.free()
 	quit(0)
+
+func wait_for_startup_world(character: String) -> bool:
+	var deadline := Time.get_ticks_msec() + 900000
+	while Time.get_ticks_msec() < deadline:
+		await process_frame
+		var state: Dictionary = client.account_state()
+		if state.screen == "InWorld" and Readiness.is_ready(state) and state.local_player_position != null:
+			return true
+	fail("Startup did not enter a ready world: " + str(client.account_state()))
+	return false
+
+func wait_for_asset_startup() -> bool:
+	var deadline := Time.get_ticks_msec() + ASSET_STARTUP_TIMEOUT_MS
+	while Time.get_ticks_msec() < deadline and client.account_state().assets_starting:
+		await process_frame
+	if client.account_state().assets_starting:
+		fail("CASC asset startup did not finish within %d ms" % ASSET_STARTUP_TIMEOUT_MS)
+		return false
+	return true
+
+func open_talents_panel() -> bool:
+	var spec_id := int(OS.get_environment("GUARD_SPEC_ID"))
+	if spec_id > 0:
+		var specialization_error: String = client.set_specialization(spec_id)
+		if not specialization_error.is_empty():
+			fail("Could not request talents guard specialization: " + specialization_error)
+			return false
+		var deadline := Time.get_ticks_msec() + SPEC_TIMEOUT_MS
+		while Time.get_ticks_msec() < deadline and int(client.spells_state().spec) != spec_id:
+			await process_frame
+		if int(client.spells_state().spec) != spec_id:
+			fail("Server did not confirm talents guard specialization %d" % spec_id)
+			return false
+	var skin_error: String = client.preview_world_skin(true)
+	if not skin_error.is_empty() or client.account_state().ui_skin != "Forever":
+		fail("Could not select Forever for the talents guard: " + skin_error)
+		return false
+	client.set_world_minutes(WORLD_MINUTES)
+	push_key(KEY_N, true)
+	await process_frame
+	push_key(KEY_N, false)
+	var deadline := Time.get_ticks_msec() + 60000
+	while Time.get_ticks_msec() < deadline:
+		await process_frame
+		var book_ui := client.get_node_or_null("SpellBookUI")
+		if book_ui == null:
+			continue
+		var panel := book_ui.find_child("ClassTalentsFrame", true, false) as Control
+		if panel != null and panel.is_visible_in_tree():
+			var nodes := book_ui.find_children("TalentNode*", "Control", true, false)
+			if not nodes.is_empty():
+				await RenderingServer.frame_post_draw
+				push_key(KEY_N, false)
+				print("REBUILD_GUARD_PANEL talents ui_skin=Forever nodes=", nodes.size())
+				return true
+	push_key(KEY_N, false)
+	fail("N did not render the Forever talents panel")
+	return false

@@ -4,7 +4,7 @@ The Retail default key bindings in the Godot client. Actions, persisted tokens a
 
 Sources:
 - Binding actions: `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/Blizzard_FrameXML/Bindings_Standard.xml`.
-- Default keys: the client's built-in set, which the UI source does not ship. The reference is `~/Repos/worldofwhatever/DefaultBindings.wtf`, a non-Blizzard capture of the default `bind KEY ACTION` set.
+- Default keys: VERIFIED, SOURCE: `Bindings_Standard.xml` names actions and handlers but gives no default keys. VERIFIED, LOCAL SEARCH: this audit found no `DefaultBindings.wtf` in the Retail decompile or wow-ui-sim cache; account `bindings-cache.wtf` files are overrides, not defaults. The prior spec cited `~/Repos/worldofwhatever/DefaultBindings.wtf`; VERIFIED, LOCAL SEARCH: that path is not present on this host. Retain only defaults already recorded in this spec; leave other new actions unbound.
 
 ## What it must do
 
@@ -22,12 +22,25 @@ Sources:
 - [x] Pet bar: Ctrl-1..Ctrl-0 for `BONUSACTIONBUTTON1-10` (DefaultBindings.wtf:53-62, `BINDING_HEADER_ACTIONBAR`), listed in the Action Bar section; they press pet bar buttons only while it is shown, and Ctrl-N never presses `ACTIONBUTTONn` (Ctrl shadowing). Hotkeys show `c-1`..`c-0` (`CTRL_KEY_TEXT_ABBR`).
 - [x] Frames:
   - C character, P spellbook, L quest log, M world map;
+  - I `TOGGLEGROUPFINDER` toggles the native Group Finder; it follows Social and precedes Collections in the Interface list, and the LFDMicroButton tooltip uses the live binding (`Bindings_Standard.xml:1311-1313`).
+  - `TOGGLECHARACTER2` U opens/toggles Reputation; `TOGGLECURRENCY` (unbound) opens/toggles Currency. Both use existing Character tabs (`Bindings_Standard.xml:1228-1233`).
+  - `TOGGLECOOLDOWNVIEWERSETTINGS` (unbound) toggles the existing Cooldown Viewer Settings panel (`Bindings_Standard.xml:1247-1249`).
+  - `TOGGLESTATISTICS` Shift-Y opens/toggles the Statistics view in Achievements (`Bindings_Standard.xml:1256-1260`).
+  - `TOGGLEHOUSINGDASHBOARD` (unbound) toggles the existing Housing Dashboard (`Bindings_Standard.xml:1265-1267`).
+  - `TOGGLEWORLDMAPSIZE` (unbound) switches the existing map between its normal and maximized layouts. Retail's handler is currently a TODO (`Bindings_Standard.xml:1271-1273`); this mapping uses the existing native size state.
+  - `TOGGLEMINIMAP` (unbound) toggles the existing minimap visibility setting (`Bindings_Standard.xml:1274-1276`).
+  - `TOGGLEWORLDSTATESCORES` Shift-Space opens/toggles the native PvP scoreboard when match state is available (`Bindings_Standard.xml:1282-1284`).
+  - `TOGGLEGUILDTAB` J toggles the native Guild panel (`Bindings_Standard.xml:1286-1288`).
+  - Ctrl-I `TOGGLEDUNGEONSANDRAIDS` opens/toggles the native Group Finder (`Bindings_Standard.xml:1314-1316`).
+  - `TOGGLECHARACTER4` (unbound) toggles the native PvP panel (`Bindings_Standard.xml:1317-1323`).
+  - `TOGGLECOLLECTIONSMOUNTJOURNAL`, `TOGGLECOLLECTIONSPETJOURNAL`, and `TOGGLECOLLECTIONSTOYBOX` (unbound) toggle their matching native Collections panels (`Bindings_Standard.xml:1330-1343`).
   - Shift-P `TOGGLECOLLECTIONS` toggles the Collections owner, including its active journal tab (`Bindings_Standard.xml:1326-1330`). Assignable in Interface; the micro-menu tooltip uses the live binding.
   - Ctrl-R `TOGGLEFPS`;
   - Escape game menu and Enter, `/` and R chat. These five keys are fixed, not rebindable.
 - [x] Bags (:1203-1223):
   - B `OPENALLBAGS`;
   - Shift-B `TOGGLEBACKPACK`;
+  - `TOGGLEREAGENTBAG1` (unbound) calls `ToggleBag(5)`;
   - F8–F11 `TOGGLEBAG1-4`, which call `ToggleBag(4..1)`.
 - [x] Minimap: Num Pad + `MINIMAPZOOMIN` and Num Pad − `MINIMAPZOOMOUT` (:1378-1383).
 
@@ -48,14 +61,31 @@ Sources:
 - [x] Shared `MinimalScrollBar` controls (Options, quest detail and Reputation, both presets): track clicks above/below the thumb page by 95% of the visible content extent, clamped at the ends (`Blizzard_SharedXML/Shared/Scroll/ScrollBar.lua:122-132`). Holding an arrow steps immediately, then repeats after 0.5s and at 0.1s intervals; leaving pauses the timer and release stops it (`ScrollBar.lua:307-340`, `ScrollBar.xml:16-17`). End arrows are disabled and retain normal art desaturated (`ScrollBar.lua:237-239`, `MinimalScrollBar.lua:3-25`, `Blizzard_SharedXMLBase/ButtonStateBehavior.lua:111-127`). Hover/pressed art is excluded.
 - Code: `godot/ui-model/src/ui/screens/options_menu_scroll.rs` (the area as a ui-toolkit scroll list, position in `FrameRegistry::scroll_lists`), `godot/rust/src/ui/scroll_lists.rs` (wheel and thumb input), `RegistryModel::reset_options_scroll_for` (`godot/rust/src/ui/mod.rs`).
 
-### Blocked: no native frame
-These defaults are in the table, or Retail has them, but the Godot client has no frame for them yet:
-- `TOGGLETALENTS` N, `TOGGLEACHIEVEMENT` Y, `TOGGLESTATISTICS` Shift-Y, `TOGGLEPROFESSIONBOOK` K.
-- `TOGGLESOCIAL` O, `TOGGLEGUILDTAB` J, `TOGGLEENCOUNTERJOURNAL` Shift-J.
-- `TOGGLEGROUPFINDER` I, `TOGGLEDUNGEONSANDRAIDS` Ctrl-I.
-- `TOGGLEPETBOOK` Shift-I.
-- `TOGGLECHARACTER2` U (reputation), `TOGGLECHARACTER4` (pet tab).
-- `TOGGLEBATTLEFIELDMINIMAP` Shift-M, `TOGGLECHANNELPULLOUT` Shift-O, `TOGGLEWORLDSTATESCORES` Shift-Space, `TOGGLEGEARSETS` Shift-G.
+### Added Retail Interface candidates
+- [x] The native Interface catalog matches `Bindings_Standard.xml` source order, labels and verified defaults; the core test asserts all catalog rows.
+- [x] The Forever-only live flow verifies U/Reputation, Shift-Y/Statistics, Ctrl-I/Group Finder, J/Guild, Shift-J/Adventure Guide, and a custom F7 binding that closes and reopens Minimap.
+- [x] `TOGGLEREAGENTBAG1` is listed in Bags, unbound, and maps to container 5; the core test asserts the action metadata.
+
+VERIFIED, PRIOR CAPTURE: the five candidate defaults already recorded here are U (Reputation), Shift-Y (Statistics), Shift-Space (World State Scores), J (Guild), and Ctrl-I (Dungeons and Raids); the earlier spec cites `~/Repos/worldofwhatever/DefaultBindings.wtf` as their source.
+VERIFIED, SOURCE: Retail `TOGGLECHARACTER4` calls `TogglePVPUI()` when its availability checks pass; it is not a pet-tab binding.
+VERIFIED, CODE: Other supported dispatch routes are `TOGGLECURRENCY` to the Currency tab, `TOGGLECOOLDOWNVIEWERSETTINGS` to Cooldown Viewer Settings, `TOGGLEHOUSINGDASHBOARD` to Housing Dashboard, `TOGGLEWORLDMAPSIZE` to the native map size state, `TOGGLEWORLDSTATESCORES` to the scoreboard during a battleground, and the Mount Journal, Pet Journal and Toy Box actions to their existing panels.
+VERIFIED, CODE: This checkout has a matching Housing Dashboard toggle: `toggle_housing()` mounts `HousingDashboardUI`, while Retail `TOGGLEHOUSINGDASHBOARD` calls `HousingFramesUtil.ToggleHousingDashboard()`.
+INFERRED, BEHAVIOR: `TOGGLEWORLDMAPSIZE` uses the native normal/maximized map state because Retail's current handler is the TODO `-- MAPREFACTORTODO: Reimplement bind`.
+
+### Not added from the 26 candidate actions
+
+VERIFIED, SOURCE/CODE: The following 11 IDs have no matching native panel or operation in this checkout:
+- `TOGGLEPETBOOK`: the native Player Spells tabs have no Pet spellbook category.
+- `TOGGLEBATTLEFIELDMINIMAP`: there is no native Battlefield Map view.
+- `TOGGLEFRIENDSTAB`, `TOGGLEQUICKJOINTAB`, `TOGGLEWHOTAB`, `TOGGLECHATTAB`, and `TOGGLERAIDTAB`: the client has no matching Friends, Quick Join, Who, Channel, or Raid tabs.
+- `TOGGLETEXTTOSPEECH`: there is no native Text-to-Speech panel.
+- `TOGGLECOLLECTIONSHEIRLOOM`: there is no native Heirlooms journal tab.
+- `TOGGLECOLLECTIONSWARDROBE`: the Transmog service panel is not the Collections Journal's Appearances tab.
+- `TOGGLEGARRISONLANDINGPAGE`: there is no native Garrison landing page.
+
+### Other blocked Interface actions
+- `TOGGLESOCIAL` O: no matching native dispatcher; this existing catalog entry is outside the 26-action audit.
+- `TOGGLECHANNELPULLOUT` Shift-O and `TOGGLEGEARSETS` Shift-G: no matching native panels.
 
 ### Blocked: the native system lacks what the action needs
 - `TARGETPARTYMEMBER1-4` F2–F5 and `TARGETPARTYPET1-4`: native group frames have no unit-targeting path.
@@ -75,14 +105,16 @@ These are not changed here:
 - Insert/Delete pitch in Retail. The table uses Up/Down, which Retail binds to forward/back.
 - The mouse wheel zooms in Retail. The table zooms with Page Up/Down, which Retail binds to chat paging.
 - Z is `TOGGLESHEATH` in Retail. The table makes Z run toggle, which Retail puts on Num Pad /.
-- J is `TOGGLEGUILDTAB` in Retail, with the Adventure Guide on Shift-J. The table puts the Adventure Guide on J.
 
 ## Tests
 - `godot/rust/src/ui/options_keybindings_tests.rs`: left-click then Q binds Action Bar 2 Button 1 and the button reads "Q"; right-click at a button unbinds that action and a click on the label does nothing; Escape cancels listening with the bindings unchanged; S on Move Forward moves it from Move Backward, which reads "Not Bound", with "Action Move Backward is Now Unbound!"; the page's edits survive saving and reloading the options file.
 - `godot/rust/src/ui/scroll_lists_tests.rs`: Action Bar 2's last button scrolls into the area by wheel and its first out, the wheel stops at both ends; dragging the thumb to the bottom shows the last row; another page starts at its top; Sound has no scroll bar; on every page and section the shown rows stay inside the area at every position and the panel fits the canvas.
-- `godot/core/tests/input_bindings_data.rs`: the inventory, sections and defaults, the token grammar (including `NumpadAdd`/`NumpadSubtract`), Shift shadowing, Action Bar 2/3 actions unbound and persisted through the options file, and Retail hotkey text.
+- `godot/core/tests/input_bindings_data.rs` (`interface_catalog_matches_retail_source_order_and_defaults`): exact Interface order, candidate labels/defaults, and Reagent Bag metadata; the same file covers the remaining binding data contracts.
+- `godot/ui-model/tests/options_policy.rs` (`retail_interface_bindings_project_in_source_order_with_defaults`): the Interface model projects verified labels and defaults in source order.
+- `godot/tests/world_keybinds_flow.gd` (`native_input_fixture keybinds`): I opens/closes Group Finder; the Forever-only Retail-Interface filter checks U/Reputation, Shift-Y/Statistics, Ctrl-I/Group Finder, J/Guild, Shift-J/Adventure Guide, and binds F7 to Minimap before checking close/reopen behavior.
 - `godot/ui-model/tests/forever_action_bars.rs` (`extra_bar_bindings_press_their_slot_and_label_their_button`): a key on `MULTIACTIONBAR1BUTTON3` presses slot 63 and labels `MultiBarBottomLeftButton3`; Shift-1 and middle mouse on Action Bar 3; unbound buttons blank; 0 still presses main bar button 10 under Forever.
 - `godot/tests/world_keybinds_flow.gd` (`native_input_fixture keybinds`, owned UDP) presses real keys:
+  - I opens and closes the native Group Finder;
   - B, Shift-B and F8–F11 against bags 0/1/2/4;
   - Tab, Shift-Tab and F against the vendor, wolf and remote player;
   - Num Pad +/− against minimap zoom 0→1→2→1→0.

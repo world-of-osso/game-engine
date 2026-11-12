@@ -1,9 +1,11 @@
 extends "res://tests/world_ui_ownership_flow.gd"
 
 # native_input_fixture keybinds: physical key presses of the Retail default bag,
-# targeting and minimap zoom bindings, the world map tiled at three zones, and QuestFrame /
-# WorldMapBorderFrame raise-on-click over the MerchantFrame. Every check fails the run.
+# targeting, minimap zoom and Group Finder bindings, the world map tiled at three zones, and
+# QuestFrame / WorldMapBorderFrame raise-on-click over the MerchantFrame. Every check fails the run.
 # KEYBINDS_SHOTS=<dir> saves screenshots (needs GODOT_TEST_VISUAL=1).
+# GODOT_TEST_KEYBINDS_GROUP_FINDER_ONLY=1 isolates Group Finder from bag tests.
+# GODOT_TEST_KEYBINDS_RETAIL_INTERFACE_ONLY=1 runs the added Retail Interface bindings only.
 const KB_BAGS := [0, 1, 2, 4]
 const KB_MAP := "WorldMapUI"
 
@@ -24,45 +26,68 @@ func run_test() -> void:
 	print("FIXTURE KEYBINDS_LOADING")
 	if not await wait_world(kb_client):
 		return
+	if kb_client.account_state().get("ui_skin") != "Forever":
+		fail("keybinds requires the Forever UI skin")
+		return
 	print("FIXTURE KEYBINDS_READY")
 	if not await uo_wait(func(): return kb_client.merchant_state().bags.size() == 4 and kb_unit_id("Fixture Wolf") != -1, 15000):
 		fail("keybinds snapshot/wolf not applied: " + str(kb_client.merchant_state()))
 		return
-	if not await kb_bag_cases():
-		return
-	if not await kb_target_cases():
-		return
-	if not await kb_minimap_zoom_cases():
-		return
-	if not await kb_world_map_cases():
-		return
-	if not await kb_quest_raise_cases():
-		return
+	if OS.get_environment("GODOT_TEST_KEYBINDS_RETAIL_INTERFACE_ONLY") == "1":
+		if not await kb_retail_interface_dispatch_cases():
+			return
+	elif OS.get_environment("GODOT_TEST_KEYBINDS_GROUP_FINDER_ONLY") == "1":
+		if not await kb_follower_group_finder_cases():
+			return
+		if not await kb_interface_binding_capture():
+			return
+	else:
+		if not await kb_bag_cases():
+			return
+		if not await kb_target_cases():
+			return
+		if not await kb_minimap_zoom_cases():
+			return
+		if not await kb_world_map_cases():
+			return
+		if not await kb_follower_group_finder_cases():
+			return
+		if not await kb_interface_binding_capture():
+			return
+		if not await kb_quest_raise_cases():
+			return
 	print("FIXTURE KEYBINDS_DONE")
 	while true:
 		await process_frame
 
 # ---------- helpers ----------
 
-func kb_tap(code: Key, shift: bool = false) -> void:
+func kb_tap(code: Key, shift: bool = false, ctrl: bool = false) -> void:
 	if shift:
-		kb_key(KEY_SHIFT, true, true)
+		kb_key(KEY_SHIFT, true, true, false)
 		await process_frame
-	kb_key(code, true, shift)
+	if ctrl:
+		kb_key(KEY_CTRL, true, shift, true)
+		await process_frame
+	kb_key(code, true, shift, ctrl)
 	await process_frame
-	kb_key(code, false, shift)
+	kb_key(code, false, shift, ctrl)
 	await process_frame
+	if ctrl:
+		kb_key(KEY_CTRL, false, shift, false)
+		await process_frame
 	if shift:
-		kb_key(KEY_SHIFT, false, false)
+		kb_key(KEY_SHIFT, false, false, false)
 	for frame in range(4):
 		await process_frame
 
-func kb_key(code: Key, pressed: bool, shift: bool) -> void:
+func kb_key(code: Key, pressed: bool, shift: bool, ctrl: bool = false) -> void:
 	var event := InputEventKey.new()
 	event.keycode = code
 	event.physical_keycode = code
 	event.pressed = pressed
 	event.shift_pressed = shift
+	event.ctrl_pressed = ctrl
 	root.push_input(event, true)
 
 func kb_open_bags() -> Array:
@@ -291,6 +316,174 @@ func kb_world_map_cases() -> bool:
 	await kb_capture("worldmap-westfall.png")
 	await kb_tap(KEY_M)
 	return await uo_wait(func(): return kb_client.get_node_or_null(KB_MAP) == null, 5000) or fail_false("M did not close the world map")
+
+# ---------- Supported Retail Interface bindings ----------
+
+func kb_character_tab_is(tab: String, open: bool) -> bool:
+	var state: Dictionary = kb_client.character_frame_state()
+	return bool(state.get("open", false)) == open and str(state.get("tab", "")) == tab
+
+func kb_retail_interface_dispatch_cases() -> bool:
+	if not await uo_wait(func(): return not bool(kb_client.character_frame_state().open), 3000):
+		return fail_false("Character frame unexpectedly open before reputation binding")
+	await kb_tap(KEY_U)
+	if not await uo_wait(func(): return kb_character_tab_is("Reputation", true), 5000):
+		return fail_false("U did not open the Reputation tab")
+	await kb_tap(KEY_U)
+	if not await uo_wait(func(): return kb_character_tab_is("Reputation", false), 5000):
+		return fail_false("U did not close the Reputation tab")
+
+	await kb_tap(KEY_Y, true)
+	if not await uo_wait(func(): return kb_client.get_node_or_null("AchievementsUI") != null, 5000):
+		return fail_false("Shift-Y did not open the Statistics window")
+	var statistics_tab := uo_ctl(kb_client, "AchievementsUI", "AchievementTabStatistics") as BaseButton
+	if statistics_tab == null or not statistics_tab.disabled:
+		return fail_false("Shift-Y did not select the Statistics tab")
+	await kb_tap(KEY_Y, true)
+	if not await uo_wait(func(): return kb_client.get_node_or_null("AchievementsUI") == null, 5000):
+		return fail_false("Shift-Y did not close the Statistics window")
+
+	await kb_tap(KEY_I, false, true)
+	if not await uo_wait(func(): return kb_group_finder_visible(), 5000):
+		return fail_false("Ctrl-I did not open Dungeons and Raids")
+	await kb_tap(KEY_I, false, true)
+	if not await uo_wait(func(): return not kb_group_finder_visible(), 5000):
+		return fail_false("Ctrl-I did not close Dungeons and Raids")
+
+	await kb_tap(KEY_J)
+	if not await uo_wait(func(): return kb_client.get_node_or_null("GuildRanksUI") != null, 5000):
+		return fail_false("J did not open the Guild frame")
+	await kb_tap(KEY_J)
+	if not await uo_wait(func(): return kb_client.get_node_or_null("GuildRanksUI") == null, 5000):
+		return fail_false("J did not close the Guild frame")
+
+	await kb_tap(KEY_J, true)
+	if not await uo_wait(func(): return kb_client.get_node_or_null("AdventureGuideUI") != null, 5000):
+		return fail_false("Shift-J did not open the Adventure Guide")
+	await kb_tap(KEY_J, true)
+	if not await uo_wait(func(): return kb_client.get_node_or_null("AdventureGuideUI") == null, 5000):
+		return fail_false("Shift-J did not close the Adventure Guide")
+	if not await kb_minimap_binding_capture():
+		return false
+	print("PASS: RETAIL_INTERFACE Reputation, Statistics, Group Finder, Guild, Adventure Guide and Minimap bindings")
+	return true
+
+# ---------- Group Finder: TOGGLEGROUPFINDER I ----------
+
+func kb_group_finder_visible() -> bool:
+	var finder := kb_client.get_node_or_null("FollowerDungeonUI")
+	if finder == null:
+		return false
+	var frame := finder.find_child("PVEFrame", true, false) as Control
+	return frame != null and frame.is_visible_in_tree()
+
+func kb_follower_group_finder_cases() -> bool:
+	if kb_group_finder_visible():
+		return fail_false("Group Finder unexpectedly open before I")
+	await kb_tap(KEY_I)
+	if not await uo_wait(func(): return kb_group_finder_visible(), 5000):
+		return fail_false("I did not open the native Group Finder")
+	print("KEYBINDS GROUP_FINDER I opened PVEFrame")
+	await uo_settle(500)
+	# Move away from the micro menu to dismiss its tooltip in the screenshot.
+	mc_motion(Vector2(1800, 900), false)
+	await uo_settle(250)
+	await kb_capture("group-finder-opened-with-I.png")
+	await kb_tap(KEY_I)
+	if not await uo_wait(func(): return not kb_group_finder_visible(), 5000):
+		return fail_false("I did not close the native Group Finder")
+	print("KEYBINDS GROUP_FINDER I closed PVEFrame")
+	return true
+
+func kb_binding_row_visible_in_content(action: String) -> bool:
+	var content := uo_ctl(kb_client, "GameMenuUI", "OptionsContentScroll")
+	var row := uo_ctl(kb_client, "GameMenuUI", "KeybindingRow" + action)
+	return content != null and row != null and content.get_global_rect().encloses(row.get_global_rect())
+
+func kb_binding_text(action: String) -> String:
+	var binding := uo_ctl(kb_client, "GameMenuUI", "KeybindingButtonText" + action) as Label
+	return binding.text if binding != null else ""
+
+func kb_reveal_binding(action: String) -> bool:
+	var content := uo_ctl(kb_client, "GameMenuUI", "OptionsContentScroll")
+	if content == null:
+		return fail_false("Keybindings content scroll area is absent")
+	for _step in range(4):
+		if kb_binding_row_visible_in_content(action):
+			return true
+		var row := uo_ctl(kb_client, "GameMenuUI", "KeybindingRow" + action)
+		var scroll_up := row != null and row.get_global_rect().position.y < content.get_global_rect().position.y
+		var wheel := InputEventMouseButton.new()
+		wheel.position = content.get_global_rect().get_center()
+		wheel.button_index = MOUSE_BUTTON_WHEEL_UP if scroll_up else MOUSE_BUTTON_WHEEL_DOWN
+		wheel.pressed = true
+		root.push_input(wheel, true)
+		await process_frame
+		await process_frame
+	return kb_binding_row_visible_in_content(action) or fail_false("Binding row did not scroll into view: " + action)
+
+func kb_interface_binding_capture() -> bool:
+	await kb_tap(KEY_ESCAPE)
+	if not await uo_wait(func(): return uo_visible(uo_ctl(kb_client, "GameMenuUI", "MenuBtnOptions")), 6000):
+		return fail_false("Escape did not open the Game Menu")
+	await uo_click(uo_center(kb_client, "GameMenuUI", "MenuBtnOptions"))
+	if not await uo_wait(func(): return uo_visible(uo_ctl(kb_client, "GameMenuUI", "OptionsTabkeybindings")), 6000):
+		return fail_false("Options did not open from the Game Menu")
+	await uo_click(uo_center(kb_client, "GameMenuUI", "OptionsTabkeybindings"))
+	if not await uo_wait(func(): return uo_visible(uo_ctl(kb_client, "GameMenuUI", "KeybindingSectioninterfaceButton")), 6000):
+		return fail_false("Interface binding section is absent")
+	await uo_click(uo_center(kb_client, "GameMenuUI", "KeybindingSectioninterfaceButton"))
+	if not await kb_reveal_binding("toggle_group_finder"):
+		return false
+	var label := uo_ctl(kb_client, "GameMenuUI", "KeybindingLabeltoggle_group_finder") as Label
+	var binding := uo_ctl(kb_client, "GameMenuUI", "KeybindingButtonTexttoggle_group_finder") as Label
+	if label == null or binding == null or label.text != "Toggle Group Finder" or binding.text != "I":
+		return fail_false("Interface section expected Toggle Group Finder (I), got %s (%s)" % [label.text if label != null else "<missing>", binding.text if binding != null else "<missing>"])
+	await kb_capture("keybindings-interface-group-finder.png")
+	await kb_tap(KEY_ESCAPE)
+	if not await uo_wait(func(): return uo_visible(uo_ctl(kb_client, "GameMenuUI", "MenuBtnResume")), 5000):
+		return fail_false("Escape did not return from Options to the Game Menu")
+	await kb_tap(KEY_ESCAPE)
+	if not await uo_wait(func(): return kb_client.get_node_or_null("GameMenuUI") == null, 5000):
+		return fail_false("Escape did not close the Game Menu")
+	return true
+
+func kb_minimap_binding_capture() -> bool:
+	await kb_tap(KEY_ESCAPE)
+	if not await uo_wait(func(): return uo_visible(uo_ctl(kb_client, "GameMenuUI", "MenuBtnOptions")), 6000):
+		return fail_false("Escape did not open the Game Menu for the Minimap binding")
+	await uo_click(uo_center(kb_client, "GameMenuUI", "MenuBtnOptions"))
+	if not await uo_wait(func(): return uo_visible(uo_ctl(kb_client, "GameMenuUI", "OptionsTabkeybindings")), 6000):
+		return fail_false("Options did not open for the Minimap binding")
+	await uo_click(uo_center(kb_client, "GameMenuUI", "OptionsTabkeybindings"))
+	if not await uo_wait(func(): return uo_visible(uo_ctl(kb_client, "GameMenuUI", "KeybindingSectioninterfaceButton")), 6000):
+		return fail_false("Interface binding section is absent")
+	await uo_click(uo_center(kb_client, "GameMenuUI", "KeybindingSectioninterfaceButton"))
+	if not await kb_reveal_binding("toggle_minimap"):
+		return false
+	var label := uo_ctl(kb_client, "GameMenuUI", "KeybindingLabeltoggle_minimap") as Label
+	var binding := uo_ctl(kb_client, "GameMenuUI", "KeybindingButtonTexttoggle_minimap") as Label
+	if label == null or binding == null or label.text != "Minimap" or binding.text != "Not Bound":
+		return fail_false("Expected Minimap (Not Bound), got %s (%s)" % [label.text if label != null else "<missing>", binding.text if binding != null else "<missing>"])
+	await uo_click(uo_center(kb_client, "GameMenuUI", "KeybindingButtontoggle_minimap"))
+	await kb_tap(KEY_F7)
+	if not await uo_wait(func(): return kb_binding_text("toggle_minimap") == "F7", 5000):
+		return fail_false("F7 did not bind to Minimap")
+	await kb_tap(KEY_ESCAPE)
+	if not await uo_wait(func(): return uo_visible(uo_ctl(kb_client, "GameMenuUI", "MenuBtnResume")), 5000):
+		return fail_false("Escape did not return from Options after binding Minimap")
+	await kb_tap(KEY_ESCAPE)
+	if not await uo_wait(func(): return kb_client.get_node_or_null("GameMenuUI") == null, 5000):
+		return fail_false("Escape did not close the Game Menu after binding Minimap")
+	if not kb_client.minimap_state().open:
+		return fail_false("Minimap was not open before its custom binding")
+	await kb_tap(KEY_F7)
+	if not await uo_wait(func(): return not kb_client.minimap_state().open, 5000):
+		return fail_false("F7 did not close the Minimap")
+	await kb_tap(KEY_F7)
+	if not await uo_wait(func(): return kb_client.minimap_state().open, 5000):
+		return fail_false("F7 did not reopen the Minimap")
+	return true
 
 # ---------- QuestFrame / WorldMapBorderFrame raise-on-click (toplevel) ----------
 

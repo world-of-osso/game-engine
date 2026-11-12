@@ -542,16 +542,17 @@ class RawByteGraph:
             extra = {22: 3, 23: 6}.get(shader, 0)
             for offset in [12, 24, 36] + [40 + i * 4 for i in range(extra)]:
                 value = u32(row, offset)
-                if not value:
-                    continue
                 if names:
-                    self.named(
-                        string_at(names, value),
-                        "blp",
-                        f"WMO MOMT[{i}] field {offset}",
-                        fdid,
-                    )
-                else:
+                    # MOTX offset zero can name the first texture path.
+                    logical = string_at(names, value)
+                    if logical:
+                        self.named(
+                            logical,
+                            "blp",
+                            f"WMO MOMT[{i}] field {offset}",
+                            fdid,
+                        )
+                elif value:
                     self.add(value, "blp", f"WMO MOMT[{i}] field {offset}", fdid)
             if u32(row, 4) > 23:
                 self.issue(

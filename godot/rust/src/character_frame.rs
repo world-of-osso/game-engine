@@ -108,12 +108,13 @@ impl GameClient {
         }
         if self.game_menu_ui.is_none() && self.account.session.gameplay_input_allowed() {
             let input = self.physical_input.gameplay_state(self.keyboard_free());
-            if self
-                .client_options
-                .bindings
-                .is_just_pressed(InputAction::ToggleCharacter, &input)
-            {
+            let bindings = &self.client_options.bindings;
+            if bindings.is_just_pressed(InputAction::ToggleCharacter, &input) {
                 self.toggle_character_frame();
+            } else if bindings.is_just_pressed(InputAction::ToggleCharacterReputation, &input) {
+                self.toggle_character_tab(CharacterTab::Reputation);
+            } else if bindings.is_just_pressed(InputAction::ToggleCurrency, &input) {
+                self.toggle_character_tab(CharacterTab::Currency);
             }
         }
         self.sync_character_frame_ui()?;
@@ -137,7 +138,17 @@ impl GameClient {
 
     /// `CharacterFrame:ShowSubFrame` (CharacterFrame.lua:75-88) for a tab click: hiding
     /// the PaperDollFrame drops its model scene.
-    fn show_character_tab(&mut self, tab: CharacterTab) {
+    fn toggle_character_tab(&mut self, tab: CharacterTab) {
+        if self.character_frame.open && self.character_frame.tab == tab {
+            self.close_character_window();
+            return;
+        }
+        if self.show_character_tab(tab) {
+            self.character_frame.open = true;
+        }
+    }
+
+    fn show_character_tab(&mut self, tab: CharacterTab) -> bool {
         if tab == CharacterTab::Currency
             && !self
                 .account
@@ -145,10 +156,10 @@ impl GameClient {
                 .as_ref()
                 .is_some_and(|wallet| !wallet.entries.is_empty())
         {
-            return; // CharacterFrame.lua: ToggleTokenFrame refuses an undiscovered wallet.
+            return false; // CharacterFrame.lua: ToggleTokenFrame refuses an undiscovered wallet.
         }
         if self.character_frame.tab == tab {
-            return;
+            return true;
         }
         if let Some((id, _)) = self.character_frame.preview.pending.take() {
             self.world.cancel_detached_visual(id);
@@ -157,6 +168,7 @@ impl GameClient {
         self.character_frame.rotating = false;
         self.character_frame.tab = tab;
         self.character_frame.selected_reputation = None;
+        true
     }
 
     /// `CloseAllWindows` step: hides the frame. Returns whether it was open.

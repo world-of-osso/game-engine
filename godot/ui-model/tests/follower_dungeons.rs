@@ -3,7 +3,8 @@ use game_engine_ui_model::game_tooltip::GameTooltip;
 use shared::protocol::*;
 use ui_toolkit::{
     atlas::{ActiveSkin, set_thread_skin},
-    frame::WidgetData,
+    frame::{Dimension, WidgetData},
+    layout_values::Val,
     registry::FrameRegistry,
     screen::{Screen, SharedContext},
     tooltip::tooltip_owner,
@@ -12,6 +13,12 @@ use ui_toolkit::{
         texture::{BlendMode, TextureSource},
     },
 };
+
+const PVE_FRAME_WIDTH: f32 = 563.0;
+const PVE_TAB_LEFT: f32 = 19.0;
+const PVE_TAB_TOP: f32 = 426.0;
+const PANEL_TAB_HEIGHT: f32 = 32.0;
+const PANEL_TAB_ANCHOR_GAP: f32 = 3.0;
 
 fn catalog() -> FollowerDungeons {
     FollowerDungeons {
@@ -22,11 +29,14 @@ fn catalog() -> FollowerDungeons {
         }],
     }
 }
-fn render(view: View, skin: ActiveSkin) -> FrameRegistry {
+fn set_data_root() {
     game_engine_ui_model::paths::set_data_root(
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
     )
     .unwrap();
+}
+fn render(view: View, skin: ActiveSkin) -> FrameRegistry {
+    set_data_root();
     set_thread_skin(skin);
     let mut shared = SharedContext::new();
     shared.insert(skin);
@@ -349,6 +359,123 @@ fn follower_group_finder_both_skins_use_the_server_catalog_and_real_queue_action
     }
 }
 #[test]
+fn follower_group_finder_queues_entries_from_server_catalog_without_local_level_filter() {
+    let mut view = View {
+        visible: true,
+        ..Default::default()
+    };
+    view.receive_catalog(FollowerDungeons {
+        entries: vec![
+            FollowerDungeonEntry {
+                id: 2436,
+                name: "Ruby Life Pools".into(),
+                map_id: 2521,
+            },
+            FollowerDungeonEntry {
+                id: 2439,
+                name: "Brackenhide Hollow".into(),
+                map_id: 2520,
+            },
+        ],
+    });
+    assert_eq!(view.action("follower:select:2439"), None);
+    assert_eq!(view.selected, Some(2439));
+    assert_eq!(
+        view.action("follower:queue"),
+        Some(Action::Queue(QueueForLfg {
+            role: GroupRoleSnapshot::Damage,
+            dungeon_ids: vec![2439],
+        }))
+    );
+
+    let mut displayed = View {
+        visible: true,
+        ..Default::default()
+    };
+    displayed.receive_catalog(FollowerDungeons {
+        entries: vec![FollowerDungeonEntry {
+            id: 2439,
+            name: "Brackenhide Hollow".into(),
+            map_id: 2520,
+        }],
+    });
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let registry = render(displayed.clone(), skin);
+        assert_eq!(
+            button(&registry, "LFDQueueFrameFollowerDungeon2439").0,
+            ButtonState::Normal
+        );
+        assert!(
+            registry
+                .get_by_name("LFDQueueFrameFollowerDungeon2439CheckBox")
+                .is_some()
+        );
+        assert!(
+            registry
+                .get_by_name("LFDQueueFrameFollowerDungeon2439LockedIndicator")
+                .is_none()
+        );
+    }
+}
+
+#[test]
+fn follower_group_finder_localizes_unavailable_gear_source_error() {
+    set_data_root();
+    let mut view = View {
+        visible: true,
+        ..Default::default()
+    };
+    view.receive_catalog(catalog());
+    view.receive(LfgStateUpdate {
+        snapshot: None,
+        message: None,
+        error: Some("FOLLOWER_GEAR_SOURCE_UNAVAILABLE".into()),
+    });
+    let registry = render(view, ActiveSkin::Forever);
+    let description = registry
+        .get(
+            registry
+                .get_by_name("LFDQueueFrameFollowerDescription")
+                .unwrap(),
+        )
+        .unwrap();
+    let Some(WidgetData::FontString(description)) = &description.widget_data else {
+        panic!("follower error should remain visible in the Group Finder description");
+    };
+    assert_eq!(
+        description.text,
+        "You cannot enter. This instance is temporarily disabled."
+    );
+}
+
+#[test]
+fn follower_group_finder_localizes_server_level_refusal() {
+    set_data_root();
+    let mut view = View {
+        visible: true,
+        ..Default::default()
+    };
+    view.receive_catalog(catalog());
+    view.receive(LfgStateUpdate {
+        snapshot: None,
+        message: None,
+        error: Some("LFG_LOCKSTATUS_TOO_LOW_LEVEL".into()),
+    });
+    let registry = render(view, ActiveSkin::Forever);
+    let description = registry
+        .get(
+            registry
+                .get_by_name("LFDQueueFrameFollowerDescription")
+                .unwrap(),
+        )
+        .unwrap();
+    let Some(WidgetData::FontString(description)) = &description.widget_data else {
+        panic!("server level refusal should remain visible in the Group Finder description");
+    };
+    assert_eq!(description.text, "You must advance to a higher level.");
+}
+
+#[test]
 fn follower_group_finder_empty_catalog_and_stale_selection_cannot_queue() {
     let mut view = View {
         visible: true,
@@ -426,4 +553,56 @@ fn follower_group_finder_authoritative_match_stops_duplicate_queue_and_preserves
         .0,
         ButtonState::Disabled
     );
+}
+
+#[test]
+fn follower_group_finder_panel_tabs_measure_captions_and_follow_set_num_tabs_anchors() {
+    let registry = render(
+        View {
+            visible: true,
+            ..Default::default()
+        },
+        ActiveSkin::Forever,
+    );
+    let labels = ["Group Finder", "Player vs. Player", "Mythic+ Dungeons"];
+    let resize = game_engine_ui_model::merchant_frame_component::PanelTabResize {
+        max_width: Some((PVE_FRAME_WIDTH - PVE_TAB_LEFT) / labels.len() as f32),
+        ..Default::default()
+    };
+    let mut previous = None;
+    for (index, label) in labels.into_iter().enumerate() {
+        let name = format!("PVEFrameTab{}", index + 1);
+        let frame = registry
+            .get(registry.get_by_name(&name).expect(&name))
+            .unwrap();
+        let (Val::Px(left), Val::Px(top)) = (frame.position.left, frame.position.top) else {
+            panic!("{name} position is not in pixels");
+        };
+        let (Dimension::Fixed(width), Dimension::Fixed(height)) = (frame.width, frame.height)
+        else {
+            panic!("{name} size is not fixed");
+        };
+        let expected =
+            game_engine_ui_model::merchant_frame_component::resize_panel_tab(label, resize);
+        assert_eq!((width, height), (expected.width, PANEL_TAB_HEIGHT));
+        assert_eq!(top, PVE_TAB_TOP);
+        if let Some((previous_left, previous_width)) = previous {
+            assert_eq!(left, previous_left + previous_width + PANEL_TAB_ANCHOR_GAP);
+            assert!(left >= previous_left + previous_width, "tabs overlap");
+        } else {
+            assert_eq!(left, PVE_TAB_LEFT);
+        }
+        let text = registry
+            .get(registry.get_by_name(&format!("{name}Text")).unwrap())
+            .unwrap();
+        let (Val::Px(text_left), _) = (text.position.left, text.position.top) else {
+            panic!("{name} caption position is not in pixels");
+        };
+        let Dimension::Fixed(text_width) = text.width else {
+            panic!("{name} caption width is not fixed");
+        };
+        assert!(text_left >= 0.0);
+        assert!(text_left + text_width <= width);
+        previous = Some((left, width));
+    }
 }

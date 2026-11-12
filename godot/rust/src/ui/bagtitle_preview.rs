@@ -26,7 +26,7 @@ impl RegistryUi {
             .map(|(bag_index, title)| BagContainerState {
                 bag_index,
                 title: title.into(),
-                portrait_fdid: BACKPACK_PORTRAIT,
+                portrait_fdid: Some(BACKPACK_PORTRAIT),
                 slots: (0..16)
                     .map(|_| BagSlotState {
                         icon_fdid: 0,

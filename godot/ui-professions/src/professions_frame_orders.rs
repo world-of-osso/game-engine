@@ -6,7 +6,7 @@ use game_engine_ui_model::bank_art::{
 use game_engine_ui_model::menu_primitives::{
     DropdownButton, DropdownState, dropdown_button_with_state,
 };
-use game_engine_ui_model::merchant_frame_component::{tab, tab_width};
+use game_engine_ui_model::merchant_frame_component::{PanelTab, PanelTabResize, panel_tabs};
 use game_engine_ui_model::minimal_scroll_bar::{
     MinimalScrollBar, Unscrollable, pixel_geometry, scroll_list_attr,
 };
@@ -26,6 +26,8 @@ pub const ORDER_MONEY: MoneyBoxNames = MoneyBoxNames {
     copper: "CraftingOrderCopper",
 };
 pub const ORDER_SEARCH: &str = "CraftingOrderSearch";
+const ORDER_TAB_PADDING: f32 = 20.0;
+const ORDER_TAB_MIN_WIDTH: f32 = 70.0;
 
 pub(super) fn customer_screen(ctx: &SharedContext, view: &ProfessionView) -> Element {
     let mut children = window_chrome(
@@ -43,31 +45,42 @@ pub(super) fn customer_screen(ctx: &SharedContext, view: &ProfessionView) -> Ele
     } else {
         children.extend(order_list(ctx, view, 30.0, 90.0, 770.0, 410.0));
     }
-    // CustomerOrders.xml:67-77: BOTTOMLEFT(20,-28), then LEFT at Browse RIGHT(-10,0).
-    let browse_width = tab_width("Place Order");
-    // CustomerOrders.lua:123-138 selects the tab from the visible mode.
+    // CustomerOrders.xml:67-77: BOTTOMLEFT(20,-28). OnShow uses padding20 and min width70;
+    // SetNumTabs replaces the XML's -10 chain with the shared +3 anchor.
     let mine = !view.orders.creating;
-    children.extend(tab(
-        "CraftingOrdersBrowseTab",
-        "Place Order",
-        (20.0, 568.0 + 28.0 - 32.0, browse_width),
-        !mine,
-        if view.orders.pending {
-            ""
-        } else {
-            "profession:order:browse"
+    let browse_action = if view.orders.pending {
+        ""
+    } else {
+        "profession:order:browse"
+    };
+    let orders_action = if view.orders.pending {
+        ""
+    } else {
+        "profession:order:mine"
+    };
+    let tabs = [
+        PanelTab::new(
+            "CraftingOrdersBrowseTab",
+            "Place Order",
+            browse_action,
+            !mine,
+        ),
+        PanelTab::new(
+            "CraftingOrdersMyOrdersTab",
+            "My Orders",
+            orders_action,
+            mine,
+        ),
+    ];
+    children.extend(panel_tabs(
+        &tabs,
+        (20.0, 568.0 + 28.0 - 32.0),
+        PanelTabResize {
+            padding: ORDER_TAB_PADDING,
+            min_width: Some(ORDER_TAB_MIN_WIDTH),
+            ..PanelTabResize::default()
         },
-    ));
-    children.extend(tab(
-        "CraftingOrdersMyOrdersTab",
-        "My Orders",
-        (20.0 + browse_width - 10.0, 564.0, tab_width("My Orders")),
-        mine,
-        if view.orders.pending {
-            ""
-        } else {
-            "profession:order:mine"
-        },
+        ui_toolkit::tab_art::TabLayout::Panel,
     ));
     children.extend(form_menu(view));
     children.extend(text(

@@ -387,6 +387,7 @@ Commit `8cac2b03` first disabled only the FPS frame-time graph at startup in str
 - [[npc-motion-validation]] — revision-pinned world-picking and `--no-ui` policy evidence
 - [UI layout invalidation spec](../../specs/ui-layout-invalidation.md) — explicit geometry invalidation contract
 - [[quest-ui]] — native quest windows and low-FPS input/capture diagnostics
+- [[calendar-panel]] — Forever-only native CalendarFrame and server-snapshot display
 
 
 ## Historical raster FontString allocation — 2026-10-18

@@ -124,7 +124,7 @@ def seed_displays(graph, catalogs, displays):
 
 
 def seed_items(graph, catalogs, db, item_ids):
-    if graph.receipt_audit:
+    if graph.receipt_audit or (item_ids and isinstance(item_ids[0], dict)):
         from closure_root_products import seed_items as seed_sourced_items
 
         return seed_sourced_items(graph, item_ids)
@@ -147,10 +147,10 @@ def seed_item_displays(graph, catalogs, displays):
         )
 
         return seed_sourced_item_displays(graph, displays)
-    return seed_item_display_rows(graph, catalogs, displays)
+    return seed_item_display_rows_from_tables(graph, catalogs, displays)
 
 
-def seed_item_display_rows(graph, catalogs, displays):
+def seed_item_display_rows_from_tables(graph, catalogs, displays):
     info = catalogs.index("ItemDisplayInfo")
     model_rows = defaultdict(list)
     texture_rows = defaultdict(list)
@@ -397,27 +397,55 @@ def seed_game_objects(graph, catalogs, db, selector, tiles):
     return templates
 
 
-def starting_items(db, character):
-    race_bit = 1 << (character["race"] - 1)
+def starting_items(graph, catalogs, db, character):
+    from closure_player_roots import (
+        player_item_definition_source,
+        player_race_mask_bit,
+    )
+    from closure_root_products import ITEM_SOURCES, SOURCES
+
+    source = player_item_definition_source(character["race"])
+    product = ITEM_SOURCES[source]
+    forever = product == "wow_classic_beta"
+    race_bit = player_race_mask_bit(graph, catalogs, character["race"])
+    if race_bit is None:
+        return []
+    race_mask_low = 1 << race_bit if race_bit < 32 else 0
+    race_mask_high = 1 << (race_bit - 32) if race_bit >= 32 else 0
+    item_table = "skyborne_content_item" if forever else "content_item"
+    forever_build = SOURCES["wow_classic_beta"].removeprefix("db2/")
     items = [
         row[0]
         for row in db.execute(
-            "SELECT li.ItemID FROM character_loadout l JOIN character_loadout_item li ON li.CharacterLoadoutID=l.ID "
-            "JOIN content_item i ON i.ID=li.ItemID WHERE l.Purpose=9 AND l.ChrClassID=? "
-            "AND ((l.RaceMasks_0 & ?)!=0) ORDER BY l.ID,li.ID",
-            (character["class"], race_bit),
+            f"SELECT li.ItemID FROM character_loadout l "
+            f"JOIN character_loadout_item li ON li.CharacterLoadoutID=l.ID "
+            f"JOIN {item_table} i ON i.ID=li.ItemID "
+            "WHERE l.Purpose=9 AND l.ChrClassID=? "
+            "AND ((l.RaceMasks_0 & ?)!=0 OR (l.RaceMasks_1 & ?)!=0) "
+            "AND EXISTS (SELECT 1 FROM db2_row_source p "
+            "WHERE p.table_name='character_loadout' AND p.row_id=l.ID AND p.build=?)=? "
+            "ORDER BY l.ID,li.ID",
+            (
+                character["class"],
+                race_mask_low,
+                race_mask_high,
+                forever_build,
+                forever,
+            ),
         )
     ]
-    for row in db.execute(
-        "SELECT itemid,amount FROM tdb_playercreateinfo_item WHERE race IN (0,?) AND class IN (0,?) "
-        "AND itemid IN (SELECT ID FROM content_item) ORDER BY race,class,itemid",
-        (character["race"], character["class"]),
-    ):
-        if row[1] > 0:
-            items.append(row[0])
-        elif row[1] < 0:
-            items = [item for item in items if item != row[0]]
-    return sorted(set(items))
+    if not forever:
+        for row in db.execute(
+            "SELECT itemid,amount FROM tdb_playercreateinfo_item "
+            "WHERE race IN (0,?) AND class IN (0,?) "
+            "AND itemid IN (SELECT ID FROM content_item) ORDER BY race,class,itemid",
+            (character["race"], character["class"]),
+        ):
+            if row[1] > 0:
+                items.append(row[0])
+            elif row[1] < 0:
+                items = [item for item in items if item != row[0]]
+    return [(item, source) for item in sorted(set(items))]
 
 
 def human_warrior_spellbook(db, level):
@@ -752,17 +780,31 @@ def seed_catalogs(graph, world_path, config):
                 row[0] for row in db.execute("SELECT ID FROM content_item ORDER BY ID")
             ]
         elif items == "starting":
-            items = sorted(
-                {
-                    item
-                    for character in characters
-                    for item in starting_items(db, character)
-                }
-            )
+            item_sources = set()
+            for character in characters:
+                if "class" not in character:
+                    graph.issue(
+                        "missing_starting_item_class",
+                        f"starting items for race {character.get('race')}: class selection is required",
+                        character.get("race"),
+                    )
+                    continue
+                item_sources.update(
+                    starting_items(graph, catalogs, db, character)
+                )
+            items = [
+                {"id": item, "definition_source": source}
+                for item, source in sorted(item_sources)
+            ]
             graph.issue(
                 "world_loadout_source_identity",
                 "world.db lacks/does not validate per-row product receipts; loadout Purpose=9 union audited, not authenticated",
             )
+            if not graph.receipt_audit:
+                graph.issue(
+                    "world_item_display_source_identity",
+                    "RawByteGraph does not validate ItemModifiedAppearance/ItemAppearance source-table receipts; display traversal is candidate-only",
+                )
         spells = config["spells"]
         if spells == "all":
             spells = [

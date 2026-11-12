@@ -476,7 +476,7 @@ fn backpack_clear_click_clears_text_and_focus_in_both_presets() {
             bags: vec![BagContainerState {
                 bag_index: 0,
                 title: "Backpack".into(),
-                portrait_fdid: 133633,
+                portrait_fdid: Some(133633),
                 visible: true,
                 slots: vec![],
             }],

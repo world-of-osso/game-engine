@@ -340,7 +340,9 @@ impl FixtureConfig {
         let diagnostics = if screen == StartupScreen::Logout {
             std::env::temp_dir().join("game-engine-logout-config")
         } else {
-            root.join("data/diagnostics")
+            std::env::var_os("GODOT_TEST_CONFIG_ROOT")
+                .map(PathBuf::from)
+                .unwrap_or_else(|| root.join("data/diagnostics"))
         };
         fs::create_dir_all(&diagnostics).expect("create fixture diagnostics directory");
         let timestamp = SystemTime::now()
@@ -430,6 +432,7 @@ impl FixtureConfig {
         if !matches!(
             screen,
             StartupScreen::Menu
+                | StartupScreen::Keybinds
                 | StartupScreen::Loot
                 | StartupScreen::Bags
                 | StartupScreen::BagsActions
@@ -647,10 +650,14 @@ fn launch_godot(
             .env("XDG_CONFIG_HOME", &config.home)
             .env(
                 "XDG_DATA_HOME",
-                project
-                    .parent()
-                    .expect("Godot project root")
-                    .join("user-data"),
+                std::env::var_os("GODOT_TEST_USER_DATA_HOME")
+                    .map(PathBuf::from)
+                    .unwrap_or_else(|| {
+                        project
+                            .parent()
+                            .expect("Godot project root")
+                            .join("user-data")
+                    }),
             )
             .env("GODOT_TEST_SERVER", address.to_string())
             .env(
