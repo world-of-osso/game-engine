@@ -3711,6 +3711,11 @@ impl GameClient {
             global_wmo,
             objects,
         );
+        if readiness.complete
+            && let Err(error) = self.prewarm_spellbook_talents()
+        {
+            frame_error::report_once(&format!("Talent UI prewarm: {error}"));
+        }
         let delay_world_entry =
             readiness.complete && self.should_delay_world_entry_for_talent_ui(self.frame_id);
         let progress_percent = if delay_world_entry {

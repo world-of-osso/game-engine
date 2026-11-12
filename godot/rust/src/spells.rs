@@ -314,9 +314,6 @@ impl GameClient {
             self.spells.close_for_loading();
             if self.spellbook_player().is_some() {
                 self.spells.poll_catalog(&self.data_root);
-                if let Err(error) = self.prewarm_spellbook_talents() {
-                    report_once(&format!("Talent UI prewarm: {error}"));
-                }
             }
             return Ok(());
         }

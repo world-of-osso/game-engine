@@ -255,7 +255,7 @@ impl GameClient {
         game_engine_core::ui_layout_data::window_position(&path, character_id, "SpellBookRoot")
     }
 
-    pub(super) fn prewarm_spellbook_talents(&mut self) -> Result<(), String> {
+    pub(crate) fn prewarm_spellbook_talents(&mut self) -> Result<(), String> {
         if self.spells.book_ui.is_some() || self.spells.catalog().is_none() {
             return Ok(());
         }
