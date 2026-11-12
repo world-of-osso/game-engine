@@ -98,7 +98,8 @@ func dropdown_captions(view: String) -> Array:
 				{"name": "ClosedDropdown", "center": 13.0},
 				{"name": "OpenDropdown", "center": 13.0},
 				{"name": "FilterDropdown", "center": 10.0},
-				{"name": "Style2Dropdown", "center": 12.5},
+				# The 20px Text region needs a 2.5px top; Taffy rounds it to 3 at UI scale 1.
+				{"name": "Style2Dropdown", "center": 12.5, "line_center_tolerance": 0.5},
 			]
 		"group_finder":
 			return [{"name": "LFDQueueFrameTypeDropdown", "center": 13.0}]
@@ -148,7 +149,8 @@ func verify_caption(ui: Node, item: Dictionary) -> bool:
 	if not completion.require(caption.get_line_count() == 1, "Dropdown caption remains one line: " + item.name):
 		return false
 	print("DROPDOWN_LINE ", item.name, " text=", production_text, " font_height=", caption.get_theme_font("font").get_height(caption.get_theme_font_size("font_size")), " line_box_center=", line_box_center, " ink_center=", ink_center, " template_center=", expected_center)
-	var line_centered := absf(line_box_center - expected_center) <= 0.01
+	var line_tolerance := float(item.get("line_center_tolerance", 0.01))
+	var line_centered := absf(line_box_center - expected_center) <= line_tolerance
 	var glyphs_centered := absf(ink_center - expected_center) <= 2.0
 	return completion.require(line_centered and glyphs_centered, "Rendered caption line and glyphs follow Retail Text bounds: " + item.name)
 
