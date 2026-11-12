@@ -1,3 +1,19 @@
+## Guild no-guild Communities display — 2026-11-11
+
+VERIFIED, SOURCE: Retail and Forever select `GUILD_FINDER` with no subscribed clubs and no guild; that mode shows `CommunitiesList` and `GuildFinderFrame`, not the member roster. The source list adds finder/join entries by feature and account permissions, and invitation entries only from `C_Club` results.
+
+VERIFIED, CODE: The guild-only model previously rendered a row with an empty name when its profile was absent. It now routes `NotInGuild` to a finder presentation and omits the missing-profile row. The Forever-only integration filter passes 2/2 tests. Live screenshot and dev/release build gates remain pending.
+## Profession micro-button unavailable — 2026-11-11
+
+VERIFIED: Shipped engine source `3d8feea93` assigned `ProfessionMicroButton` the `SYSTEM_DISABLED` message. Engine commits `3a6dfaba8` through `aab84e3a4` add the separate native book, snapshot/DB2 rows and available micro-button. The empty/learned book tests pass 2/2, the micro-button test 1/1, the account snapshot test 1/1, and `cargo fmt --all -- --check` passes.
+
+VERIFIED: The native `--cli` build exited 0 and produced the extension and CLI. The exact `data/cache/professions.sqlite` path was absent before and after one exact-path unlink attempt (no file was removed).
+
+GATE BLOCKED: The full native build records a transitive `libquickjs-sys` C warning at generated `quickjs.c:27172` (`-Wdiscarded-qualifiers`); the required zero-warning gate is not met. No suppression or dependency patch was applied.
+
+UNVERIFIED: No live book screenshots; NPC/source not verified. The user directed that private-server provisioning stop, so no private server or client was started. See [[profession-micro-button-unavailable]].
+VERIFIED, CODE: The guild-only model previously rendered a row with an empty name when its profile was absent. It now routes `NotInGuild` to a finder presentation and omits the missing-profile row; the Forever-only integration filter passes 2/2 tests. VERIFIED, BUILD: debug and release extension builds exit0 with zero warnings, and `cargo fmt --all --check` passes. VERIFIED, CAPTURE: the native client renders the Forever offline `NotInGuild` fixture at `/syncthing/AgentShared/2026-11-11/guild-no-guild-state/forever-after.png`; it shows Guild Finder, Find a Community and Join or create a Community, with no guild row or roster. The supplied before image is `/syncthing/AgentShared/2026-11-11/guild-no-guild-state/forever-before.png`. This capture does not prove authenticated server state.
+
 ## Ruby emitter frustum cache — 2026-11-11
 
 VERIFIED: `TerrainObjects::update_particles` reuses doodad frustum admission when the exact plane list is unchanged; the bit-field fixture matches fresh AABB culling for 25 bounds across changed and unchanged views. Particle simulation and deferral still run each frame. See [[follower-combat-fps#emitter-frustum-admission-cache-2026-11-11]].

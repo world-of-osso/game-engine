@@ -87,9 +87,12 @@ Native profession recipe book and crafting window in `godot/ui-model` and `godot
 - [x] Show crafted item and reagents using DB2 names/icons and owned/needed counts summed across bags, not equipped items.
 - [x] Create sends the selected recipe's spell ID and positive u16 cast quantity on `ProfessionChannel`; Create All sends the available reagent-limited quantity. Missing reagents disable Create.
 - [x] Refresh bags and skill bar from authoritative inventory and profession updates; render Modern and Forever using native chrome and scroll lists. Real K and profession spellbook entry opening are live-proved.
+- [ ] K and ProfessionMicroButton open the 550×525 ProfessionsBookFrame and close it through the shared profession-panel lifecycle.
+- [x] An empty ProfessionSnapshot shows two primary-profession trainer hints and Cooking, Fishing and Archaeology empty rows; learned roots show their name, tier, rank, icon and opener. `godot/ui-professions/tests/professions_book.rs` asserts empty rows in Modern and Forever and learned Tailoring/Cooking rows in Forever.
 
 ### Native visual contract
 
+- ProfessionsBookFrame: centered 550×525 ButtonFrameTemplate with authored left/right book pages. Two 437×81 primary rows sit at (80,67) and 12 px below; three 437×46 secondary rows follow with the Retail 40/30 px gaps. Empty primary slots show First/Second Profession and the Retail trainer hint; empty secondary slots show Cooking, Fishing and Archaeology with their trainer hints. Learned rows show the profession, highest learned tier, rank, status bar and learned opener.
 - Recipe tree: 25-pixel collapsible category headers, 20-pixel plain recipe rows, 10-pixel indent, selection overlay and reagent-limited craftable count. No spell/category blue-swirl icons or red recipe buttons. Recipe names and craftable counts use neutral `PROFESSION_RECIPE_COLOR` (#e2dcd6), including selected rows. Difficulty comes from each recipe's existing trivial thresholds and learned line rank, conveyed only by high/medium/low skill-up icons; trivial or maximum-rank recipes have no icon.
 - Schematic: output item icon/ring and item name; 180×50 reagent cells, four per column with 5-pixel spacing. Each cell contains an item slot, item-quality border, adjacent "owned/needed Name" text, with no count on the icon. Missing quantities dim the entire count/name text to `DISABLED_REAGENT_COLOR` (#a0a0a0); sufficient quantities use white, without changing crafting eligibility.
 - Header/chrome: profession title, 453×18 textured rank bar at (280,40), rank/max text, 942×658 portrait metal frame, list at (5,72), schematic at (281,72). Search belongs inside the list. Create/Create All and quantity spinner belong at bottom right. Classic tier shows Recipes only; unsupported specialization/order systems remain absent.
@@ -134,7 +137,8 @@ Private Weston/Dozen rendering, no server. Local CASC supplied Tailoring portrai
 - `godot/ui-model/src/professions.rs` — recipe book state and crafting decisions.
 - `godot/ui-model/src/professions_tests.rs` — concrete snapshot, filtering, bags and request behavior.
 - `godot/ui-model/src/professions_catalog.rs` — pinned DB2 recipe metadata.
-- `godot/ui-model/src/professions_frame.rs` — skin-aware native scroll list and schematic.
+- `godot/ui-professions/src/professions_frame.rs` — skin-aware native scroll list, schematic and screen selection.
+- `godot/ui-professions/src/professions_book_frame.rs` — Retail book pages, empty hints and learned rows.
 - `godot/network/src/lib.rs` — owner snapshot relay.
 - `godot/network/src/professions_wire_tests.rs` — real UDP snapshot and craft request boundary.
 - `godot/rust/src/professions.rs` — native catalog/window/input host; inventory and skill refresh.
@@ -145,6 +149,8 @@ Private Weston/Dozen rendering, no server. Local CASC supplied Tailoring portrai
 - `godot/ui-model/src/professions_tests.rs` — eight passing cases: requested five behaviors, authoritative refresh, DB2 joins (including signed sentinel count) and both-skin controls.
 - `godot/network/src/professions_wire_tests.rs` — one passing real UDP snapshot/CraftRecipe request case.
 - `godot/rust/src/professions_account_tests.rs` — one passing Loading snapshot/skill refresh dispatch case.
+- `godot/ui-professions/tests/professions_book.rs` — no-profession empty state and learned primary/secondary projection.
+- `godot/ui-model/tests/micro_menu.rs` — ProfessionMicroButton availability and pushed state.
 - Live scripts/captures: canonical `data/professions-live-20261007/`, excluded from Git.
 
 ### Native proof ledger
