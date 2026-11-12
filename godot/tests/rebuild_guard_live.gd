@@ -120,9 +120,12 @@ func open_talents_panel() -> bool:
 	var deadline := Time.get_ticks_msec() + 60000
 	while Time.get_ticks_msec() < deadline:
 		await process_frame
-		var panel := client.find_child("ClassTalentsFrame", true, false) as Control
+		var book_ui := client.get_node_or_null("SpellBookUI")
+		if book_ui == null:
+			continue
+		var panel := book_ui.find_child("ClassTalentsFrame", true, false) as Control
 		if panel != null and panel.is_visible_in_tree():
-			var nodes := client.find_children("TalentNode*", "Control", true, false)
+			var nodes := book_ui.find_children("TalentNode*", "Control", true, false)
 			if not nodes.is_empty():
 				await RenderingServer.frame_post_draw
 				push_key(KEY_N, false)
