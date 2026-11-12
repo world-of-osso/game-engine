@@ -23,23 +23,24 @@ static ICON_CATALOG: OnceLock<Result<SourceItemIconCatalogs, String>> = OnceLock
 
 /// Load item icon tables before the full catalog's background `ItemSparse` parse.
 pub(crate) fn warm_item_icon_catalog() {
-    let _ = source_item_icon_catalog();
+    let _ = load_source_item_icon_catalog_once();
 }
 
-/// The item's Retail icon FileDataID, independent of the full item catalog.
+/// Read the Retail icon FileDataID, independent of the full item catalog.
 pub fn item_icon_fdid(item_id: u32) -> Option<u32> {
     item_icon_fdid_for(ItemDefinitionSource::Retail, item_id)
 }
 
+/// Read the source-local icon index, loading its DB2 tables once if it is not warm.
 pub fn item_icon_fdid_for(source: ItemDefinitionSource, item_id: u32) -> Option<u32> {
-    let catalog = source_item_icon_catalog()?;
+    let catalog = load_source_item_icon_catalog_once()?;
     match source {
         ItemDefinitionSource::Retail => catalog.retail.get(&item_id).copied(),
         ItemDefinitionSource::Forever70205 => catalog.forever.as_ref().ok()?.get(&item_id).copied(),
     }
 }
 
-fn source_item_icon_catalog() -> Option<&'static SourceItemIconCatalogs> {
+fn load_source_item_icon_catalog_once() -> Option<&'static SourceItemIconCatalogs> {
     ICON_CATALOG
         .get_or_init(|| {
             load_source_item_icon_catalog().map_err(|error| {
