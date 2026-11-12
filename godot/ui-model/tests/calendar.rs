@@ -8,6 +8,7 @@ use game_engine_ui_model::{
 };
 use shared::protocol::{CalendarEventSnapshot, CalendarSnapshot};
 use ui_toolkit::{
+    atlas::{ActiveSkin, set_thread_skin},
     frame::WidgetData,
     layout_values::Val,
     registry::FrameRegistry,
@@ -32,6 +33,7 @@ fn today_glow_uses_retail_anchor_and_additive_blending() {
         .unwrap();
     let mut shared = SharedContext::new();
     shared.insert(calendar.view().unwrap().unwrap());
+    set_thread_skin(ActiveSkin::Forever);
     let mut registry = FrameRegistry::new(1920.0, 1080.0);
     Screen::new(calendar_frame_screen).sync(&shared, &mut registry);
 
