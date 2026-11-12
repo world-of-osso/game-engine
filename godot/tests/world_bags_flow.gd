@@ -291,14 +291,14 @@ func hover_bag_slot(client: Node, slot: int) -> bool:
 		return false
 	var entered := [false]
 	control.mouse_entered.connect(func(): entered[0] = true, CONNECT_ONE_SHOT)
-	await move_tooltip_pointer(control, control.get_global_rect().get_center())
+	await move_tooltip_pointer(control.get_global_rect().get_center())
 	if not entered[0]:
 		var point := control.get_global_rect().get_center()
 		var local_point := control.get_global_transform().affine_inverse() * point
-		print("BAGS HOVER NOT ENTERED slot=", slot, " requested=", point, " viewport_mouse=", root.get_mouse_position(), " input_mouse=", Input.get_mouse_position(), " rect=", control.get_global_rect(), " local_point=", local_point, " hit=", control.has_point(local_point), " filter=", control.mouse_filter)
+		print("BAGS HOVER NOT ENTERED slot=", slot, " requested=", point, " viewport_mouse=", root.get_mouse_position(), " rect=", control.get_global_rect(), " local_point=", local_point, " hit=", control.has_point(local_point), " filter=", control.mouse_filter)
 	return true
 
-func move_tooltip_pointer(control: Control, point: Vector2) -> void:
+func move_tooltip_pointer(point: Vector2) -> void:
 	var previous := root.get_mouse_position()
 	var motion := InputEventMouseMotion.new()
 	motion.position = point
