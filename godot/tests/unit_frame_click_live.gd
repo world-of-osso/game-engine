@@ -2,7 +2,8 @@ extends SceneTree
 
 # Live Forever input proof: a player-frame click updates the selected unit,
 # TargetFrame and selection circle in the real client.
-const CHARACTER_WAIT_MS := 15000
+const CharacterSelectReveal = preload("res://tests/character_select_reveal.gd")
+const CHARACTER_WAIT_MS := 90000
 const WORLD_WAIT_MS := 120000
 const TARGET_WAIT_MS := 5000
 
@@ -38,19 +39,30 @@ func run_test() -> void:
 
 func enter_world() -> bool:
 	var deadline := Time.get_ticks_msec() + CHARACTER_WAIT_MS
+	var ui: Node
 	while Time.get_ticks_msec() < deadline:
 		await process_frame
 		var state: Dictionary = client.account_state()
-		if state.reply_received and state.screen == "CharacterSelect" and state.character_count > 0:
-			break
-	var ui := client.get_node_or_null("CharacterSelectUI")
+		if not state.reply_received or state.screen != "CharacterSelect" or state.character_count == 0 or state.assets_starting:
+			continue
+		ui = client.get_node_or_null("CharacterSelectUI")
+		if ui == null:
+			continue
+		if not await CharacterSelectReveal.wait_for_reveal(self, client, "CharCard_0", "", CHARACTER_WAIT_MS):
+			return reject("Character select did not reveal the first card: " + str(client.account_state()))
+		break
 	if ui == null:
-		return reject("No character select: " + str(client.account_state()))
+		return reject("Character select did not become ready: " + str(client.account_state()))
 	var card := roster_card(ui)
 	if card == null:
 		return reject("Roster has no " + character)
 	await click_control(card)
-	await click_control(ui.find_child("EnterWorld", true, false) as Control)
+	if not await CharacterSelectReveal.wait_for_reveal(self, client, "CharCard_0", character, CHARACTER_WAIT_MS):
+		return reject("Character selection did not reveal " + character + ": " + str(client.account_state()))
+	var enter := ui.find_child("EnterWorld", true, false) as Control
+	if enter == null or not enter.is_visible_in_tree():
+		return reject("Enter World is absent or hidden")
+	await click_control(enter)
 	deadline = Time.get_ticks_msec() + WORLD_WAIT_MS
 	while Time.get_ticks_msec() < deadline:
 		await process_frame
