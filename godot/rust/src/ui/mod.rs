@@ -1453,6 +1453,19 @@ impl RegistryUi {
         Ok(inputs.drain(..).collect())
     }
 
+    /// The Retail CalendarFrame uses the authored Calendar XML layout and source art.
+    pub(crate) fn show_calendar_frame(
+        &mut self,
+        view: game_engine_ui_model::calendar_data::CalendarView,
+    ) -> Result<(), String> {
+        self.toplevel = true;
+        self.show_viewport_screen(
+            view,
+            game_engine_ui_model::calendar_frame_component::calendar_frame_screen,
+            ScreenPostsetup::None,
+        )
+    }
+
     /// The Retail CharacterFrame; its clicks and releases queue as cursor inputs.
     pub(crate) fn show_character_frame(
         &mut self,

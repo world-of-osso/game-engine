@@ -31,6 +31,9 @@ mod creature_sound_tests {
 }
 
 #[cfg(test)]
+#[path = "account_calendar_tests.rs"]
+mod calendar_snapshot_tests;
+#[cfg(test)]
 #[path = "currency_account_tests.rs"]
 mod currency_snapshot_tests;
 #[cfg(test)]
@@ -218,6 +221,8 @@ pub enum AccountEvent {
     /// `ReputationStateUpdate`: faction standings (`UPDATE_FACTION`) or a refusal.
     Reputation(shared::protocol::ReputationStateUpdate),
     Currency(shared::protocol::CurrencyStateUpdate),
+    /// Authoritative scheduled events for the native CalendarFrame.
+    Calendar(shared::protocol::CalendarStateUpdate),
     /// The realm's game time (`SMSG_LOGIN_SET_TIME_SPEED`).
     GameTime(shared::protocol::LoginSetTimeSpeed),
     LoadTerrain(LoadTerrain),
@@ -1874,6 +1879,10 @@ impl Account {
                 self.currencies = Some(snapshot.clone());
             }
             output.push(AccountEvent::Currency(update));
+            return Ok(());
+        }
+        if message.is::<shared::protocol::CalendarStateUpdate>() {
+            output.push(AccountEvent::Calendar(decode(message)?));
             return Ok(());
         }
         if message.is::<shared::protocol::PvpStateUpdate>() {

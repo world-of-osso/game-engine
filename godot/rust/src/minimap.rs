@@ -19,6 +19,7 @@ use game_engine_core::minimap_data::{
     tint_quest_areas, zoom_in, zoom_out,
 };
 use game_engine_session::SessionScreen;
+use game_engine_ui_model::calendar_data::ACTION_TOGGLE as ACTION_TOGGLE_CALENDAR;
 use game_engine_ui_model::game_tooltip::GameTooltip;
 use game_engine_ui_model::game_tooltip::hud::zone_tooltip;
 use game_engine_ui_model::minimap::{
@@ -341,6 +342,7 @@ impl GameClient {
             game_engine_ui_model::launcher::ACTION_OPEN => self.open_launcher()?,
             ACTION_ZOOM_IN => self.minimap.zoom = zoom_in(self.minimap.zoom),
             ACTION_ZOOM_OUT => self.minimap.zoom = zoom_out(self.minimap.zoom),
+            ACTION_TOGGLE_CALENDAR => self.toggle_calendar().map_err(|error| error.to_string())?,
             ACTION_TOGGLE_WORLD_MAP => {
                 // As the M binding: a map failure is reported and closes the map.
                 if let Err(error) = self.toggle_world_map() {

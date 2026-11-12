@@ -95,9 +95,17 @@ impl CalendarModel {
         self.open
     }
 
-    pub fn apply_action(&mut self, action: &str, today: NaiveDate) -> Result<(), String> {
+    pub fn apply_action(
+        &mut self,
+        action: &str,
+        (year, month, day): (i32, u32, u32),
+    ) -> Result<(), String> {
         match action {
-            ACTION_TOGGLE => self.toggle(today),
+            ACTION_TOGGLE => {
+                let today = NaiveDate::from_ymd_opt(year, month, day)
+                    .ok_or("system returned an invalid local calendar date")?;
+                self.toggle(today);
+            }
             ACTION_CLOSE => self.close(),
             ACTION_PREVIOUS_MONTH => self.change_month(false)?,
             ACTION_NEXT_MONTH => self.change_month(true)?,
@@ -130,28 +138,7 @@ impl CalendarModel {
             .viewed_month
             .ok_or("open calendar has no viewed month")?;
         let today = self.today.ok_or("open calendar has no current date")?;
-        let first_day_offset = i64::from(month.weekday().num_days_from_sunday());
-        let first_cell = month
-            .checked_sub_signed(Duration::days(first_day_offset))
-            .ok_or("calendar grid starts outside the supported date range")?;
-        let days = (0..GRID_DAYS)
-            .map(|index| {
-                let date = first_cell
-                    .checked_add_signed(Duration::days(index as i64))
-                    .ok_or("calendar grid ends outside the supported date range")?;
-                Ok(CalendarDay {
-                    date,
-                    in_viewed_month: date.year() == month.year() && date.month() == month.month(),
-                    is_today: date == today,
-                    events: self
-                        .events
-                        .iter()
-                        .filter(|event| self.show_server_events && event.date == date)
-                        .cloned()
-                        .collect(),
-                })
-            })
-            .collect::<Result<Vec<_>, String>>()?;
+        let days = calendar_days(month, today, &self.events, self.show_server_events)?;
         Ok(Some(CalendarView {
             month_name: month.format("%B").to_string(),
             year: month.year(),
@@ -177,9 +164,13 @@ impl CalendarModel {
         self.filter_open = false;
     }
 
-    fn close(&mut self) {
+    pub fn close(&mut self) {
         self.open = false;
         self.filter_open = false;
+    }
+
+    pub fn clear_events(&mut self) {
+        self.events.clear();
     }
 
     fn change_month(&mut self, next: bool) -> Result<(), String> {
@@ -199,6 +190,35 @@ impl CalendarModel {
         self.filter_open = false;
         Ok(())
     }
+}
+
+fn calendar_days(
+    month: NaiveDate,
+    today: NaiveDate,
+    events: &[CalendarEvent],
+    show_server_events: bool,
+) -> Result<Vec<CalendarDay>, String> {
+    let first_day_offset = i64::from(month.weekday().num_days_from_sunday());
+    let first_cell = month
+        .checked_sub_signed(Duration::days(first_day_offset))
+        .ok_or("calendar grid starts outside the supported date range")?;
+    (0..GRID_DAYS)
+        .map(|index| {
+            let date = first_cell
+                .checked_add_signed(Duration::days(index as i64))
+                .ok_or("calendar grid ends outside the supported date range")?;
+            Ok(CalendarDay {
+                date,
+                in_viewed_month: date.year() == month.year() && date.month() == month.month(),
+                is_today: date == today,
+                events: events
+                    .iter()
+                    .filter(|event| show_server_events && event.date == date)
+                    .cloned()
+                    .collect(),
+            })
+        })
+        .collect()
 }
 
 fn first_of_month(date: NaiveDate) -> NaiveDate {

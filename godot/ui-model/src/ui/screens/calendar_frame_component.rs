@@ -191,6 +191,12 @@ fn calendar_border() -> Element {
 }
 
 fn calendar_month_header(view: &CalendarView) -> Element {
+    let mut children = calendar_month_backgrounds();
+    children.extend(calendar_month_labels(view));
+    children
+}
+
+fn calendar_month_backgrounds() -> Element {
     let month_rect = [255.5, 1.0, 142.0, 36.0];
     let year_rect = [301.0, 50.0, 47.0, 24.0];
     let mut children = calendar_texture(
@@ -207,7 +213,13 @@ fn calendar_month_header(view: &CalendarView) -> Element {
         year_rect,
         "ARTWORK",
     ));
-    children.extend(calendar_font_string(
+    children
+}
+
+fn calendar_month_labels(view: &CalendarView) -> Element {
+    let month_rect = [255.5, 1.0, 142.0, 36.0];
+    let year_rect = [301.0, 50.0, 47.0, 24.0];
+    let mut children = calendar_font_string(
         "CalendarMonthName",
         &view.month_name,
         month_rect,
@@ -215,7 +227,7 @@ fn calendar_month_header(view: &CalendarView) -> Element {
         NORMAL,
         "CENTER",
         "OVERLAY",
-    ));
+    );
     children.extend(calendar_font_string(
         "CalendarYearName",
         &view.year.to_string(),
@@ -232,34 +244,36 @@ fn calendar_weekdays(view: &CalendarView) -> Element {
     view.weekdays
         .iter()
         .enumerate()
-        .flat_map(|(index, weekday)| {
-            let left = WEEKDAY_LEFT + index as f32 * DAY_WIDTH;
-            let x_region = if index % 2 == 0 { 90.0 / 256.0 } else { 0.0 };
-            let tex_coords = format!(
-                "{x_region},{},{},{}",
-                x_region + 90.0 / 256.0 - 0.001,
-                180.0 / 256.0,
-                180.0 / 256.0 + 28.0 / 256.0 - 0.001
-            );
-            let mut elements = calendar_texture(
-                format!("CalendarWeekday{}Background", index + 1),
-                CALENDAR_BACKGROUND,
-                &tex_coords,
-                [left, WEEKDAY_TOP, DAY_WIDTH, 28.0],
-                "BACKGROUND",
-            );
-            elements.extend(calendar_font_string(
-                format!("CalendarWeekday{}Name", index + 1),
-                weekday,
-                [left, WEEKDAY_TOP, DAY_WIDTH, 28.0],
-                12.0,
-                WEEKDAY_GOLD,
-                "CENTER",
-                "ARTWORK",
-            ));
-            elements
-        })
+        .flat_map(|(index, weekday)| calendar_weekday(index, weekday))
         .collect()
+}
+
+fn calendar_weekday(index: usize, weekday: &str) -> Element {
+    let left = WEEKDAY_LEFT + index as f32 * DAY_WIDTH;
+    let x_region = if index % 2 == 0 { 90.0 / 256.0 } else { 0.0 };
+    let tex_coords = format!(
+        "{x_region},{},{},{}",
+        x_region + 90.0 / 256.0 - 0.001,
+        180.0 / 256.0,
+        180.0 / 256.0 + 28.0 / 256.0 - 0.001
+    );
+    let mut elements = calendar_texture(
+        format!("CalendarWeekday{}Background", index + 1),
+        CALENDAR_BACKGROUND,
+        &tex_coords,
+        [left, WEEKDAY_TOP, DAY_WIDTH, 28.0],
+        "BACKGROUND",
+    );
+    elements.extend(calendar_font_string(
+        format!("CalendarWeekday{}Name", index + 1),
+        weekday,
+        [left, WEEKDAY_TOP, DAY_WIDTH, 28.0],
+        12.0,
+        WEEKDAY_GOLD,
+        "CENTER",
+        "ARTWORK",
+    ));
+    elements
 }
 
 fn calendar_days(view: &CalendarView) -> Element {
@@ -280,14 +294,7 @@ fn calendar_days(view: &CalendarView) -> Element {
 }
 
 fn calendar_day_button(index: usize, day: &CalendarDay, left: f32, top: f32) -> Element {
-    let cell_x = if index % 2 == 0 { 90.0 / 256.0 } else { 0.0 };
-    let cell_y = if index % 4 < 2 { 0.0 } else { 90.0 / 256.0 };
-    let tex_coords = format!(
-        "{cell_x},{},{cell_y},{}",
-        cell_x + 90.0 / 256.0 - 0.001,
-        cell_y + 90.0 / 256.0 - 0.001
-    );
-    let vertex_color = if day.in_viewed_month { NORMAL } else { MUTED };
+    let (tex_coords, vertex_color) = calendar_day_button_art(index, day);
     rsx! {
         button {
             name: {DynName(format!("CalendarDayButton{}", index + 1))},
@@ -312,6 +319,18 @@ fn calendar_day_button(index: usize, day: &CalendarDay, left: f32, top: f32) -> 
     }
 }
 
+fn calendar_day_button_art(index: usize, day: &CalendarDay) -> (String, &'static str) {
+    let cell_x = if index % 2 == 0 { 90.0 / 256.0 } else { 0.0 };
+    let cell_y = if index % 4 < 2 { 0.0 } else { 90.0 / 256.0 };
+    let tex_coords = format!(
+        "{cell_x},{},{cell_y},{}",
+        cell_x + 90.0 / 256.0 - 0.001,
+        cell_y + 90.0 / 256.0 - 0.001
+    );
+    let vertex_color = if day.in_viewed_month { NORMAL } else { MUTED };
+    (tex_coords, vertex_color)
+}
+
 fn calendar_day_date(index: usize, day: &CalendarDay, left: f32, top: f32) -> Element {
     let text = day.date.day().to_string();
     let color = if day.in_viewed_month { NORMAL } else { MUTED };
@@ -330,37 +349,52 @@ fn calendar_day_events(index: usize, day: &CalendarDay, left: f32, top: f32) -> 
     if day.events.is_empty() {
         return Vec::new();
     }
-    let mut elements = calendar_texture(
+    let mut elements = calendar_event_background(index, left, top);
+    elements.extend(calendar_event_text(index, day, left, top));
+    if day.events.len() > 4 {
+        elements.extend(calendar_more_events_arrow(index, left, top));
+    }
+    elements
+}
+
+fn calendar_event_background(index: usize, left: f32, top: f32) -> Element {
+    calendar_texture(
         format!("CalendarDayButton{}EventBackground", index + 1),
         CALENDAR_EVENT_BACKGROUND,
         "0,0.671875,0,0.671875",
         [left, top + 5.0, DAY_WIDTH, 86.0],
         "ARTWORK",
-    );
-    let labels = event_labels(day);
-    for (event_index, label) in labels.iter().enumerate() {
-        let event_top =
-            top + DAY_HEIGHT - 3.0 - (event_index + 1) as f32 * 12.0 - event_index as f32 * 3.0;
-        elements.extend(calendar_font_string(
-            format!("CalendarDayButton{}Event{}Text", index + 1, event_index + 1),
-            label,
-            [left + 4.0, event_top, 83.0, 12.0],
-            10.0,
-            NORMAL,
-            "LEFT",
-            "OVERLAY",
-        ));
-    }
-    if day.events.len() > 4 {
-        elements.extend(calendar_texture(
-            format!("CalendarDayButton{}MoreEventsArrow", index + 1),
-            CALENDAR_MORE_ARROW,
-            "0,0.9375,0,0.6875",
-            [left + 71.0, top + 7.0, 15.0, 11.0],
-            "OVERLAY",
-        ));
-    }
-    elements
+    )
+}
+
+fn calendar_event_text(index: usize, day: &CalendarDay, left: f32, top: f32) -> Element {
+    event_labels(day)
+        .iter()
+        .enumerate()
+        .flat_map(|(event_index, label)| {
+            let event_top =
+                top + DAY_HEIGHT - 3.0 - (event_index + 1) as f32 * 12.0 - event_index as f32 * 3.0;
+            calendar_font_string(
+                format!("CalendarDayButton{}Event{}Text", index + 1, event_index + 1),
+                label,
+                [left + 4.0, event_top, 83.0, 12.0],
+                10.0,
+                NORMAL,
+                "LEFT",
+                "OVERLAY",
+            )
+        })
+        .collect()
+}
+
+fn calendar_more_events_arrow(index: usize, left: f32, top: f32) -> Element {
+    calendar_texture(
+        format!("CalendarDayButton{}MoreEventsArrow", index + 1),
+        CALENDAR_MORE_ARROW,
+        "0,0.9375,0,0.6875",
+        [left + 71.0, top + 7.0, 15.0, 11.0],
+        "OVERLAY",
+    )
 }
 
 fn event_labels(day: &CalendarDay) -> Vec<String> {
@@ -447,7 +481,13 @@ fn calendar_month_button(
 }
 
 fn calendar_filter(view: &CalendarView) -> Element {
-    let dropdown = dropdown_button_with_state(
+    let mut elements = calendar_filter_dropdown(view);
+    elements.extend(calendar_filter_menu(view));
+    elements
+}
+
+fn calendar_filter_dropdown(view: &CalendarView) -> Element {
+    dropdown_button_with_state(
         DropdownButton {
             frame_name: "CalendarFilterButton",
             label_name: "CalendarFilterButtonText",
@@ -469,7 +509,10 @@ fn calendar_filter(view: &CalendarView) -> Element {
             enabled: true,
             reset_action: None,
         },
-    );
+    )
+}
+
+fn calendar_filter_menu(view: &CalendarView) -> Element {
     let item = ContextMenuItem {
         name: "CalendarFilterServerEvents",
         label: "Server events",
@@ -483,7 +526,7 @@ fn calendar_filter(view: &CalendarView) -> Element {
         true,
         menu_row_rect_with_heading(184.0, 0, false),
     );
-    let popup = context_menu_with_rows(
+    context_menu_with_rows(
         ContextMenu {
             frame_name: "CalendarFilterMenu",
             title_name: "CalendarFilterMenuTitle",
@@ -496,10 +539,7 @@ fn calendar_filter(view: &CalendarView) -> Element {
             items: &[item],
         },
         rows,
-    );
-    let mut elements = dropdown;
-    elements.extend(popup);
-    elements
+    )
 }
 
 fn calendar_close_button() -> Element {

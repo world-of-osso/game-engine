@@ -17,6 +17,7 @@ mod bag_destroy;
 mod bags;
 mod bank;
 mod battleground;
+mod calendar;
 mod camera;
 mod challenge;
 mod char_create;
@@ -408,6 +409,7 @@ pub struct GameClient {
     merchant: merchant::Merchant,
     bags: bags::Bags,
     character_frame: character_frame::CharacterFrame,
+    calendar: calendar::Calendar,
     launcher: launcher::Launcher,
     tooltips: tooltips::Tooltips,
     mailbox: mail::Mailbox,
@@ -587,6 +589,7 @@ impl INode3D for GameClient {
             world_hover_pick: None,
             bags: bags::Bags::default(),
             character_frame: character_frame::CharacterFrame::default(),
+            calendar: calendar::Calendar::default(),
             launcher: launcher::Launcher::default(),
             tooltips: tooltips::Tooltips::default(),
             mailbox: mail::Mailbox::default(),
@@ -2294,6 +2297,7 @@ impl GameClient {
         self.tooltips.visit_uis(&mut visit)?;
         self.merchant.visit_uis(&mut visit)?;
         self.character_frame.visit_uis(&mut visit)?;
+        self.calendar.visit_uis(&mut visit)?;
         if let Some(ui) = &mut self.mailbox.ui {
             visit(ui)?;
         }
@@ -2930,6 +2934,7 @@ impl GameClient {
             ("Encounter", |c, d| c.update_encounter(d)),
             ("World map", |c, _| c.update_world_map()),
             ("Minimap", |c, _| c.update_minimap()),
+            ("Calendar", |c, _| c.update_calendar()),
             ("Quests", |c, _| c.update_quests()),
             ("Objective tracker", |c, _| c.update_objective_tracker()),
             ("Mythic Keystone", |c, _| c.update_challenge()),
@@ -3134,6 +3139,7 @@ impl GameClient {
             AccountEvent::GameTime(time) => {
                 self.world_clock = Some((time.second_of_day(), time.new_speed, Instant::now()));
             }
+            AccountEvent::Calendar(update) => self.receive_calendar_update(update)?,
             AccountEvent::LoadTerrain(request) => self.request_terrain(request)?,
             AccountEvent::NewWorld(destination) => self.transfer_world(destination)?,
             AccountEvent::TransferError(error) => self.add_world_error(&error)?,
@@ -3730,6 +3736,7 @@ impl GameClient {
     }
 
     fn reset_world(&mut self) -> Result<(), String> {
+        self.calendar.reset();
         self.close_toybox();
         self.toybox.model = Default::default();
         self.close_housing();

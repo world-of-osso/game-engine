@@ -291,6 +291,8 @@ impl NetworkBridge {
             .receive::<protocol::PetBattleQueueUpdate>()
             .receive::<protocol::PvpStateUpdate>()
             .receive::<protocol::CurrencyStateUpdate>()
+            // CalendarFrame displays the authoritative event snapshot.
+            .receive::<protocol::CalendarStateUpdate>()
             .receive::<protocol::TrainerList>()
             .receive::<protocol::TrainerBuyFailed>()
             // Spellbook, action bar and casting.
@@ -1138,6 +1140,8 @@ pub mod deathstate_fixture;
 #[cfg(test)]
 mod wire_tests;
 
+#[cfg(test)]
+mod calendar_wire_tests;
 #[cfg(test)]
 mod currency_wire_tests;
 #[cfg(test)]
