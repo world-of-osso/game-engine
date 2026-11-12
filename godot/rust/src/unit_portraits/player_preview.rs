@@ -110,6 +110,7 @@ impl PlayerPortraitFixture {
         let mut ui = RegistryUi::new_alloc();
         self.base_mut().add_child(&ui);
         if character_frame {
+            ui.bind_mut().set_ui_scale(1.0)?;
             ui.bind_mut().show_character_frame(CharacterFrameView {
                 visible: true,
                 ..Default::default()
