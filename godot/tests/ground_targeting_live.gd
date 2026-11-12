@@ -195,6 +195,9 @@ func capture_out_of_range_reticle() -> bool:
 	if decal == null or not decal.visible:
 		fail("Out-of-range ground point did not retain a visible decal")
 		return false
+	print("GROUND_RANGE_DEBUG player=", player.global_position, " decal=", decal.global_position,
+		" distance=", player.global_position.distance_to(decal.global_position), " color=", decal.modulate)
+	await capture("ground-target-invalid")
 	if decal.modulate.r <= decal.modulate.g:
 		fail("Out-of-range Flamestrike decal is not red")
 		return false
