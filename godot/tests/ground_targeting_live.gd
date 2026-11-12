@@ -39,6 +39,8 @@ func run_test() -> void:
 	player = client.get_node("WorldUnits/" + character) as Node3D
 	client.set_world_minutes(720.0)
 	client.set_camera_orbit(PI, -0.3, 12.0)
+	if not await wait_for_spell_setup():
+		return
 	if not await wait_until(func(): return client.spells_state().catalog_ready, 60000, "spell catalog"):
 		return
 	if phase.ends_with("consecration"):
@@ -48,8 +50,7 @@ func run_test() -> void:
 		client.free()
 		quit(0)
 		return
-	if not client.spells_state().known.has(FLAMESTRIKE):
-		fail("Mage does not know Flamestrike")
+	if not await wait_until(func(): return client.spells_state().known.has(FLAMESTRIKE), 30000, "Mage knows Flamestrike"):
 		return
 
 	var sent_before: int = client.spells_state().sent.size()
@@ -105,9 +106,24 @@ func enter_ground_world() -> bool:
 	await wait_frames(60)
 	return true
 
+func wait_for_spell_setup() -> bool:
+	var ready_path := OS.get_environment("GROUND_READY_FILE")
+	var continue_path := OS.get_environment("GROUND_CONTINUE_FILE")
+	if ready_path == "" and continue_path == "":
+		return true
+	if ready_path == "" or continue_path == "" or FileAccess.file_exists(ready_path) or FileAccess.file_exists(continue_path):
+		fail("Spell setup requires two fresh barrier paths")
+		return false
+	var ready := FileAccess.open(ready_path, FileAccess.WRITE)
+	if ready == null:
+		fail("Could not write spell setup barrier: " + ready_path)
+		return false
+	ready.store_string("online " + character)
+	print("GROUND_TARGETING_SETUP_READY character=", character)
+	return await wait_until(func(): return FileAccess.file_exists(continue_path), 120000, "admin spell setup")
+
 func consecration_targeting_proof(baseline: bool) -> bool:
-	if not client.spells_state().known.has(CONSECRATION):
-		fail("Paladin does not know Consecration")
+	if not await wait_until(func(): return client.spells_state().known.has(CONSECRATION), 30000, "Paladin knows Consecration"):
 		return false
 	var sent_before: int = client.spells_state().sent.size()
 	var error: String = client.use_spell(CONSECRATION)
