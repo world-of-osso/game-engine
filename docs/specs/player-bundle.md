@@ -31,6 +31,7 @@ Linux and Windows players share one staged project/data bundle. Publisher: `depl
 ## Known gaps (current cycle)
 
 - [ ] Active DB2 build `12.1.5.70448` references atlas FDID `3307666`, and Forever set-1 references FDID `6227333`; local CASC build `12.1.5.70783` has neither. The bundle omits these two IDs. Do not substitute another texture; add them only when matching assets are available.
+- [ ] Forever set-1 atlas FDIDs 8198433, 8281588, 8285995, 8344036, 8396515, 8396517 and 8452065 resolve in the wowf 1.60.1.70888 root, but their content keys are absent from the local archives (2026-11-12). The bundle omits them. Forever-only atlas sheets must be extracted with `WOW_PRODUCT=wowf`; the deploy extractor uses `wow`, so they are pre-extracted into canonical `data/textures`.
 
 ## Out of scope
 
