@@ -5,8 +5,9 @@ The in-world Forever Calendar panel is the native `CalendarFrame` opened from `G
 ## What it must do
 
 - [x] Open and close from the Forever minimap date button.
-- [x] Render the 659×624 CalendarFrame at its XML anchor, with the authored border art, month/year title, weekday headers, and six rows of seven day cells.
+- [ ] Render the 659×624 CalendarFrame at its XML anchor, with authored border art, month/year title, weekday headers, and six rows of seven 91×91 day cells using the Retail day-atlas subrects at edge-to-edge XML positions.
 - [x] Use the Sunday-first week order defined by the cached Retail calendar source; highlight the current local day.
+- [ ] Place the year and current-day textures at their XML anchors, and omit event-bar art when the server snapshot is empty.
 - [x] Navigate months in both directions, including December-to-January year changes.
 - [x] Display only events received in `CalendarStateUpdate`; do not invent holidays or event rows when the server snapshot is empty.
 - [x] Keep the panel limited to the Forever skin. Add no calendar key binding unless the Retail source defines one.
@@ -31,9 +32,13 @@ The in-world Forever Calendar panel is the native `CalendarFrame` opened from `G
 
 ## Verification
 
-- [x] Targeted behavior tests, helper dev/release builds, and format checks pass.
-- [x] Private UDP `127.0.0.1:5995` proof covers opening, both month controls, close, and reopen.
-- [x] Inspect and save the Forever panel screenshots and crops under `/syncthing/AgentShared/2026-11-11/calendar-panel/`.
+- [ ] Targeted calendar rendering tests, helper dev/release builds, and format checks pass.
+- [ ] Private UDP `127.0.0.1:5995` proof covers opening, both month controls, close, and reopen.
+- [ ] Inspect and save the source-texture reference, Forever panel screenshot, and 3× crop under `/syncthing/AgentShared/2026-11-12/calendar-panel/`.
+
+## Known gaps (current cycle)
+
+- [ ] Verify the corrected day tiles hide the world between and around the grid in the private capture.
 
 UNVERIFIED, LIVE: The final screenshot contains no event title, so it does not prove visual rendering of a non-empty live server snapshot; the model test covers event display from a server snapshot fixture.
 

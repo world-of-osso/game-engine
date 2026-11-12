@@ -19,12 +19,26 @@ const FRAME_WIDTH: f32 = 659.0;
 const FRAME_HEIGHT: f32 = 624.0;
 const CALENDAR_DAY_DATE_FRAME_LEVEL: f32 = 2.0;
 const CALENDAR_TODAY_GLOW_LEFT_OFFSET: f32 = -8.5;
-const CALENDAR_TODAY_GLOW_TOP_OFFSET: f32 = -4.5;
+const CALENDAR_TODAY_GLOW_TOP_OFFSET: f32 = -34.5; // XML y=15 points up from the cell center.
 const DAY_WIDTH: f32 = 91.0;
 const DAY_HEIGHT: f32 = 91.0;
 const DAY_COLUMNS: usize = 7;
 const DAY_ROWS: usize = 6;
 const DAY_COUNT: usize = DAY_COLUMNS * DAY_ROWS;
+const CALENDAR_ATLAS_TILE_SIZE: f32 = 90.0 / 256.0 - 0.001;
+// Retail randomly selects one tile per button.
+// Keep this sample stable across Screen rebuilds.
+const CALENDAR_DAY_TEXTURE_VARIANTS: [[u8; DAY_COLUMNS]; DAY_ROWS] = [
+    [0, 2, 3, 1, 3, 1, 0],
+    [1, 0, 2, 2, 0, 3, 2],
+    [1, 3, 1, 1, 0, 2, 1],
+    [0, 1, 1, 3, 0, 3, 3],
+    [3, 1, 1, 0, 3, 1, 1],
+    [2, 0, 1, 3, 3, 3, 1],
+];
+const CALENDAR_WEEKDAY_TEXTURE_TOP: f32 = 180.0 / 256.0;
+const CALENDAR_WEEKDAY_TEXTURE_HEIGHT: f32 = 28.0 / 256.0 - 0.001;
+const CALENDAR_YEAR_BACKGROUND_TOP: f32 = 24.0; // Month bottom 37 minus XML y=13.
 const WEEKDAY_LEFT: f32 = 12.0;
 const WEEKDAY_TOP: f32 = 46.0;
 const DAY_TOP: f32 = 74.0;
@@ -200,7 +214,7 @@ fn calendar_month_header(view: &CalendarView) -> Element {
 
 fn calendar_month_backgrounds() -> Element {
     let month_rect = [255.5, 1.0, 142.0, 36.0];
-    let year_rect = [301.0, 50.0, 47.0, 24.0];
+    let year_rect = [301.0, CALENDAR_YEAR_BACKGROUND_TOP, 47.0, 24.0];
     let mut children = calendar_texture(
         "CalendarMonthBackground".into(),
         CALENDAR_BACKGROUND,
@@ -220,7 +234,7 @@ fn calendar_month_backgrounds() -> Element {
 
 fn calendar_month_labels(view: &CalendarView) -> Element {
     let month_rect = [255.5, 1.0, 142.0, 36.0];
-    let year_rect = [301.0, 50.0, 47.0, 24.0];
+    let year_rect = [301.0, CALENDAR_YEAR_BACKGROUND_TOP, 47.0, 24.0];
     let mut children = calendar_font_string(
         "CalendarMonthName",
         &view.month_name,
@@ -252,13 +266,15 @@ fn calendar_weekdays(view: &CalendarView) -> Element {
 
 fn calendar_weekday(index: usize, weekday: &str) -> Element {
     let left = WEEKDAY_LEFT + index as f32 * DAY_WIDTH;
-    let x_region = if index % 2 == 0 { 90.0 / 256.0 } else { 0.0 };
-    let tex_coords = format!(
-        "{x_region},{},{},{}",
-        x_region + 90.0 / 256.0 - 0.001,
-        180.0 / 256.0,
-        180.0 / 256.0 + 28.0 / 256.0 - 0.001
-    );
+    let x_region = if index % 2 == 0 {
+        CALENDAR_ATLAS_TILE_SIZE
+    } else {
+        0.0
+    };
+    let tex_right = x_region + CALENDAR_ATLAS_TILE_SIZE;
+    let tex_top = CALENDAR_WEEKDAY_TEXTURE_TOP;
+    let tex_bottom = tex_top + CALENDAR_WEEKDAY_TEXTURE_HEIGHT;
+    let tex_coords = format!("{x_region},{tex_right},{tex_top},{tex_bottom}");
     let mut elements = calendar_texture(
         format!("CalendarWeekday{}Background", index + 1),
         CALENDAR_BACKGROUND,
@@ -308,7 +324,7 @@ fn calendar_day_button(index: usize, left: f32, top: f32) -> Element {
             mouse_enabled: true,
             button_default_skin: false,
             button_fdid_up: "235428",
-            button_up_tex_coords: {tex_coords.as_str()},
+            button_normal_tex_coords: {tex_coords.as_str()},
             button_fdid_highlight: "235438",
             button_highlight_tex_coords: "0,0.34375,0,0.6875",
             button_highlight_size: "88,88",
@@ -321,14 +337,22 @@ fn calendar_day_button(index: usize, left: f32, top: f32) -> Element {
 }
 
 fn calendar_day_button_art(index: usize) -> String {
-    let cell_x = if index % 2 == 0 { 90.0 / 256.0 } else { 0.0 };
-    let cell_y = if index % 4 < 2 { 0.0 } else { 90.0 / 256.0 };
-    let tex_coords = format!(
-        "{cell_x},{},{cell_y},{}",
-        cell_x + 90.0 / 256.0 - 0.001,
-        cell_y + 90.0 / 256.0 - 0.001
-    );
-    tex_coords
+    let row = index / DAY_COLUMNS;
+    let column = index % DAY_COLUMNS;
+    let variant = CALENDAR_DAY_TEXTURE_VARIANTS[row][column];
+    let cell_x = if variant % 2 == 0 {
+        0.0
+    } else {
+        CALENDAR_ATLAS_TILE_SIZE
+    };
+    let cell_y = if variant / 2 == 0 {
+        0.0
+    } else {
+        CALENDAR_ATLAS_TILE_SIZE
+    };
+    let tex_right = cell_x + CALENDAR_ATLAS_TILE_SIZE;
+    let tex_bottom = cell_y + CALENDAR_ATLAS_TILE_SIZE;
+    format!("{cell_x},{tex_right},{cell_y},{tex_bottom}")
 }
 
 fn calendar_day_date(index: usize, day: &CalendarDay, left: f32, top: f32) -> Element {

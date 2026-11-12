@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use chrono::{Datelike, Local, NaiveDate, TimeZone};
 use game_engine_ui_model::{
     calendar_data::{
@@ -14,7 +16,7 @@ use ui_toolkit::{
     registry::FrameRegistry,
     screen::{Screen, SharedContext},
     strata::DrawLayer,
-    widgets::texture::BlendMode,
+    widgets::texture::{BlendMode, TextureSource},
 };
 
 fn date(year: i32, month: u32, day: u32) -> NaiveDate {
@@ -25,8 +27,89 @@ fn date_parts(date: NaiveDate) -> (i32, u32, u32) {
     (date.year(), date.month(), date.day())
 }
 
+fn assert_calendar_weekday_tiles_match_retail_grid(registry: &FrameRegistry) {
+    const DAY_SIZE: f32 = 91.0;
+    const WEEKDAY_HEIGHT: f32 = 28.0;
+    const DAY_COLUMNS: usize = 7;
+    const GRID_LEFT: f32 = 12.0;
+    const WEEKDAY_TOP: f32 = 46.0;
+    const TILE_SIZE: f32 = 90.0 / 256.0 - 0.001;
+    const TEX_TOP: f32 = 180.0 / 256.0;
+    const TEX_HEIGHT: f32 = 28.0 / 256.0 - 0.001;
+    const TEXTURE_EPSILON: f32 = 0.000001;
+
+    for index in 0..DAY_COLUMNS {
+        let name = format!("CalendarWeekday{}Background", index + 1);
+        let frame = registry.get(registry.get_by_name(&name).unwrap()).unwrap();
+        let expected_left = GRID_LEFT + index as f32 * DAY_SIZE;
+        assert_eq!(frame.width.value(), DAY_SIZE, "{name} width");
+        assert_eq!(frame.height.value(), WEEKDAY_HEIGHT, "{name} height");
+        assert_eq!(frame.position.left, Val::Px(expected_left));
+        assert_eq!(frame.position.top, Val::Px(WEEKDAY_TOP));
+
+        let Some(WidgetData::Texture(texture)) = frame.widget_data.as_ref() else {
+            panic!("{name} is not a texture");
+        };
+        assert_eq!(texture.source, TextureSource::FileDataId(235_428));
+        let expected_tex_left = if index % 2 == 0 { TILE_SIZE } else { 0.0 };
+        let [left, right, top, bottom] = texture.tex_coords;
+        assert!((left - expected_tex_left).abs() < TEXTURE_EPSILON);
+        assert!((right - left - TILE_SIZE).abs() < TEXTURE_EPSILON);
+        assert!((top - TEX_TOP).abs() < TEXTURE_EPSILON);
+        assert!((bottom - top - TEX_HEIGHT).abs() < TEXTURE_EPSILON);
+    }
+}
+
+fn assert_calendar_day_buttons_match_retail_grid(registry: &FrameRegistry) {
+    const DAY_SIZE: f32 = 91.0;
+    const DAY_COLUMNS: usize = 7;
+    const GRID_LEFT: f32 = 12.0;
+    const GRID_TOP: f32 = 74.0;
+    const TILE_SIZE: f32 = 90.0 / 256.0 - 0.001;
+    const TEXTURE_EPSILON: f32 = 0.000001;
+
+    let mut quadrants = HashSet::new();
+    for index in 0..42 {
+        let name = format!("CalendarDayButton{}", index + 1);
+        let frame = registry.get(registry.get_by_name(&name).unwrap()).unwrap();
+        let column = index % DAY_COLUMNS;
+        let row = index / DAY_COLUMNS;
+        assert_eq!(frame.width.value(), DAY_SIZE, "{name} width");
+        assert_eq!(frame.height.value(), DAY_SIZE, "{name} height");
+        assert_eq!(
+            frame.position.left,
+            Val::Px(GRID_LEFT + column as f32 * DAY_SIZE)
+        );
+        assert_eq!(
+            frame.position.top,
+            Val::Px(GRID_TOP + row as f32 * DAY_SIZE)
+        );
+
+        let Some(WidgetData::Button(button)) = frame.widget_data.as_ref() else {
+            panic!("{name} is not a button");
+        };
+        let texture = button
+            .normal_texture
+            .as_ref()
+            .expect("day button normal texture");
+        assert_eq!(texture.source, TextureSource::FileDataId(235_428));
+        let [left, right, top, bottom] = texture.tex_coords;
+        let quadrant_x = if left > 0.0 { 1 } else { 0 };
+        let quadrant_y = if top > 0.0 { 1 } else { 0 };
+        assert!((left - quadrant_x as f32 * TILE_SIZE).abs() < TEXTURE_EPSILON);
+        assert!((right - left - TILE_SIZE).abs() < TEXTURE_EPSILON);
+        assert!((top - quadrant_y as f32 * TILE_SIZE).abs() < TEXTURE_EPSILON);
+        assert!((bottom - top - TILE_SIZE).abs() < TEXTURE_EPSILON);
+        quadrants.insert((quadrant_x, quadrant_y));
+
+        let event_background = format!("{name}EventBackground");
+        assert!(registry.get_by_name(&event_background).is_none());
+    }
+    assert_eq!(quadrants.len(), 4, "Retail uses all four atlas quadrants");
+}
+
 #[test]
-fn today_glow_and_year_header_match_retail_layers() {
+fn calendar_frame_emits_retail_grid_and_anchor_art() {
     let today = date(2026, 11, 12);
     let mut calendar = CalendarModel::default();
     calendar
@@ -42,20 +125,39 @@ fn today_glow_and_year_header_match_retail_layers() {
     let mut registry = FrameRegistry::new(1920.0, 1080.0);
     Screen::new(calendar_frame_screen).sync(&shared, &mut registry);
 
+    let root = registry
+        .get(registry.get_by_name("CalendarFrame").unwrap())
+        .unwrap();
+    assert_eq!(root.width.value(), 659.0);
+    assert_eq!(root.height.value(), 624.0);
+
     let year = registry
         .get(registry.get_by_name("CalendarYearName").unwrap())
+        .unwrap();
+    let year_background = registry
+        .get(registry.get_by_name("CalendarYearBackground").unwrap())
         .unwrap();
     let weekday = registry
         .get(registry.get_by_name("CalendarWeekday4Name").unwrap())
         .unwrap();
     assert_eq!(year.draw_layer, DrawLayer::Artwork);
+    assert_eq!(year.position.top, Val::Px(25.0));
+    assert_eq!(year_background.position.top, Val::Px(24.0));
     assert_eq!(weekday.draw_layer, DrawLayer::Background);
+    assert_calendar_weekday_tiles_match_retail_grid(&registry);
+    assert_calendar_day_buttons_match_retail_grid(&registry);
+
+    let today_texture = registry
+        .get(registry.get_by_name("CalendarTodayTexture").unwrap())
+        .unwrap();
+    assert_eq!(today_texture.position.left, Val::Px(349.0));
+    assert_eq!(today_texture.position.top, Val::Px(140.5));
 
     let glow = registry
         .get(registry.get_by_name("CalendarTodayTextureGlow").unwrap())
         .unwrap();
     assert_eq!(glow.position.left, Val::Px(367.5));
-    assert_eq!(glow.position.top, Val::Px(160.5));
+    assert_eq!(glow.position.top, Val::Px(130.5));
     match glow.widget_data.as_ref() {
         Some(WidgetData::Texture(texture)) => {
             assert_eq!(texture.blend_mode, BlendMode::Additive);
