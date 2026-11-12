@@ -18,7 +18,11 @@ use std::sync::Arc;
 use ui_toolkit::atlas::{ActiveSkin, set_thread_skin};
 
 const PANELS: &str = "AdventureGuide, TradingPost, CharacterCurrency, \
-    CollectionsPetSpellSelect, EntranceDifficulty, HousingStorageBasic, HousingStorageCollapsed, WorldMap, GuildBank, GuildTabard, AchievementStatistics, Transmog";
+    CollectionsPetSpellSelect, EntranceDifficulty, HousingStorageBasic, HousingStorageCollapsed, WorldMap, DazarAlorWorldMap, HousingFinderMap, GuildBank, GuildTabard, AchievementStatistics, Transmog";
+/// Active UiMap row for Dazar'alor; the fixture loads its tiles from the DB2 catalog.
+const DAZAR_ALOR_UI_MAP: u32 = 1165;
+/// HousingCatalog neighborhood row for Founder's Point.
+const FOUNDERS_POINT_NEIGHBORHOOD: u32 = 1;
 
 /// Cached Blackfathom/encounter112 opened through production instance, encounter and
 /// model-page actions; this reaches both side-tab and creature-ring ADD regions.
@@ -451,6 +455,66 @@ fn load_world_map(
     .with_quest_panel(log, false))
 }
 
+/// Dazar'alor and Housing Finder maps through the production map tile renderers.
+fn load_map_art(
+    viewport: [f32; 2],
+    map_id: u32,
+    map_name: &str,
+) -> Result<game_engine_ui_model::world_map_frame_component::WorldMapFrameState, String> {
+    use game_engine_ui_model::world_map_frame_component::{MapTile, WorldMapFrameState};
+    let catalog = game_engine_ui_model::ui_map_data::UiMapCatalog::load(
+        &game_engine_ui_model::paths::resolve_data_path("db2/active"),
+    )?;
+    let art = catalog
+        .art(map_id)
+        .ok_or_else(|| format!("World map UI art {map_id} is missing"))?;
+    let tiles = art
+        .placed_tiles()
+        .into_iter()
+        .map(|tile| MapTile {
+            fdid: tile.fdid,
+            rect: tile.rect,
+            tex_coords: tile.tex_coords,
+        })
+        .collect();
+    Ok(WorldMapFrameState {
+        viewport,
+        map_id,
+        map_name: map_name.into(),
+        tiles,
+        ..Default::default()
+    })
+}
+
+fn load_housing_finder_map(
+    viewport: [f32; 2],
+) -> Result<game_engine_ui_housing::housing_component::HousingView, String> {
+    use game_engine_core::housing::HousingCatalog;
+    use game_engine_ui_housing::{
+        housing::{HousingAuthority, HousingDashboard, HousingSurface},
+        housing_component::HousingView,
+    };
+    let catalog = HousingCatalog::load(&game_engine_ui_model::paths::resolve_data_path(
+        "cache/housing.sqlite",
+    ))?;
+    let mut model = HousingDashboard::new(Arc::new(catalog));
+    model.surface = HousingSurface::Finder;
+    model.neighborhood = FOUNDERS_POINT_NEIGHBORHOOD;
+    model.maps = Some(Arc::new(
+        game_engine_ui_model::ui_map_data::UiMapCatalog::load(
+            &game_engine_ui_model::paths::resolve_data_path("db2/active"),
+        )?,
+    ));
+    Ok(HousingView {
+        model,
+        authority: HousingAuthority::default(),
+        viewport,
+        money: None,
+        missing_thumbnails: Default::default(),
+        vendor_names: Default::default(),
+    })
+}
+
 #[godot_api(secondary)]
 impl RegistryUi {
     /// Offline capture of one ADD-blend gap group in the requested skin.
@@ -483,6 +547,10 @@ impl RegistryUi {
                     self.show_housing(view)
                 }
                 "WorldMap" => self.show_world_map(load_world_map(viewport)?),
+                "DazarAlorWorldMap" => {
+                    self.show_world_map(load_map_art(viewport, DAZAR_ALOR_UI_MAP, "Dazar'alor")?)
+                }
+                "HousingFinderMap" => self.show_housing(load_housing_finder_map(viewport)?),
                 "GuildBank" => self.show_guild_bank(guild_bank()),
                 "GuildTabard" => self.show_guild_tabard(guild_tabard()?),
                 "AchievementStatistics" => self.show_achievement_window(achievement_statistics()),
