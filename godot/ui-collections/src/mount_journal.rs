@@ -14,7 +14,8 @@ pub const SEARCH: &str = "MountJournalSearchBox";
 pub const MODEL: &str = "MountJournalModelScene";
 pub const RANDOM_FAVORITE_MOUNT_ACTION: &str = "mount:random";
 pub const RANDOM_FAVORITE_MOUNT_SPELL_ID: u32 = 150544;
-pub const RANDOM_FAVORITE_MOUNT_ICON_FDID: u32 = 459044;
+// SpellMisc.SpellIconFileDataID for SpellID 150544 in DB2 build 12.1.5.70448.
+pub const RANDOM_FAVORITE_MOUNT_ICON_FDID: u32 = 413588;
 const LIST: &str = "MountJournalScrollBox";
 const ROW_HEIGHT: f32 = 46.0;
 const LIST_HEIGHT: f32 = 478.0;

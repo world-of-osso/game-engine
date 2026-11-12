@@ -26,9 +26,7 @@ fn mare() -> MountJournalEntry {
 fn random_favorite_mount_button_uses_the_retail_spell_icon_and_action() {
     use game_engine_ui_collections::{
         collections_component::apply_collections_postsetup,
-        mount_journal::{
-            RANDOM_FAVORITE_MOUNT_ACTION, RANDOM_FAVORITE_MOUNT_ICON_FDID, mount_journal_screen,
-        },
+        mount_journal::{RANDOM_FAVORITE_MOUNT_ACTION, mount_journal_screen},
     };
     use ui_toolkit::{
         frame::{Dimension, WidgetData},
@@ -77,10 +75,7 @@ fn random_favorite_mount_button_uses_the_retail_spell_icon_and_action() {
     let Some(WidgetData::Texture(icon)) = &icon.widget_data else {
         panic!("random favorite spell icon is missing");
     };
-    assert_eq!(
-        icon.source,
-        TextureSource::FileDataId(RANDOM_FAVORITE_MOUNT_ICON_FDID)
-    );
+    assert_eq!(icon.source, TextureSource::FileDataId(413_588));
     let label = frame("MountJournalRandomFavoriteLabel");
     let Some(WidgetData::FontString(label)) = &label.widget_data else {
         panic!("random favorite spell label is missing");
