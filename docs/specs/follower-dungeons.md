@@ -8,8 +8,9 @@ Server gameplay contract: [follower dungeons](../../../game-server/docs/specs/fo
 - Queue-send acknowledgment is not server acceptance. `lfg status` exposes the latest authoritative snapshot, match roster and refusal; reconnect clears stale state.
 ## Server-authoritative eligibility
 
-- [ ] The client displays entries from the server catalog and does not use local DB2 bounds or player level to hide, disable, or refuse a listed dungeon. It sends the selected catalog ID; the server checks eligibility before map transfer.
-- [ ] Server refusal keys use Retail GlobalStrings in the Group Finder description and system chat.
+- [x] The client displays entries from the server catalog and does not use local DB2 bounds or player level to hide, disable, or refuse a listed dungeon. It sends the selected catalog ID; the server checks eligibility before map transfer.
+- [x] Server refusal keys use Retail GlobalStrings in the Group Finder description and system chat.
+- [ ] Private UDP 5996 live proof: a fresh level-10 Paladin joins Ruby Life Pools and remains with four followers for at least 60 seconds.
 - Existing LFG dequeue/role-check requests use the same transport. Completed follower admission is a running instance, not a human matchmaking queue entry.
 - Both Modern and Forever show the same replicated followers and existing party frames; no skin-specific gameplay or invented UI frames.
 - Local user-approved server workaround uses labelled-spec player spells and same-map Normal population/entrance; absent Rogue/DK/DH identities and full-rotation gaps remain explicit in the server contract.
