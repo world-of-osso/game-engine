@@ -13,6 +13,7 @@ pub const INK: &str = "0.13,0.07,0.01,1.0";
 pub const GOLD: &str = "1.0,0.82,0.0,1.0";
 pub const HEADER: &str = "0.902,0.788,0.671,1.0";
 pub const SHEET: u32 = 522972;
+const ENCOUNTER_JOURNAL_WIDTH: f32 = 800.0;
 /// XML Normal/Pushed/Highlight textures, driven by real registry input state.
 /// Reset details (EncounterJournal_ClearDetails) and new lore text (ScrollingFontMixin:SetText).
 /// The boss list retains its position as Retail's BossesScrollBox data provider does.
@@ -516,11 +517,11 @@ fn navigation_text_width(value: &str) -> f32 {
     .0
 }
 
-/// Shared PanelTabButtonTemplate; source names/order and Lua +3px spacing.
+/// Shared PanelTabButtonTemplate; SetNumTabs anchors at +3 and caps widths at frame width / tabs.
 pub fn bottom_tabs(view: &View) -> Element {
     use game_engine_ui_model::auction_mail::text as global_string;
-    let mut left = 11.;
-    [
+    use game_engine_ui_model::merchant_frame_component::{PanelTab, PanelTabResize, panel_tabs};
+    let tabs: Vec<_> = [
         ("Journeys", "JOURNEYS_LABEL", "journeys", Tab::Journeys),
         (
             "MonthlyActivities",
@@ -545,20 +546,24 @@ pub fn bottom_tabs(view: &View) -> Element {
         ("Tutorials", "EJ_TUTORIALS", "tutorials", Tab::Tutorials),
     ]
     .into_iter()
-    .flat_map(|(key, title, action, tab)| {
-        let title = global_string(title);
-        let width = game_engine_ui_model::merchant_frame_component::tab_width(title);
-        let out = game_engine_ui_model::merchant_frame_component::tab(
-            &format!("EncounterJournal{key}Tab"),
-            title,
-            (left, 494., width),
+    .map(|(key, title, action, tab)| {
+        PanelTab::new(
+            format!("EncounterJournal{key}Tab"),
+            global_string(title),
+            format!("journal:tab:{action}"),
             view.tab == tab,
-            &format!("journal:tab:{action}"),
-        );
-        left += width + 3.;
-        out
+        )
     })
-    .collect()
+    .collect();
+    panel_tabs(
+        &tabs,
+        (11.0, 494.0),
+        PanelTabResize {
+            max_width: Some(ENCOUNTER_JOURNAL_WIDTH / tabs.len() as f32),
+            ..PanelTabResize::default()
+        },
+        ui_toolkit::tab_art::TabLayout::Panel,
+    )
 }
 
 pub fn side_tabs(view: &View) -> Element {

@@ -18,7 +18,7 @@ use crate::ui::screens::bank_art::{
     HIGHLIGHT_FONT_COLOR, ITEM_BUTTON, MoneyBoxNames, RED_FONT_COLOR, SlotItem, WHITE, cropped,
     edit_box, item_slot, label, money_display, money_input, texture,
 };
-use crate::ui::screens::merchant_frame_component::{tab, tab_width};
+use crate::ui::screens::merchant_frame_component::{PanelTab, PanelTabResize, panel_tabs};
 use crate::ui::screens::quest_art::{DynName, NORMAL_FONT_COLOR, panel_button, window_chrome};
 use crate::ui::strata::FrameStrata;
 
@@ -250,30 +250,32 @@ fn build_mail_frame(state: &MailFrameState) -> Element {
     )
 }
 
-/// `MailFrameTab1` BOTTOMLEFT 14,-30, Tab2 at its RIGHT -8 (MF.xml:840-852).
+/// `MailFrameTab1` BOTTOMLEFT 14,-30 (MF.xml:868-879); `MailFrame.lua` sets
+/// maxTabWidth to the frame width / 3 and `SetNumTabs` reanchors at +3.
 fn tabs(shown: MailFrameTab) -> Element {
-    let inbox_w = tab_width("Inbox");
-    let send_w = tab_width("Send Mail");
-    let top = FRAME_H + 30.0 - 32.0;
-    let inbox = tab(
-        "MailFrameTab1",
-        "Inbox",
-        (14.0, top, inbox_w),
-        shown == MailFrameTab::Inbox,
-        ACTION_TAB_INBOX,
-    );
-    let send = tab(
-        "MailFrameTab2",
-        "Send Mail",
-        (14.0 + inbox_w - 8.0, top, send_w),
-        shown == MailFrameTab::Send,
-        ACTION_TAB_SEND,
-    );
-    if shown == MailFrameTab::Send {
-        inbox.into_iter().chain(send).collect()
-    } else {
-        send.into_iter().chain(inbox).collect()
-    }
+    let tabs = [
+        PanelTab::new(
+            "MailFrameTab1",
+            "Inbox",
+            ACTION_TAB_INBOX,
+            shown == MailFrameTab::Inbox,
+        ),
+        PanelTab::new(
+            "MailFrameTab2",
+            "Send Mail",
+            ACTION_TAB_SEND,
+            shown == MailFrameTab::Send,
+        ),
+    ];
+    panel_tabs(
+        &tabs,
+        (14.0, TAB_FRAME_H + 30.0 - 32.0),
+        PanelTabResize {
+            max_width: Some(TAB_FRAME_W / 3.0),
+            ..PanelTabResize::default()
+        },
+        ui_toolkit::tab_art::TabLayout::Panel,
+    )
 }
 
 // --- Inbox ---

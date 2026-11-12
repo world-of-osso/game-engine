@@ -93,6 +93,11 @@ impl NpcPortraitPreview {
             .map(Portrait::snapshot)
             .unwrap_or_default()
     }
+
+    #[func]
+    fn portrait_model_ready(&self) -> bool {
+        self.portrait.as_ref().is_some_and(Portrait::model_ready)
+    }
 }
 
 /// Reuse the real masked portrait renderer on the trainer's existing offline canvas.

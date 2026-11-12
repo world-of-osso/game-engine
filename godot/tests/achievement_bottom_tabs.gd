@@ -4,7 +4,7 @@ extends "res://tests/achievement_card_description_font.gd"
 func run_cases() -> void:
 	root.size = Vector2i(1920, 1080)
 	root.content_scale_size = Vector2i.ZERO
-	completion = preload("res://tests/completion.gd").new(self, 6)
+	completion = preload("res://tests/completion.gd").new(self, 3)
 	var passed := true
 	for forever in [true]:
 		for action in ["achievement:achievements", "achievement:guild", "achievement:statistics"]:

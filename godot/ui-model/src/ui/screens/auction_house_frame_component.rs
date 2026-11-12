@@ -6,10 +6,12 @@
 use shared::protocol::AuctionDuration;
 use ui_toolkit::rsx;
 use ui_toolkit::screen::SharedContext;
-use ui_toolkit::text_measure::measure_text;
 use ui_toolkit::widget_def::Element;
 use ui_toolkit::widgets::font_string::GameFont;
 
+use crate::ui::screens::merchant_frame_component::{
+    PANEL_TABS_ANCHOR_OFFSET, PanelTabResize, PanelTabSize, next_panel_tab_left, resize_panel_tab,
+};
 use crate::ui::screens::quest_art::window_chrome;
 use crate::ui::strata::FrameStrata;
 
@@ -30,6 +32,8 @@ use art::*;
 /// `AuctionHouseFrame` size (Blizzard_AuctionHouseFrame.xml:5).
 pub const FRAME_W: f32 = 800.0;
 pub const FRAME_H: f32 = 538.0;
+const AUCTION_TAB_PADDING: f32 = 20.0;
+const AUCTION_TAB_MIN_WIDTH: f32 = 70.0;
 pub const ROOT_FRAME: &str = "AuctionHouseFrame";
 
 pub const ACTION_CLOSE: &str = "auction_close";
@@ -338,52 +342,41 @@ fn money_frame(money: u64) -> Element {
 }
 
 /// `AuctionHouseFrameDisplayModeTabTemplate` tabs: Buy at BOTTOMLEFT (20,-28), 32 tall
-/// (Blizzard_AuctionHouseFrame.xml:44-67). The XML's LEFT -15 chaining is replaced at load by
-/// `PanelTemplates_SetNumTabs` → `PanelTemplates_AnchorTabs`: each next tab TOPLEFT at the
-/// previous TOPRIGHT + 3 (SharedUIPanelTemplates.lua:460-470).
+/// (Blizzard_AuctionHouseFrame.xml:44-67). `SetNumTabs` reanchors at the shared +3 spacing.
 fn tabs(active: AuctionHouseTab) -> Element {
-    let mut x = 20.0;
-    let mut out = Vec::new();
+    let resize = PanelTabResize {
+        padding: AUCTION_TAB_PADDING,
+        min_width: Some(AUCTION_TAB_MIN_WIDTH),
+        ..PanelTabResize::default()
+    };
+    let mut left = 20.0;
+    let mut out = Element::default();
     for (index, tab) in AuctionHouseTab::ALL.into_iter().enumerate() {
-        let width = tab_width(tab.label());
+        let size = resize_panel_tab(tab.label(), resize);
         let action = format!("{ACTION_TAB_PREFIX}{}", tab.token());
         out.extend(panel_tab(
             &format!("AuctionHouseFrameTab{}", index + 1),
             tab.label(),
             &action,
             tab == active,
-            (x, 534.0, width),
+            (left, 534.0),
+            size,
             false,
         ));
-        x += width + 3.0;
+        left = next_panel_tab_left(left, size.width, PANEL_TABS_ANCHOR_OFFSET);
     }
     out
 }
 
-/// `PanelTemplates_TabResize(tab, TAB_PADDING = 20, nil, MIN_TAB_WIDTH = 70)`
-/// (Blizzard_AuctionHouseTab.lua:2-11): text width + `TAB_SIDES_PADDING` (20) + 20.
-fn tab_width(label: &str) -> f32 {
-    ui_toolkit::tab_art::measured_tab_width(
-        ui_toolkit::tab_art::TabLayout::Panel,
-        label,
-        ui_toolkit::tab_art::TabWidth {
-            padding: 20.0,
-            minimum: Some(70.0),
-            maximum: None,
-        },
-    )
-}
-
-/// `PanelTabButtonTemplate` (SharedUIPanelTemplates.xml:905): left cap at x -3 (active -1),
-/// right cap ending 7 (active 8) past the tab, 36 (active 42) tall; the label
-/// `GameFontNormalSmall`, white while selected. `top` draws the
-/// `PanelTopTabButtonTemplate` art: upside down, 75 % tall, anchored to the tab bottom.
+/// `PanelTabButtonTemplate` (SharedUIPanelTemplates.xml:932): the shared row supplies
+/// widths and anchors; this renderer retains the Auction House's authored text shadow.
 fn panel_tab(
     name: &str,
     label: &str,
     action: &str,
     active: bool,
-    (x, y, width): (f32, f32, f32),
+    (x, y): (f32, f32),
+    size: PanelTabSize,
     top: bool,
 ) -> Element {
     use ui_toolkit::tab_art::{TabArtSpec, TabLayout, tab_art, text_y_offset};
@@ -392,17 +385,18 @@ fn panel_tab(
     } else {
         TabLayout::Panel
     };
-    let art = tab_art(name, TabArtSpec::new(layout, active, [width, 32.0]));
+    let art = tab_art(name, TabArtSpec::new(layout, active, [size.width, 32.0]));
     let text_color = if active {
         HIGHLIGHT_FONT_COLOR
     } else {
         NORMAL_FONT_COLOR
     };
     let label_y = -text_y_offset(layout, active);
+    let label_left = (size.width - size.text_width) / 2.0;
     rsx! {
         button {
             name: {DynName(name.to_string())},
-            width,
+            width: size.width,
             height: 32.0,
             onclick: action,
             button_default_skin: false,
@@ -412,7 +406,7 @@ fn panel_tab(
             {art}
             fontstring {
                 name: {DynName(format!("{name}Text"))},
-                width,
+                width: size.text_width,
                 height: 32.0,
                 text: label,
                 font: GameFont::FrizQuadrata,
@@ -422,7 +416,7 @@ fn panel_tab(
                 shadow_offset: "1,-1",
                 justify_h: "CENTER",
                 pos_type: "absolute",
-                left: 0.0,
+                left: label_left,
                 top: label_y,
             }
         }

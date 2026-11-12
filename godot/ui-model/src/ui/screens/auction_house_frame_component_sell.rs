@@ -6,6 +6,7 @@ use crate::menu_primitives::{
     ContextMenuItem, DropdownButton, DropdownState, MenuElementKind, context_menu_description,
     dropdown_button_with_state,
 };
+use ui_toolkit::text_measure::measure_text;
 use ui_toolkit::widget_def::{Attr, WidgetChild};
 
 /// `Interface\Buttons\UI-CheckBox-Up` / `-Check` (`UICheckButtonArtTemplate`).

@@ -556,6 +556,7 @@ impl RegistryModel {
                         &mut self.registry,
                         view.tab,
                     );
+                    self.icon_masks.apply(&mut self.registry);
                 }
             }
             ScreenPostsetup::Login => apply_login_focus_visual(&mut self.registry),
