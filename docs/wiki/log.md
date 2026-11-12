@@ -2,7 +2,7 @@
 
 VERIFIED: Local 12.1 DB2 distinguishes cursor destinations through `SpellTargetRestrictions.Targets=64`; Consecration 26573 has `DEST_DEST`, range ID1 (Self Only), and no restriction row, while Flamestrike 2120 and DnD 43265 have the explicit destination flag. The native catalog now maps school masks to the sourced AoE `targetarea_*.blp` textures. See [[spell-catalog#ground-destination-and-aoe-decal--2026-11-11]] and [[target-circle-rendering#spell-ground-target-placement]].
 
-VERIFIED: The private Forever Flamestrike and caster-centred Consecration phases pass, including green/red range tint and one-time placement. UNVERIFIED: The Fire decal does not visually match the user's thin-ring crop, and Raging Consecration 50915 has no private live capture; details are in [[target-circle-rendering#private-forever-proof--2026-11-11]].
+VERIFIED: Private Forever phases pass: Flamestrike 2120 proves green/red range tint and one-time placement; ordinary Consecration 26573 sends without opening the cursor. VERIFIED: The 3× review shows broad filled Fire art beside the user's thin-ring crop. UNVERIFIED: Exact visual parity, and private live behavior for Raging Consecration 50915; details are in [[target-circle-rendering#private-forever-proof--2026-11-11]].
 
 ## Ruby emitter frustum cache — 2026-11-11
 
