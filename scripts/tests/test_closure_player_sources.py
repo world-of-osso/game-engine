@@ -169,16 +169,16 @@ INSERT INTO skinned_models VALUES(41,41),(49,49);
             result["seeds"]["character_sources"][0]["selected_choices"], [400]
         )
 
-    def test_starting_items_follow_native_source_and_race_mask_rules(self):
+    def test_zandalari_troll_shaman_items_follow_native_source_and_mask_rules(self):
         self.files.put(
             "db2/active/ChrRaces.csv",
-            b"ID,PlayableRaceBit\n8,7\n",
+            b"ID,PlayableRaceBit\n31,30\n",
         )
         self.files.put(
             "db2/active/ChrRaceXChrModel.csv",
             b"ID,ChrRacesID,ChrModelID,Sex\n"
             b"1,1,1,0\n2,95,1,0\n3,95,1,1\n"
-            b"4,96,1,0\n5,96,1,1\n6,8,1,0\n",
+            b"4,96,1,0\n5,96,1,1\n6,31,1,0\n",
         )
         self.files.put(
             "db2/active/ItemModifiedAppearance.csv",
@@ -251,7 +251,8 @@ INSERT INTO skinned_models VALUES(41,41),(49,49);
                 "CREATE TABLE character_loadout("
                 "ID INTEGER PRIMARY KEY,ChrClassID,Purpose,ModID,RaceMasks_0,RaceMasks_1);"
                 "INSERT INTO character_loadout VALUES"
-                "(1,7,9,75,128,0),(2,1,9,75,0,1),(3,7,9,75,128,0),(4,7,9,75,64,0);"
+                "(1,7,9,75,1073741824,0),(2,1,9,75,0,1),"
+                "(3,7,9,75,1073741824,0),(4,7,9,75,536870912,0);"
                 "CREATE TABLE character_loadout_item("
                 "ID INTEGER PRIMARY KEY,CharacterLoadoutID,ItemID);"
                 "INSERT INTO character_loadout_item VALUES"
@@ -266,7 +267,7 @@ INSERT INTO skinned_models VALUES(41,41),(49,49);
                 "CREATE TABLE tdb_playercreateinfo_item("
                 "race,class,itemid,amount);"
                 "INSERT INTO tdb_playercreateinfo_item VALUES"
-                "(8,7,157657,1),(95,1,157656,-1);"
+                "(31,7,157657,1),(95,1,157656,-1);"
             )
         for product, fdid in [
             ("wow", 464822),
@@ -280,7 +281,7 @@ INSERT INTO skinned_models VALUES(41,41),(49,49);
             self.files.put(f"models/{fdid}.m2", raw)
 
         characters = [
-            {"race": 8, "sex": 0, "class": 7, "level": 1, "choices": "default"},
+            {"race": 31, "sex": 0, "class": 7, "level": 1, "choices": "default"},
             {"race": 95, "sex": 0, "class": 1, "level": 1, "choices": "default"},
         ]
         config = dict(self.config, characters=characters, items="starting")
