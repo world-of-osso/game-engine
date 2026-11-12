@@ -71,6 +71,7 @@ func roster_card(ui: Node) -> Control:
 			if label.text == character:
 				return card
 		index += 1
+	return null
 
 func click_player_frame() -> bool:
 	var ui := client.get_node_or_null("UnitFramesUI")
