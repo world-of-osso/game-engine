@@ -143,17 +143,16 @@ func check_panel(panel: Dictionary, forever: bool, output: String) -> bool:
 	return failures.size() == before
 
 func wait_for_portrait(portrait: Node, label: String) -> bool:
-	var deadline := Time.get_ticks_msec() + 30000
-	while Time.get_ticks_msec() < deadline:
+	for frame in range(240):
 		var error: String = portrait.call("tick")
 		if not error.is_empty():
 			failures.append(label + " portrait: " + error)
 			return false
 		await frames(1)
 		await RenderingServer.frame_post_draw
-		var state = portrait.call("portrait_state")
-		if state.get("model_shown", false):
-			return true
+	var state = portrait.call("portrait_state")
+	if state.get("model_shown", false):
+		return true
 	failures.append(label + " portrait model did not load")
 	return false
 
