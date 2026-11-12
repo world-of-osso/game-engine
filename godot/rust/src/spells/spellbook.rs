@@ -235,7 +235,7 @@ impl GameClient {
         ))
     }
 
-    pub(super) fn should_delay_world_entry_for_talent_ui(&self, frame_id: u64) -> bool {
+    pub(crate) fn should_delay_world_entry_for_talent_ui(&self, frame_id: u64) -> bool {
         let Some(key) = self.active_talent_key() else {
             return false;
         };
