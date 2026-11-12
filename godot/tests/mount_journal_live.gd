@@ -147,7 +147,9 @@ func reconnect_same_character(character_name: String) -> bool:
 	if not await wait_until(func(): return client.account_state().screen == "CharacterSelect" and int(client.account_state().character_count) > int(character_index) and control(character_card) != null and control("EnterWorld") != null, "reconnect character roster", 120000): return false
 	await click(character_card)
 	await click("EnterWorld")
-	if not await wait_until(func(): return client.account_state().screen == "InWorld" and str(client.account_state().selected_character_name) == character_name and has_random_favorite_action_slot(), "same-character action-bar restoration", 180000): return false
+	if not await wait_until(func(): return client.account_state().screen == "InWorld" and str(client.account_state().selected_character_name) == character_name, "same-character world re-entry", 180000): return false
+	print("MOUNT_ACTION_BAR_RELOG_STATE ", client.spells_state())
+	if not await wait_until(func(): return has_random_favorite_action_slot(), "same-character action-bar restoration", 180000): return false
 	if client.account_state().ui_skin != "Forever": fail("Reconnect changed UI skin"); return false
 	client.set_world_minutes(720.0)
 	client.set_camera_orbit(PI, -0.3, 12.0)
@@ -313,7 +315,7 @@ func capture(label: String) -> void:
 	var stem := skin + "-" + ("alt-" if relog else "") + label
 	root.get_texture().get_image().save_png(shots.path_join(stem + ".png"))
 	var file := FileAccess.open(receipts.path_join(stem + ".json"), FileAccess.WRITE)
-	file.store_string(JSON.stringify({"mounts": client.mount_journal_state(), "account": client.account_state(), "auras": client.aura_state()}, "\t"))
+	file.store_string(JSON.stringify({"mounts": client.mount_journal_state(), "account": client.account_state(), "auras": client.aura_state(), "spells": client.spells_state()}, "\t"))
 	file.close()
 	print("MOUNT_CAPTURE ", stem)
 
@@ -323,7 +325,7 @@ func wait_frames(count: int) -> void:
 func fail(message: String) -> void:
 	if client != null and not receipts.is_empty():
 		var file := FileAccess.open(receipts.path_join(skin + "-failure.json"), FileAccess.WRITE)
-		file.store_string(JSON.stringify({"failure": message, "mounts": client.mount_journal_state(), "merchant": client.merchant_state()}, "\t"))
+		file.store_string(JSON.stringify({"failure": message, "mounts": client.mount_journal_state(), "merchant": client.merchant_state(), "spells": client.spells_state()}, "\t"))
 		file.close()
 	push_error("Mount Journal live: " + message)
 	quit(1)
