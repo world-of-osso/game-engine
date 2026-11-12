@@ -16,7 +16,7 @@ The native `FriendsFrame` is the Retail-style social window. It is rendered by t
 
 ### Who and Raid
 - [ ] Who submits the entered query and projects the server's returned character rows; Add Friend and Group Invite use the existing server requests.
-- [ ] Who result feedback uses the totals strip below results and above the search box; it does not cover the column headers.
+- [x] Who result feedback uses the totals strip below results and above the search box; it does not cover the column headers.
 - [ ] Raid reflects the current group/raid state; Convert to Raid and Raid Info use existing server actions.
 
 ## How it works
