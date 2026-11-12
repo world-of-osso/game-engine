@@ -40,6 +40,16 @@ VERIFIED: In local DB2 build 12.1.5.70448, Flamestrike 2120 has school mask 4, a
 
 INFERRED: The decal radius uses positive `SpellEffect` radii on destination-area targets, plus the area-capable effects that use `DEST_DEST`; unrelated ranges do not size the decal. VERIFIED: Eagle Eye 6197 has a 100 yd effect radius but its targets are not destination-area targets, so it remains a cursor spell without a fabricated 100 yd decal. VERIFIED: A destination spell without a positive area radius keeps its cursor and has no area decal.
 
+## Private Forever proof — 2026-11-11
+
+VERIFIED: `godot/tests/ground_targeting_live.gd` passed for Flamestrike 2120 on private UDP 5993 in Forever (`after-flamestrike-framed-final.log`): it selected flat ground 12.594 yd from the player and showed green tint under the 40 yd limit; the out-of-range sample at 45.057 yd showed red tint. The fixture placed Flamestrike once and confirmed the cursor decal was removed. Captures are in `/syncthing/AgentShared/2026-11-11/ground-target-fidelity/after/`.
+
+VERIFIED: The same fixture passed for ordinary Consecration 26573 (`after-consecration-final.log`), sent it without opening `GroundSpellReticle`, and saved `forever-consecration-after.png`; this proves caster-centred behavior, not cursor placement.
+
+VERIFIED: The 3× nearest-neighbour comparison `data/diagnostics/ground-target-fidelity-2026-11-11/visual-review/reviewed-valid-user-fire-3x-unique.png` places the private render beside the user crop and the decoded Fire texture. The Fire decal appears as broad filled green art; the user crop shows a thin ring. The valid screenshot's large decal extends past the lower viewport edge because the target point is at screen y=480 in a 720-pixel frame.
+
+UNVERIFIED: The visual difference is not a like-for-like comparison, so parity with the user reference is not established. Raging Consecration 50915 has catalog coverage for Holy art and its 6 yd radius, but no private live capture in this pass.
+
 ## Resolution
 
 A `TargetCircleStyle` resource was added with a picker in `InWorldSelectionDebug` for switching between procedural and BLP-textured styles. The blend mode detection (`is_fully_opaque()`) applies automatically based on decoded alpha.

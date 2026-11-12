@@ -46,6 +46,8 @@ INFERRED: In DB2 build 12.1.5.70448, `SpellMisc.SchoolMask` selects the Retail A
 
 INFERRED: The decal radius uses positive `SpellEffect` radii only when the effect targets a destination-area unit or an area-capable effect targets `DEST_DEST`; unrelated radii do not size the decal. VERIFIED: Eagle Eye 6197 has a 100 yd effect radius but no destination-area target, so it keeps cursor targeting without an invented area decal. Flamestrike 2120 resolves to 8 yd; Death and Decay 43265 to 8 yd; Heroic Leap 6544 and Infernal Strike 189110 to 3 yd. VERIFIED: A destination spell with no authored area radius keeps cursor targeting and omits the decal rather than inventing a size.
 
+See [private Forever proof and visual limitation](../investigations/target-circle-rendering.md#private-forever-proof--2026-11-11) for the live ground-target evidence.
+
 ## Description tokens
 
 `render_description` / `render_aura_description` substitute from DB rows only:
