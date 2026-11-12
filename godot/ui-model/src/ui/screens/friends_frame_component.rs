@@ -121,7 +121,7 @@ pub fn friends_frame_screen(ctx: &SharedContext) -> Element {
         let (title, items) = match view.tab {
             FriendsTab::Friends => ("", FRIEND_CONTEXT_ITEMS),
             FriendsTab::Who => ("", WHO_CONTEXT_ITEMS),
-            FriendsTab::Raid => ("", &[]),
+            FriendsTab::Raid => ("", &[] as &[ContextMenuItem<'_>]),
         };
         if !items.is_empty() {
             children.extend(menu_primitives::context_menu(ContextMenu {
@@ -551,7 +551,7 @@ fn raid_panel(view: &FriendsFrameView, ctx: &SharedContext) -> Element {
             .raid_members
             .iter()
             .enumerate()
-            .map(|(index, member)| raid_member_row(index, member))
+            .flat_map(|(index, member)| raid_member_row(index, member))
             .collect();
         out.extend(rsx! {
             r#frame {
@@ -588,7 +588,7 @@ fn raid_panel(view: &FriendsFrameView, ctx: &SharedContext) -> Element {
         );
     } else {
         out.extend(label(
-            "RaidFrameNotInRaidText",
+            "RaidFrameNotInRaidText".into(),
             "You are not in a raid group.",
             (20.0, 73.0, FRAME_W - 40.0, 26.0),
             (12.0, HIGHLIGHT_FONT_COLOR, "LEFT"),
@@ -640,7 +640,7 @@ fn add_friend_prompt() -> Element {
         (0.0, 0.0, 335.0, 124.0),
     ));
     children.extend(label(
-        "FriendsFrameAddFriendPrompt",
+        "FriendsFrameAddFriendPrompt".into(),
         "Enter a character name.",
         (16.0, 12.0, 303.0, 16.0),
         (12.0, HIGHLIGHT_FONT_COLOR, "CENTER"),

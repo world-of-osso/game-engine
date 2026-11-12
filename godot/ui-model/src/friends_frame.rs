@@ -1,6 +1,6 @@
 //! Native FriendsFrame state and projections for Retail's friends, Who and Raid tabs.
 
-use crate::game::group_state::GroupState;
+use crate::group_state::GroupState;
 use shared::{
     components::PresenceStatus,
     protocol_snapshots::{FriendsSnapshot, WhoSnapshot},
