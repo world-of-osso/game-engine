@@ -6,6 +6,7 @@ const CONSECRATION := 26573
 const SERVER := "127.0.0.1:5993"
 
 var phase := ""
+var pointer_notified := false
 
 func _initialize() -> void:
 	Engine.max_fps = 30
@@ -29,7 +30,7 @@ func run_test() -> void:
 	if error != "":
 		fail("Private account connection: " + error)
 		return
-	if not await enter_world():
+	if not await enter_ground_world():
 		return
 	var skin_error: String = client.preview_world_skin(true)
 	if skin_error != "" or client.account_state().ui_skin != "Forever":
@@ -72,6 +73,37 @@ func run_test() -> void:
 	print("GROUND_TARGETING_LIVE PASS phase=", phase, " skin=Forever spell=", FLAMESTRIKE)
 	client.free()
 	quit(0)
+
+func enter_ground_world() -> bool:
+	if not await wait_until(func():
+		var state: Dictionary = client.account_state()
+		var ui := client.get_node_or_null("CharacterSelectUI")
+		if not state.reply_received or state.screen != "CharacterSelect" or state.character_count != 1 or ui == null:
+			return false
+		var enter := ui.find_child("EnterWorld", true, false) as BaseButton
+		return enter != null and enter.is_visible_in_tree() and not enter.disabled
+	, 60000, "single-character roster and visible EnterWorld"):
+		return false
+	var ui := client.get_node("CharacterSelectUI")
+	var row_name := ui.find_child("CharCard_0Name", true, false) as Label
+	if row_name == null or row_name.text != character:
+		fail("Character-select roster does not contain " + character)
+		return false
+	var enter := ui.find_child("EnterWorld", true, false) as BaseButton
+	var point := enter.get_global_rect().get_center()
+	await pointer(point)
+	await mouse(point, MOUSE_BUTTON_LEFT, true)
+	await mouse(point, MOUSE_BUTTON_LEFT, false)
+	await wait_frames(6)
+	if not await wait_until(func():
+		var state: Dictionary = client.account_state()
+		return state.screen == "InWorld" and state.selected_character_name == character \
+			and state.local_player_position != null and state.local_server_position != null \
+			and state.terrain.pending_count == 0 and not state.terrain.parsed_tiles.is_empty()
+	, 180000, "enter named character"):
+		return false
+	await wait_frames(60)
+	return true
 
 func consecration_targeting_proof(baseline: bool) -> bool:
 	if not client.spells_state().known.has(CONSECRATION):
@@ -162,3 +194,23 @@ func place_flamestrike(sent_before: int) -> bool:
 func reticle_point(distance_yd: float) -> Vector2:
 	var camera := root.get_camera_3d()
 	return camera.unproject_position(player.global_position + Vector3(0.0, 0.0, distance_yd))
+
+func pointer(at: Vector2) -> void:
+	if not pointer_notified:
+		root.notify_mouse_entered()
+		pointer_notified = true
+	var event := InputEventMouseMotion.new()
+	event.position = at
+	event.global_position = at
+	root.push_input(event, true)
+	await wait_frames(6)
+
+func mouse(at: Vector2, button: MouseButton, pressed: bool) -> void:
+	var event := InputEventMouseButton.new()
+	event.position = at
+	event.global_position = at
+	event.button_index = button
+	event.button_mask = (1 << (button - 1)) if pressed else 0
+	event.pressed = pressed
+	root.push_input(event, true)
+	await process_frame
