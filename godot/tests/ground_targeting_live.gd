@@ -188,16 +188,23 @@ func save_texture_reference(decal: Decal) -> bool:
 func capture_out_of_range_reticle() -> bool:
 	client.set_camera_orbit(PI, -0.3, 48.0)
 	await wait_frames(12)
-	var point := reticle_point(41.0)
+	var point := reticle_point(-41.0)
+	var viewport := Rect2(Vector2.ZERO, Vector2(root.size))
+	if not viewport.has_point(point):
+		fail("Out-of-range ground point projects outside the viewport: " + str(point))
+		return false
 	await pointer(point)
 	await wait_frames(4)
 	var decal := client.get_node_or_null("GroundSpellReticle") as Decal
 	if decal == null or not decal.visible:
 		fail("Out-of-range ground point did not retain a visible decal")
 		return false
-	print("GROUND_RANGE_DEBUG player=", player.global_position, " decal=", decal.global_position,
-		" distance=", player.global_position.distance_to(decal.global_position), " color=", decal.modulate)
-	await capture("ground-target-invalid")
+	var distance := player.global_position.distance_to(decal.global_position)
+	print("GROUND_RANGE_PROOF player=", player.global_position, " decal=", decal.global_position,
+		" distance=", distance, " max=40.0 color=", decal.modulate)
+	if distance <= 40.0:
+		fail("Out-of-range test ray hit a surface within 40 yards")
+		return false
 	if decal.modulate.r <= decal.modulate.g:
 		fail("Out-of-range Flamestrike decal is not red")
 		return false

@@ -12,6 +12,7 @@ use super::SpellsHud;
 use crate::{GameClient, frame_error::FrameError};
 
 const RETICLE_DEPTH: f32 = 1.0;
+const RETICLE_EMISSION_ENERGY: f32 = 1.5;
 const RETICLE_LIFT: f32 = 0.06;
 
 impl SpellsHud {
@@ -272,6 +273,8 @@ fn spawn_reticle(
     decal.set_size(Vector3::new(diameter_yd, RETICLE_DEPTH, diameter_yd));
     decal.set_position(Vector3::new(0.0, RETICLE_LIFT, 0.0));
     decal.set_texture(DecalTexture::ALBEDO, &texture);
+    decal.set_texture(DecalTexture::EMISSION, &texture);
+    decal.set_emission_energy(RETICLE_EMISSION_ENERGY);
     decal.set_modulate(ground_reticle_tint(valid));
     crate::rebuild_guard::count(crate::rebuild_guard::Rebuild::MaterialRebind, 1);
     Ok(decal)
