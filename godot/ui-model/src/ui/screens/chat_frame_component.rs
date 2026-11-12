@@ -436,7 +436,11 @@ const FOREVER_BUTTON_TOP: f32 =
 const FOREVER_HEADER_GLYPHS: [(&str, (u32, [f32; 4]), Option<&str>); 4] = [
     ("Channel", FLARE_CHANNEL_ART, None),
     ("Menu", FLARE_MENU_ART, Some(COPY_CHAT_ACTION)),
-    ("Social", FLARE_SOCIAL_ART, None),
+    (
+        "Social",
+        FLARE_SOCIAL_ART,
+        Some(crate::friends_frame::ACTION_SOCIAL_TOGGLE),
+    ),
     ("Volume", FLARE_VOLUME_ART, None),
 ];
 

@@ -24,6 +24,7 @@ pub const CLOSE_REGISTRATIONS: &[CloseRegistration<&str>] = &[
     panel("trade"),
     panel("quests"),
     panel("character"),
+    panel("friends"),
     panel("guild_ranks"),
     panel("guild_charter"),
     panel("guild_tabard"),

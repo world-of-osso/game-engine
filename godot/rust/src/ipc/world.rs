@@ -97,6 +97,31 @@ impl crate::GameClient {
             }
             Request::GroupRoster => Ok(format_group_roster(&self.account.group)),
             Request::GroupStatus => Ok(format_group_status(&self.account.group)),
+            Request::FriendsStatus => self
+                .account
+                .query_friends()
+                .map_err(|error| error.to_string())
+                .and_then(|()| {
+                    serde_json::to_string(&self.account.friends).map_err(|error| error.to_string())
+                }),
+            Request::WhoStatus => {
+                serde_json::to_string(&self.account.who).map_err(|error| error.to_string())
+            }
+            Request::WhoQuery { query } => self
+                .account
+                .query_who(query.clone())
+                .map(|()| format!("Who query submitted: {query}"))
+                .map_err(|error| error.to_string()),
+            Request::FriendAdd { name } => self
+                .account
+                .add_friend(name.clone())
+                .map(|()| format!("Friend add submitted: {name}"))
+                .map_err(|error| error.to_string()),
+            Request::FriendRemove { name } => self
+                .account
+                .remove_friend(name.clone())
+                .map(|()| format!("Friend removal submitted: {name}"))
+                .map_err(|error| error.to_string()),
             Request::GroupSubgroup { name, subgroup } => self.group_ipc(
                 "group subgroup",
                 GroupCommand::SetSubgroup {
