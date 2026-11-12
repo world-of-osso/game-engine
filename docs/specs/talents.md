@@ -4,7 +4,7 @@ PlayerSpellsFrame displays and edits the existing server talent configuration. M
 
 ## Required behavior
 
-- When the active class/spec is known during Loading, build the hidden talent page before entering InWorld. Keep Loading visible for one rendered frame after construction, and reuse the page on the first Talent open. Do not run the full-page prewarm as an InWorld startup frame.
+- When the active class/spec is known during Loading, build the hidden talent page with the selected character's saved layout skin before entering InWorld. Keep Loading visible for one rendered frame after construction, and reuse the page on the first Talent open. Do not run the full-page prewarm as an InWorld startup frame. Prewarm adds no more than about2s to Loading; first open stays under100ms and adds/removes no UI controls.
 - Map class SkillLine (category 7) through SkillLineXTraitTree variant 0; filter local DB2 nodes/entries by spec visibility, retaining ordered choices, prerequisites and hero trees.
 - Receive `TraitConfigSnapshot` on the owning account. Display committed total ranks (including grants) and server unspent class/spec points. Each new snapshot replaces pending edits, closes the choice flyout and clears errors.
 - Choice icons overlay the full spell images under Retail's complementary octagon masks; never squeeze two rectangular icon halves. The choice flyout is a horizontal row of64px authored large options,5px apart, above its node (BOTTOM to TOP offset−10); selection retains the shared spell tooltip and staged edit flow.
@@ -42,10 +42,13 @@ All paths relative to `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/`:
 
 `godot/ui-model/src/talent_editor.rs` owns committed/pending allocations, point deltas and requests. The account owns one editor per connection; actual specialization changes clear it until the new snapshot. A current-spec echo from a rejected request preserves that configuration. A grouped TalentChannel relay preserves spec/result/snapshot order across typed receiver buffers. `talents.rs` projects it into the shared page. NetworkBridge receives both server talent messages and the account sends commits on `TalentChannel`.
 
+`godot/rust/src/spells/spellbook.rs` prepares and reuses the hidden page; `ui_layout.rs` resolves the selected character's saved skin. `spellbook_frame_screen` tracks `ActiveSkin` because talent art reads the thread skin while building frames.
+
 ## Proof
 
 - `godot/ui-model/tests/talentwire.rs`: snapshots, pending purchase/refund/undo, impossible edits, full commits, failure reasons, replacement snapshots, choice switching, gates and hero availability.
 - `godot/ui-model/tests/talents.rs`: shared elements, pending rank labels, class/spec point counters, Apply/Undo and choice flyout in both skins.
+- `godot/ui-player-spells/tests/talents.rs`: shared native page behavior in both skins and active-skin rebuild of cached talent art.
 - `godot/ui-model/tests/talent_layout.rs`: worst105/257/270, Arms71, all40 main/hero-dialog/active-subtree rects in both skins, header clearance/baseline, outlined spend text, disabled caption and Reset sizing; eligible hero atlas files decode from shipped bytes.
 - `godot/tests/capture_talent_layout.gd` plus `check_talent_layout.py`: one explicit-skin offline batch, actual1920×1080 PNGs/native rects and visible currency/hero/Apply glyph pixels. An authored rect alone does not prove its caption is painted above button art.
 - `godot/network/src/wire_tests.rs`: real UDP commit payload, snapshot/result delivery, and production-ordered login/commit/spec-switch traffic accumulated in one worker batch.

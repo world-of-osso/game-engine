@@ -2251,6 +2251,14 @@ impl GameClient {
     }
 
     fn effective_ui_scale(&self) -> f32 {
+        self.effective_ui_scale_for_screen(self.account.session.screen == SessionScreen::InWorld)
+    }
+
+    pub(crate) fn effective_world_ui_scale(&self) -> f32 {
+        self.effective_ui_scale_for_screen(true)
+    }
+
+    fn effective_ui_scale_for_screen(&self, in_world: bool) -> f32 {
         let viewport = self
             .base()
             .get_viewport()
@@ -2259,7 +2267,7 @@ impl GameClient {
         ui_scale::effective_ui_scale(
             [viewport.x, viewport.y],
             self.client_options.graphics.ui_scale,
-            self.account.session.screen == SessionScreen::InWorld,
+            in_world,
         )
     }
 
@@ -2345,8 +2353,18 @@ impl GameClient {
     }
 
     fn sync_registry_ui_scale(&mut self) -> Result<(), String> {
+        // Keep the hidden talent page at world scale during Loading; changing it to
+        // the glue-screen scale and back would rebuild the full tree twice.
         let scale = self.effective_ui_scale();
-        self.for_each_registry_ui(|ui| ui.bind_mut().set_ui_scale(scale))
+        let prewarm_scale = self.effective_world_ui_scale();
+        self.for_each_registry_ui(|ui| {
+            let scale = if ui.get_name().to_string() == "SpellBookPrewarmUI" {
+                prewarm_scale
+            } else {
+                scale
+            };
+            ui.bind_mut().set_ui_scale(scale)
+        })
     }
 
     fn connect_focus_reset(&mut self) -> Result<(), String> {

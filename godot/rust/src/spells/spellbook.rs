@@ -277,10 +277,19 @@ impl GameClient {
         self.spells.book_position_applied = None;
         self.spells.talent_prewarm_attempted_key = Some(key);
 
-        let state = self.load_talent_book_state()?;
-        let rect = placed_book_rect(state.viewport, self.spells.book_position);
-        let scale = self.effective_ui_scale();
-        let ui = self.create_prefetched_talent_ui(state, scale, rect)?;
+        let layout = self.load_character_ui_layout()?;
+        let previous_skin = ui_toolkit::atlas::thread_skin();
+        // Build the hidden book under the character's skin without changing Loading art.
+        let prewarm = (|| {
+            ui_toolkit::atlas::set_thread_skin(Self::active_skin_for_layout(layout.skin));
+            let scale = self.effective_world_ui_scale();
+            let state = self.load_talent_book_state(scale)?;
+            let rect = placed_book_rect(state.viewport, self.spells.book_position);
+            let ui = self.create_prefetched_talent_ui(state, scale, rect)?;
+            Ok((ui, rect))
+        })();
+        ui_toolkit::atlas::set_thread_skin(previous_skin);
+        let (ui, rect) = prewarm?;
         self.spells.prefetched_book_ui = Some(ui);
         self.spells.prefetched_book_key = Some(key);
         self.spells.prefetched_book_created_frame = Some(self.frame_id);
@@ -289,14 +298,14 @@ impl GameClient {
         Ok(())
     }
 
-    fn load_talent_book_state(&mut self) -> Result<SpellbookFrameState, String> {
+    fn load_talent_book_state(&mut self, scale: f32) -> Result<SpellbookFrameState, String> {
         let character_id = self
             .account
             .session
             .selected_character_id
             .ok_or("Spellbook prewarm requires selected server character ID")?;
         self.spells.book_position = self.read_saved_spellbook_position(character_id)?;
-        let mut state = self.spellbook_state_for_tab(PlayerSpellsTab::Talents)?;
+        let mut state = self.spellbook_state_for_tab_at_scale(PlayerSpellsTab::Talents, scale)?;
         state.selected = 0;
         state.page = 0;
         self.extract_spellbook_art(&state);
@@ -466,6 +475,15 @@ impl GameClient {
         &mut self,
         tab: PlayerSpellsTab,
     ) -> Result<SpellbookFrameState, String> {
+        let scale = self.effective_ui_scale();
+        self.spellbook_state_for_tab_at_scale(tab, scale)
+    }
+
+    fn spellbook_state_for_tab_at_scale(
+        &mut self,
+        tab: PlayerSpellsTab,
+        scale: f32,
+    ) -> Result<SpellbookFrameState, String> {
         let player = self.spellbook_player();
         let talents = self.load_spellbook_talents(player, tab)?;
         let mut content = self.spellbook_content(player);
@@ -477,7 +495,6 @@ impl GameClient {
             .map_or(Vector2::new(1280.0, 720.0), |viewport| {
                 viewport.get_visible_rect().size
             });
-        let scale = self.effective_ui_scale();
         let mut state = SpellbookFrameState {
             viewport: [size.x / scale, size.y / scale],
             selected: self.spells.book.selected,

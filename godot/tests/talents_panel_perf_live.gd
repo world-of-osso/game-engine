@@ -4,7 +4,7 @@ extends "res://tests/frame_benchmark.gd"
 ## Required: GODOT_TEST_SERVER, BENCH_ACCOUNT, BENCH_CHARACTER,
 ## BENCH_TALENTS_SCREENSHOT. Optional: BENCH_SEGMENT_S, BENCH_RESOLUTION,
 ## BENCH_WORLD_TRACE_S, BENCH_WORLD_TRACE_PATH, BENCH_STARTUP_INWORLD,
-## BENCH_REQUIRE_LOADING_PREWARM.
+## BENCH_REQUIRE_LOADING_PREWARM, BENCH_REQUIRE_FAST_FIRST_OPEN.
 const ASSET_STARTUP_TIMEOUT_MS := 180000
 const SPEC_TIMEOUT_MS := 30000
 const OPEN_TIMEOUT_MS := 60000
@@ -92,10 +92,26 @@ func find_talents_panel() -> Dictionary:
 	var panel := book_ui.find_child("ClassTalentsFrame", true, false) as Control
 	if panel == null or not panel.is_visible_in_tree():
 		return {}
-	var node_count := book_ui.find_children("TalentNode*", "Control", true, false).size()
+	var node_count := talent_root_count(book_ui)
 	if node_count == 0:
 		return {}
-	return {"panel": panel, "node_count": node_count}
+	return {"panel": panel, "node_count": node_count,
+		"node_control_count": book_ui.find_children("TalentNode*", "Control", true, false).size()}
+
+func talent_root_count(root_node: Node) -> int:
+	var total := 0
+	for control in root_node.find_children("TalentNode*", "Control", true, false):
+		var name := str(control.name)
+		if name.trim_prefix("TalentNode").is_valid_int():
+			total += 1
+	return total
+
+func spend_art_count(counts: Dictionary) -> int:
+	var total := 0
+	for control_name in counts:
+		if str(control_name).ends_with("SpendArt"):
+			total += int(counts[control_name])
+	return total
 
 func named_control_counts(root_node: Node) -> Dictionary:
 	var counts: Dictionary = {}
@@ -126,7 +142,7 @@ func capture_loading_prewarm_tree() -> void:
 	loading_prewarm_seen = true
 	if prewarm_frame_counts.is_empty():
 		prewarm_frame_counts = named_control_counts(prewarm)
-		prewarm_talent_node_count = prewarm.find_children("TalentNode*", "Control", true, false).size()
+		prewarm_talent_node_count = talent_root_count(prewarm)
 
 func wait_for_startup_world(character: String) -> bool:
 	var started_usec := Time.get_ticks_usec()
@@ -194,9 +210,9 @@ func run_test() -> void:
 			return
 		if not await enter_world(character):
 			return
-	var trace_missing_prefetched_ui := world_trace_seconds > 0.0 and not world_trace_prefetched_at_entry
+	world_trace_prefetched_at_entry = client.get_node_or_null("SpellBookPrewarmUI") != null
 	if OS.get_environment("BENCH_REQUIRE_LOADING_PREWARM") == "1" \
-			and (not loading_prewarm_seen or trace_missing_prefetched_ui):
+			and (not loading_prewarm_seen or not world_trace_prefetched_at_entry):
 		fail("Talent UI was not prewarmed on the Loading screen before InWorld")
 		return
 	player = client.get_node_or_null("WorldUnits/" + character) as Node3D
@@ -211,9 +227,8 @@ func run_test() -> void:
 	if int(ready_spells.get("level", 0)) != 90 or int(ready_spells.get("spec", 0)) <= 0:
 		fail("Talents requires a level-90 player with an active spec: " + str(ready_spells))
 		return
-	var skin_error: String = client.preview_world_skin(true)
-	if not skin_error.is_empty() or client.account_state().ui_skin != "Forever":
-		fail("Could not select Forever: " + skin_error)
+	if client.account_state().ui_skin != "Forever":
+		fail("Selected character layout must use Forever; got " + str(client.account_state().ui_skin))
 		return
 	client.set_world_minutes(WORLD_MINUTES)
 	client.set_camera_orbit(0.0, PITCH, DISTANCE)
@@ -243,6 +258,7 @@ func run_test() -> void:
 	var open_wait_frames := 0
 	var lookup_total_usec := 0
 	var lookup_max_usec := 0
+	var first_frame_ms := -1.0
 	var deadline := Time.get_ticks_msec() + OPEN_TIMEOUT_MS
 	while Time.get_ticks_msec() < deadline:
 		await process_frame
@@ -256,6 +272,7 @@ func run_test() -> void:
 			panel = panel_state.panel
 			node_count = panel_state.node_count
 			await RenderingServer.frame_post_draw
+			first_frame_ms = float(Time.get_ticks_usec() - keypress_usec) / 1000.0
 			break
 	send_key(KEY_N, false)
 	input_probe.queue_free()
@@ -270,6 +287,9 @@ func run_test() -> void:
 		var visible_frame_counts := named_control_counts(book_ui)
 		var added_frame_names := control_name_delta(prewarm_frame_counts, visible_frame_counts)
 		var removed_frame_names := control_name_delta(visible_frame_counts, prewarm_frame_counts)
+		var added_root_nodes := node_count - prewarm_talent_node_count
+		var prewarm_spend_art := spend_art_count(prewarm_frame_counts)
+		var added_spend_art := spend_art_count(visible_frame_counts) - prewarm_spend_art
 		print("TALENTS_PANEL_PREWARM_DIFF ", JSON.stringify({
 			"prewarm_controls": total_control_count(prewarm_frame_counts),
 			"visible_controls": total_control_count(visible_frame_counts),
@@ -278,8 +298,17 @@ func run_test() -> void:
 			"removed_controls": removed_frame_names.size(),
 			"removed_names": removed_frame_names,
 			"prewarm_talent_nodes": prewarm_talent_node_count,
-			"visible_talent_nodes": node_count
+			"visible_talent_nodes": node_count,
+			"prewarm_spend_art": prewarm_spend_art,
+			"added_root_nodes": added_root_nodes,
+			"added_spend_art": added_spend_art
 		}))
+		if OS.get_environment("BENCH_REQUIRE_FAST_FIRST_OPEN") == "1" \
+				and (prewarm_spend_art == 0 or added_frame_names.size() != 0 \
+				or removed_frame_names.size() != 0 or added_root_nodes != 0 or added_spend_art != 0):
+			fail("First-open UI tree differs from Forever Loading prewarm: art=%d added=%s removed=%s" % [
+				prewarm_spend_art, added_frame_names, removed_frame_names])
+			return
 	var dropdown := book_ui.find_child("TalentLoadoutDropDown", true, false) as Control if book_ui != null else null
 	var search := book_ui.find_child("TalentSearchBox", true, false) as Control if book_ui != null else null
 	var caption := book_ui.find_child("TalentLoadoutName", true, false) as Label if book_ui != null else null
@@ -297,10 +326,13 @@ func run_test() -> void:
 		fail("Default Loadout caption is clipped: %s lines=%s" % [caption.text, caption.get_line_count()])
 	print("TALENTS_PANEL_FOOTER_PASS ", JSON.stringify({"dropdown_width": dropdown_width,
 		"gap_to_search": dropdown_gap, "caption": caption.text, "caption_lines": caption.get_line_count()}))
-	var first_frame_ms := float(Time.get_ticks_usec() - keypress_usec) / 1000.0
 	print("TALENTS_PANEL_FIRST_FRAME ", JSON.stringify({"open_ms": first_frame_ms, "talent_nodes": node_count,
-		"wait_frames": open_wait_frames, "lookup_total_ms": float(lookup_total_usec) / 1000.0,
+		"talent_node_controls": panel_state.node_control_count, "wait_frames": open_wait_frames,
+		"lookup_total_ms": float(lookup_total_usec) / 1000.0,
 		"lookup_max_ms": float(lookup_max_usec) / 1000.0, "ui_skin": client.account_state().ui_skin}))
+	if OS.get_environment("BENCH_REQUIRE_FAST_FIRST_OPEN") == "1" and first_frame_ms >= 100.0:
+		fail("First talents frame took %.3f ms; budget is under 100 ms" % first_frame_ms)
+		return
 	var first_frame := root.get_texture().get_image()
 	if first_frame.save_png(screenshot + "-first.png") != OK:
 		fail("Could not save first talents frame")
