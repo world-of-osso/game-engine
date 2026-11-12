@@ -16,8 +16,19 @@ func _initialize() -> void:
 	call_deferred("capture_dropdowns", views)
 
 func capture_dropdowns(views: Array) -> void:
+	for frame in range(2):
+		await process_frame
+		await RenderingServer.frame_post_draw
 	root.content_scale_size = Vector2i.ZERO
 	root.size = Vector2i(1920, 1080)
+	for frame in range(3):
+		await process_frame
+		await RenderingServer.frame_post_draw
+	var viewport_size := Vector2i(root.get_visible_rect().size)
+	var image_size := root.get_texture().get_image().get_size()
+	print("DROPDOWN_VIEWPORT root=", root.size, " display=", DisplayServer.window_get_size(), " viewport=", viewport_size, " image=", image_size)
+	if not completion.require(root.size == Vector2i(1920, 1080) and DisplayServer.window_get_size() == Vector2i(1920, 1080) and viewport_size == Vector2i(1920, 1080) and image_size == Vector2i(1920, 1080), "Capture viewport must be 1920x1080"):
+		return
 	RenderingServer.set_default_clear_color(Color(0.12, 0.12, 0.12))
 	var output := OS.get_environment("DROPDOWN_CENTER_CAPTURE_PATH")
 	if not completion.require(not output.is_empty(), "Set DROPDOWN_CENTER_CAPTURE_PATH"):
