@@ -320,6 +320,9 @@ func kb_follower_group_finder_cases() -> bool:
 		return fail_false("I did not open the native Group Finder")
 	print("KEYBINDS GROUP_FINDER I opened PVEFrame")
 	await uo_settle(500)
+	# Move away from the micro menu to dismiss its tooltip in the screenshot.
+	mc_motion(Vector2(1800, 900), false)
+	await uo_settle(250)
 	await kb_capture("group-finder-opened-with-I.png")
 	await kb_tap(KEY_I)
 	if not await uo_wait(func(): return not kb_group_finder_visible(), 5000):
