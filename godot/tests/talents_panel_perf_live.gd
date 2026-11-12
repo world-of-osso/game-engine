@@ -15,6 +15,8 @@ var world_trace_path := ""
 var world_trace_finished := false
 var world_trace_prefetched_at_entry := false
 var loading_prewarm_seen := false
+var prewarm_frame_counts: Dictionary = {}
+var prewarm_talent_node_count := 0
 
 class InputEventProbe extends Node:
 	var n_pressed_events := 0
@@ -95,6 +97,37 @@ func find_talents_panel() -> Dictionary:
 		return {}
 	return {"panel": panel, "node_count": node_count}
 
+func named_control_counts(root_node: Node) -> Dictionary:
+	var counts: Dictionary = {}
+	for control in root_node.find_children("*", "Control", true, false):
+		var control_name := str(control.name)
+		counts[control_name] = int(counts.get(control_name, 0)) + 1
+	return counts
+
+func total_control_count(counts: Dictionary) -> int:
+	var total := 0
+	for count in counts.values():
+		total += int(count)
+	return total
+
+func control_name_delta(before: Dictionary, after: Dictionary) -> Array[String]:
+	var delta: Array[String] = []
+	for control_name in after:
+		var extra := int(after[control_name]) - int(before.get(control_name, 0))
+		for _index in range(maxi(extra, 0)):
+			delta.append(str(control_name))
+	delta.sort()
+	return delta
+
+func capture_loading_prewarm_tree() -> void:
+	var prewarm := client.get_node_or_null("SpellBookPrewarmUI")
+	if prewarm == null:
+		return
+	loading_prewarm_seen = true
+	if prewarm_frame_counts.is_empty():
+		prewarm_frame_counts = named_control_counts(prewarm)
+		prewarm_talent_node_count = prewarm.find_children("TalentNode*", "Control", true, false).size()
+
 func wait_for_startup_world(character: String) -> bool:
 	var started_usec := Time.get_ticks_usec()
 	var max_process_frame_ms := 0.0
@@ -104,7 +137,7 @@ func wait_for_startup_world(character: String) -> bool:
 		max_process_frame_ms = maxf(max_process_frame_ms, Performance.get_monitor(Performance.TIME_PROCESS) * 1000.0)
 		var state: Dictionary = client.account_state()
 		if state.screen == "Loading" and OS.get_environment("BENCH_REQUIRE_LOADING_PREWARM") == "1":
-			loading_prewarm_seen = loading_prewarm_seen or client.get_node_or_null("SpellBookPrewarmUI") != null
+			capture_loading_prewarm_tree()
 		if state.screen == "InWorld" and world_trace_seconds > 0.0 and not world_trace_finished:
 			await capture_world_trace()
 		if state.screen == "InWorld" and Readiness.is_ready(state) and state.local_player_position != null \
@@ -233,6 +266,20 @@ func run_test() -> void:
 			str(root.gui_get_focus_owner()), str(client.spells_state())])
 		return
 	var book_ui := client.get_node_or_null("SpellBookUI")
+	if book_ui != null and not prewarm_frame_counts.is_empty():
+		var visible_frame_counts := named_control_counts(book_ui)
+		var added_frame_names := control_name_delta(prewarm_frame_counts, visible_frame_counts)
+		var removed_frame_names := control_name_delta(visible_frame_counts, prewarm_frame_counts)
+		print("TALENTS_PANEL_PREWARM_DIFF ", JSON.stringify({
+			"prewarm_controls": total_control_count(prewarm_frame_counts),
+			"visible_controls": total_control_count(visible_frame_counts),
+			"added_controls": added_frame_names.size(),
+			"added_names": added_frame_names,
+			"removed_controls": removed_frame_names.size(),
+			"removed_names": removed_frame_names,
+			"prewarm_talent_nodes": prewarm_talent_node_count,
+			"visible_talent_nodes": node_count
+		}))
 	var dropdown := book_ui.find_child("TalentLoadoutDropDown", true, false) as Control if book_ui != null else null
 	var search := book_ui.find_child("TalentSearchBox", true, false) as Control if book_ui != null else null
 	var caption := book_ui.find_child("TalentLoadoutName", true, false) as Label if book_ui != null else null
