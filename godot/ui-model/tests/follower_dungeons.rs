@@ -26,8 +26,8 @@ fn catalog() -> FollowerDungeons {
             id: 2436,
             name: "Ruby Life Pools".into(),
             map_id: 2521,
-            min_level: 70,
-            max_level: 80,
+            min_level: 10,
+            max_level: 70,
         }],
     }
 }
@@ -361,69 +361,91 @@ fn follower_group_finder_both_skins_use_the_server_catalog_and_real_queue_action
     }
 }
 #[test]
-fn follower_group_finder_queues_entries_from_server_catalog_without_local_level_filter() {
-    let mut view = View {
+fn follower_group_finder_locks_out_of_range_rows_and_blocks_queueing() {
+    set_data_root();
+    let mut below_range = View {
         visible: true,
+        player_level: Some(9),
         ..Default::default()
     };
-    view.receive_catalog(FollowerDungeons {
-        entries: vec![
-            FollowerDungeonEntry {
-                id: 2436,
-                name: "Ruby Life Pools".into(),
-                map_id: 2521,
-                min_level: 70,
-                max_level: 80,
-            },
-            FollowerDungeonEntry {
-                id: 2439,
-                name: "Brackenhide Hollow".into(),
-                map_id: 2520,
-                min_level: 70,
-                max_level: 80,
-            },
-        ],
-    });
-    assert_eq!(view.action("follower:select:2439"), None);
-    assert_eq!(view.selected, Some(2439));
+    below_range.receive_catalog(catalog());
     assert_eq!(
-        view.action("follower:queue"),
+        below_range.level_lock_key(2436),
+        Some("LFG_LOCKSTATUS_TOO_LOW_LEVEL")
+    );
+    assert!(!below_range.can_select(2436));
+    assert_eq!(below_range.action("follower:select:2436"), None);
+
+    let locked = render(below_range.clone(), ActiveSkin::Forever);
+    let row_name = "LFDQueueFrameFollowerDungeon2436";
+    assert_eq!(button(&locked, row_name).0, ButtonState::Disabled);
+    assert!(
+        locked
+            .get_by_name("LFDQueueFrameFollowerDungeon2436CheckBox")
+            .is_none()
+    );
+    let locked_indicator_id = locked
+        .get_by_name("LFDQueueFrameFollowerDungeon2436LockedIndicator")
+        .expect("locked row has a Retail lock image");
+    let locked_indicator = locked.get(locked_indicator_id).unwrap();
+    assert_eq!(
+        (
+            locked_indicator.width.value(),
+            locked_indicator.height.value()
+        ),
+        (12.0, 14.0)
+    );
+    let Some(WidgetData::Texture(lock_image)) = &locked_indicator.widget_data else {
+        panic!("locked row image")
+    };
+    assert_eq!(lock_image.source, TextureSource::FileDataId(340_023));
+    assert_eq!(lock_image.tex_coords, [0.0, 0.71875, 0.0, 0.875]);
+    let row_id = locked.get_by_name(row_name).unwrap();
+    let (_, binding) = tooltip_owner(&locked, row_id).expect("locked row has a tooltip");
+    let tooltip = GameTooltip::from_binding(binding, false, [0.0; 4]).unwrap();
+    assert_eq!(tooltip.content.title, "You must advance to a higher level.");
+    below_range.selected = Some(2436);
+    assert!(!below_range.can_queue());
+    assert_eq!(below_range.action("follower:queue"), None);
+
+    let mut in_range = View {
+        visible: true,
+        player_level: Some(10),
+        ..Default::default()
+    };
+    in_range.receive_catalog(catalog());
+    assert_eq!(in_range.level_lock_key(2436), None);
+    assert!(in_range.can_select(2436));
+    let unlocked = render(in_range.clone(), ActiveSkin::Forever);
+    assert_eq!(button(&unlocked, row_name).0, ButtonState::Normal);
+    assert!(
+        unlocked
+            .get_by_name("LFDQueueFrameFollowerDungeon2436CheckBox")
+            .is_some()
+    );
+    assert!(
+        unlocked
+            .get_by_name("LFDQueueFrameFollowerDungeon2436LockedIndicator")
+            .is_none()
+    );
+    assert_eq!(in_range.action("follower:select:2436"), None);
+    assert_eq!(
+        in_range.action("follower:queue"),
         Some(Action::Queue(QueueForLfg {
             role: GroupRoleSnapshot::Damage,
-            dungeon_ids: vec![2439],
+            dungeon_ids: vec![2436],
         }))
     );
 
-    let mut displayed = View {
-        visible: true,
+    let mut above_range = View {
+        player_level: Some(71),
         ..Default::default()
     };
-    displayed.receive_catalog(FollowerDungeons {
-        entries: vec![FollowerDungeonEntry {
-            id: 2439,
-            name: "Brackenhide Hollow".into(),
-            map_id: 2520,
-            min_level: 70,
-            max_level: 80,
-        }],
-    });
-    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
-        let registry = render(displayed.clone(), skin);
-        assert_eq!(
-            button(&registry, "LFDQueueFrameFollowerDungeon2439").0,
-            ButtonState::Normal
-        );
-        assert!(
-            registry
-                .get_by_name("LFDQueueFrameFollowerDungeon2439CheckBox")
-                .is_some()
-        );
-        assert!(
-            registry
-                .get_by_name("LFDQueueFrameFollowerDungeon2439LockedIndicator")
-                .is_none()
-        );
-    }
+    above_range.receive_catalog(catalog());
+    assert_eq!(
+        above_range.level_lock_key(2436),
+        Some("LFG_LOCKSTATUS_TOO_HIGH_LEVEL")
+    );
 }
 
 #[test]

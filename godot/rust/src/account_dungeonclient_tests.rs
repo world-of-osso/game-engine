@@ -428,6 +428,8 @@ fn follower_group_finder_account_dispatches_catalog_and_authoritative_state() {
                     id: 2436,
                     name: "Ruby Life Pools".into(),
                     map_id: 2521,
+                    min_level: 10,
+                    max_level: 70,
                 }],
             }),
             &mut output,

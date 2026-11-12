@@ -25,8 +25,8 @@ impl RegistryUi {
                     id: 2436,
                     name: "Ruby Life Pools".into(),
                     map_id: 2521,
-                    min_level: 70,
-                    max_level: 80,
+                    min_level: 10,
+                    max_level: 70,
                 }],
             });
             view.selected = Some(2436);
