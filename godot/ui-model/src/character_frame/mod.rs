@@ -64,6 +64,7 @@ pub fn paperdoll_unequip_request(
     })))
 }
 pub use crate::character_frame_component::{equipment_slot_action, parse_equipment_slot_action};
+use crate::inworld_unit_frames_component::PortraitSlot;
 use crate::merchant_frame_component::{PanelTab, PanelTabResize, panel_tabs};
 use crate::quest_art::{
     DynName, HIGHLIGHT_FONT_COLOR, NORMAL_FONT_COLOR, portrait_border, window_chrome,
@@ -75,6 +76,14 @@ pub const FRAME_NAME: &str = "CharacterFrame";
 /// Player head rendered by the native unit-portrait host in either skin.
 pub const PORTRAIT: crate::inworld_unit_frames_component::PortraitSlot =
     window_portrait_slot("CharacterFramePortrait");
+/// Player portrait and c60 mask hosted by Forever `CharacterFrameModeTab1.Icon`.
+pub const MODE_TAB_PORTRAIT: PortraitSlot = PortraitSlot {
+    frame: "CharacterFrameTab1Icon",
+    rect: (-0.5, 2.5, 50.0, 50.0),
+    mask_fdid: 8_254_784,
+    mask_rect: (0.0, -2.5, 55.0, 60.0),
+    tex_coords: [0.03125, 0.96875, 0.03125, 0.96875],
+};
 /// `CHARACTERFRAME_EXPANDED_WIDTH` (CF.lua:2): PaperDollFrame_OnShow expands the frame.
 pub const FRAME_W: f32 = 540.0;
 /// `PANEL_DEFAULT_WIDTH` (Constants.lua:299): the PaperDollFrame inset keeps this width.
@@ -88,6 +97,7 @@ pub const PANEL_TOP: f32 = 104.0;
 pub const ACTION_CLOSE: &str = "character_close";
 pub const ACTION_TAB_CHARACTER: &str = "character_tab:character";
 pub const ACTION_TAB_REPUTATION: &str = "character_tab:reputation";
+pub const ACTION_TAB_CURRENCY: &str = "character_tab:currency";
 /// The model scene: left-drag rotates it (`PanningModelSceneMixin`).
 pub const ACTION_MODEL: &str = "character_model";
 /// The PaperDollFrame outside its buttons (`enableMouse`): it blocks the world.
@@ -330,7 +340,7 @@ pub enum CharacterTab {
     PaperDoll,
     /// `ReputationFrame`, `CharacterFrameTab2`.
     Reputation,
-    /// Retail TokenFrame, CharacterFrameTab3; visible only with discovered entries.
+    /// Retail CharacterFrameTab3 and Forever ModeTab5; visible only with discovered entries.
     Currency,
 }
 
@@ -340,7 +350,7 @@ impl CharacterTab {
         match action {
             ACTION_TAB_CHARACTER => Some(Self::PaperDoll),
             ACTION_TAB_REPUTATION => Some(Self::Reputation),
-            "character_tab:currency" => Some(Self::Currency),
+            ACTION_TAB_CURRENCY => Some(Self::Currency),
             _ => None,
         }
     }
@@ -1016,10 +1026,8 @@ fn slot_icon(button: &PaperDollButton, view: &PaperDollSlotView) -> Element {
 /// CF.xml: first BOTTOMLEFT11,2; `SetNumTabs` replaces later XML +1 anchors with +3.
 /// CF.lua67–73/TokenUI.lua: undiscovered wallets do not expose Currency.
 fn tabs(selected: CharacterTab, has_currencies: bool, size: (f32, f32)) -> Element {
-    // Keep pre-existing undiscovered-wallet chrome out of this continuation.
-    // Once Currency is present, all three tabs follow Mainline in both skins.
-    if thread_skin() == ActiveSkin::Forever && !has_currencies {
-        return forever_tabs(selected, size.0);
+    if thread_skin() == ActiveSkin::Forever {
+        return forever_tabs(selected, size.0, has_currencies);
     }
     let definitions = [
         (
@@ -1034,12 +1042,7 @@ fn tabs(selected: CharacterTab, has_currencies: bool, size: (f32, f32)) -> Eleme
             CharacterTab::Reputation,
             ACTION_TAB_REPUTATION,
         ),
-        (
-            3,
-            "Currency",
-            CharacterTab::Currency,
-            "character_tab:currency",
-        ),
+        (3, "Currency", CharacterTab::Currency, ACTION_TAB_CURRENCY),
     ];
     let tabs: Vec<_> = definitions
         .into_iter()
@@ -1061,64 +1064,98 @@ fn tabs(selected: CharacterTab, has_currencies: bool, size: (f32, f32)) -> Eleme
     )
 }
 
-/// Current text-only Forever Character/Reputation side-tab projection.
-fn forever_tabs(selected: CharacterTab, frame_width: f32) -> Element {
+/// Forever `CharacterFrameModeSideTabTemplate` tabs backed by the supported Character states.
+fn forever_tabs(selected: CharacterTab, frame_width: f32, has_currencies: bool) -> Element {
+    const ICON_SIZE: f32 = 50.0;
+    const ICON_CENTER_OFFSET_X: f32 = -3.0;
+    const TAB_ART_VERTICAL_TRIM: f32 = 5.0;
+    const FIRST_TAB_TOP: f32 = 30.0;
+    const TAB_VERTICAL_GAP: f32 = 2.0;
+    const ICON_TEX_COORDS: &str = "0.03125,0.96875,0.03125,0.96875";
     let background = art::resolve_art("common-sidetab");
-    let (w, art_h) = background.size();
-    let h = art_h - 5.0;
-    let x = frame_width;
+    let (width, art_height) = background.size();
+    let height = art_height - TAB_ART_VERTICAL_TRIM;
+    let icon_left = (width - ICON_SIZE) / 2.0 + ICON_CENTER_OFFSET_X;
+    let icon_top = (height - ICON_SIZE) / 2.0;
     [
         (
             1,
             "Character",
             CharacterTab::PaperDoll,
             ACTION_TAB_CHARACTER,
+            None,
         ),
         (
             2,
             "Reputation",
             CharacterTab::Reputation,
             ACTION_TAB_REPUTATION,
+            Some(819_7103),
+        ),
+        (
+            5,
+            "Currency",
+            CharacterTab::Currency,
+            ACTION_TAB_CURRENCY,
+            Some(819_7078),
         ),
     ]
     .into_iter()
-    .flat_map(|(index, label, tab, action)| {
+    .filter(|(_, _, tab, _, _)| *tab != CharacterTab::Currency || has_currencies)
+    .enumerate()
+    .flat_map(|(position, (index, tooltip, tab, action, icon_fdid))| {
         let name = format!("CharacterFrameTab{index}");
-        let y = 30.0 + (index - 1) as f32 * (h + 2.0);
+        let top = FIRST_TAB_TOP + position as f32 * (height + TAB_VERTICAL_GAP);
         let mut children = atlas(
             format!("{name}Background"),
             &background,
-            (0.0, (h - art_h) / 2.0, w, art_h),
+            (0.0, (height - art_height) / 2.0, width, art_height),
             WHITE,
         );
+        if let Some(fdid) = icon_fdid {
+            children.extend(art::texture(
+                format!("{name}Icon"),
+                fdid,
+                (icon_left, icon_top, ICON_SIZE, ICON_SIZE),
+                ICON_TEX_COORDS,
+                WHITE,
+            ));
+        } else {
+            children.extend(rsx! {
+                r#frame {
+                    name: {DynName(MODE_TAB_PORTRAIT.frame.into())},
+                    width: MODE_TAB_PORTRAIT.rect.2,
+                    height: MODE_TAB_PORTRAIT.rect.3,
+                    pos_type: "absolute",
+                    left: MODE_TAB_PORTRAIT.rect.0,
+                    top: MODE_TAB_PORTRAIT.rect.1,
+                }
+            });
+        }
         if tab == selected {
             children.extend(atlas(
                 format!("{name}Selected"),
                 &art::resolve_art("common-sidetab-selected"),
-                (0.0, (h - art_h) / 2.0, w, art_h),
+                (0.0, (height - art_height) / 2.0, width, art_height),
                 WHITE,
             ));
         }
-        // A full-height caption opts into native wrapping. Reserve only one line,
-        // centered on the same tab, so longer native glyph runs are ellipsized.
-        let caption_h = 13.0;
-        children.extend(text(
-            format!("{name}Text"),
-            label,
-            (0.0, (h - caption_h) / 2.0, w, caption_h),
-            (10.0, HIGHLIGHT_FONT_COLOR),
-            "CENTER",
-        ));
         rsx! {
-            r#frame {
+            button {
                 name: {DynName(name)},
-                width: w,
-                height: h,
+                width,
+                height,
+                button_default_skin: false,
+                button_atlas_highlight: "common-sidetab-hover",
                 mouse_enabled: true,
                 onclick: action,
+                tooltip_title: tooltip,
+                tooltip_anchor: "ANCHOR_RIGHT",
+                tooltip_offset_x: -4.0,
+                tooltip_offset_y: -4.0,
                 pos_type: "absolute",
-                left: x,
-                top: y,
+                left: frame_width,
+                top,
                 {children}
             }
         }

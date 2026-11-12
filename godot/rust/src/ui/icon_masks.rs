@@ -24,6 +24,7 @@ enum Mask {
     PerksFrozen,
     PerksCartItem,
     GroupFinder,
+    SideTab,
     Glyph,
     TalentCircle,
     TalentChoice,
@@ -43,8 +44,8 @@ pub struct IconMasks {
 }
 
 impl IconMasks {
-    /// Swap every round icon's (`is_round_icon`) and header glyph's FDID source for its
-    /// masked image. Failures never fall back to the unmasked art.
+    /// Replace each authored masked icon source with its alpha-composited image.
+    /// Failures never fall back to the unmasked art.
     pub fn apply(&mut self, registry: &mut FrameRegistry) {
         self.apply_perks_template(registry);
         let pending: Vec<_> = registry
@@ -121,6 +122,26 @@ impl IconMasks {
         }
         let mut source = crop_normalized(load_rgba(fdid, "icon")?, crop);
         let masked = match mask {
+            Mask::SideTab => {
+                const ICON_SIZE: u32 = 50;
+                const MASK_TOP: u32 = 5;
+                let mask = load_atlas_mask(mask)?;
+                if mask.dimensions() != (55, 60) {
+                    return Err(format!(
+                        "common-sidetab-mask size {:?}, expected 55x60",
+                        mask.dimensions()
+                    ));
+                }
+                let mask =
+                    image::imageops::crop_imm(&mask, 0, MASK_TOP, ICON_SIZE, ICON_SIZE).to_image();
+                let icon = image::imageops::resize(
+                    &source,
+                    ICON_SIZE,
+                    ICON_SIZE,
+                    image::imageops::FilterType::Triangle,
+                );
+                compose_masked_icon(icon, &mask)
+            }
             Mask::Glyph => {
                 flare_glyph_mask(&mut source);
                 source
@@ -196,6 +217,7 @@ fn is_round_icon(name: &str) -> bool {
 
 fn load_atlas_mask(mask: Mask) -> Result<GrayImage, String> {
     let atlas = match mask {
+        Mask::SideTab => "common-sidetab-mask",
         Mask::PerksProduct | Mask::PerksFrozen => "UI-HUD-ActionBar-IconFrame-Mask",
         Mask::PerksCartItem => "perks-border-square-gold-mask",
         Mask::TalentCircle => "talents-node-circle-mask",
@@ -225,6 +247,9 @@ fn load_atlas_mask(mask: Mask) -> Result<GrayImage, String> {
     Ok(mask_alpha(&image))
 }
 fn mask_of(name: &str) -> Option<Mask> {
+    if matches!(name, "CharacterFrameTab2Icon" | "CharacterFrameTab5Icon") {
+        return Some(Mask::SideTab);
+    }
     let cart_item = name
         .strip_prefix("PerksProgramCartItem")
         .and_then(|suffix| suffix.strip_suffix("Icon"))
@@ -365,7 +390,7 @@ mod tests {
     use ui_toolkit::screen::{Screen, SharedContext};
     use ui_toolkit::widgets::texture::TextureSource;
 
-    use super::{IconMasks, is_round_icon};
+    use super::{IconMasks, crop_normalized, is_round_icon};
 
     fn texture(fdid: u32) -> RgbaImage {
         let path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -440,6 +465,63 @@ mod tests {
                     "{skin:?} {name} authored centre"
                 );
             }
+        }
+    }
+
+    #[test]
+    fn forever_character_mode_icons_use_the_c60_side_tab_mask() {
+        use ui_toolkit::atlas::{ActiveSkin, set_thread_skin};
+        game_engine_ui_model::paths::set_data_root(
+            std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+        )
+        .unwrap();
+        set_thread_skin(ActiveSkin::Forever);
+
+        let mut registry = FrameRegistry::new(1920., 1080.);
+        Screen::new(|_| {
+            ui_toolkit::rsx! {
+                texture {
+                    name: "CharacterFrameTab2Icon",
+                    texture_fdid: 8_197_103,
+                    width: 50.0,
+                    height: 50.0,
+                    tex_coords: "0.03125,0.96875,0.03125,0.96875",
+                }
+                texture {
+                    name: "CharacterFrameTab5Icon",
+                    texture_fdid: 8_197_078,
+                    width: 50.0,
+                    height: 50.0,
+                    tex_coords: "0.03125,0.96875,0.03125,0.96875",
+                }
+            }
+        })
+        .sync(&SharedContext::new(), &mut registry);
+        IconMasks::default().apply(&mut registry);
+
+        for (name, fdid) in [
+            ("CharacterFrameTab2Icon", 8_197_103),
+            ("CharacterFrameTab5Icon", 8_197_078),
+        ] {
+            let frame = registry.get(registry.get_by_name(name).unwrap()).unwrap();
+            let Some(WidgetData::Texture(rendered)) = &frame.widget_data else {
+                panic!("{name} artwork")
+            };
+            let TextureSource::Dynamic(id) = rendered.source else {
+                panic!("{name} is not masked: {:?}", rendered.source)
+            };
+            let pixels = registry.dynamic_texture(id).unwrap();
+            let image =
+                RgbaImage::from_raw(pixels.width, pixels.height, pixels.rgba8.clone()).unwrap();
+            let source = image::imageops::resize(
+                &crop_normalized(texture(fdid), [0.03125, 0.96875, 0.03125, 0.96875]),
+                50,
+                50,
+                image::imageops::FilterType::Triangle,
+            );
+            assert_eq!((image.width(), image.height()), (50, 50));
+            assert_eq!(image.get_pixel(25, 25), source.get_pixel(25, 25));
+            assert_eq!(image.get_pixel(0, 0)[3], 0, "{name} mask corner");
         }
     }
 

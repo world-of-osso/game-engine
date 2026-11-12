@@ -5063,3 +5063,8 @@ textures/130653.blp
 db2/active/Achievement_Category.csv
 textures/522973.blp
 textures/374155.blp
+
+# Forever CharacterFrame side-tab icons and c60 mask.
+textures/8197103.blp
+textures/8197078.blp
+textures/8254784.blp

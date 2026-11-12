@@ -24,6 +24,7 @@ use game_engine_core::asset::m2_format::m2_camera::parse_portrait_camera;
 use game_engine_core::creation_scene_data::vertical_fov;
 use game_engine_ui_model::auction_house_frame_component::PORTRAIT as AUCTION_PORTRAIT;
 use game_engine_ui_model::bank_frame_component::PORTRAIT as BANK_PORTRAIT;
+use game_engine_ui_model::character_frame::MODE_TAB_PORTRAIT as CHARACTER_FRAME_MODE_TAB_PORTRAIT;
 use game_engine_ui_model::character_frame::PORTRAIT as CHARACTER_FRAME_PORTRAIT;
 use game_engine_ui_model::guild_charter_frame::PORTRAIT as REGISTRAR_PORTRAIT;
 use game_engine_ui_model::inworld_unit_frames_component::{
@@ -78,6 +79,7 @@ pub(crate) struct UnitPortraits {
     /// The CharacterMicroButton's player portrait.
     micro: Portrait,
     character: Portrait,
+    character_tab: Portrait,
     /// The open vendor in MerchantFrame (`SetPortraitToUnit("npc")`).
     merchant: Portrait,
     /// The quest giver or gossip NPC in QuestFrame (`SetPortraitTexture(.., "questnpc")`).
@@ -101,6 +103,7 @@ impl Default for UnitPortraits {
             pet: Portrait::new(PET_PORTRAIT),
             micro: Portrait::new(CHARACTER_PORTRAIT),
             character: Portrait::new(CHARACTER_FRAME_PORTRAIT),
+            character_tab: Portrait::new(CHARACTER_FRAME_MODE_TAB_PORTRAIT),
             merchant: Portrait::new(MERCHANT_PORTRAIT),
             quest: Portrait::new(QUEST_PORTRAIT),
             bank: Portrait::new(BANK_PORTRAIT),
@@ -578,10 +581,14 @@ impl GameClient {
             .character_frame
             .micro_ui()
             .and_then(|ui| ui.bind().frame_control(micro_slot.frame));
-        let character_host = self
-            .character_frame
-            .frame_ui()
+        let character_ui = self.character_frame.frame_ui();
+        let character_host = character_ui
+            .as_ref()
             .and_then(|ui| ui.bind().frame_control(CHARACTER_FRAME_PORTRAIT.frame));
+        let character_tab_host = character_ui.as_ref().and_then(|ui| {
+            ui.bind()
+                .frame_control(CHARACTER_FRAME_MODE_TAB_PORTRAIT.frame)
+        });
         let (merchant_host, merchant) = self.npc_portrait(
             self.merchant.ui.as_ref(),
             &MERCHANT_PORTRAIT,
@@ -628,6 +635,7 @@ impl GameClient {
             .and_then(|ui| ui.bind().frame_control(TRADE_PORTRAIT.frame));
         let portraits = &mut self.targeting.portraits;
         portraits.micro.slot = micro_slot;
+        portraits.character_tab.slot = CHARACTER_FRAME_MODE_TAB_PORTRAIT;
         let player_result = portraits
             .player
             .sync(&mut self.world, player_host, player.clone());
@@ -640,6 +648,10 @@ impl GameClient {
             portraits
                 .character
                 .sync(&mut self.world, character_host, player.clone());
+        let character_tab_result =
+            portraits
+                .character_tab
+                .sync(&mut self.world, character_tab_host, player.clone());
         let merchant_result = portraits
             .merchant
             .sync(&mut self.world, merchant_host, merchant);
@@ -670,6 +682,7 @@ impl GameClient {
             .and(pet_result)
             .and(micro_result)
             .and(character_result)
+            .and(character_tab_result)
             .and(merchant_result)
             .and(quest_result)
             .and(bank_result)
@@ -729,6 +742,7 @@ impl GameClient {
         portraits.pet.clear(&mut self.world);
         portraits.micro.clear(&mut self.world);
         portraits.character.clear(&mut self.world);
+        portraits.character_tab.clear(&mut self.world);
         portraits.merchant.clear(&mut self.world);
         portraits.quest.clear(&mut self.world);
         portraits.bank.clear(&mut self.world);

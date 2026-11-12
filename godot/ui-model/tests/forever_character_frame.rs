@@ -2,8 +2,8 @@
 #[path = "fixtures/modern_character_trees.rs"]
 mod fixture;
 use game_engine_ui_model::character_frame::{
-    CharacterFrameView, LevelLine, PaperDollSlotView, StatLine, apply_character_frame_postsetup,
-    character_frame_screen,
+    CharacterFrameView, LevelLine, MODE_TAB_PORTRAIT, PaperDollSlotView, StatLine,
+    apply_character_frame_postsetup, character_frame_screen,
 };
 use std::fmt::Write;
 use std::path::PathBuf;
@@ -107,6 +107,65 @@ fn modern_trees() -> String {
     out
 }
 
+#[test]
+fn forever_mode_tabs_use_only_discovered_currency_and_the_authored_icon_ids() {
+    game_engine_ui_model::paths::set_data_root(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    set_thread_skin(ActiveSkin::Forever);
+
+    let reputation_only = build(view(true));
+    assert!(reputation_only.get_by_name("CharacterFrameTab3").is_none());
+    assert!(reputation_only.get_by_name("CharacterFrameTab5").is_none());
+    let frame_width = size(&reputation_only, "CharacterFrame").0;
+    assert_eq!(size(&reputation_only, "CharacterFrameTab1"), (55.0, 55.0));
+    assert_eq!(
+        pos(&reputation_only, "CharacterFrameTab1"),
+        (frame_width, 30.0)
+    );
+    assert_eq!(size(&reputation_only, "CharacterFrameTab2"), (55.0, 55.0));
+    assert_eq!(
+        pos(&reputation_only, "CharacterFrameTab2"),
+        (frame_width, 87.0)
+    );
+    assert_eq!(
+        icon_fdid(&reputation_only, "CharacterFrameTab2Icon"),
+        8_197_103
+    );
+    assert!(
+        reputation_only
+            .get_by_name("CharacterFrameTab1Icon")
+            .is_some()
+    );
+    assert!(
+        reputation_only
+            .get_by_name("CharacterFrameTab1Selected")
+            .is_some()
+    );
+    assert_eq!(
+        size(&reputation_only, "CharacterFrameTab1Icon"),
+        (50.0, 50.0)
+    );
+    assert_eq!(pos(&reputation_only, "CharacterFrameTab1Icon"), (-0.5, 2.5));
+    assert_eq!(MODE_TAB_PORTRAIT.mask_fdid, 8_254_784);
+    assert_eq!(MODE_TAB_PORTRAIT.mask_rect, (0.0, -2.5, 55.0, 60.0));
+    assert_eq!(pos(&reputation_only, "CharacterFrameTab2Icon"), (-0.5, 2.5));
+    assert_eq!(
+        size(&reputation_only, "CharacterFrameTab2Icon"),
+        (50.0, 50.0)
+    );
+
+    let mut with_currency = view(true);
+    with_currency.has_currencies = true;
+    with_currency.tab = game_engine_ui_model::character_frame::CharacterTab::Currency;
+    let all_tabs = build(with_currency);
+    assert_eq!(icon_fdid(&all_tabs, "CharacterFrameTab2Icon"), 8_197_103);
+    assert_eq!(icon_fdid(&all_tabs, "CharacterFrameTab5Icon"), 8_197_078);
+    assert_eq!(pos(&all_tabs, "CharacterFrameTab5"), (frame_width, 144.0));
+    assert!(all_tabs.get_by_name("CharacterFrameTab5Selected").is_some());
+}
+
 use ui_toolkit::frame::{Dimension, Frame, WidgetData};
 use ui_toolkit::layout_values::Val;
 use ui_toolkit::widgets::texture::{TextureData, TextureSource};
@@ -140,6 +199,16 @@ fn art(registry: &FrameRegistry, node: &str) -> String {
         "{node}: empty crop {tex_coords:?}"
     );
     format!("{source:?} {tex_coords:?}")
+}
+
+fn icon_fdid(registry: &FrameRegistry, node: &str) -> u32 {
+    let Some(WidgetData::Texture(texture)) = &frame(registry, node).widget_data else {
+        panic!("not texture art: {node}");
+    };
+    let TextureSource::FileDataId(fdid) = &texture.source else {
+        panic!("{node} is not an authored FileDataID: {:?}", texture.source);
+    };
+    *fdid
 }
 
 /// `(left, top)` of a frame placed with pixel offsets.

@@ -12,7 +12,18 @@ func cases(forever: bool) -> Array:
 	for row in [
 		["AdventureGuide", "EncounterJournalPage0", [["EncounterJournalPage0ButtonHighlight", true]]],
 		["TradingPost", "PerksProgramProduct4", [["PerksProgramRefundIcon4", true], ["PerksProgramProduct4", true]]],
-		["CharacterCurrency", "TokenHeader2", [["TokenHeader2HighlightLeft", true], ["TokenHeader2HighlightMiddle", true], ["TokenHeader2HighlightRight", true]]],
+		[
+			"CharacterCurrency",
+			"TokenHeader2",
+			[
+				["TokenHeader2HighlightLeft", true],
+				["TokenHeader2HighlightMiddle", true],
+				["TokenHeader2HighlightRight", true],
+				["CharacterFrameTab2Icon", false],
+				["CharacterFrameTab5Icon", false],
+				["CharacterFrameTab5Selected", false],
+			],
+		],
 		["CollectionsPetSpellSelect", "", [["PetJournalSpellSelectSelected", true]]],
 		["EntranceDifficulty", "EntranceDifficultyButton2", [["EntranceDifficultyHighlight2", true]]],
 		["HousingStorageBasic", "HouseEditorStored1693", [["HouseEditorStored1693HoverBackground", true]]],
@@ -96,6 +107,12 @@ func check_panel(panel: Dictionary, forever: bool, output: String) -> bool:
 	await wait_for_art(owner, panel.regions)
 	for region in panel.regions:
 		check_region(owner, region[0], region[1], modes)
+	if panel.name == "CharacterCurrency":
+		hover_control(owner, "TokenHeader2", false)
+		hover_control(owner, "CharacterFrameTab2", true)
+		await frames(4)
+		await wait_for_art(owner, [["CharacterFrameTab2", false]])
+		check_region(owner, "CharacterFrameTab2", false, modes)
 	await RenderingServer.frame_post_draw
 	var image := root.get_texture().get_image()
 	var path := output.path_join(skin + "-" + panel.name + ".png")
