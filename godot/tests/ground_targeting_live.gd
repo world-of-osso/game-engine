@@ -217,30 +217,45 @@ func save_texture_reference(decal: Decal) -> bool:
 func capture_out_of_range_reticle() -> bool:
 	client.set_camera_orbit(PI, -0.3, 120.0)
 	await wait_frames(12)
+	var best_point := Vector2.ZERO
+	var best_distance: float = INF
 	for screen_y in [160, 280, 400, 520, 640]:
 		for screen_x in [160, 400, 640, 880, 1120]:
 			var point := Vector2(screen_x, screen_y)
 			await pointer(point)
-			var decal := client.get_node_or_null("GroundSpellReticle") as Decal
-			if decal == null or not decal.visible:
+			var candidate := client.get_node_or_null("GroundSpellReticle") as Decal
+			if candidate == null or not candidate.visible:
 				continue
-			var distance := player.global_position.distance_to(decal.global_position)
+			var distance := player.global_position.distance_to(candidate.global_position)
+			if distance <= 40.0 or distance >= best_distance:
+				continue
 			var terrain_height: Variant = client.terrain_height_at(
-				decal.global_position.x, decal.global_position.z)
+				candidate.global_position.x, candidate.global_position.z)
 			if terrain_height == null:
 				continue
-			var terrain_offset: float = absf(decal.global_position.y - float(terrain_height))
-			print("GROUND_RANGE_PROBE point=", point, " distance=", distance,
-				" terrain_offset=", terrain_offset, " max=40.0 color=", decal.modulate)
-			if distance <= 40.0 or terrain_offset > 0.25:
+			var terrain_offset: float = absf(candidate.global_position.y - float(terrain_height))
+			if terrain_offset > 0.25:
 				continue
-			if decal.modulate.r <= decal.modulate.g:
-				fail("Out-of-range Flamestrike decal is not red")
-				return false
-			await capture("ground-target-invalid")
-			return true
-	fail("No visible ground point beyond Flamestrike's 40-yard range")
-	return false
+			best_point = point
+			best_distance = distance
+			print("GROUND_RANGE_PROBE point=", point, " distance=", distance,
+				" terrain_offset=", terrain_offset)
+	if best_distance == INF:
+		fail("No visible ground point beyond Flamestrike's 40-yard range")
+		return false
+	await pointer(best_point)
+	var decal := client.get_node_or_null("GroundSpellReticle") as Decal
+	if decal == null or not decal.visible:
+		fail("Nearest out-of-range terrain point has no visible decal")
+		return false
+	var distance := player.global_position.distance_to(decal.global_position)
+	print("GROUND_RANGE_PROOF pointer=", best_point, " distance=", distance,
+		" max=40.0 color=", decal.modulate)
+	if distance <= 40.0 or decal.modulate.r <= decal.modulate.g:
+		fail("Nearest out-of-range Flamestrike decal is not red")
+		return false
+	await capture("ground-target-invalid")
+	return true
 
 func place_flamestrike(sent_before: int) -> bool:
 	client.set_camera_orbit(PI, -0.3, 12.0)
