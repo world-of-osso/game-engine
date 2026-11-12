@@ -12,6 +12,7 @@ VERIFIED: The native `--cli` build exited 0 and produced the extension and CLI. 
 GATE BLOCKED: The full native build records a transitive `libquickjs-sys` C warning at generated `quickjs.c:27172` (`-Wdiscarded-qualifiers`); the required zero-warning gate is not met. No suppression or dependency patch was applied.
 
 UNVERIFIED: No live book screenshots; NPC/source not verified. The user directed that private-server provisioning stop, so no private server or client was started. See [[profession-micro-button-unavailable]].
+VERIFIED, CODE: The guild-only model previously rendered a row with an empty name when its profile was absent. It now routes `NotInGuild` to a finder presentation and omits the missing-profile row; the Forever-only integration filter passes 2/2 tests. VERIFIED, BUILD: debug and release extension builds exit0 with zero warnings, and `cargo fmt --all --check` passes. VERIFIED, CAPTURE: the native client renders the Forever offline `NotInGuild` fixture at `/syncthing/AgentShared/2026-11-11/guild-no-guild-state/forever-after.png`; it shows Guild Finder, Find a Community and Join or create a Community, with no guild row or roster. The supplied before image is `/syncthing/AgentShared/2026-11-11/guild-no-guild-state/forever-before.png`. This capture does not prove authenticated server state.
 
 ## Ruby emitter frustum cache — 2026-11-11
 
