@@ -4,6 +4,7 @@ extends "res://tests/world_ui_ownership_flow.gd"
 # targeting, minimap zoom and Group Finder bindings, the world map tiled at three zones, and
 # QuestFrame / WorldMapBorderFrame raise-on-click over the MerchantFrame. Every check fails the run.
 # KEYBINDS_SHOTS=<dir> saves screenshots (needs GODOT_TEST_VISUAL=1).
+# GODOT_TEST_KEYBINDS_GROUP_FINDER_ONLY=1 isolates the Group Finder checks from bag tests.
 const KB_BAGS := [0, 1, 2, 4]
 const KB_MAP := "WorldMapUI"
 
@@ -28,20 +29,26 @@ func run_test() -> void:
 	if not await uo_wait(func(): return kb_client.merchant_state().bags.size() == 4 and kb_unit_id("Fixture Wolf") != -1, 15000):
 		fail("keybinds snapshot/wolf not applied: " + str(kb_client.merchant_state()))
 		return
-	if not await kb_bag_cases():
-		return
-	if not await kb_target_cases():
-		return
-	if not await kb_minimap_zoom_cases():
-		return
-	if not await kb_world_map_cases():
-		return
-	if not await kb_follower_group_finder_cases():
-		return
-	if not await kb_interface_binding_capture():
-		return
-	if not await kb_quest_raise_cases():
-		return
+	if OS.get_environment("GODOT_TEST_KEYBINDS_GROUP_FINDER_ONLY") == "1":
+		if not await kb_follower_group_finder_cases():
+			return
+		if not await kb_interface_binding_capture():
+			return
+	else:
+		if not await kb_bag_cases():
+			return
+		if not await kb_target_cases():
+			return
+		if not await kb_minimap_zoom_cases():
+			return
+		if not await kb_world_map_cases():
+			return
+		if not await kb_follower_group_finder_cases():
+			return
+		if not await kb_interface_binding_capture():
+			return
+		if not await kb_quest_raise_cases():
+			return
 	print("FIXTURE KEYBINDS_DONE")
 	while true:
 		await process_frame
