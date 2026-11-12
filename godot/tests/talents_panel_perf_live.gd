@@ -300,6 +300,9 @@ func run_test() -> void:
 	var tree_visible_ms := -1.0
 	var draw_wait_ms := -1.0
 	var first_frame_ms := -1.0
+	var first_render_cpu_ms := -1.0
+	var first_render_gpu_ms := -1.0
+	var first_draw_calls := -1.0
 	var deadline := Time.get_ticks_msec() + OPEN_TIMEOUT_MS
 	while Time.get_ticks_msec() < deadline:
 		await process_frame
@@ -316,6 +319,11 @@ func run_test() -> void:
 			var draw_started_usec := Time.get_ticks_usec()
 			await RenderingServer.frame_post_draw
 			pipeline_counts_after_open = rendering_pipeline_counts()
+			var viewport := root.get_viewport_rid()
+			first_render_cpu_ms = RenderingServer.viewport_get_measured_render_time_cpu(viewport) \
+				+ RenderingServer.get_frame_setup_time_cpu()
+			first_render_gpu_ms = RenderingServer.viewport_get_measured_render_time_gpu(viewport)
+			first_draw_calls = Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME)
 			draw_wait_ms = float(Time.get_ticks_usec() - draw_started_usec) / 1000.0
 			first_frame_ms = float(Time.get_ticks_usec() - keypress_usec) / 1000.0
 			break
@@ -373,7 +381,9 @@ func run_test() -> void:
 	print("TALENTS_PANEL_FOOTER_PASS ", JSON.stringify({"dropdown_width": dropdown_width,
 		"gap_to_search": dropdown_gap, "caption": caption.text, "caption_lines": caption.get_line_count()}))
 	print("TALENTS_PANEL_FIRST_FRAME ", JSON.stringify({"open_ms": first_frame_ms, "tree_visible_ms": tree_visible_ms,
-		"draw_wait_ms": draw_wait_ms, "pipeline_compilations_before": pipeline_counts_before_open,
+		"draw_wait_ms": draw_wait_ms, "render_cpu_ms": first_render_cpu_ms,
+		"render_gpu_ms": first_render_gpu_ms, "draw_calls": first_draw_calls,
+		"pipeline_compilations_before": pipeline_counts_before_open,
 		"pipeline_compilations_after": pipeline_counts_after_open,
 		"pipeline_compilations_delta": pipeline_compilation_delta(pipeline_counts_before_open, pipeline_counts_after_open),
 		"talent_nodes": node_count,
