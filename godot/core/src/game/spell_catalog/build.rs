@@ -388,7 +388,12 @@ fn catalog_effect_from_row(
     let has_power_coefficient = sp_coefficient != 0.0 || ap_coefficient != 0.0;
     let damage_or_heal =
         DAMAGE_OR_HEAL_EFFECTS.contains(&effect) || DAMAGE_OR_HEAL_AURAS.contains(&aura);
-    let spell_power_scaled = has_power_coefficient && (damage_or_heal || base_points == 0.0);
+    let (spell_power_coefficient, attack_power_coefficient) =
+        if has_power_coefficient && (damage_or_heal || base_points == 0.0) {
+            (sp_coefficient, ap_coefficient)
+        } else {
+            (0.0, 0.0)
+        };
     let radius_yd = if effect_radii[0] > 0.0 {
         effect_radii[0]
     } else {
@@ -402,16 +407,8 @@ fn catalog_effect_from_row(
         aura_period_ms: row.get(6)?,
         chain_targets: row.get(7)?,
         radius_yd,
-        spell_power_coefficient: if spell_power_scaled {
-            sp_coefficient
-        } else {
-            0.0
-        },
-        attack_power_coefficient: if spell_power_scaled {
-            ap_coefficient
-        } else {
-            0.0
-        },
+        spell_power_coefficient,
+        attack_power_coefficient,
         level_scaled: row.get::<i32>(12)? != 0 && row.get::<f32>(13)? != 0.0,
     })
 }
