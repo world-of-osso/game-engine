@@ -114,10 +114,13 @@ impl GameClient {
         if !self.friends_frame.state.open || self.game_menu_ui.is_some() {
             return false;
         }
-        let Some(ui) = self.friends_frame.ui.as_mut() else {
-            return false;
+        let taken = {
+            let Some(ui) = self.friends_frame.ui.as_mut() else {
+                return false;
+            };
+            ui.bind_mut().scroll_list_input(event)
         };
-        match ui.bind_mut().scroll_list_input(event) {
+        match taken {
             Ok(true) => {
                 self.mark_viewport_input_handled();
                 true
@@ -169,7 +172,7 @@ impl GameClient {
             return Ok(true);
         }
         if let Some(tab) = FriendsTab::from_action(action) {
-            self.release_friends_input_focus(tab)?;
+            self.release_friends_input_focus(tab);
             self.friends_frame.state.select_tab(tab);
             self.friends_frame.error = None;
             if tab == FriendsTab::Who {
@@ -214,7 +217,8 @@ impl GameClient {
             .strip_prefix(FRIEND_ROW_PREFIX)
             .and_then(|index| index.parse::<usize>().ok())
         {
-            let Some(row) = project_friend_rows(self.account.friends.as_ref()).get(index) else {
+            let rows = project_friend_rows(self.account.friends.as_ref());
+            let Some(row) = rows.get(index) else {
                 return false;
             };
             self.friends_frame.state.selected_friend = Some(row.name.clone());
@@ -225,7 +229,8 @@ impl GameClient {
             .strip_prefix(WHO_ROW_PREFIX)
             .and_then(|index| index.parse::<usize>().ok())
         {
-            let Some(row) = project_who_rows(self.account.who.as_ref()).get(index) else {
+            let rows = project_who_rows(self.account.who.as_ref());
+            let Some(row) = rows.get(index) else {
                 return false;
             };
             self.friends_frame.state.selected_who = Some(row.name.clone());
@@ -248,7 +253,7 @@ impl GameClient {
         self.friends_frame.state.add_friend_open = false;
         self.friends_frame.state.add_friend_name.clear();
         self.friends_frame.error = None;
-        self.release_add_friend_focus()?;
+        self.release_add_friend_focus();
         Ok(())
     }
 
@@ -257,7 +262,8 @@ impl GameClient {
         self.friends_frame.state.add_friend_name.clear();
         self.friends_frame.focus_add_friend = false;
         self.friends_frame.error = None;
-        self.release_add_friend_focus()
+        self.release_add_friend_focus();
+        Ok(())
     }
 
     fn add_selected_who_friend(&mut self) -> Result<(), FrameError> {
@@ -302,28 +308,25 @@ impl GameClient {
         Ok(())
     }
 
-    fn release_friends_input_focus(&mut self, next: FriendsTab) -> Result<(), String> {
+    fn release_friends_input_focus(&mut self, next: FriendsTab) {
         if self.friends_frame.state.tab == FriendsTab::Who && next != FriendsTab::Who {
-            self.release_named_input_focus(WHO_QUERY_EDIT_BOX)?;
+            self.release_named_input_focus(WHO_QUERY_EDIT_BOX);
         }
         if self.friends_frame.state.add_friend_open && next != FriendsTab::Friends {
-            self.release_add_friend_focus()?;
+            self.release_add_friend_focus();
         }
-        Ok(())
     }
 
-    fn release_add_friend_focus(&mut self) -> Result<(), String> {
+    fn release_add_friend_focus(&mut self) {
         if let Some(ui) = self.friends_frame.ui.as_mut() {
-            ui.bind_mut().release_focus_named(ADD_FRIEND_EDIT_BOX)?;
+            ui.bind_mut().release_focus_named(ADD_FRIEND_EDIT_BOX);
         }
-        Ok(())
     }
 
-    fn release_named_input_focus(&mut self, name: &str) -> Result<(), String> {
+    fn release_named_input_focus(&mut self, name: &str) {
         if let Some(ui) = self.friends_frame.ui.as_mut() {
-            ui.bind_mut().release_focus_named(name)?;
+            ui.bind_mut().release_focus_named(name);
         }
-        Ok(())
     }
 
     fn sync_friends_frame_ui(&mut self) -> Result<(), String> {
@@ -332,7 +335,7 @@ impl GameClient {
         if let Some(ui) = self.friends_frame.ui.as_mut() {
             ui.bind_mut().set_ui_scale(scale)?;
             ui.bind_mut().set_state(view.clone())?;
-            self.sync_friends_editboxes(ui, &view)?;
+            Self::sync_friends_editboxes(ui, &self.friends_frame.state, &view)?;
             if self.friends_frame.focus_add_friend {
                 ui.bind_mut().focus_frame_named(ADD_FRIEND_EDIT_BOX)?;
                 self.friends_frame.focus_add_friend = false;
@@ -358,7 +361,7 @@ impl GameClient {
             ui.free();
             return Err(error);
         }
-        self.sync_friends_editboxes(&mut ui, &view)?;
+        Self::sync_friends_editboxes(&mut ui, &self.friends_frame.state, &view)?;
         self.friends_frame.ui = Some(ui.clone());
         self.raise_above_layer(&ui)?;
         if self.friends_frame.focus_add_friend {
@@ -369,19 +372,15 @@ impl GameClient {
     }
 
     fn sync_friends_editboxes(
-        &self,
         ui: &mut Gd<RegistryUi>,
+        state: &FriendsFrameState,
         view: &FriendsFrameView,
     ) -> Result<(), String> {
         if view.tab == FriendsTab::Who {
-            sync_editbox(ui, WHO_QUERY_EDIT_BOX, &self.friends_frame.state.who_query)?;
+            sync_editbox(ui, WHO_QUERY_EDIT_BOX, &state.who_query)?;
         }
         if view.add_friend_open {
-            sync_editbox(
-                ui,
-                ADD_FRIEND_EDIT_BOX,
-                &self.friends_frame.state.add_friend_name,
-            )?;
+            sync_editbox(ui, ADD_FRIEND_EDIT_BOX, &state.add_friend_name)?;
         }
         Ok(())
     }
