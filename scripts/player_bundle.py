@@ -32,7 +32,11 @@ WORLD_UI_MAP_TYPES = {2, 3}
 # ui-model::paths configures atlas lookup from both DB2 exports.
 ATLAS_DB2_VERSIONS = ('active', '1.60.1.69913')
 # These DB2 atlas rows point to files absent from the installed CASC build; see the player-bundle spec.
-KNOWN_UNAVAILABLE_UI_TEXTURE_FDIDS = frozenset({3307666, 6227333})
+KNOWN_UNAVAILABLE_UI_TEXTURE_FDIDS = frozenset({
+    3307666, 6227333,
+    # Forever 1.60.1.70888 atlas sheets whose content keys are absent from the local wowf archives.
+    8198433, 8281588, 8285995, 8344036, 8396515, 8396517, 8452065,
+})
 LIBRARIES = {
     'linux-x86_64': ('linux.x86_64', 'libgame_engine_godot.so'),
     'windows-x86_64': ('windows.x86_64', 'game_engine_godot.dll'),
