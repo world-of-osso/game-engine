@@ -45,6 +45,7 @@ func cases(forever: bool) -> Array:
 	result.append({"name": "Minimap", "method": "show_minimap_zoom_preview", "args": [forever, 3], "hover": "MinimapZoomIn", "regions": [["MinimapZoomIn", false]]})
 	result.append({"name": "Transmog", "method": "show_template_blend_preview", "args": [forever, "Transmog"], "hover": "TransmogSlot16", "regions": [["TransmogSlot16", true]]})
 	result.append({"name": "CharacterPaperDoll", "class": "PlayerPortraitFixture", "method": "initialize_character_tab", "args": [forever], "hover": "", "regions": []})
+	result.append({"name": "CollectionsMounts", "class": "UiAuditProbe", "method": "mount_collections", "args": [forever, "mounts"], "hover": "", "regions": []})
 	result.append({"name": "CharacterReputation", "method": "show_buttonfit_service_preview", "args": ["reputation", forever], "hover": "", "regions": []})
 	result.append({"name": "MailInbox", "method": "show_buttonfit_service_preview", "args": ["inbox", forever], "hover": "", "regions": []})
 	result.append({"name": "MailSend", "method": "show_buttonfit_service_preview", "args": ["send", forever], "hover": "", "regions": []})
@@ -58,7 +59,7 @@ func cases(forever: bool) -> Array:
 func run_cases() -> void:
 	root.size = Vector2i(1920, 1080)
 	root.content_scale_size = Vector2i.ZERO
-	completion = preload("res://tests/completion.gd").new(self, 30)
+	completion = preload("res://tests/completion.gd").new(self, 31)
 	var output := OS.get_environment("UI_TEMPLATE_BLEND_CAPTURES")
 	if not completion.require(not output.is_empty(), "UI_TEMPLATE_BLEND_CAPTURES required"):
 		return
@@ -126,6 +127,12 @@ func check_panel(panel: Dictionary, forever: bool, output: String) -> bool:
 	await wait_for_art(owner, panel.regions)
 	for region in panel.regions:
 		check_region(owner, region[0], region[1], modes)
+	if panel.name == "CollectionsMounts":
+		for index in range(1, 7):
+			var name := "CollectionsJournalTab%d" % index
+			var tab := owner.find_child(name, true, false) as Control
+			if tab == null or not tab.is_visible_in_tree():
+				failures.append("CollectionsMounts missing visible tab " + name)
 	if panel.name == "CharacterCurrency":
 		hover_control(owner, "TokenHeader2", false)
 		hover_control(owner, "CharacterFrameTab2", true)
