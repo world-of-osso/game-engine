@@ -21,8 +21,8 @@ use lightyear::prelude::{
 };
 use shared::{
     components::{
-        EquipmentAppearance, EquipmentVisualSlot, EquippedAppearanceEntry, Gold, ModelDisplay, Npc,
-        Player, Position, UnitFactionTemplate,
+        CharacterVisual, EquipmentAppearance, EquipmentVisualSlot, EquippedAppearanceEntry, Gold,
+        ModelDisplay, Npc, Player, Position, UnitFactionTemplate,
     },
     protocol::{
         ActionBarSnapshot, ActionRef, AuthChannel, BagContents, CharacterListEntry,
@@ -898,15 +898,18 @@ fn respond_to_selection(
         } else {
             FIRST
         };
+        let player_data = Player {
+            name: NAME.into(),
+            race: 1,
+            class: 2,
+            appearance: Default::default(),
+        };
+        let player_visual = CharacterVisual::from(&player_data);
         let player = app
             .world_mut()
             .spawn((
-                Player {
-                    name: NAME.into(),
-                    race: 1,
-                    class: 2,
-                    appearance: Default::default(),
-                },
+                player_data,
+                player_visual,
                 starter_equipment(),
                 Position {
                     x: spawn[0],
@@ -962,10 +965,12 @@ fn respond_to_selection(
             appearance: Default::default(),
         };
         remote_player.appearance.sex = 1;
+        let remote_visual = CharacterVisual::from(&remote_player);
         *remote = Some(
             app.world_mut()
                 .spawn((
                     remote_player,
+                    remote_visual,
                     starter_equipment(),
                     Position {
                         x: REMOTE[0],
