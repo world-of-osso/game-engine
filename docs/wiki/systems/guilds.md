@@ -18,7 +18,7 @@ VERIFIED: `CommunitiesListMixin:Update()` adds Guild Finder when enabled and the
 
 VERIFIED, CODE: `receive_guild_ranks()` clears the profile when the rank list is empty. `guild_communities.rs` previously rendered `CommunitiesGuildEntry` unconditionally and converted the missing profile name to `""`. The current model selects the finder shell for `GuildRankError::NotInGuild` and omits a guild row without a profile. It does not synthesize community invitations or finder results. The separate `GuildInvitation` popup is not a `C_Club` invitation row.
 
-VERIFIED, TEST: `guild_no_guild_shows_retail_finder_entries_without_phantom_roster` and `guild_no_guild_missing_profile_does_not_render_an_empty_selector_row` pass in the Forever-only integration filter. Native live screenshot and debug/release builds remain pending.
+VERIFIED, TEST: `guild_no_guild_shows_retail_finder_entries_without_phantom_roster` and `guild_no_guild_missing_profile_does_not_render_an_empty_selector_row` pass in the Forever-only integration filter. VERIFIED, BUILD: debug and release extension builds exit0 with zero warnings; format check passes. VERIFIED, CAPTURE: the native client renders the Forever offline `NotInGuild` fixture in `/syncthing/AgentShared/2026-11-11/guild-no-guild-state/forever-after.png`; this is not authenticated server evidence.
 
 The finder rows are presentation-only; this client has no `C_Club` finder, join, or invitation service. The contract and current proof status are in [guild ranks](../../specs/guild-ranks.md#communities-presentation).
 
