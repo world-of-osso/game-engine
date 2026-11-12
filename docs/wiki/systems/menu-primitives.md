@@ -87,7 +87,7 @@ Both-skin full-HD Quest/Mail/Bank/Settings before/after views and two comparison
 - Retail `Blizzard_Menu/{MenuVariants.lua,Mainline/MenuVariants.lua}` — menu entry height, ticks, divider/highlight/submenu source art.
 - Retail `Blizzard_FrameXML/Mainline/NavigationBar.{xml,lua}` — home, breadcrumb, overflow art/sizing and collapse decisions.
 - `data/db2/1.60.1.69913/UiTextureAtlas{,Element,Member}.csv` and local `community-listfile.csv` — Forever c60 atlas sets, member IDs, authored crops and source FDIDs.
-- `godot/ui-model/src/ui/screens/menu_primitives.rs` and `ui-toolkit/core/src/atlas/db2.rs` — Style2 state atlas names and active-skin member resolution.
+- `godot/ui-model/src/ui/screens/menu_primitives.rs` and `../ui-toolkit/core/src/atlas/db2.rs` — Style2 state atlas names and active-skin member resolution.
 - Forever `Blizzard_Menu/{MenuTemplates.xml,MenuTemplates.lua}` — Style2 Background template and idle/hover/open state selection.
 - `/home/osso/Projects/wow/wow-ui-sim/data/atlas.rs:16139,16156-16158` — Retail atlas slice metadata exported from the client.
 
