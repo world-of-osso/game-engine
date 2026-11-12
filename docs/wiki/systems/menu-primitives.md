@@ -34,7 +34,11 @@ VERIFIED: Commit `5a0fc9369` preserves explicit `wordwrap=false` and one-line pr
 
 VERIFIED: AH `duration_top` retains its `+2` owner offset because Forever AH XML anchors the control at y=-2; it is not a caption correction. VERIFIED: Current Quest Log source has no shared dropdown helper callsite, so its requested screenshot is a control view, not evidence for this component.
 
-VERIFIED: The final rendered-caption harness passes7/7 preview views and12 caption checks at1920×1080. The targeted UI-model integration filter passes7/7 (721 filtered), `cargo fmt --check` passes, and the helper-driven debug/release extension builds completed with zero Rust warning/error lines. Style1 line centers are exact; the seven Style2 lines differ from source by only±0.5px because of integer Taffy rounding. These captures are RegistryUi/UiAuditProbe previews, not full GameClient proof. UNVERIFIED: A full in-world Group Finder Type capture remains pending.
+VERIFIED: The final rendered-caption harness passes 7/7 preview views and 12 caption checks at 1920×1080. The targeted UI-model integration filter passes 7/7 (721 filtered), `cargo fmt --check` passes, and the helper-driven debug/release extension builds completed with zero Rust warning/error lines. Style1 line centers are exact; the seven Style2 lines differ from source by only ±0.5px because of integer Taffy rounding. These captures are RegistryUi/UiAuditProbe previews, not full GameClient proof.
+
+### Full GameClient capture (2026-11-12)
+
+VERIFIED: On November 12, 2026 local time, the pinned full GameClient opened Group Finder with the landed default `I` keybind (`9eef093da`) while the disposable character kept the default Forever layout. The UI tree records one visible `LFDQueueFrameTypeDropdown` at `(455,200,200,25)` and its visible `Follower Dungeons` FontString region at `(463,201,166,24)`, whose center is y=13 relative to the dropdown owner. This matches the source Text-region center. The inspected 1280×720 screenshot is `data/diagnostics/dropdown-valign-2026-11-11/live-client-group-finder/full-gameclient-group-finder-type.webp`; its UI tree is `client-ui-tree-i.txt`, and the inspected nearest-neighbour comparison with the user's Retail crop is `visual-review/full-gameclient-vs-retail-type-dropdown-2x.png`. This proves one live control's caption placement, not whole-screen pixel parity.
 
 ### Historical native proof (2026-10-15)
 
