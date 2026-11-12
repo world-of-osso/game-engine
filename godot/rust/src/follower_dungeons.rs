@@ -62,11 +62,14 @@ impl GameClient {
         self.dispatch_follower_actions()?;
         if self.account.session.gameplay_input_allowed() && self.keyboard_free() {
             let input = self.physical_input.gameplay_state(true);
-            if self
-                .client_options
-                .bindings
-                .is_just_pressed(InputAction::ToggleGroupFinder, &input)
-            {
+            let bindings = &self.client_options.bindings;
+            let group_finder_pressed = [
+                InputAction::ToggleGroupFinder,
+                InputAction::ToggleDungeonsAndRaids,
+            ]
+            .into_iter()
+            .any(|action| bindings.is_just_pressed(action, &input));
+            if group_finder_pressed {
                 self.toggle_follower_group_finder()?;
             }
         }

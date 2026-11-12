@@ -16,7 +16,7 @@ use ui_toolkit::atlas::ActiveSkin;
 use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 
-use game_engine_core::input_bindings_data::InputAction;
+use game_engine_core::input_bindings_data::{BindingSection, InputAction, actions_for_section};
 
 use crate::GameClient;
 use crate::frame_error::FrameError;
@@ -250,20 +250,14 @@ impl GameClient {
         }
     }
 
-    /// Retail `OPENALLBAGS`, `TOGGLEBACKPACK` and `TOGGLEBAG1-4` (Bindings_Standard.xml:1203-1223).
+    /// Retail `OPENALLBAGS`, `TOGGLEBACKPACK`, `TOGGLEREAGENTBAG1`, and `TOGGLEBAG1-4`
+    /// (`Bindings_Standard.xml:1203-1223`).
     fn apply_bag_bindings(&mut self) {
-        const BAG_ACTIONS: [InputAction; 6] = [
-            InputAction::OpenAllBags,
-            InputAction::ToggleBackpack,
-            InputAction::ToggleBag1,
-            InputAction::ToggleBag2,
-            InputAction::ToggleBag3,
-            InputAction::ToggleBag4,
-        ];
         let input = self.physical_input.gameplay_state(self.keyboard_free());
         let bindings = &self.client_options.bindings;
-        let pressed: Vec<InputAction> = BAG_ACTIONS
-            .into_iter()
+        let pressed: Vec<InputAction> = actions_for_section(BindingSection::Bags)
+            .iter()
+            .copied()
             .filter(|action| bindings.is_just_pressed(*action, &input))
             .collect();
         let held: Vec<usize> = self

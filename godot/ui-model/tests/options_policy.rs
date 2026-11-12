@@ -100,7 +100,7 @@ fn model() -> OptionsModel {
 }
 
 #[test]
-fn group_finder_binding_is_projected_in_interface_source_order() {
+fn retail_interface_bindings_project_in_source_order_with_defaults() {
     let mut state = model();
     state.category = OptionsCategory::Keybindings;
     state.binding_section = BindingSection::Interface;
@@ -121,6 +121,50 @@ fn group_finder_binding_is_projected_in_interface_source_order() {
     assert_eq!(row.action.label(), "Toggle Group Finder");
     assert_eq!(row.label, "Toggle Group Finder");
     assert_eq!(row.binding_text.as_deref(), Some("I"));
+
+    for (action, label, binding) in [
+        (
+            InputAction::ToggleCharacterReputation,
+            "Reputation",
+            Some("U"),
+        ),
+        (InputAction::ToggleCurrency, "Currency", None),
+        (
+            InputAction::ToggleCooldownViewerSettings,
+            "Cooldown Viewer Settings",
+            None,
+        ),
+        (InputAction::ToggleStatistics, "Statistics", Some("Shift-Y")),
+        (
+            InputAction::ToggleHousingDashboard,
+            "Housing Dashboard",
+            None,
+        ),
+        (InputAction::ToggleWorldMapSize, "World Map Size", None),
+        (InputAction::ToggleMinimap, "Minimap", None),
+        (
+            InputAction::ToggleWorldStateScores,
+            "World State Scores",
+            Some("Shift-Spacebar"),
+        ),
+        (InputAction::ToggleGuildTab, "Guild", Some("J")),
+        (
+            InputAction::ToggleDungeonsAndRaids,
+            "Dungeons and Raids",
+            Some("Ctrl-I"),
+        ),
+        (InputAction::ToggleCharacterPvp, "PvP", None),
+        (InputAction::ToggleMountJournal, "Mount Journal", None),
+        (InputAction::TogglePetJournal, "Pet Journal", None),
+        (InputAction::ToggleToyBox, "Toy Box", None),
+    ] {
+        let row = rows
+            .iter()
+            .find(|row| row.action == action)
+            .unwrap_or_else(|| panic!("{action:?} must be in the Interface rows"));
+        assert_eq!(row.label, label, "{action:?}");
+        assert_eq!(row.binding_text.as_deref(), binding, "{action:?}");
+    }
 }
 
 #[test]

@@ -57,6 +57,8 @@ impl GameClient {
         if self.toybox.model.open {
             self.close_toybox();
         } else {
+            self.close_mount_journal();
+            self.close_pet_journal();
             self.toybox.model.open = true;
             self.sync_toybox()?;
         }
