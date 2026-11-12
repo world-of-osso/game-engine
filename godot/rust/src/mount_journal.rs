@@ -78,25 +78,40 @@ impl GameClient {
         );
         self.mount_journal.view.receive(update);
     }
-    fn collections_toggle_pressed(&self) -> bool {
+    fn collections_action_pressed(&self) -> Option<InputAction> {
         let Some(viewport) = self.base().get_viewport() else {
-            return false;
+            return None;
         };
         let keyboard = !viewport
             .gui_get_focus_owner()
             .is_some_and(|focus| focus.is_class("LineEdit") || focus.is_class("TextEdit"));
         let input = self.physical_input.gameplay_state(keyboard);
-        self.client_options
-            .bindings
-            .is_just_pressed(InputAction::ToggleCollections, &input)
+        [
+            InputAction::ToggleCollections,
+            InputAction::ToggleMountJournal,
+            InputAction::TogglePetJournal,
+            InputAction::ToggleToyBox,
+        ]
+        .into_iter()
+        .find(|action| {
+            self.client_options
+                .bindings
+                .is_just_pressed(*action, &input)
+        })
     }
     pub(super) fn update_mount_journal(&mut self) -> Result<(), FrameError> {
         if self.account.session.screen != SessionScreen::InWorld {
             self.close_mount_journal();
             return Ok(());
         }
-        if self.collections_toggle_pressed() {
-            self.toggle_collections();
+        if let Some(action) = self.collections_action_pressed() {
+            match action {
+                InputAction::ToggleCollections => self.toggle_collections(),
+                InputAction::ToggleMountJournal => self.toggle_mount_journal(),
+                InputAction::TogglePetJournal => self.toggle_pet_journal(),
+                InputAction::ToggleToyBox => self.toggle_toybox()?,
+                _ => unreachable!("non-collection binding reached collection dispatch"),
+            }
         }
         if !self.mount_journal.view.visible {
             return Ok(());

@@ -52,9 +52,9 @@ impl GameClient {
     pub(super) fn toggle_pet_journal(&mut self) {
         if self.pet_journal.view.visible {
             self.close_pet_journal();
-        } else if self.toybox.model.open {
-            self.close_toybox();
         } else {
+            self.close_mount_journal();
+            self.close_toybox();
             self.pet_journal.view.visible = true;
         }
     }

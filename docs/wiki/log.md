@@ -1,3 +1,11 @@
+## Retail Interface keybinding audit — 2026-11-11
+
+VERIFIED, SOURCE: The local Retail `Bindings_Standard.xml` supplies Interface action names, handlers and order, but no default key assignments. This host has no `DefaultBindings.wtf` in the Retail decompile or wow-ui-sim cache; account `bindings-cache.wtf` files are overrides.
+
+VERIFIED, PRIOR CAPTURE: the five defaults retained from the previous spec are U, Shift-Y, Shift-Space, J and Ctrl-I; other supported candidates stay unbound. The previous spec cites `~/Repos/worldofwhatever/DefaultBindings.wtf` for those values, but that path is absent on this host.
+
+VERIFIED, SOURCE: Retail `TOGGLECHARACTER4` calls `TogglePVPUI()` when available. VERIFIED, CODE: this checkout has a matching Housing Dashboard toggle, so that action is included despite the task's missing-panel example. The catalog contains 15 supported candidates and excludes 11 without matching native panels or operations. INFERRED, BEHAVIOR: `TOGGLEWORLDMAPSIZE` toggles the existing normal/maximized state because Retail's handler is a TODO. Focused tests and Forever live input proof remain pending.
+
 ## Guild no-guild Communities display — 2026-11-11
 
 VERIFIED, SOURCE: Retail and Forever select `GUILD_FINDER` with no subscribed clubs and no guild; that mode shows `CommunitiesList` and `GuildFinderFrame`, not the member roster. The source list adds finder/join entries by feature and account permissions, and invitation entries only from `C_Club` results.

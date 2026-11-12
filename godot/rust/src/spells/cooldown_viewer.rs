@@ -5,6 +5,7 @@ use std::sync::mpsc::{self, Receiver, TryRecvError};
 
 use game_engine_core::cooldown_assist::{CooldownAssistCatalog, CooldownEntry, Recommendation};
 use game_engine_core::cooldown_conditions::{ConditionActor, CooldownConditions};
+use game_engine_core::input_bindings_data::InputAction;
 use game_engine_ui_model::cooldown_assist::{CooldownViewerModel, CooldownViewerView, SpellSample};
 use game_engine_ui_model::cooldown_settings_component::{
     CooldownSettingEntry, CooldownSettingsView,
@@ -178,6 +179,23 @@ impl GameClient {
     }
 
     pub(super) fn update_cooldown_viewer(&mut self) {
+        if self.account.session.gameplay_input_allowed()
+            && self.game_menu_ui.is_none()
+            && self.keyboard_free()
+        {
+            let input = self.physical_input.gameplay_state(true);
+            if self
+                .client_options
+                .bindings
+                .is_just_pressed(InputAction::ToggleCooldownViewerSettings, &input)
+            {
+                if self.spells.cooldowns.settings.open {
+                    self.spells.cooldowns.settings.open = false;
+                } else {
+                    self.open_cooldown_settings();
+                }
+            }
+        }
         if let Err(error) = self.drive_cooldown_viewer() {
             report_once(&format!("Cooldown Manager: {error}"));
             self.spells.cooldowns.close();

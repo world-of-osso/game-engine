@@ -1,5 +1,6 @@
 //! GuildChannel rank requests/replies and the native guild/communities canvas.
 use crate::{GameClient, frame_error::FrameError, ui::RegistryUi};
+use game_engine_core::input_bindings_data::InputAction;
 use game_engine_session::SessionScreen;
 use game_engine_ui_model::bank::InputTexts;
 use game_engine_ui_model::guild_rank_frame::{GOLD_BOX, INVITE_BOX, PROFILE_BOX};
@@ -409,6 +410,19 @@ impl GameClient {
             self.guild_ranks
                 .synchronize_session_screen(self.account.session.screen);
             return Ok(());
+        }
+        if self.account.session.gameplay_input_allowed()
+            && self.game_menu_ui.is_none()
+            && self.keyboard_free()
+        {
+            let input = self.physical_input.gameplay_state(true);
+            if self
+                .client_options
+                .bindings
+                .is_just_pressed(InputAction::ToggleGuildTab, &input)
+            {
+                self.toggle_guild_ranks()?;
+            }
         }
         self.guild_ranks.session.roster_online_only = !self.client_options.communities_show_offline;
         if let Some(command) = self.guild_ranks.session.advance_invitation(delta) {

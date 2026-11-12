@@ -291,25 +291,40 @@ pub enum InputAction {
     PetActionSlot9,
     PetActionSlot10,
     ToggleMute,
-    ToggleLauncher,
     ToggleCharacter,
+    ToggleCharacterReputation,
+    ToggleCurrency,
     ToggleSpellbook,
     ToggleProfessions,
-    ToggleAchievements,
     ToggleTalents,
-    ToggleSpecialization,
-    ToggleEncounterJournal,
-    ToggleCollections,
+    ToggleCooldownViewerSettings,
+    ToggleAchievements,
+    ToggleStatistics,
+    ToggleQuestLog,
+    ToggleHousingDashboard,
+    ToggleWorldMap,
+    ToggleWorldMapSize,
+    ToggleMinimap,
+    ToggleWorldStateScores,
+    ToggleGuildTab,
     ToggleSocial,
     ToggleGroupFinder,
+    ToggleDungeonsAndRaids,
+    ToggleCharacterPvp,
+    ToggleCollections,
+    ToggleMountJournal,
+    TogglePetJournal,
+    ToggleToyBox,
+    ToggleEncounterJournal,
+    ToggleLauncher,
+    ToggleSpecialization,
     ToggleLootRules,
-    ToggleQuestLog,
-    ToggleWorldMap,
     ToggleFramerate,
     MinimapZoomIn,
     MinimapZoomOut,
     OpenAllBags,
     ToggleBackpack,
+    ToggleReagentBag,
     ToggleBag1,
     ToggleBag2,
     ToggleBag3,
@@ -454,7 +469,7 @@ impl InputAction {
         Self::HousingExpertNextAxis,
     ];
 
-    pub const ALL: [Self; 142] = [
+    pub const ALL: [Self; 157] = [
         Self::MoveForward,
         Self::MoveBackward,
         Self::StrafeLeft,
@@ -554,25 +569,40 @@ impl InputAction {
         Self::PetActionSlot9,
         Self::PetActionSlot10,
         Self::ToggleMute,
-        Self::ToggleLauncher,
         Self::ToggleCharacter,
+        Self::ToggleCharacterReputation,
+        Self::ToggleCurrency,
         Self::ToggleSpellbook,
         Self::ToggleProfessions,
-        Self::ToggleAchievements,
         Self::ToggleTalents,
-        Self::ToggleSpecialization,
-        Self::ToggleEncounterJournal,
-        Self::ToggleCollections,
+        Self::ToggleCooldownViewerSettings,
+        Self::ToggleAchievements,
+        Self::ToggleStatistics,
+        Self::ToggleQuestLog,
+        Self::ToggleHousingDashboard,
+        Self::ToggleWorldMap,
+        Self::ToggleWorldMapSize,
+        Self::ToggleMinimap,
+        Self::ToggleWorldStateScores,
+        Self::ToggleGuildTab,
         Self::ToggleSocial,
         Self::ToggleGroupFinder,
+        Self::ToggleDungeonsAndRaids,
+        Self::ToggleCharacterPvp,
+        Self::ToggleCollections,
+        Self::ToggleMountJournal,
+        Self::TogglePetJournal,
+        Self::ToggleToyBox,
+        Self::ToggleEncounterJournal,
+        Self::ToggleLauncher,
+        Self::ToggleSpecialization,
         Self::ToggleLootRules,
-        Self::ToggleQuestLog,
-        Self::ToggleWorldMap,
         Self::ToggleFramerate,
         Self::MinimapZoomIn,
         Self::MinimapZoomOut,
         Self::OpenAllBags,
         Self::ToggleBackpack,
+        Self::ToggleReagentBag,
         Self::ToggleBag1,
         Self::ToggleBag2,
         Self::ToggleBag3,
@@ -750,16 +780,17 @@ impl InputAction {
 
     fn interface_meta(self) -> Option<InputActionMeta> {
         let (key, label, binding) = match self {
-            Self::ToggleLauncher => (
-                "toggle_launcher",
-                "Toggle Launcher",
-                Some(InputBinding::CtrlKeyboard(BindingKey::Space)),
-            ),
             Self::ToggleCharacter => (
                 "toggle_character",
                 "Character Info",
                 Some(keyboard(BindingKey::KeyC)),
             ),
+            Self::ToggleCharacterReputation => (
+                "toggle_character_reputation",
+                "Reputation",
+                Some(keyboard(BindingKey::KeyU)),
+            ),
+            Self::ToggleCurrency => ("toggle_currency", "Currency", None),
             Self::ToggleSpellbook => (
                 "toggle_spellbook",
                 "Spellbook",
@@ -770,56 +801,90 @@ impl InputAction {
                 "Professions",
                 Some(keyboard(BindingKey::KeyK)),
             ),
-            Self::ToggleAchievements => (
-                "toggle_achievements",
-                "Achievements",
-                Some(keyboard(BindingKey::KeyY)),
-            ),
             Self::ToggleTalents => (
                 "toggle_talents",
                 "Talents",
                 Some(keyboard(BindingKey::KeyN)),
             ),
-            // Retail has no separate specialization default (Bindings_Standard.xml:1244).
-            Self::ToggleSpecialization => ("toggle_specialization", "Specialization", None),
-            Self::ToggleEncounterJournal => (
-                "toggle_encounter_journal",
-                "Adventure Guide",
-                Some(keyboard(BindingKey::KeyJ)),
+            Self::ToggleCooldownViewerSettings => (
+                "toggle_cooldown_viewer_settings",
+                "Cooldown Viewer Settings",
+                None,
             ),
-            // Retail TOGGLECOLLECTIONS (Bindings_Standard.xml:1326-1330), Shift+P.
-            Self::ToggleCollections => (
-                "toggle_collections",
-                "Warband Collections",
-                Some(InputBinding::ShiftKeyboard(BindingKey::KeyP)),
+            Self::ToggleAchievements => (
+                "toggle_achievements",
+                "Achievements",
+                Some(keyboard(BindingKey::KeyY)),
             ),
-            Self::ToggleSocial => ("toggle_social", "Social", Some(keyboard(BindingKey::KeyO))),
-            // Retail `TOGGLEGROUPFINDER` (`Bindings_Standard.xml:1311-1313`), I.
-            Self::ToggleGroupFinder => (
-                "toggle_group_finder",
-                "Toggle Group Finder",
-                Some(keyboard(BindingKey::KeyI)),
+            Self::ToggleStatistics => (
+                "toggle_statistics",
+                "Statistics",
+                Some(InputBinding::ShiftKeyboard(BindingKey::KeyY)),
             ),
-            Self::ToggleLootRules => ("toggle_loot_rules", "Loot Rules", None),
-            // Retail TOGGLEQUESTLOG default binding.
             Self::ToggleQuestLog => (
                 "toggle_quest_log",
                 "Quest Log",
                 Some(keyboard(BindingKey::KeyL)),
             ),
+            Self::ToggleHousingDashboard => ("toggle_housing_dashboard", "Housing Dashboard", None),
             Self::ToggleWorldMap => (
                 "toggle_world_map",
                 "World Map",
                 Some(keyboard(BindingKey::KeyM)),
             ),
-            // Retail `TOGGLEFPS` (`Bindings_Standard.xml`: `FramerateFrame:Toggle()`), Ctrl+R.
+            Self::ToggleWorldMapSize => ("toggle_world_map_size", "World Map Size", None),
+            Self::ToggleMinimap => ("toggle_minimap", "Minimap", None),
+            Self::ToggleWorldStateScores => (
+                "toggle_world_state_scores",
+                "World State Scores",
+                Some(InputBinding::ShiftKeyboard(BindingKey::Space)),
+            ),
+            Self::ToggleGuildTab => (
+                "toggle_guild_tab",
+                "Guild",
+                Some(keyboard(BindingKey::KeyJ)),
+            ),
+            Self::ToggleSocial => ("toggle_social", "Social", Some(keyboard(BindingKey::KeyO))),
+            // Retail `TOGGLEGROUPFINDER` (`Bindings_Standard.xml`), I.
+            Self::ToggleGroupFinder => (
+                "toggle_group_finder",
+                "Toggle Group Finder",
+                Some(keyboard(BindingKey::KeyI)),
+            ),
+            Self::ToggleDungeonsAndRaids => (
+                "toggle_dungeons_and_raids",
+                "Dungeons and Raids",
+                Some(InputBinding::CtrlKeyboard(BindingKey::KeyI)),
+            ),
+            Self::ToggleCharacterPvp => ("toggle_character_pvp", "PvP", None),
+            // Retail TOGGLECOLLECTIONS, Shift+P.
+            Self::ToggleCollections => (
+                "toggle_collections",
+                "Warband Collections",
+                Some(InputBinding::ShiftKeyboard(BindingKey::KeyP)),
+            ),
+            Self::ToggleMountJournal => ("toggle_mount_journal", "Mount Journal", None),
+            Self::TogglePetJournal => ("toggle_pet_journal", "Pet Journal", None),
+            Self::ToggleToyBox => ("toggle_toy_box", "Toy Box", None),
+            Self::ToggleEncounterJournal => (
+                "toggle_encounter_journal",
+                "Adventure Guide",
+                Some(InputBinding::ShiftKeyboard(BindingKey::KeyJ)),
+            ),
+            Self::ToggleLauncher => (
+                "toggle_launcher",
+                "Toggle Launcher",
+                Some(InputBinding::CtrlKeyboard(BindingKey::Space)),
+            ),
+            // Retail has no separate specialization default.
+            Self::ToggleSpecialization => ("toggle_specialization", "Specialization", None),
+            Self::ToggleLootRules => ("toggle_loot_rules", "Loot Rules", None),
+            // Retail `TOGGLEFPS` uses Ctrl+R.
             Self::ToggleFramerate => (
                 "toggle_framerate",
                 "Toggle Framerate Display",
                 Some(InputBinding::CtrlKeyboard(BindingKey::KeyR)),
             ),
-            // Retail `MINIMAPZOOMIN`/`MINIMAPZOOMOUT` (`Bindings_Standard.xml:1378-1383`):
-            // `Minimap_ZoomIn()`/`Minimap_ZoomOut()`, Num Pad +/-.
             Self::MinimapZoomIn => (
                 "minimap_zoom_in",
                 "Minimap Zoom In",
@@ -845,30 +910,47 @@ impl InputAction {
     /// them). Single-slot model: TOGGLEBACKPACK's second Retail key, F12, is not bound.
     fn bag_meta(self) -> Option<InputActionMeta> {
         let (key, label, binding) = match self {
-            Self::OpenAllBags => ("open_all_bags", "Open All Bags", keyboard(BindingKey::KeyB)),
             Self::ToggleBackpack => (
                 "toggle_backpack",
                 "Toggle Backpack",
-                InputBinding::ShiftKeyboard(BindingKey::KeyB),
+                Some(InputBinding::ShiftKeyboard(BindingKey::KeyB)),
             ),
-            Self::ToggleBag1 => ("toggle_bag_1", "Toggle Bag 1", keyboard(BindingKey::F8)),
-            Self::ToggleBag2 => ("toggle_bag_2", "Toggle Bag 2", keyboard(BindingKey::F9)),
-            Self::ToggleBag3 => ("toggle_bag_3", "Toggle Bag 3", keyboard(BindingKey::F10)),
-            Self::ToggleBag4 => ("toggle_bag_4", "Toggle Bag 4", keyboard(BindingKey::F11)),
+            Self::ToggleReagentBag => ("toggle_reagent_bag", "Toggle Reagent Bag", None),
+            Self::ToggleBag1 => (
+                "toggle_bag_1",
+                "Toggle Bag 1",
+                Some(keyboard(BindingKey::F8)),
+            ),
+            Self::ToggleBag2 => (
+                "toggle_bag_2",
+                "Toggle Bag 2",
+                Some(keyboard(BindingKey::F9)),
+            ),
+            Self::ToggleBag3 => (
+                "toggle_bag_3",
+                "Toggle Bag 3",
+                Some(keyboard(BindingKey::F10)),
+            ),
+            Self::ToggleBag4 => (
+                "toggle_bag_4",
+                "Toggle Bag 4",
+                Some(keyboard(BindingKey::F11)),
+            ),
+            Self::OpenAllBags => (
+                "open_all_bags",
+                "Open All Bags",
+                Some(keyboard(BindingKey::KeyB)),
+            ),
             _ => return None,
         };
-        Some(input_action_meta(
-            key,
-            label,
-            BindingSection::Bags,
-            Some(binding),
-        ))
+        Some(input_action_meta(key, label, BindingSection::Bags, binding))
     }
 
-    /// Container id a `TOGGLEBAGn` binding toggles: `ToggleBag(5 - n)`
-    /// (`Bindings_Standard.xml:1209-1220`), so F8..F11 run left to right along the bag bar.
+    /// Container id a bag binding toggles: reagent bag 5, `TOGGLEBAGn` uses `5 - n`
+    /// (`Bindings_Standard.xml`), so F8..F11 run left to right along the bag bar.
     pub fn toggled_bag(self) -> Option<usize> {
         Some(match self {
+            Self::ToggleReagentBag => 5,
             Self::ToggleBag1 => 4,
             Self::ToggleBag2 => 3,
             Self::ToggleBag3 => 2,
@@ -939,18 +1021,32 @@ impl InputAction {
             ),
             Self::ToggleLauncher
             | Self::ToggleCharacter
+            | Self::ToggleCharacterReputation
+            | Self::ToggleCurrency
             | Self::ToggleSpellbook
             | Self::ToggleProfessions
-            | Self::ToggleAchievements
             | Self::ToggleTalents
-            | Self::ToggleSpecialization
-            | Self::ToggleEncounterJournal
-            | Self::ToggleCollections
+            | Self::ToggleCooldownViewerSettings
+            | Self::ToggleAchievements
+            | Self::ToggleStatistics
+            | Self::ToggleQuestLog
+            | Self::ToggleHousingDashboard
+            | Self::ToggleWorldMap
+            | Self::ToggleWorldMapSize
+            | Self::ToggleMinimap
+            | Self::ToggleWorldStateScores
+            | Self::ToggleGuildTab
             | Self::ToggleSocial
             | Self::ToggleGroupFinder
+            | Self::ToggleDungeonsAndRaids
+            | Self::ToggleCharacterPvp
+            | Self::ToggleCollections
+            | Self::ToggleMountJournal
+            | Self::TogglePetJournal
+            | Self::ToggleToyBox
+            | Self::ToggleSpecialization
+            | Self::ToggleEncounterJournal
             | Self::ToggleLootRules
-            | Self::ToggleQuestLog
-            | Self::ToggleWorldMap
             | Self::ToggleFramerate
             | Self::MinimapZoomIn
             | Self::MinimapZoomOut => unreachable!("panel toggles handled by interface_meta"),
@@ -978,6 +1074,7 @@ impl InputAction {
             }
             Self::OpenAllBags
             | Self::ToggleBackpack
+            | Self::ToggleReagentBag
             | Self::ToggleBag1
             | Self::ToggleBag2
             | Self::ToggleBag3
@@ -1687,20 +1784,34 @@ fn pet_action_slot_from_key(key: &str) -> Option<InputAction> {
 
 fn interface_action_from_key(key: &str) -> Option<InputAction> {
     Some(match key {
-        "toggle_launcher" => InputAction::ToggleLauncher,
         "toggle_character" => InputAction::ToggleCharacter,
+        "toggle_character_reputation" => InputAction::ToggleCharacterReputation,
+        "toggle_currency" => InputAction::ToggleCurrency,
         "toggle_spellbook" => InputAction::ToggleSpellbook,
         "toggle_professions" => InputAction::ToggleProfessions,
-        "toggle_achievements" => InputAction::ToggleAchievements,
         "toggle_talents" => InputAction::ToggleTalents,
-        "toggle_specialization" => InputAction::ToggleSpecialization,
-        "toggle_encounter_journal" => InputAction::ToggleEncounterJournal,
-        "toggle_collections" => InputAction::ToggleCollections,
+        "toggle_cooldown_viewer_settings" => InputAction::ToggleCooldownViewerSettings,
+        "toggle_achievements" => InputAction::ToggleAchievements,
+        "toggle_statistics" => InputAction::ToggleStatistics,
+        "toggle_quest_log" => InputAction::ToggleQuestLog,
+        "toggle_housing_dashboard" => InputAction::ToggleHousingDashboard,
+        "toggle_world_map" => InputAction::ToggleWorldMap,
+        "toggle_world_map_size" => InputAction::ToggleWorldMapSize,
+        "toggle_minimap" => InputAction::ToggleMinimap,
+        "toggle_world_state_scores" => InputAction::ToggleWorldStateScores,
+        "toggle_guild_tab" => InputAction::ToggleGuildTab,
         "toggle_social" => InputAction::ToggleSocial,
         "toggle_group_finder" => InputAction::ToggleGroupFinder,
+        "toggle_dungeons_and_raids" => InputAction::ToggleDungeonsAndRaids,
+        "toggle_character_pvp" => InputAction::ToggleCharacterPvp,
+        "toggle_collections" => InputAction::ToggleCollections,
+        "toggle_mount_journal" => InputAction::ToggleMountJournal,
+        "toggle_pet_journal" => InputAction::TogglePetJournal,
+        "toggle_toy_box" => InputAction::ToggleToyBox,
+        "toggle_encounter_journal" => InputAction::ToggleEncounterJournal,
+        "toggle_launcher" => InputAction::ToggleLauncher,
+        "toggle_specialization" => InputAction::ToggleSpecialization,
         "toggle_loot_rules" => InputAction::ToggleLootRules,
-        "toggle_quest_log" => InputAction::ToggleQuestLog,
-        "toggle_world_map" => InputAction::ToggleWorldMap,
         "toggle_framerate" => InputAction::ToggleFramerate,
         "minimap_zoom_in" => InputAction::MinimapZoomIn,
         "minimap_zoom_out" => InputAction::MinimapZoomOut,
@@ -1712,6 +1823,7 @@ fn bag_action_from_key(key: &str) -> Option<InputAction> {
     Some(match key {
         "open_all_bags" => InputAction::OpenAllBags,
         "toggle_backpack" => InputAction::ToggleBackpack,
+        "toggle_reagent_bag" => InputAction::ToggleReagentBag,
         "toggle_bag_1" => InputAction::ToggleBag1,
         "toggle_bag_2" => InputAction::ToggleBag2,
         "toggle_bag_3" => InputAction::ToggleBag3,
@@ -1803,12 +1915,13 @@ fn targeting_section_actions() -> &'static [InputAction] {
 
 fn bag_section_actions() -> &'static [InputAction] {
     &[
-        InputAction::OpenAllBags,
         InputAction::ToggleBackpack,
+        InputAction::ToggleReagentBag,
         InputAction::ToggleBag1,
         InputAction::ToggleBag2,
         InputAction::ToggleBag3,
         InputAction::ToggleBag4,
+        InputAction::OpenAllBags,
     ]
 }
 
@@ -1845,19 +1958,33 @@ fn audio_section_actions() -> &'static [InputAction] {
 
 fn interface_section_actions() -> &'static [InputAction] {
     &[
-        InputAction::ToggleLauncher,
         InputAction::ToggleCharacter,
+        InputAction::ToggleCharacterReputation,
+        InputAction::ToggleCurrency,
         InputAction::ToggleSpellbook,
         InputAction::ToggleProfessions,
         InputAction::ToggleTalents,
-        InputAction::ToggleSpecialization,
+        InputAction::ToggleCooldownViewerSettings,
         InputAction::ToggleAchievements,
+        InputAction::ToggleStatistics,
         InputAction::ToggleQuestLog,
+        InputAction::ToggleHousingDashboard,
         InputAction::ToggleWorldMap,
+        InputAction::ToggleWorldMapSize,
+        InputAction::ToggleMinimap,
+        InputAction::ToggleWorldStateScores,
+        InputAction::ToggleGuildTab,
         InputAction::ToggleSocial,
         InputAction::ToggleGroupFinder,
+        InputAction::ToggleDungeonsAndRaids,
+        InputAction::ToggleCharacterPvp,
         InputAction::ToggleCollections,
+        InputAction::ToggleMountJournal,
+        InputAction::TogglePetJournal,
+        InputAction::ToggleToyBox,
         InputAction::ToggleEncounterJournal,
+        InputAction::ToggleLauncher,
+        InputAction::ToggleSpecialization,
         InputAction::ToggleLootRules,
         InputAction::ToggleFramerate,
         InputAction::MinimapZoomIn,
