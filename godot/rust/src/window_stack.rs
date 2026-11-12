@@ -55,6 +55,7 @@ const CLOSE_CALLBACKS: &[(&str, CloseCallback)] = &[
     ("trade", |client| Ok(client.close_trade_window()?)),
     ("quests", |client| client.close_quest_windows()),
     ("character", |client| Ok(client.close_character_window())),
+    ("friends", |client| client.close_friends_frame()),
     ("guild_ranks", |client| Ok(client.close_guild_ranks())),
     ("guild_charter", |client| client.close_guild_charter()),
     ("guild_tabard", |client| client.close_guild_tabard()),

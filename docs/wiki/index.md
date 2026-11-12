@@ -450,7 +450,7 @@
 [Current Skyborne acceptance boundary](systems/forever-data.md#current-scoped-capability-matrix) owns approved estimated NPC/giver stats, bounded quest acceptance/turn-in/reload evidence and remaining gaps. [Ailee baked-path correction](systems/forever-data.md#ailee-baked-material-applicability--bounded-correction-2026-10-07) separates unused component-overlay validation from pending native rendering.
 
 Knowledge base for the game-engine project, organized across five categories.
-Last updated: 2026-10-11.
+Last updated: 2026-11-12.
 
 The Bevy client was retired on 2026-10-02 ([log](log.md#2026-10-02--bevy-client-retired)); entries below that describe Bevy behavior or root `src/` paths are historical.
 
@@ -501,6 +501,8 @@ The Bevy client was retired on 2026-10-02 ([log](log.md#2026-10-02--bevy-client-
 Single MainHand startup native `5a3ebf7b` and original15-second merchant regression have MAIN-accepted independent1429 bounded PASS. Historical failures, inherited readability debt and unchanged startup/tooltip/pure proofs retained; no auth fix, general reliability or clean-resource/general-shutdown acceptance. Main goal/full conversion remain OPEN. [Exact evidence and exclusions](systems/godot-conversion.md#occupied-startup-equipment--bounded-main-observed-green).
 
 Engine subsystems and how they work.
+
+- [Friends Frame](systems/friends-frame.md) — native Retail Friends/Who/Raid panel, snapshot delivery, row layout and live acceptance limits.
 
 - [meeting-stones](systems/meeting-stones.md) — native stone/ritual picking and shared summon popup lifecycle; contract owns current proof and gaps.
 
@@ -583,6 +585,8 @@ Architecture decisions and feature designs.
 - [collision-system](design/collision-system.md) — terrain/WMO/M2 floor layers, native WMO wall rays and unchanged complete M2 camera hulls (see player-ground)
 
 ## Investigations
+
+- [Friends/Who snapshot delivery](investigations/friends-who-snapshots.md) — missing native receive relays, real-UDP regression test, two-client verification and saved-instance limits.
 
 - [Profession micro-button unavailable](investigations/profession-micro-button-unavailable.md) — VERIFIED: shipped client action state disabled the button; targeted tests cover empty/learned book rows and button art. UNVERIFIED: live screenshots and NPC/source.
 
