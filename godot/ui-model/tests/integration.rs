@@ -12,6 +12,7 @@ mod bossframes_warnings;
 mod buff_frame_textures;
 mod buffcancel;
 mod buttonfit;
+mod calendar;
 mod capturepolish;
 mod char_create;
 mod character_currency;
