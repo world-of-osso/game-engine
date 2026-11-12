@@ -169,6 +169,135 @@ INSERT INTO skinned_models VALUES(41,41),(49,49);
             result["seeds"]["character_sources"][0]["selected_choices"], [400]
         )
 
+    def test_starting_items_follow_native_source_and_race_mask_rules(self):
+        self.files.put(
+            "db2/active/ChrRaces.csv",
+            b"ID,PlayableRaceBit\n8,7\n",
+        )
+        self.files.put(
+            "db2/active/ChrRaceXChrModel.csv",
+            b"ID,ChrRacesID,ChrModelID,Sex\n"
+            b"1,1,1,0\n2,95,1,0\n3,95,1,1\n"
+            b"4,96,1,0\n5,96,1,1\n6,8,1,0\n",
+        )
+        self.files.put(
+            "db2/active/ItemModifiedAppearance.csv",
+            b"ID,ItemID,ItemAppearanceID\n1,157655,2\n2,157657,3\n3,157658,4\n",
+        )
+        self.files.put(
+            "db2/active/ItemAppearance.csv",
+            b"ID,ItemDisplayInfoID\n2,82927\n3,82929\n4,82930\n",
+        )
+        self.files.put(
+            "db2/1.60.1.70205/items/ItemModifiedAppearance.csv",
+            b"ID,ItemID,ItemAppearanceID\n1,157656,2\n",
+        )
+        self.files.put(
+            "db2/1.60.1.70205/items/ItemAppearance.csv",
+            b"ID,ItemDisplayInfoID\n2,82928\n",
+        )
+        for product_path, displays, models in [
+            (
+                "db2/active",
+                [(82927, 50), (82929, 52), (82930, 53)],
+                [(464822, 50), (464824, 52), (464825, 53)],
+            ),
+            (
+                "db2/1.60.1.70205",
+                [(82928, 51)],
+                [(464823, 51)],
+            ),
+        ]:
+            display_rows = "".join(
+                f"{display},{resource},0\n" for display, resource in displays
+            )
+            model_rows = "".join(
+                f"{fdid},{resource}\n" for fdid, resource in models
+            )
+            display_csv = (
+                "ID,ModelResourcesID_1,ModelMaterialResourcesID_1\n"
+                f"{display_rows}"
+            )
+            model_csv = f"FileDataID,ModelResourcesID\n{model_rows}"
+            self.files.put(
+                f"{product_path}/ItemDisplayInfo.csv", display_csv.encode()
+            )
+            self.files.put(
+                f"{product_path}/ModelFileData.csv", model_csv.encode()
+            )
+            for table, header in [
+                ("TextureFileData", "FileDataID,MaterialResourcesID\n"),
+                (
+                    "ItemDisplayInfoMaterialRes",
+                    "ID,ItemDisplayInfoID,MaterialResourcesID\n",
+                ),
+                (
+                    "ItemDisplayInfoModelMatRes",
+                    "ID,ItemDisplayInfoID,MaterialResourcesID\n",
+                ),
+            ]:
+                self.files.put(f"{product_path}/{table}.csv", header.encode())
+
+        with closing(sqlite3.connect(self.world)) as db:
+            db.executescript(
+                "CREATE TABLE content_item(ID INTEGER PRIMARY KEY);"
+                "INSERT INTO content_item VALUES(157655),(157656),(157657),(157658);"
+                "CREATE TABLE skyborne_content_item(ID INTEGER PRIMARY KEY);"
+                "INSERT INTO skyborne_content_item VALUES(157656),(157658);"
+                "CREATE TABLE character_loadout("
+                "ID INTEGER PRIMARY KEY,ChrClassID,Purpose,ModID,RaceMasks_0,RaceMasks_1);"
+                "INSERT INTO character_loadout VALUES"
+                "(1,7,9,75,128,0),(2,1,9,75,0,1),(3,7,9,75,128,0),(4,7,9,75,64,0);"
+                "CREATE TABLE character_loadout_item("
+                "ID INTEGER PRIMARY KEY,CharacterLoadoutID,ItemID);"
+                "INSERT INTO character_loadout_item VALUES"
+                "(1,1,157655),(2,2,157656),(3,3,157658),(4,4,157658);"
+                "CREATE TABLE db2_row_source("
+                "table_name,row_id,build,file_data_id,layout_hash,sha256);"
+                "INSERT INTO db2_row_source VALUES"
+                "('character_loadout',1,'12.1.5.70448',1,'',''),"
+                "('character_loadout',2,'1.60.1.70205',2,'',''),"
+                "('character_loadout',3,'1.60.1.70205',3,'',''),"
+                "('character_loadout',4,'12.1.5.70448',4,'','');"
+                "CREATE TABLE tdb_playercreateinfo_item("
+                "race,class,itemid,amount);"
+                "INSERT INTO tdb_playercreateinfo_item VALUES"
+                "(8,7,157657,1),(95,1,157656,-1);"
+            )
+        for product, fdid in [
+            ("wow", 464822),
+            ("wow_classic_beta", 464823),
+            ("wow", 464824),
+            ("wow", 464825),
+        ]:
+            raw = model()
+            self.files.publish(product, fdid, "m2", raw)
+            self.files.put(f"models/{fdid}.m2", raw)
+
+        characters = [
+            {"race": 8, "sex": 0, "class": 7, "level": 1, "choices": "default"},
+            {"race": 95, "sex": 0, "class": 1, "level": 1, "choices": "default"},
+        ]
+        config = dict(self.config, characters=characters, items="starting")
+
+        def result_for(graph):
+            seed_catalogs(graph, self.world, config)
+            return graph.run()
+
+        receipt_graph = ReceiptClosure(self.data, {}, "wow", "active")
+        receipt_result = result_for(receipt_graph)
+        receipt_assets = {
+            (row["requested_product"], row["fdid"])
+            for row in receipt_result["assets"]
+        }
+        self.assertIn(("wow", 464822), receipt_assets)
+        self.assertIn(("wow", 464824), receipt_assets)
+        self.assertIn(("wow_classic_beta", 464823), receipt_assets)
+        self.assertNotIn(("wow_classic_beta", 464822), receipt_assets)
+        self.assertNotIn(("wow", 464823), receipt_assets)
+        self.assertNotIn(("wow", 464825), receipt_assets)
+
+
 
 if __name__ == "__main__":
     unittest.main()
