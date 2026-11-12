@@ -14,9 +14,13 @@ The native `FriendsFrame` is the Retail-style social window. It is rendered by t
 - [ ] Add Friend sends the entered character name to the server and reports server errors.
 - [ ] Send Message opens chat with `/w <name> ` for an online selected friend.
 
-### Who and Raid
-- [ ] Who submits the entered query and projects the server's returned character rows; Add Friend and Group Invite use the existing server requests.
+### Who
+- [x] The native bridge delivers Friends and Who snapshots over UDP to the client.
+- [ ] Who submits the entered query and projects the server's returned character rows.
+- [ ] Add Friend and Group Invite use the existing server requests.
 - [x] Who result feedback uses the totals strip below results and above the search box; it does not cover the column headers.
+
+### Raid
 - [ ] Raid reflects the current group/raid state; Convert to Raid and Raid Info use existing server actions.
 
 ## How it works
@@ -42,13 +46,11 @@ The native `FriendsFrame` is the Retail-style social window. It is rendered by t
 - `godot/ui-model/src/friends_frame.rs` — open/close state and concrete Friends, Who and Raid projections.
 - `godot/network/src/friends_who_wire_tests.rs` — default bridge receives Friends and Who snapshots over real UDP.
 - `godot/ui-model/tests/friends_frame_component.rs` — Who feedback avoids the list, column headers and search box in both skins.
-- Private-server native proof — O toggle, chat social button, friend add, online/offline rows and whisper prefill.
+- Private-server native proof — O toggle, chat social button, friend add, online row, Who result, row whisper, invite acceptance and raid conversion; AFK/DND and offline rows were not exercised.
 
 ## Known gaps (current cycle)
 
-- [ ] Run targeted tests, dev/release helper builds and formatting; confirm zero Rust warnings.
-- [ ] Verify the frame on a private UDP 5998 server with two throwaway accounts.
-- [ ] Complete the Forever visual comparison and publish the required crops.
+- [ ] Open Raid Info with non-empty saved-instance data; the disposable accounts had none, so Retail disabled the button.
 
 ## Out of scope
 

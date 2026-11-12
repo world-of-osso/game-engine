@@ -1,3 +1,13 @@
+## Friends/Who snapshot delivery — 2026-11-12
+
+VERIFIED: `NetworkBridge::connect` omitted receive registrations for `FriendsStateUpdate` and `WhoStateUpdate`; the bridge now relays both, and the real-UDP regression test passes 1/1.
+
+VERIFIED: In the private 127.0.0.1:5998 run, Friendbeta saw Friendalpha in Friends and Who, the row-selected whisper arrived, and both clients reported a two-member raid after conversion.
+
+VERIFIED: Raid Info was disabled with no saved-instance data, matching Retail's enable condition; the Raid Info window did not open.
+
+UNVERIFIED: AFK/DND and offline friend rows, and opening Raid Info with saved-instance data. See [[friends-who-snapshots]] and [[friends-frame]].
+
 ## Guild no-guild Communities display — 2026-11-11
 
 VERIFIED, SOURCE: Retail and Forever select `GUILD_FINDER` with no subscribed clubs and no guild; that mode shows `CommunitiesList` and `GuildFinderFrame`, not the member roster. The source list adds finder/join entries by feature and account permissions, and invitation entries only from `C_Club` results.
