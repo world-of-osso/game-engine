@@ -4,12 +4,12 @@ The in-world Forever Calendar panel is the native `CalendarFrame` opened from `G
 
 ## What it must do
 
-- [ ] Open and close from the Forever minimap date button.
-- [ ] Render the 659×624 CalendarFrame at its XML anchor, with the authored border art, month/year title, weekday headers, and six rows of seven day cells.
-- [ ] Use the Sunday-first week order defined by the cached Retail calendar source; highlight the current local day.
-- [ ] Navigate months in both directions, including December-to-January year changes.
-- [ ] Display only events received in `CalendarStateUpdate`; do not invent holidays or event rows when the server snapshot is empty.
-- [ ] Keep the panel limited to the Forever skin. Add no calendar key binding unless the Retail source defines one.
+- [x] Open and close from the Forever minimap date button.
+- [x] Render the 659×624 CalendarFrame at its XML anchor, with the authored border art, month/year title, weekday headers, and six rows of seven day cells.
+- [x] Use the Sunday-first week order defined by the cached Retail calendar source; highlight the current local day.
+- [x] Navigate months in both directions, including December-to-January year changes.
+- [x] Display only events received in `CalendarStateUpdate`; do not invent holidays or event rows when the server snapshot is empty.
+- [x] Keep the panel limited to the Forever skin. Add no calendar key binding unless the Retail source defines one.
 
 ## How it works
 
@@ -29,11 +29,13 @@ The in-world Forever Calendar panel is the native `CalendarFrame` opened from `G
 - `godot/ui-model/tests/calendar.rs`
 - `godot/rust/src/account_calendar_tests.rs`
 
-## Known gaps (current cycle)
+## Verification
 
-- [ ] Run the targeted behavior tests, helper dev/release builds, and format checks.
-- [ ] Prove the open/close and month controls against a fresh private UDP 5995 server.
-- [ ] Inspect and publish the Forever panel crops next to the authored Retail calendar art.
+- [x] Targeted behavior tests, helper dev/release builds, and format checks pass.
+- [x] Private UDP `127.0.0.1:5995` proof covers opening, both month controls, close, and reopen.
+- [x] Inspect and save the Forever panel screenshots and crops under `/syncthing/AgentShared/2026-11-11/calendar-panel/`.
+
+UNVERIFIED, LIVE: The final screenshot contains no event title, so it does not prove visual rendering of a non-empty live server snapshot; the model test covers event display from a server snapshot fixture.
 
 ## Out of scope
 

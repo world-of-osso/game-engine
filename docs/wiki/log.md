@@ -1,3 +1,13 @@
+## Native Calendar panel — 2026-11-12
+
+VERIFIED, CODE: `GameTimeFrame` opens the native CalendarFrame only in Forever; `CalendarStateUpdate` snapshots populate the local-date grid, and no local holiday/event fallback was added. The current-day glow now matches the source anchor/additive mode, and year text renders above weekday labels.
+
+VERIFIED, TEST: Three calendar model tests and the current-day/year-layer presentation test pass; targeted account and UDP snapshot tests passed earlier in this slice. `cargo fmt --all -- --check` and helper dev/release builds pass with no warnings.
+
+VERIFIED, LIVE: Private UDP `127.0.0.1:5995` automation opened the panel, changed November 2026 to December and back, closed it, and reopened it from the minimap. The final UI tree and inspected screenshots/crops are under `/syncthing/AgentShared/2026-11-11/calendar-panel/`.
+
+UNVERIFIED, LIVE: The final image contains no event title, so non-empty event rendering was not proven against a live server; the model test supplies a concrete `CalendarEventSnapshot`.
+
 ## Guild no-guild Communities display — 2026-11-11
 
 VERIFIED, SOURCE: Retail and Forever select `GUILD_FINDER` with no subscribed clubs and no guild; that mode shows `CommunitiesList` and `GuildFinderFrame`, not the member roster. The source list adds finder/join entries by feature and account permissions, and invitation entries only from `C_Club` results.
