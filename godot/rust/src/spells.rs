@@ -67,6 +67,9 @@ pub(crate) struct SpellsHud {
     pub(crate) vigor_ui: Option<Gd<RegistryUi>>,
     cast_ui: Option<Gd<RegistryUi>>,
     book_ui: Option<Gd<RegistryUi>>,
+    prefetched_book_ui: Option<Gd<RegistryUi>>,
+    prefetched_book_key: Option<(u32, u32)>,
+    book_ui_talent_key: Option<(u32, u32)>,
     /// Exact last text handed to DisplayServer; diagnostics, not OS delivery proof.
     pub(crate) talent_export_clipboard: Option<String>,
     book_position: Option<[f32; 2]>,
@@ -111,6 +114,9 @@ impl Default for SpellsHud {
             vigor_ui: None,
             cast_ui: None,
             book_ui: None,
+            prefetched_book_ui: None,
+            prefetched_book_key: None,
+            book_ui_talent_key: None,
             talent_export_clipboard: None,
             book_position: None,
             book_position_applied: None,
@@ -153,6 +159,7 @@ impl SpellsHud {
             &mut self.vigor_ui,
             &mut self.cast_ui,
             &mut self.book_ui,
+            &mut self.prefetched_book_ui,
             &mut self.cooldowns.ui,
         ] {
             if let Some(ui) = ui {
@@ -177,6 +184,7 @@ impl SpellsHud {
             self.vigor_ui.take(),
             self.cast_ui.take(),
             self.book_ui.take(),
+            self.prefetched_book_ui.take(),
         ]
         .into_iter()
         .flatten()
@@ -195,6 +203,8 @@ impl SpellsHud {
         self.book_position = None;
         self.book_position_applied = None;
         self.book_drag = None;
+        self.prefetched_book_key = None;
+        self.book_ui_talent_key = None;
         self.book = SpellbookFrameState::default();
         self.book_art_state = None;
     }
@@ -282,6 +292,9 @@ impl GameClient {
         }
         self.spells.poll_catalog(&self.data_root);
         self.account.spells.tick(delta);
+        if let Err(error) = self.prewarm_spellbook_talents() {
+            report_once(&format!("Talent UI prewarm: {error}"));
+        }
         self.update_assisted_combat();
         for spell_id in self
             .spells

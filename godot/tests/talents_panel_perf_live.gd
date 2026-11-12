@@ -48,11 +48,18 @@ func find_talents_panel() -> Dictionary:
 	return {"panel": panel, "node_count": node_count}
 
 func wait_for_startup_world(character: String) -> bool:
+	var started_usec := Time.get_ticks_usec()
+	var max_process_frame_ms := 0.0
 	var deadline := Time.get_ticks_msec() + 900000
 	while Time.get_ticks_msec() < deadline:
 		await process_frame
+		max_process_frame_ms = maxf(max_process_frame_ms, Performance.get_monitor(Performance.TIME_PROCESS) * 1000.0)
 		var state: Dictionary = client.account_state()
 		if state.screen == "InWorld" and Readiness.is_ready(state) and state.local_player_position != null:
+			print("TALENTS_PANEL_INWORLD_READY ", JSON.stringify({
+				"elapsed_ms": float(Time.get_ticks_usec() - started_usec) / 1000.0,
+				"max_process_frame_ms": max_process_frame_ms
+			}))
 			return true
 		if Time.get_ticks_msec() % 10000 < 20:
 			print("TALENTS_PANEL_STARTUP_WAIT ", JSON.stringify({"screen": state.screen, "assets_starting": state.assets_starting}))
@@ -183,6 +190,24 @@ func run_test() -> void:
 		fail("N did not close the talents panel after measurement")
 		return
 	await measure("talents_closed_warm", segment_s, func(_time: float): pass, true)
+	var reopen_started_usec := Time.get_ticks_usec()
+	send_key(KEY_N, true)
+	var reopen_deadline := Time.get_ticks_msec() + OPEN_TIMEOUT_MS
+	panel_state = {}
+	while Time.get_ticks_msec() < reopen_deadline:
+		await process_frame
+		panel_state = find_talents_panel()
+		if not panel_state.is_empty():
+			break
+	send_key(KEY_N, false)
+	if panel_state.is_empty() or panel_state.node_count != node_count:
+		fail("Reopening Talents did not show the complete tree: " + str(panel_state))
+		return
+	print("TALENTS_PANEL_REOPEN_PASS ", JSON.stringify({"open_ms": float(Time.get_ticks_usec() - reopen_started_usec) / 1000.0,
+		"talent_nodes": panel_state.node_count}))
+	send_key(KEY_N, true)
+	await process_frame
+	send_key(KEY_N, false)
 	print("TALENTS_PANEL_PERF_PASS")
 	client.free()
 	quit(0)

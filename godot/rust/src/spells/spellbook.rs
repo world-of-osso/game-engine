@@ -106,40 +106,112 @@ impl GameClient {
 
     pub(crate) fn close_spellbook(&mut self) {
         self.bags.cursor.spell_drag = None;
-        if let Some(ui) = self.spells.book_ui.take() {
-            ui.free();
-        }
-        self.spells.book_position = None;
-        self.spells.book_position_applied = None;
+        let key = self.active_talent_key();
+        let cached_ui = match self.spells.book_ui.take() {
+            Some(ui) => self.cache_spellbook_talents(ui, key),
+            None => false,
+        };
+        self.spells.book_ui_talent_key = None;
         self.spells.book_drag = None;
-        self.spells.book_art_state = None;
+        self.spells.book_position = None;
+        if !cached_ui {
+            self.spells.book_position_applied = None;
+        }
+        if self.spells.prefetched_book_ui.is_none() {
+            self.spells.prefetched_book_key = None;
+            self.spells.book_art_state = None;
+        }
+    }
+
+    fn cache_spellbook_talents(&mut self, mut ui: Gd<RegistryUi>, key: Option<(u32, u32)>) -> bool {
+        let is_current_talent_tree = self.spells.book.tab == PlayerSpellsTab::Talents
+            && key.is_some()
+            && self.spells.book_ui_talent_key == key;
+        let has_root = ui.bind().has_frame("SpellBookRoot");
+        let cache_slot_empty = self.spells.prefetched_book_ui.is_none();
+        let can_cache = is_current_talent_tree && has_root && cache_slot_empty;
+        if can_cache {
+            ui.set_visible(false);
+            ui.set_process(false);
+            ui.set_process_input(false);
+            ui.set_process_unhandled_input(false);
+            ui.set_name("SpellBookPrewarmUI");
+            self.spells.prefetched_book_ui = Some(ui);
+            self.spells.prefetched_book_key = key;
+            return true;
+        }
+        ui.free();
+        false
     }
 
     pub(crate) fn toggle_player_spells(&mut self, tab: PlayerSpellsTab) -> Result<(), String> {
         let open = self.spellbook_open();
-        if !self.spells.book.toggle_tab(open, tab) {
+        if self.spells.book.toggle_tab(open, tab) {
+            if !open {
+                self.open_spellbook(tab)?;
+            }
+        } else {
             self.close_spellbook();
-        } else if !open {
-            let id = self
-                .account
-                .session
-                .selected_character_id
-                .ok_or("Spellbook requires selected server character ID")?;
-            let path = game_engine_core::client_options_data::options_path()
-                .with_file_name("ui_layout.ron");
-            self.spells.book_position =
-                game_engine_core::ui_layout_data::window_position(&path, id, "SpellBookRoot")?;
-            self.spells.book.page = 0;
-            self.spells.book.selected = 0;
-            // Created by `sync_spellbook` on this frame.
-            let mut ui = RegistryUi::new_alloc();
-            ui.set_name("SpellBookUI");
-            ui.set_layer(5);
-            self.base_mut().add_child(&ui);
-            ui.bind_mut().enable_cursor_inputs();
-            self.spells.book_ui = Some(ui);
         }
         Ok(())
+    }
+
+    fn open_spellbook(&mut self, tab: PlayerSpellsTab) -> Result<(), String> {
+        let character_id = self
+            .account
+            .session
+            .selected_character_id
+            .ok_or("Spellbook requires selected server character ID")?;
+        self.spells.book_position = self.read_saved_spellbook_position(character_id)?;
+        self.spells.book.page = 0;
+        self.spells.book.selected = 0;
+        let active_key = if tab == PlayerSpellsTab::Talents {
+            self.active_talent_key()
+        } else {
+            None
+        };
+        let cached_ui = match active_key {
+            Some(key) => self.take_prefetched_spellbook_talents(key),
+            None => None,
+        };
+        let ui = match cached_ui {
+            Some(ui) => ui,
+            None => {
+                self.spells.book_position_applied = None;
+                RegistryUi::new_alloc()
+            }
+        };
+        self.activate_spellbook_ui(ui, active_key);
+        Ok(())
+    }
+
+    fn activate_spellbook_ui(&mut self, mut ui: Gd<RegistryUi>, talent_key: Option<(u32, u32)>) {
+        ui.set_name("SpellBookUI");
+        ui.set_layer(5);
+        if ui.get_parent().is_none() {
+            self.base_mut().add_child(&ui);
+        }
+        ui.set_visible(true);
+        ui.set_process(true);
+        ui.set_process_input(true);
+        ui.set_process_unhandled_input(true);
+        ui.bind_mut().enable_cursor_inputs();
+        self.spells.book_ui_talent_key = talent_key;
+        self.spells.book_ui = Some(ui);
+    }
+
+    fn take_prefetched_spellbook_talents(&mut self, key: (u32, u32)) -> Option<Gd<RegistryUi>> {
+        if self.spells.prefetched_book_key == Some(key) {
+            let ui = self.spells.prefetched_book_ui.take();
+            if ui.is_some() {
+                return ui;
+            }
+        }
+        if let Some(ui) = self.spells.prefetched_book_ui.take() {
+            ui.free();
+        }
+        self.spells.prefetched_book_key = None;
+        None
     }
 
     pub(super) fn spellbook_player(&self) -> Option<SpellbookPlayer> {
@@ -150,6 +222,86 @@ impl GameClient {
             race_id: u32::from(player.race),
             level: u32::from(unit.get::<UnitLevel>()?.0),
         })
+    }
+
+    fn active_talent_key(&self) -> Option<(u32, u32)> {
+        Some((
+            self.spellbook_player()?.class_id,
+            self.account.spells.spec()?,
+        ))
+    }
+
+    fn read_saved_spellbook_position(&self, character_id: u64) -> Result<Option<[f32; 2]>, String> {
+        let path =
+            game_engine_core::client_options_data::options_path().with_file_name("ui_layout.ron");
+        game_engine_core::ui_layout_data::window_position(&path, character_id, "SpellBookRoot")
+    }
+
+    pub(super) fn prewarm_spellbook_talents(&mut self) -> Result<(), String> {
+        if self.spells.book_ui.is_some() || self.spells.catalog().is_none() {
+            return Ok(());
+        }
+        let Some(key) = self.active_talent_key() else {
+            return Ok(());
+        };
+        if self.spells.prefetched_book_key == Some(key) {
+            return Ok(());
+        }
+        if let Some(ui) = self.spells.prefetched_book_ui.take() {
+            ui.free();
+        }
+        self.spells.prefetched_book_key = None;
+        self.spells.book_position_applied = None;
+
+        let state = self.load_talent_book_state()?;
+        let rect = placed_book_rect(state.viewport, self.spells.book_position);
+        let scale = self.effective_ui_scale();
+        let ui = self.create_prefetched_talent_ui(state, scale, rect)?;
+        self.spells.prefetched_book_ui = Some(ui);
+        self.spells.prefetched_book_key = Some(key);
+        self.spells.book_position_applied = Some([rect[0], rect[1]]);
+        Ok(())
+    }
+
+    fn load_talent_book_state(&mut self) -> Result<SpellbookFrameState, String> {
+        let character_id = self
+            .account
+            .session
+            .selected_character_id
+            .ok_or("Spellbook prewarm requires selected server character ID")?;
+        self.spells.book_position = self.read_saved_spellbook_position(character_id)?;
+        let mut state = self.spellbook_state_for_tab(PlayerSpellsTab::Talents)?;
+        state.selected = 0;
+        state.page = 0;
+        self.extract_spellbook_art(&state);
+        Ok(state)
+    }
+
+    fn create_prefetched_talent_ui(
+        &mut self,
+        state: SpellbookFrameState,
+        scale: f32,
+        rect: [f32; 4],
+    ) -> Result<Gd<RegistryUi>, String> {
+        let mut ui = RegistryUi::new_alloc();
+        ui.set_name("SpellBookPrewarmUI");
+        ui.set_layer(5);
+        self.base_mut().add_child(&ui);
+        let prepared = (|| -> Result<(), String> {
+            let mut book = ui.bind_mut();
+            book.set_ui_scale(scale)?;
+            book.show_spellbook(state)?;
+            book.set_window_position("SpellBookRoot", [rect[0], rect[1]])
+        })();
+        if let Err(error) = prepared {
+            ui.free();
+            return Err(error);
+        }
+        ui.set_visible(false);
+        ui.set_process(false);
+        ui.set_process_input(false);
+        ui.set_process_unhandled_input(false);
+        Ok(ui)
     }
 
     fn spellbook_content(&self, player: Option<SpellbookPlayer>) -> SpellbookFrameState {
@@ -224,8 +376,9 @@ impl GameClient {
     fn load_spellbook_talents(
         &mut self,
         player: Option<SpellbookPlayer>,
+        tab: PlayerSpellsTab,
     ) -> Result<Option<game_engine_ui_model::talents::TalentView>, String> {
-        if self.spells.book.tab != PlayerSpellsTab::Talents {
+        if tab != PlayerSpellsTab::Talents {
             return Ok(None);
         }
         let player = player.ok_or("Talents requires a local player class")?;
@@ -280,8 +433,15 @@ impl GameClient {
     }
 
     fn spellbook_state(&mut self) -> Result<SpellbookFrameState, String> {
+        self.spellbook_state_for_tab(self.spells.book.tab)
+    }
+
+    fn spellbook_state_for_tab(
+        &mut self,
+        tab: PlayerSpellsTab,
+    ) -> Result<SpellbookFrameState, String> {
         let player = self.spellbook_player();
-        let talents = self.load_spellbook_talents(player)?;
+        let talents = self.load_spellbook_talents(player, tab)?;
         let mut content = self.spellbook_content(player);
         content.talents = talents;
         self.extract_spellbook_icons(&mut content);
@@ -297,7 +457,7 @@ impl GameClient {
             selected: self.spells.book.selected,
             page: self.spells.book.page,
             portrait_fdid: self.drawable_fdid(content.portrait_fdid),
-            tab: self.spells.book.tab,
+            tab,
             can_activate_spec: player.is_some_and(|player| player.level >= 10),
             ..content
         };
