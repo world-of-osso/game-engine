@@ -101,6 +101,12 @@ impl ChatModel {
         });
     }
 
+    /// A group result or notice from the server, as a localized system line.
+    pub fn receive_group_notice(&mut self, text: &str) {
+        let text = game_engine_ui_model::follower_dungeons::localize_error(text);
+        add_system_line(&mut self.log, &text);
+    }
+
     /// Resolve the victim immediately, while its replicated unit is still known.
     pub fn receive_xp_gain(
         &mut self,
@@ -333,7 +339,7 @@ impl crate::GameClient {
 
     /// A group result or notice from the server, as a system line.
     pub(crate) fn receive_group_notice(&mut self, text: &str) {
-        add_system_line(&mut self.chat.model.log, text);
+        self.chat.model.receive_group_notice(text);
     }
 
     /// A server chat line.

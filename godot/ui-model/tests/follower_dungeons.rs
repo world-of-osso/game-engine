@@ -1,4 +1,4 @@
-use game_engine_ui_model::follower_dungeons::{Action, DungeonLevelRange, View, follower_screen};
+use game_engine_ui_model::follower_dungeons::{Action, View, follower_screen};
 use shared::protocol::*;
 use ui_toolkit::{
     atlas::{ActiveSkin, set_thread_skin},
@@ -268,32 +268,9 @@ fn follower_group_finder_both_skins_use_the_server_catalog_and_real_queue_action
     }
 }
 #[test]
-fn follower_group_finder_uses_retail_lfg_ranges_and_squish_fallback() {
-    set_data_root();
-    let ranges = game_engine_ui_model::follower_dungeons::retail_level_ranges().unwrap();
-    assert_eq!(
-        ranges.get(&2436),
-        Some(&DungeonLevelRange { min: 10, max: 70 })
-    );
-    assert_eq!(
-        ranges.get(&2439),
-        Some(&DungeonLevelRange { min: 30, max: 70 })
-    );
-    assert_eq!(
-        ranges.get(&2745),
-        Some(&DungeonLevelRange { min: 80, max: 90 })
-    );
-}
-
-#[test]
-fn follower_group_finder_disables_and_refuses_dungeons_below_player_level() {
+fn follower_group_finder_queues_entries_from_server_catalog_without_local_level_filter() {
     let mut view = View {
         visible: true,
-        player_level: Some(10),
-        level_ranges: std::collections::HashMap::from([
-            (2436, DungeonLevelRange { min: 10, max: 70 }),
-            (2439, DungeonLevelRange { min: 30, max: 70 }),
-        ]),
         ..Default::default()
     };
     view.receive_catalog(FollowerDungeons {
@@ -310,46 +287,42 @@ fn follower_group_finder_disables_and_refuses_dungeons_below_player_level() {
             },
         ],
     });
-    assert_eq!(view.action("follower:select:2436"), None);
-    assert_eq!(view.selected, Some(2436));
-    let mut ruby_view = view.clone();
+    assert_eq!(view.action("follower:select:2439"), None);
+    assert_eq!(view.selected, Some(2439));
     assert_eq!(
-        ruby_view.action("follower:queue"),
+        view.action("follower:queue"),
         Some(Action::Queue(QueueForLfg {
             role: GroupRoleSnapshot::Damage,
-            dungeon_ids: vec![2436],
+            dungeon_ids: vec![2439],
         }))
     );
-    assert!(ruby_view.pending);
-    view.action("follower:select:2436");
-    assert_eq!(view.action("follower:select:2439"), None);
-    assert_eq!(view.selected, None);
-    assert_eq!(view.action("follower:queue"), None);
 
+    let mut displayed = View {
+        visible: true,
+        ..Default::default()
+    };
+    displayed.receive_catalog(FollowerDungeons {
+        entries: vec![FollowerDungeonEntry {
+            id: 2439,
+            name: "Brackenhide Hollow".into(),
+            map_id: 2520,
+        }],
+    });
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
-        let registry = render(view.clone(), skin);
+        let registry = render(displayed.clone(), skin);
         assert_eq!(
             button(&registry, "LFDQueueFrameFollowerDungeon2439").0,
-            ButtonState::Disabled
+            ButtonState::Normal
         );
-        let lock = registry
-            .get(
-                registry
-                    .get_by_name("LFDQueueFrameFollowerDungeon2439LockedIndicator")
-                    .expect("locked rows use the Retail lock indicator"),
-            )
-            .unwrap();
-        assert_eq!((lock.width.value(), lock.height.value()), (17.0, 21.0));
-        let (_, binding) = ui_toolkit::tooltip::tooltip_owner(
-            &registry,
+        assert!(
             registry
-                .get_by_name("LFDQueueFrameFollowerDungeon2439")
-                .unwrap(),
-        )
-        .expect("locked dungeon must show the Retail lock reason on hover");
-        assert_eq!(
-            binding.disabled_text.as_deref(),
-            Some("You must advance to a higher level.")
+                .get_by_name("LFDQueueFrameFollowerDungeon2439CheckBox")
+                .is_some()
+        );
+        assert!(
+            registry
+                .get_by_name("LFDQueueFrameFollowerDungeon2439LockedIndicator")
+                .is_none()
         );
     }
 }
@@ -382,6 +355,33 @@ fn follower_group_finder_localizes_unavailable_gear_source_error() {
         description.text,
         "You cannot enter. This instance is temporarily disabled."
     );
+}
+
+#[test]
+fn follower_group_finder_localizes_server_level_refusal() {
+    set_data_root();
+    let mut view = View {
+        visible: true,
+        ..Default::default()
+    };
+    view.receive_catalog(catalog());
+    view.receive(LfgStateUpdate {
+        snapshot: None,
+        message: None,
+        error: Some("LFG_LOCKSTATUS_TOO_LOW_LEVEL".into()),
+    });
+    let registry = render(view, ActiveSkin::Forever);
+    let description = registry
+        .get(
+            registry
+                .get_by_name("LFDQueueFrameFollowerDescription")
+                .unwrap(),
+        )
+        .unwrap();
+    let Some(WidgetData::FontString(description)) = &description.widget_data else {
+        panic!("server level refusal should remain visible in the Group Finder description");
+    };
+    assert_eq!(description.text, "You must advance to a higher level.");
 }
 
 #[test]

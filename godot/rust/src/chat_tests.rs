@@ -146,6 +146,24 @@ fn lines(model: &ChatModel, tab: ChatTab) -> Vec<(String, [f32; 4])> {
 }
 
 #[test]
+fn follower_refusals_are_localized_in_system_chat() {
+    let mut model = ChatModel::default();
+    model.receive_group_notice("LFG_LOCKSTATUS_TOO_LOW_LEVEL");
+    model.receive_group_notice("FOLLOWER_GEAR_SOURCE_UNAVAILABLE");
+    let shown: Vec<String> = lines(&model, ChatTab::General)
+        .into_iter()
+        .map(|(text, _)| text)
+        .collect();
+    assert_eq!(
+        shown,
+        vec![
+            "You must advance to a higher level.".to_owned(),
+            "You cannot enter. This instance is temporarily disabled.".to_owned(),
+        ]
+    );
+}
+
+#[test]
 fn server_lines_get_retail_wording_colours_and_tabs() {
     let mut model = ChatModel::default();
     model.receive(&server("Fbchat", "hello", ChatType::Say), LOCAL, 1.0);

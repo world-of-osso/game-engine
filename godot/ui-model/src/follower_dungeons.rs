@@ -1,9 +1,5 @@
 //! Retail Mainline PVEFrame / LFDQueueFrame follower mode.
 //! Source: Blizzard_GroupFinder/Mainline/{PVEFrame,LFDFrame,LFGFrame}.xml/.lua.
-use std::collections::HashMap;
-use std::sync::OnceLock;
-
-use crate::csv_records::CsvTable;
 pub use crate::follower_dungeons_component::{FOLLOWER_LIST, ROW_HEIGHT};
 use shared::protocol::{FollowerDungeons, GroupRoleSnapshot, LfgStateUpdate, QueueForLfg};
 use ui_toolkit::{screen::SharedContext, widget_def::Element};
@@ -70,115 +66,6 @@ pub enum Action {
     Pvp,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct DungeonLevelRange {
-    pub min: u32,
-    pub max: u32,
-}
-
-static RETAIL_LEVEL_RANGES: OnceLock<Result<HashMap<u32, DungeonLevelRange>, String>> =
-    OnceLock::new();
-
-/// Retail follower-dungeon ContentTuning ranges from installed LFGDungeons and
-/// ContentTuning DB2 tables.
-pub fn retail_level_ranges() -> Result<HashMap<u32, DungeonLevelRange>, String> {
-    RETAIL_LEVEL_RANGES
-        .get_or_init(load_retail_level_ranges)
-        .clone()
-}
-
-fn load_retail_level_ranges() -> Result<HashMap<u32, DungeonLevelRange>, String> {
-    let lfg_path = crate::paths::resolve_data_path("db2/active/LFGDungeons.csv");
-    let tuning_path = crate::paths::resolve_data_path("db2/active/ContentTuning.csv");
-    let lfg = CsvTable::read(&lfg_path)?;
-    let tuning = CsvTable::read(&tuning_path)?;
-    let ranges_by_tuning = parse_content_tuning_ranges(&tuning)?;
-    parse_lfg_level_ranges(&lfg, &ranges_by_tuning)
-}
-
-fn parse_content_tuning_ranges(
-    table: &CsvTable,
-) -> Result<HashMap<u32, DungeonLevelRange>, String> {
-    let id_column = table.column("ID")?;
-    let lfg_min_column = table.column("LfgMinLevel")?;
-    let lfg_max_column = table.column("LfgMaxLevel")?;
-    let squish_min_column = table.column("MinLevelSquish")?;
-    let squish_max_column = table.column("MaxLevelSquish")?;
-    let mut ranges = HashMap::new();
-    for row in table.records() {
-        let id = parse_db2_u32(&row, id_column, table, "ID")?;
-        let lfg_min = parse_db2_i32(&row, lfg_min_column, table, "LfgMinLevel")?;
-        let lfg_max = parse_db2_i32(&row, lfg_max_column, table, "LfgMaxLevel")?;
-        let squish_min = parse_db2_i32(&row, squish_min_column, table, "MinLevelSquish")?;
-        let squish_max = parse_db2_i32(&row, squish_max_column, table, "MaxLevelSquish")?;
-        if let Some(range) = select_level_range(lfg_min, lfg_max, squish_min, squish_max) {
-            ranges.insert(id, range);
-        }
-    }
-    Ok(ranges)
-}
-
-fn parse_lfg_level_ranges(
-    table: &CsvTable,
-    ranges_by_tuning: &HashMap<u32, DungeonLevelRange>,
-) -> Result<HashMap<u32, DungeonLevelRange>, String> {
-    let id_column = table.column("ID")?;
-    let tuning_column = table.column("ContentTuningID")?;
-    let mut ranges = HashMap::new();
-    for row in table.records() {
-        let id = parse_db2_u32(&row, id_column, table, "ID")?;
-        let content_tuning_id = parse_db2_u32(&row, tuning_column, table, "ContentTuningID")?;
-        if let Some(range) = ranges_by_tuning.get(&content_tuning_id) {
-            ranges.insert(id, *range);
-        }
-    }
-    Ok(ranges)
-}
-
-fn parse_db2_u32(
-    row: &[std::borrow::Cow<'_, str>],
-    column: usize,
-    table: &CsvTable,
-    name: &str,
-) -> Result<u32, String> {
-    row.get(column)
-        .ok_or_else(|| format!("{} row is missing {name}", table.path().display()))?
-        .parse::<u32>()
-        .map_err(|error| format!("{} has invalid {name}: {error}", table.path().display()))
-}
-
-fn parse_db2_i32(
-    row: &[std::borrow::Cow<'_, str>],
-    column: usize,
-    table: &CsvTable,
-    name: &str,
-) -> Result<i32, String> {
-    row.get(column)
-        .ok_or_else(|| format!("{} row is missing {name}", table.path().display()))?
-        .parse::<i32>()
-        .map_err(|error| format!("{} has invalid {name}: {error}", table.path().display()))
-}
-
-fn select_level_range(
-    lfg_min: i32,
-    lfg_max: i32,
-    squish_min: i32,
-    squish_max: i32,
-) -> Option<DungeonLevelRange> {
-    let (min, max) = if lfg_min > 0 && lfg_max >= lfg_min {
-        (lfg_min, lfg_max)
-    } else {
-        (squish_min, squish_max)
-    };
-    if min <= 0 || max < min {
-        return None;
-    }
-    Some(DungeonLevelRange {
-        min: u32::try_from(min).ok()?,
-        max: u32::try_from(max).ok()?,
-    })
-}
-
 pub fn localize_error(error: &str) -> String {
     let tag = match error {
         "FOLLOWER_GEAR_SOURCE_UNAVAILABLE" => "INSTANCE_UNAVAILABLE_SELF_TEMPORARILY_DISABLED",
@@ -194,8 +81,6 @@ pub struct View {
     pub visible: bool,
     pub viewport: [f32; 2],
     pub catalog: Option<FollowerDungeons>,
-    pub player_level: Option<u32>,
-    pub level_ranges: HashMap<u32, DungeonLevelRange>,
     pub role: GroupRoleSnapshot,
     pub selected: Option<u32>,
     pub pending: bool,
@@ -212,8 +97,6 @@ impl Default for View {
             visible: false,
             viewport: [1280.0, 720.0],
             catalog: None,
-            player_level: None,
-            level_ranges: HashMap::new(),
             role: GroupRoleSnapshot::Damage,
             selected: None,
             pending: false,
@@ -263,7 +146,7 @@ impl View {
         let selected_id = action
             .strip_prefix("follower:select:")
             .and_then(|id| id.parse().ok());
-        if let Some(id) = selected_id.filter(|id| self.is_eligible(*id)) {
+        if let Some(id) = selected_id.filter(|id| self.can_select(*id)) {
             self.selected = (self.selected != Some(id)).then_some(id);
         }
     }
@@ -282,37 +165,19 @@ impl View {
         self.state = Some(update);
     }
     pub fn receive_catalog(&mut self, catalog: FollowerDungeons) {
-        if self.selected.is_some_and(|id| {
-            !catalog.entries.iter().any(|entry| entry.id == id) || self.level_lock_tag(id).is_some()
-        }) {
+        if self
+            .selected
+            .is_some_and(|id| !catalog.entries.iter().any(|entry| entry.id == id))
+        {
             self.selected = None;
         }
         self.catalog = Some(catalog);
     }
     pub fn can_select(&self, id: u32) -> bool {
-        !self.pending && !self.matched() && self.is_eligible(id)
+        !self.pending && !self.matched() && self.contains(id)
     }
     pub fn can_queue(&self) -> bool {
-        !self.pending && !self.matched() && self.selected.is_some_and(|id| self.is_eligible(id))
-    }
-    pub fn level_lock_message(&self, id: u32) -> Option<&'static str> {
-        self.level_lock_tag(id).map(crate::auction_mail::text)
-    }
-    fn is_eligible(&self, id: u32) -> bool {
-        self.contains(id) && self.level_lock_tag(id).is_none()
-    }
-    fn level_lock_tag(&self, id: u32) -> Option<&'static str> {
-        let level = self.player_level?;
-        let Some(range) = self.level_ranges.get(&id) else {
-            return Some("INSTANCE_UNAVAILABLE_SELF_TEMPORARILY_DISABLED");
-        };
-        if level < range.min {
-            Some("INSTANCE_UNAVAILABLE_SELF_LEVEL_TOO_LOW")
-        } else if level > range.max {
-            Some("INSTANCE_UNAVAILABLE_SELF_LEVEL_TOO_HIGH")
-        } else {
-            None
-        }
+        !self.pending && !self.matched() && self.selected.is_some_and(|id| self.contains(id))
     }
     pub fn matched(&self) -> bool {
         self.state
