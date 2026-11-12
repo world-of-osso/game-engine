@@ -46,11 +46,15 @@ fn tab_screen(_: &SharedContext) -> ui_toolkit::widget_def::Element {
     }
 }
 
-fn registry() -> FrameRegistry {
+fn set_data_root() {
     game_engine_ui_model::paths::set_data_root(
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
     )
     .unwrap();
+}
+
+fn registry() -> FrameRegistry {
+    set_data_root();
     set_thread_skin(ActiveSkin::Forever);
     let mut registry = FrameRegistry::new(1280.0, 720.0);
     Screen::new(tab_screen).sync(&SharedContext::new(), &mut registry);
