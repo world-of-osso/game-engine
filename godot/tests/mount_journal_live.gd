@@ -93,7 +93,7 @@ func run_fixture() -> void:
 		if not await menu_text_visible(): fail("Favourite popup labels are covered by their background"); return
 		await capture("favourite-menu")
 		await tap(KEY_ESCAPE)
-		if not await wait_until(func(): return control("MountJournalFavoriteToggle") == null, "close relog favourite menu"): return
+		if not await wait_until(func(): return control("MountJournalFavoriteToggle") == null and control("MountJournalSummonRandomFavorite") != null, "close menu without closing journal"): return
 	await capture("random-favorite-button")
 	await motion(control("MountJournalSummonRandomFavorite").get_global_rect().get_center(), false)
 	if not await wait_until(func(): return client.tooltip_state().title == "Summon Random Favorite Mount", "random favorite spell tooltip"): return
