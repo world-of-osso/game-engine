@@ -14,7 +14,6 @@ use bevy_replicon::{
 };
 use serde::{Serialize, de::DeserializeOwned};
 use shared::{
-    AreaTriggerVisual,
     casting::CastState,
     components::{
         ActiveSpec, CharacterVisual, CombatRatings, CombatStatus, CreatureClassification,
@@ -75,7 +74,6 @@ fn shared_codecs() -> Vec<Codec> {
         Codec::of::<GuildMembership>(),
         Codec::of::<shared::guild_creation::GuildTabardDesign>(),
         Codec::of::<PresenceStatus>(),
-        Codec::of::<AreaTriggerVisual>(),
         Codec::of::<EquipmentAppearance>(),
         Codec::of::<CastState>(),
         Codec::of::<UnitPowers>(),
