@@ -164,6 +164,15 @@ func capture_valid_reticle(sent_before: int) -> bool:
 		fail("Flamestrike was sent before a cursor destination was selected")
 		return false
 	var decal := client.get_node("GroundSpellReticle") as Decal
+	var projected := root.get_camera_3d().unproject_position(decal.global_position)
+	var distance := player.global_position.distance_to(decal.global_position)
+	print("GROUND_VALID_PROOF pointer=", point, " projected=", projected, " player=",
+		player.global_position, " decal=", decal.global_position, " distance=", distance,
+		" color=", decal.modulate)
+	var viewport := Rect2(Vector2.ZERO, Vector2(root.size))
+	if not viewport.has_point(point) or not viewport.has_point(projected):
+		fail("In-range target decal center projects outside the viewport")
+		return false
 	if decal.texture_albedo == null or not is_equal_approx(decal.size.x, 16.0):
 		fail("Flamestrike decal is missing its authored texture or eight-yard radius")
 		return false
