@@ -2,6 +2,7 @@
 
 use super::*;
 use crate::minimal_scroll_bar::{MinimalScrollBar, Unscrollable, scroll_list_attr};
+use ui_toolkit::text_measure::measure_text;
 use ui_toolkit::widgets::scroll_list::ScrollGeometry;
 
 /// Rows that fit the browse `ScrollBox` (100..508).
