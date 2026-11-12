@@ -341,7 +341,7 @@
 
 - [Shared Retail menu primitives](systems/menu-primitives.md) — source dropdown/filter/reset/menu elements and measured NavBar; native decimal-alpha regression fixture and [bounded native menu order](systems/menu-primitives.md#native-menu-order-2026-10-18).
 
-- [Native follower dungeon Group Finder](systems/follower-dungeons.md) — server-authoritative level eligibility, localized refusals, and prior both-skin Paladin admission proof; VERIFIED private level-10 Ruby queue naturally selected Warlock spec266 and retained four followers for271.258s. The server source/test evidence and private run ledger are linked from the page.
+- [Native follower dungeon Group Finder](systems/follower-dungeons.md) — VERIFIED server-sent inclusive bounds lock out-of-range Forever rows with Retail GlobalStrings and block queueing; server-authoritative level eligibility and localized refusals; VERIFIED private level-10 Ruby queue naturally selected Warlock spec266 and kept four followers for 271.258 s. Evidence is linked from the page.
 
 - [Source-private summons](systems/toy-box.md#source-private-summon-proof-2026-10-12) — real two-peer owner-only UDP repair/public control and both-skin owner sign model/scale/natural expiry; census337 unchanged.
 

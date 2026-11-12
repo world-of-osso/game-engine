@@ -2364,6 +2364,8 @@ fn follower_group_finder_default_bridge_receives_catalog_over_udp() {
             id: 2436,
             name: "Ruby Life Pools".into(),
             map_id: 2521,
+            min_level: 10,
+            max_level: 70,
         }],
     };
     let world = server.world_mut();

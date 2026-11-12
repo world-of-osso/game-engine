@@ -319,12 +319,46 @@ pub fn row(
     action: &str,
     enabled: bool,
     rect: (f32, f32, f32, f32),
+    template: (&RowTemplate, bool),
+    content: Element,
+) -> Element {
+    build_row_with_disabled_tooltip(name, action, enabled, rect, template, content, None)
+}
+
+/// Shared row with Retail's disabled-button tooltip for a specific lock reason.
+pub fn build_row_with_disabled_tooltip(
+    name: String,
+    action: &str,
+    enabled: bool,
+    rect: (f32, f32, f32, f32),
     (template, selected): (&RowTemplate, bool),
     content: Element,
+    disabled_tooltip: Option<&str>,
 ) -> Element {
     let (left, top, width, height) = rect;
     let disabled = !enabled;
     let action = if enabled { action } else { "" };
+    let children = build_row_children(&name, rect, template, selected, content);
+    if let Some(disabled_tooltip) = disabled_tooltip {
+        rsx! { button { name: {DynName(name)}, left, top, width, height, pos_type: "absolute",
+            disabled, onclick: action, button_default_skin: false,
+            disabled_tooltip: {disabled_tooltip}, disabled_tooltip_color: "1,1,1,1",
+            disabled_tooltip_anchor: "ANCHOR_TOP", {children}
+        } }
+    } else {
+        rsx! { button { name: {DynName(name)}, left, top, width, height, pos_type: "absolute",
+            disabled, onclick: action, button_default_skin: false, {children}
+        } }
+    }
+}
+
+fn build_row_children(
+    name: &str,
+    (_, _, width, height): (f32, f32, f32, f32),
+    template: &RowTemplate,
+    selected: bool,
+    content: Element,
+) -> Element {
     let area = (0.0, 0.0, width, height);
     let mut children = Vec::new();
     if let Some(art) = template.normal {
@@ -338,9 +372,7 @@ pub fn row(
     children.extend(content);
     let hover = (template.hover, true, DrawLayer::Highlight);
     children.extend(art_region(format!("{name}RowHighlight"), hover, area));
-    rsx! { button { name: {DynName(name)}, left, top, width, height, pos_type: "absolute",
-        disabled, onclick: action, button_default_skin: false, {children}
-    } }
+    children
 }
 
 /// A left-aligned single label row of `template`.

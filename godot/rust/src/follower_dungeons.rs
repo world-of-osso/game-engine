@@ -117,6 +117,8 @@ impl GameClient {
         Ok(())
     }
     fn sync_follower_dungeons(&mut self) -> Result<(), String> {
+        let player_level = self.player_level();
+        self.follower_dungeons.view.player_level = player_level;
         let scale = self.effective_ui_scale();
         let size = self
             .base()
