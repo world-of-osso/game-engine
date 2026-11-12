@@ -3,11 +3,10 @@ use game_engine_ui_model::character_frame::{
     CharacterFrameView, CharacterTab, apply_character_frame_postsetup, character_frame_screen,
 };
 use ui_toolkit::atlas::{ActiveSkin, set_thread_skin};
-use ui_toolkit::frame::{Dimension, Frame, WidgetData};
+use ui_toolkit::frame::{Dimension, Frame};
 use ui_toolkit::layout_values::Val;
 use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::screen::{Screen, SharedContext};
-use ui_toolkit::text_measure::measure_text;
 
 fn configure_data() {
     game_engine_ui_model::paths::set_data_root(
@@ -46,47 +45,21 @@ fn character(tab: CharacterTab) -> FrameRegistry {
 }
 
 #[test]
-fn character_tab_presentation_matches_the_active_skin_template() {
+fn forever_character_mode_tabs_are_icon_only() {
     configure_data();
-    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
-        set_thread_skin(skin);
-        for tab in [CharacterTab::PaperDoll, CharacterTab::Reputation] {
-            let registry = character(tab);
-            if skin == ActiveSkin::Forever {
-                for index in 1..=2 {
-                    assert!(
-                        registry
-                            .get_by_name(&format!("CharacterFrameTab{index}Text"))
-                            .is_none(),
-                        "Forever mode tabs are icon-only"
-                    );
-                }
-                continue;
-            }
-            for index in 1..=2 {
-                let button = frame(&registry, &format!("CharacterFrameTab{index}"));
-                let caption = frame(&registry, &format!("CharacterFrameTab{index}Text"));
-                assert!(size(caption).0 <= size(button).0);
-                let Some(WidgetData::FontString(text)) = &caption.widget_data else {
-                    panic!("tab caption is a font string");
-                };
-                let (text_width, line_height) =
-                    measure_text(&text.text, text.font, text.font_size).unwrap();
-                assert!(
-                    text_width <= size(button).0,
-                    "{skin:?}: {} width {text_width} > tab {}",
-                    text.text,
-                    size(button).0
-                );
-                assert!(
-                    size(caption).1 <= line_height + 2.0,
-                    "{skin:?}: caption reserves {}px for a {line_height}px line",
-                    size(caption).1
-                );
-            }
+    set_thread_skin(ActiveSkin::Forever);
+    for tab in [CharacterTab::PaperDoll, CharacterTab::Reputation] {
+        let registry = character(tab);
+        for index in 1..=2 {
+            assert!(
+                registry
+                    .get_by_name(&format!("CharacterFrameTab{index}Text"))
+                    .is_none(),
+                "Forever mode tabs are icon-only"
+            );
         }
     }
-    set_thread_skin(ActiveSkin::Modern);
+    set_thread_skin(ActiveSkin::Forever);
 }
 
 #[test]

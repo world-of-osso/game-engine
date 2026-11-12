@@ -118,6 +118,16 @@ fn forever_mode_tabs_use_only_discovered_currency_and_the_authored_icon_ids() {
     let reputation_only = build(view(true));
     assert!(reputation_only.get_by_name("CharacterFrameTab3").is_none());
     assert!(reputation_only.get_by_name("CharacterFrameTab5").is_none());
+    assert!(
+        reputation_only
+            .get_by_name("CharacterFrameTab1Text")
+            .is_none()
+    );
+    assert!(
+        reputation_only
+            .get_by_name("CharacterFrameTab2Text")
+            .is_none()
+    );
     let frame_width = size(&reputation_only, "CharacterFrame").0;
     assert_eq!(size(&reputation_only, "CharacterFrameTab1"), (55.0, 55.0));
     assert_eq!(

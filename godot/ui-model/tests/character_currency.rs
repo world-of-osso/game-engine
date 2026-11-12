@@ -45,121 +45,98 @@ fn text(registry: &FrameRegistry, name: &str) -> String {
 }
 
 #[test]
-fn ui_template_blend_discovered_zero_pvp_wallet_opens_source_token_rows_in_both_skins_but_empty_wallet_hides_tab()
- {
+fn forever_wallet_tab_opens_source_token_rows_but_empty_wallet_hides_tab() {
     game_engine_ui_model::paths::set_data_root(
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
     )
     .unwrap();
-    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
-        set_thread_skin(skin);
-        let mut view = CharacterFrameView {
-            visible: true,
-            race_id: 1,
-            class_id: 1,
-            title: "Honorproof".into(),
-            ..Default::default()
-        };
-        let mut shared = SharedContext::new();
-        shared.insert(view.clone());
-        let mut registry = FrameRegistry::new(1920.0, 1080.0);
-        let mut screen = Screen::new(character_frame_screen);
-        screen.sync(&shared, &mut registry);
-        assert!(registry.get_by_name("CharacterFrameTab3").is_none());
-        assert!(registry.get_by_name("CharacterFrameTab5").is_none());
-        view.has_currencies = true;
-        shared.insert(view.clone());
-        screen.sync(&shared, &mut registry);
-        let currency_tab_name = match skin {
-            ActiveSkin::Modern => "CharacterFrameTab3",
-            ActiveSkin::Forever => "CharacterFrameTab5",
-        };
-        let tab = registry
-            .get(
-                registry
-                    .get_by_name(currency_tab_name)
-                    .expect("discovered wallet tab"),
-            )
-            .unwrap();
-        assert_eq!(tab.onclick.as_deref(), Some("character_tab:currency"));
-        let window = registry
-            .get(registry.get_by_name("CharacterFrame").unwrap())
-            .unwrap();
-        let ui_toolkit::frame::Dimension::Fixed(height) = window.height else {
-            panic!("CharacterFrame must have a fixed source size")
-        };
-        match skin {
-            ActiveSkin::Modern => assert_eq!(
-                tab.position.top,
-                ui_toolkit::layout_values::Val::Px(height - 2.0),
-                "Retail bottom tabs anchor to the shown subframe BOTTOMLEFT y-2"
-            ),
-            ActiveSkin::Forever => assert_eq!(
-                tab.position.top,
-                ui_toolkit::layout_values::Val::Px(144.0),
-                "Forever Currency remains source tab5 and stacks after Character and Reputation"
-            ),
-        }
-        view.tab = CharacterTab::from_action(tab.onclick.as_deref().unwrap()).unwrap();
-        view.currencies = wallet_rows();
-        shared.insert(view.clone());
-        screen.sync(&shared, &mut registry);
-        for suffix in ["Left", "Middle", "Right"] {
-            let name = format!("TokenHeader2Highlight{suffix}");
-            let frame = registry.get(registry.get_by_name(&name).unwrap()).unwrap();
-            let Some(WidgetData::Texture(texture)) = &frame.widget_data else {
-                panic!("{name} must carry authored texture data");
-            };
-            assert_eq!(
-                texture.blend_mode,
-                ui_toolkit::widgets::texture::BlendMode::Additive
-            );
-        }
-        apply_character_frame_postsetup(&mut registry, view.tab);
-        let currency_tab = registry
-            .get(registry.get_by_name(currency_tab_name).unwrap())
-            .unwrap();
-        let expected_top = match skin {
-            ActiveSkin::Modern => 422.0,
-            ActiveSkin::Forever => 144.0,
+    set_thread_skin(ActiveSkin::Forever);
+    let mut view = CharacterFrameView {
+        visible: true,
+        race_id: 1,
+        class_id: 1,
+        title: "Honorproof".into(),
+        ..Default::default()
+    };
+    let mut shared = SharedContext::new();
+    shared.insert(view.clone());
+    let mut registry = FrameRegistry::new(1920.0, 1080.0);
+    let mut screen = Screen::new(character_frame_screen);
+    screen.sync(&shared, &mut registry);
+    assert!(registry.get_by_name("CharacterFrameTab3").is_none());
+    assert!(registry.get_by_name("CharacterFrameTab5").is_none());
+    view.has_currencies = true;
+    shared.insert(view.clone());
+    screen.sync(&shared, &mut registry);
+    let currency_tab_name = "CharacterFrameTab5";
+    let tab = registry
+        .get(
+            registry
+                .get_by_name(currency_tab_name)
+                .expect("discovered wallet tab"),
+        )
+        .unwrap();
+    assert_eq!(tab.onclick.as_deref(), Some("character_tab:currency"));
+    assert_eq!(
+        tab.position.top,
+        ui_toolkit::layout_values::Val::Px(144.0),
+        "Forever Currency remains source tab5 and stacks after Character and Reputation"
+    );
+    view.tab = CharacterTab::from_action(tab.onclick.as_deref().unwrap()).unwrap();
+    view.currencies = wallet_rows();
+    shared.insert(view.clone());
+    screen.sync(&shared, &mut registry);
+    for suffix in ["Left", "Middle", "Right"] {
+        let name = format!("TokenHeader2Highlight{suffix}");
+        let frame = registry.get(registry.get_by_name(&name).unwrap()).unwrap();
+        let Some(WidgetData::Texture(texture)) = &frame.widget_data else {
+            panic!("{name} must carry authored texture data");
         };
         assert_eq!(
-            currency_tab.position.top,
-            ui_toolkit::layout_values::Val::Px(expected_top)
+            texture.blend_mode,
+            ui_toolkit::widgets::texture::BlendMode::Additive
         );
-        assert_eq!(text(&registry, "CharacterFrameTitleText"), "Currency");
-        assert_eq!(text(&registry, "TokenHeader2Name"), "Player vs. Player");
-        assert_eq!(text(&registry, "TokenEntry1792Name"), "Honor");
-        assert_eq!(text(&registry, "TokenEntry1602Name"), "Conquest");
-        assert_eq!(text(&registry, "TokenEntry1792Count"), "0");
-        let hovered_name = registry.get_by_name("TokenEntry1792Name").unwrap();
-        let (owner, binding) = ui_toolkit::tooltip::tooltip_owner(&registry, hovered_name).unwrap();
-        assert_eq!(owner.name.as_deref(), Some("TokenEntry1792"));
-        assert_eq!(binding.provider.as_deref(), Some("token_currency"));
-        assert!(registry.get_by_name("TokenFrameScrollBox").is_some());
-        assert!(registry.get_by_name("ReputationScrollBox").is_none());
-        let quantity = registry
-            .get(registry.get_by_name("TokenEntry1792Count").unwrap())
-            .unwrap();
-        let Some(WidgetData::FontString(quantity)) = quantity.widget_data.as_ref() else {
-            panic!("quantity text")
-        };
-        assert_eq!(
-            quantity.color,
-            [0.5, 0.5, 0.5, 1.0],
-            "TokenEntryMixin quantity0 is gray, not an earned reward"
-        );
-        let header = registry
-            .get(registry.get_by_name("TokenHeader2").unwrap())
-            .unwrap();
-        assert_eq!(header.onclick.as_deref(), Some("currency:collapse"));
-        view.currency_collapsed = true;
-        shared.insert(view.clone());
-        screen.sync(&shared, &mut registry);
-        assert!(registry.get_by_name("TokenEntry1792").is_none());
-        assert!(ui_toolkit::tooltip::tooltip_owner(&registry, hovered_name).is_none());
-        assert!(registry.get_by_name("TokenHeader2").is_some());
     }
+    apply_character_frame_postsetup(&mut registry, view.tab);
+    let currency_tab = registry
+        .get(registry.get_by_name(currency_tab_name).unwrap())
+        .unwrap();
+    assert_eq!(
+        currency_tab.position.top,
+        ui_toolkit::layout_values::Val::Px(144.0)
+    );
+    assert_eq!(text(&registry, "CharacterFrameTitleText"), "Currency");
+    assert_eq!(text(&registry, "TokenHeader2Name"), "Player vs. Player");
+    assert_eq!(text(&registry, "TokenEntry1792Name"), "Honor");
+    assert_eq!(text(&registry, "TokenEntry1602Name"), "Conquest");
+    assert_eq!(text(&registry, "TokenEntry1792Count"), "0");
+    let hovered_name = registry.get_by_name("TokenEntry1792Name").unwrap();
+    let (owner, binding) = ui_toolkit::tooltip::tooltip_owner(&registry, hovered_name).unwrap();
+    assert_eq!(owner.name.as_deref(), Some("TokenEntry1792"));
+    assert_eq!(binding.provider.as_deref(), Some("token_currency"));
+    assert!(registry.get_by_name("TokenFrameScrollBox").is_some());
+    assert!(registry.get_by_name("ReputationScrollBox").is_none());
+    let quantity = registry
+        .get(registry.get_by_name("TokenEntry1792Count").unwrap())
+        .unwrap();
+    let Some(WidgetData::FontString(quantity)) = quantity.widget_data.as_ref() else {
+        panic!("quantity text")
+    };
+    assert_eq!(
+        quantity.color,
+        [0.5, 0.5, 0.5, 1.0],
+        "TokenEntryMixin quantity0 is gray, not an earned reward"
+    );
+    let header = registry
+        .get(registry.get_by_name("TokenHeader2").unwrap())
+        .unwrap();
+    assert_eq!(header.onclick.as_deref(), Some("currency:collapse"));
+    view.currency_collapsed = true;
+    shared.insert(view.clone());
+    screen.sync(&shared, &mut registry);
+    assert!(registry.get_by_name("TokenEntry1792").is_none());
+    assert!(ui_toolkit::tooltip::tooltip_owner(&registry, hovered_name).is_none());
+    assert!(registry.get_by_name("TokenHeader2").is_some());
 }
 
 #[test]

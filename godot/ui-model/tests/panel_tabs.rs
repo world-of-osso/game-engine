@@ -136,6 +136,7 @@ fn panel_tab_row_uses_caption_width_anchors_without_overlap_and_draws_selected_l
 
 #[test]
 fn panel_tab_resize_applies_padding_minimum_maximum_and_absolute_width() {
+    set_thread_skin(ActiveSkin::Forever);
     let font = ui_toolkit::font_object::resolve_font_object("GameFontNormalSmall");
     let (long_text_width, _) = measure_text("Mythic+ Dungeons", font.font, font.font_size).unwrap();
     let natural_width = long_text_width + PANEL_TAB_SIDES_PADDING;
