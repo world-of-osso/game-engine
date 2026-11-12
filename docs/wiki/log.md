@@ -33,6 +33,9 @@ UNVERIFIED: This is RegistryUi preview evidence, not a full GameClient Group Fin
 ## Follower-dungeon level authority — 2026-11-12
 
 VERIFIED: deployment seed tests3/3; server signed-bound test1/1, queue refusal/source tests2/2 and spawn-failure log test1/1; engine UI-model11/11 and account/chat4/4. These assert local-seed requirements, existing/absent runtime-file behavior, signed LFG bounds with squish fallback, pre-transfer level refusal, server-catalog selection and localized Group Finder/system-chat errors. INFERRED: `TargetLevelMin/TargetLevelMax` identify the intended queue bounds; the server contract records this boundary. VERIFIED (private UDP 5996 on November 11, 2026): the level-10 Paladin entered Ruby Life Pools map2521 instance2 and remained with `Follower1`–`Follower4` in scene captures 116.298 seconds apart and party-frame captures 116.446 seconds apart. VERIFIED (separate server log): a natural party selection with Warlock pet entry417 failed, returned to origin and exposed a separate spawn-data gap that remains unchanged. Exact logs, captures and scope are in [[follower-dungeons#server-authoritative-level-eligibility--2026-11-12]] and the private proof ledger under `data/diagnostics/follower-join-fail-2026-11-11/private-run/`.
+## SpellMisc spell lookup key — 2026-11-11
+
+VERIFIED: The random-mount icon used the SpellMisc row ID instead of its `SpellID` key; the engine constant and rendered-view test now use the Retail-resolved icon. See [[db2-format#installed-csv-column-order-and-signed-selections]].
 
 ## Ruby emitter frustum cache — 2026-11-11
 

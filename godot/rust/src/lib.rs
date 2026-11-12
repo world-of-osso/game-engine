@@ -800,6 +800,11 @@ impl INode3D for GameClient {
                     return;
                 }
             }
+            // Dismiss a Mount Journal context menu before Retail CloseAllWindows.
+            if self.mount_journal.view.visible && self.mount_journal.view.context.take().is_some() {
+                self.mark_viewport_input_handled();
+                return;
+            }
             // The slow-purchase popup owns Escape without closing vendor or hidden panels.
             if self.dismiss_trading_slow_purchase() {
                 self.mark_viewport_input_handled();

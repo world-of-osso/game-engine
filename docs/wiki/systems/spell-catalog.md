@@ -61,3 +61,7 @@ See [private Forever proof and visual limitation](../investigations/target-circl
 
 - There are no caster stats. Spell-power-scaled effects render their stored `EffectBasePointsF`, which is often 0 (e.g. Fireball: "causes 0 Fire damage").
 - About 3.5% of effects have fractional base points. They render with up to two decimals.
+
+## See Also
+
+- [[db2-format#installed-csv-column-order-and-signed-selections]] — DB2 CSV record IDs and spell lookup keys.

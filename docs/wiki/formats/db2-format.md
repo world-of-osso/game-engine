@@ -73,6 +73,8 @@ Item-driven textures (worn equipment) come from `ItemDisplayInfo.ModelMaterialRe
 
 Verified 2026-10-14 against canonical `data/db2/active` (12.1.5.70391) and root exports. Column positions are not a table contract: `WarbandScenePlacementOption` now starts `Position_0,Position_1,Position_2,OptionID,WarbandScenePlacementID,Orientation,Scale,LayoutKey`. Its former positional parser dropped every option after an integer parse failure. [Authored scene loader](../../../godot/core/src/warband_scene_data.rs) now resolves names and rejects malformed rows with file/physical-line diagnostics. [Import contract](../../specs/cache-import-sources.md#csv-parsing-contract).
 
+VERIFIED 2026-11-11 against `data/db2/12.1.5.70448/SpellMisc.csv`: its `ID` column is not the spell lookup key. `SpellID=150544` is row `ID=124523` with `SpellIconFileDataID=413588`; row `ID=150544` is `SpellID=176627` with icon `459044`. The [spell catalog parser](../../../godot/core/src/game/spell_catalog/build.rs) selects by `SpellID`; this distinction supplies the [random-mount icon](../systems/mounts.md#mount-journal).
+
 `ChrCustomizationGeoset` row213, `ChrCustomizationSkinnedModel` rows497/614 and `CharHairGeosets` row8594 contain signed `GeosetID=-1`. Raw customization caches retain it; v5 replaces v4, which silently stored zero. `CustomizationDb.unresolved_geoset_rows` names unprojectable rows on every catalog load; only the first catalog projection per process prints its report (including when that first projection occurs during runtime model loading). Unsigned render selections never receive a remapped zero. Nonnegative geosets retain their authored values. [Creation contract](../../specs/character-creation.md).
 
 Meaning remains unknown. Local wow.export c2fd7bde36a712be78a5da896c995b84fbfa2545 `src/js/db/caches/DBCharacterCustomization.js:219-222` concatenates ordinary geosets: type17/id-1 becomes `Number("17-1")` (NaN). Its collection join at289-290 computes type14/id-1 as1399, and `modules/tab_characters.js:851-859` matches that number to submesh IDs. Neither states sentinel semantics; these joins do not justify replacing -1 with0 or inventing visibility behavior.
@@ -128,3 +130,4 @@ Targeted tests: `python3 -m unittest discover -s scripts -p test_import_npc_appe
 - [[casc-format]] — DB2 files extracted from CASC; TACT keys for encrypted blobs
 - [[m2-format]] — M2 texture type system driven by DB2 customization chains
 - [[geosets]] — Geoset groups and how ItemDisplayInfo slot values map to them
+- [[spell-catalog]] — SpellMisc field lookup by SpellID
