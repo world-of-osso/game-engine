@@ -281,7 +281,7 @@ impl GameClient {
         let layout = self.load_character_ui_layout()?;
         let previous_skin = ui_toolkit::atlas::thread_skin();
         // Build the hidden book under the character's skin without changing Loading art.
-        let prewarm = (|| {
+        let prewarm: Result<(Gd<RegistryUi>, [f32; 4]), String> = (|| {
             ui_toolkit::atlas::set_thread_skin(Self::active_skin_for_layout(layout.skin));
             let scale = self.effective_world_ui_scale();
             let state = self.load_talent_book_state(scale)?;
