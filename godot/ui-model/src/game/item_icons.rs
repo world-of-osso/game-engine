@@ -1,24 +1,67 @@
-//! Item icon FileDataIDs: `ItemModifiedAppearance` (item → appearance, lowest
-//! `OrderIndex`) joined with `ItemAppearance.DefaultIconFileDataID`, as Retail
-//! `C_Item.GetItemIconByID` resolves the base appearance. Items without an
-//! appearance (trade goods, consumables) use `Item.IconFileDataID`.
+//! Item icon FileDataIDs are indexed from `Item.csv`, `ItemModifiedAppearance` (item →
+//! appearance, lowest `OrderIndex`) and `ItemAppearance.DefaultIconFileDataID`. Items without
+//! an appearance (trade goods, consumables) use `Item.IconFileDataID`. This small index loads
+//! before the full background `ItemSparse` catalog, so equipped icons do not wait for names.
 
 use std::collections::HashMap;
 use std::io::{BufRead, BufReader};
 use std::path::Path;
+use std::sync::OnceLock;
+
+use shared::item_data::ItemDefinitionSource;
 
 use crate::csv_util::{header_index, parse_csv_line};
+use crate::spell_catalog::SPELL_DB2_BUILD;
 
-/// The item's icon; `None` while the item catalog loads (see `ItemCatalog::icon_fdid`).
-pub fn item_icon_fdid(item_id: u32) -> Option<u32> {
-    crate::item_catalog::item_catalog()?.icon_fdid(item_id)
+#[derive(Debug)]
+struct SourceItemIconCatalogs {
+    retail: HashMap<u32, u32>,
+    forever: Result<HashMap<u32, u32>, String>,
 }
 
-pub fn item_icon_fdid_for(
-    source: shared::item_data::ItemDefinitionSource,
-    item_id: u32,
-) -> Option<u32> {
-    crate::item_catalog::item_catalog_for(source)?.icon_fdid(item_id)
+static ICON_CATALOG: OnceLock<Result<SourceItemIconCatalogs, String>> = OnceLock::new();
+
+/// Load item icon tables before the full catalog's background `ItemSparse` parse.
+pub(crate) fn warm_item_icon_catalog() {
+    let _ = load_source_item_icon_catalog_once();
+}
+
+/// Read the Retail icon FileDataID, independent of the full item catalog.
+pub fn item_icon_fdid(item_id: u32) -> Option<u32> {
+    item_icon_fdid_for(ItemDefinitionSource::Retail, item_id)
+}
+
+/// Read the source-local icon index, loading its DB2 tables once if it is not warm.
+pub fn item_icon_fdid_for(source: ItemDefinitionSource, item_id: u32) -> Option<u32> {
+    let catalog = load_source_item_icon_catalog_once()?;
+    match source {
+        ItemDefinitionSource::Retail => catalog.retail.get(&item_id).copied(),
+        ItemDefinitionSource::Forever70205 => catalog.forever.as_ref().ok()?.get(&item_id).copied(),
+    }
+}
+
+fn load_source_item_icon_catalog_once() -> Option<&'static SourceItemIconCatalogs> {
+    ICON_CATALOG
+        .get_or_init(|| {
+            load_source_item_icon_catalog().map_err(|error| {
+                eprintln!("item icon catalog unavailable: {error}");
+                error
+            })
+        })
+        .as_ref()
+        .ok()
+}
+
+fn load_source_item_icon_catalog() -> Result<SourceItemIconCatalogs, String> {
+    let data_dir = crate::paths::resolve_data_path("");
+    let retail_item_dir = data_dir.join("db2").join(SPELL_DB2_BUILD);
+    let retail = load_item_icon_map_from(&retail_item_dir, &data_dir)?;
+    let forever_dir = data_dir.join(crate::item_catalog::FOREVER_ITEM_DIR);
+    let forever = load_item_icon_map_from(&forever_dir, &forever_dir);
+    if let Err(error) = &forever {
+        eprintln!("Forever70205 item icon catalog unavailable: {error}");
+    }
+    Ok(SourceItemIconCatalogs { retail, forever })
 }
 
 pub(crate) fn load_item_icons() -> Result<HashMap<u32, u32>, String> {
@@ -39,6 +82,19 @@ pub(crate) fn load_item_icons_from(dir: &Path) -> Result<HashMap<u32, u32>, Stri
         ["ItemID", "ItemAppearanceID", "OrderIndex"],
     )?;
     Ok(item_icons(modified, &appearance_icon))
+}
+
+fn load_item_icon_map_from(
+    item_dir: &Path,
+    appearance_dir: &Path,
+) -> Result<HashMap<u32, u32>, String> {
+    let item_rows = read_columns(&item_dir.join("Item.csv"), ["ID", "IconFileDataID", "ID"])?;
+    let mut icons: HashMap<u32, u32> = item_rows
+        .into_iter()
+        .filter_map(|[item_id, icon, _]| (icon != 0).then_some((item_id, icon)))
+        .collect();
+    icons.extend(load_item_icons_from(appearance_dir)?);
+    Ok(icons)
 }
 
 /// Keeps each item's lowest-`OrderIndex` appearance that has an icon.
