@@ -1,6 +1,7 @@
 //! Retail `CalendarFrame` from Blizzard_Calendar/Mainline/Blizzard_Calendar.xml and
 //! `CalendarDayButtonTemplate` from Blizzard_CalendarTemplates.xml. Layout is the authored
 //! 659×624 panel with its seven 91px columns and six 91px day rows.
+use chrono::Datelike;
 use ui_toolkit::{rsx, widget_def::Element, widgets::font_string::GameFont};
 
 use crate::calendar_data::{
@@ -207,7 +208,7 @@ fn calendar_month_header(view: &CalendarView) -> Element {
         "ARTWORK",
     ));
     children.extend(calendar_font_string(
-        "CalendarMonthName".into(),
+        "CalendarMonthName",
         &view.month_name,
         month_rect,
         16.0,
@@ -216,7 +217,7 @@ fn calendar_month_header(view: &CalendarView) -> Element {
         "OVERLAY",
     ));
     children.extend(calendar_font_string(
-        "CalendarYearName".into(),
+        "CalendarYearName",
         &view.year.to_string(),
         [year_rect[0], year_rect[1] + 1.0, year_rect[2], year_rect[3]],
         11.0,
