@@ -145,7 +145,7 @@ fn retail_interface_bindings_project_in_source_order_with_defaults() {
         (
             InputAction::ToggleWorldStateScores,
             "World State Scores",
-            Some("Shift-Space"),
+            Some("Shift-Spacebar"),
         ),
         (InputAction::ToggleGuildTab, "Guild", Some("J")),
         (
