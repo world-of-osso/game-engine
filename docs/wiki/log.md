@@ -8,7 +8,7 @@ VERIFIED, SOURCE: Retail `TOGGLECHARACTER4` calls `TogglePVPUI()` when available
 
 VERIFIED, TEST: the core input-binding suite passes 17/17, and the UI-model Interface-order/default test passes 1/1. VERIFIED, BUILD: the native extension and `native_input_fixture` build through `scripts/engine-build.py --fixture native_input_fixture`, exit 0.
 
-VERIFIED, FOREVER LIVE: the owned-UDP `keybinds` filter passes on `127.0.0.1:55974`. It checks U/Reputation, Shift-Y/Statistics, Ctrl-I/Group Finder, J/Guild, Shift-J/Adventure Guide, and a captured F7 binding that closes/reopens Minimap. It asserts the Forever UI skin; this does not claim the other keybind flow cases passed. The log also contains existing unresolved negative-geoset and malformed-quest-POI diagnostics, outside this audit.
+VERIFIED, FOREVER LIVE: the owned-UDP `keybinds` filter passes on `127.0.0.1:55974`. It checks U/Reputation, Shift-Y/Statistics, Ctrl-I/Group Finder, J/Guild, Shift-J/Adventure Guide, and a captured F7 binding that closes/reopens Minimap. It asserts the Forever UI skin; this does not claim the other keybind flow cases passed. VERIFIED, LIVE LOG: the same run logged unresolved negative-geoset rows and an excluded QuestPOIBlob, outside the binding assertions.
 
 ## Guild no-guild Communities display — 2026-11-11
 
