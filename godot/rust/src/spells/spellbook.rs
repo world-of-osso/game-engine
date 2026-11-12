@@ -269,6 +269,7 @@ impl GameClient {
         if self.spells.talent_prewarm_attempted_key == Some(key) {
             return Ok(());
         }
+        let _span = crate::profile::span(|| "talent.prewarm".to_owned());
         if let Some(ui) = self.spells.prefetched_book_ui.take() {
             ui.free();
         }
