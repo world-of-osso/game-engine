@@ -345,8 +345,8 @@ fn calendar_day_date(index: usize, day: &CalendarDay, left: f32, top: f32) -> El
             word_wrap: false,
             max_lines: 1,
             pos_type: "absolute",
-            left: left + 5.0,
-            top: top + 5.0,
+            left: {left + 5.0},
+            top: {top + 5.0},
             draw_layer: "ARTWORK",
             frame_level: CALENDAR_DAY_DATE_FRAME_LEVEL,
         }
