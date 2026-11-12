@@ -7,7 +7,7 @@ func _initialize() -> void:
 		"auction",
 		"primitives",
 		"group_finder",
-		"options_actionbars",
+		"options_interface",
 		"options_hud",
 		"options_accessibility",
 		"questlog",
@@ -79,8 +79,8 @@ func show_view(ui: Node, view: String) -> String:
 			return ui.show_forever_menu_primitives_preview()
 		"group_finder":
 			return ui.call("show_follower_layout_preview", true, false)
-		"options_actionbars":
-			return ui.call("show_buttonfit_service_preview", "options:actionbars", true)
+		"options_interface":
+			return ui.call("show_buttonfit_service_preview", "options:interface", true)
 		"options_hud":
 			return ui.call("show_buttonfit_service_preview", "options:hud", true)
 		"options_accessibility":
@@ -102,7 +102,7 @@ func dropdown_captions(view: String) -> Array:
 			]
 		"group_finder":
 			return [{"name": "LFDQueueFrameTypeDropdown", "center": 13.0}]
-		"options_actionbars":
+		"options_interface":
 			return [
 				{"name": "Choiceencounter_view", "center": 12.5},
 				{"name": "Choicestatus_text_display", "center": 12.5},
