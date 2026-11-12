@@ -69,6 +69,10 @@ pub(crate) struct SpellsHud {
     book_ui: Option<Gd<RegistryUi>>,
     prefetched_book_ui: Option<Gd<RegistryUi>>,
     prefetched_book_key: Option<(u32, u32)>,
+    /// Frame that created the matching UI, so world entry waits one rendered loading frame.
+    prefetched_book_created_frame: Option<u64>,
+    /// Stops a failed local prewarm from repeating on each Loading frame.
+    talent_prewarm_attempted_key: Option<(u32, u32)>,
     book_ui_talent_key: Option<(u32, u32)>,
     /// Exact last text handed to DisplayServer; diagnostics, not OS delivery proof.
     pub(crate) talent_export_clipboard: Option<String>,
@@ -116,6 +120,8 @@ impl Default for SpellsHud {
             book_ui: None,
             prefetched_book_ui: None,
             prefetched_book_key: None,
+            prefetched_book_created_frame: None,
+            talent_prewarm_attempted_key: None,
             book_ui_talent_key: None,
             talent_export_clipboard: None,
             book_position: None,
@@ -176,6 +182,22 @@ impl SpellsHud {
         }
     }
 
+    fn close_for_loading(&mut self) {
+        let prefetched_book_ui = self.prefetched_book_ui.take();
+        let prefetched_book_key = self.prefetched_book_key.take();
+        let prefetched_book_created_frame = self.prefetched_book_created_frame.take();
+        let talent_prewarm_attempted_key = self.talent_prewarm_attempted_key.take();
+        let book_position = self.book_position;
+        let book_position_applied = self.book_position_applied;
+        self.close();
+        self.prefetched_book_ui = prefetched_book_ui;
+        self.prefetched_book_key = prefetched_book_key;
+        self.prefetched_book_created_frame = prefetched_book_created_frame;
+        self.talent_prewarm_attempted_key = talent_prewarm_attempted_key;
+        self.book_position = book_position;
+        self.book_position_applied = book_position_applied;
+    }
+
     fn close(&mut self) {
         self.cancel_ground_target();
         self.cooldowns.close();
@@ -204,6 +226,8 @@ impl SpellsHud {
         self.book_position_applied = None;
         self.book_drag = None;
         self.prefetched_book_key = None;
+        self.prefetched_book_created_frame = None;
+        self.talent_prewarm_attempted_key = None;
         self.book_ui_talent_key = None;
         self.book = SpellbookFrameState::default();
         self.book_art_state = None;
@@ -286,15 +310,22 @@ impl GameClient {
     }
 
     fn drive_spells(&mut self, delta: f32) -> Result<(), FrameError> {
+        if self.account.session.screen == SessionScreen::Loading {
+            self.spells.close_for_loading();
+            if self.spellbook_player().is_some() {
+                self.spells.poll_catalog(&self.data_root);
+                if let Err(error) = self.prewarm_spellbook_talents() {
+                    report_once(&format!("Talent UI prewarm: {error}"));
+                }
+            }
+            return Ok(());
+        }
         if self.account.session.screen != SessionScreen::InWorld {
             self.spells.close();
             return Ok(());
         }
         self.spells.poll_catalog(&self.data_root);
         self.account.spells.tick(delta);
-        if let Err(error) = self.prewarm_spellbook_talents() {
-            report_once(&format!("Talent UI prewarm: {error}"));
-        }
         self.update_assisted_combat();
         for spell_id in self
             .spells

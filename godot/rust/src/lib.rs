@@ -3693,12 +3693,24 @@ impl GameClient {
             global_wmo,
             objects,
         );
+        let delay_world_entry =
+            readiness.complete && self.should_delay_world_entry_for_talent_ui(self.frame_id);
+        let progress_percent = if delay_world_entry {
+            readiness.progress_percent.min(99)
+        } else {
+            readiness.progress_percent
+        };
+        let status_text = if delay_world_entry {
+            "Preparing talents..."
+        } else {
+            readiness.status_text.as_str()
+        };
         if let Some(ui) = self.loading_ui.as_mut() {
-            ui.bind_mut().advance_loading(
-                readiness.progress_percent,
-                &readiness.status_text,
-                delta,
-            )?;
+            ui.bind_mut()
+                .advance_loading(progress_percent, status_text, delta)?;
+        }
+        if delay_world_entry {
+            return Ok(());
         }
         if readiness.complete {
             self.account.session.screen = SessionScreen::InWorld;

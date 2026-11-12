@@ -4,6 +4,7 @@ PlayerSpellsFrame displays and edits the existing server talent configuration. M
 
 ## Required behavior
 
+- When the active class/spec is known during Loading, build the hidden talent page before entering InWorld. Keep Loading visible for one rendered frame after construction, and reuse the page on the first Talent open. Do not run the full-page prewarm as an InWorld startup frame.
 - Map class SkillLine (category 7) through SkillLineXTraitTree variant 0; filter local DB2 nodes/entries by spec visibility, retaining ordered choices, prerequisites and hero trees.
 - Receive `TraitConfigSnapshot` on the owning account. Display committed total ranks (including grants) and server unspent class/spec points. Each new snapshot replaces pending edits, closes the choice flyout and clears errors.
 - Choice icons overlay the full spell images under Retail's complementary octagon masks; never squeeze two rectangular icon halves. The choice flyout is a horizontal row of64px authored large options,5px apart, above its node (BOTTOM to TOP offset−10); selection retains the shared spell tooltip and staged edit flow.
@@ -49,6 +50,7 @@ All paths relative to `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/`:
 - `godot/tests/capture_talent_layout.gd` plus `check_talent_layout.py`: one explicit-skin offline batch, actual1920×1080 PNGs/native rects and visible currency/hero/Apply glyph pixels. An authored rect alone does not prove its caption is painted above button art.
 - `godot/network/src/wire_tests.rs`: real UDP commit payload, snapshot/result delivery, and production-ordered login/commit/spec-switch traffic accumulated in one worker batch.
 - `godot/rust/src/talents_account_tests.rs`: loading-time snapshots, existing error text events, specialization replacement and same-spec echoes.
+- `godot/tests/talents_panel_perf_live.gd`: live prewarm observation on Loading, prepared-page reuse, first-open frame timing, and the first ten InWorld seconds.
 - `GODOT_TALENT_PENDING=1` stages one valid class and one valid spec purchase in the offline Talents preview using production model operations. Native evidence lives in `data/diagnostics/talentwire-2026-10-09/`.
 
 ## Offline class/spec evidence

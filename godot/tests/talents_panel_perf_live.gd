@@ -2,7 +2,9 @@ extends "res://tests/frame_benchmark.gd"
 
 ## Measure the live Forever talents panel with the release GDExtension.
 ## Required: GODOT_TEST_SERVER, BENCH_ACCOUNT, BENCH_CHARACTER,
-## BENCH_TALENTS_SCREENSHOT. Optional: BENCH_SEGMENT_S, BENCH_RESOLUTION.
+## BENCH_TALENTS_SCREENSHOT. Optional: BENCH_SEGMENT_S, BENCH_RESOLUTION,
+## BENCH_WORLD_TRACE_S, BENCH_WORLD_TRACE_PATH, BENCH_STARTUP_INWORLD,
+## BENCH_REQUIRE_LOADING_PREWARM.
 const ASSET_STARTUP_TIMEOUT_MS := 180000
 const SPEC_TIMEOUT_MS := 30000
 const OPEN_TIMEOUT_MS := 60000
@@ -159,8 +161,9 @@ func run_test() -> void:
 			return
 		if not await enter_world(character):
 			return
+	var trace_missing_prefetched_ui := world_trace_seconds > 0.0 and not world_trace_prefetched_at_entry
 	if OS.get_environment("BENCH_REQUIRE_LOADING_PREWARM") == "1" \
-			and (not loading_prewarm_seen or not world_trace_prefetched_at_entry):
+			and (not loading_prewarm_seen or trace_missing_prefetched_ui):
 		fail("Talent UI was not prewarmed on the Loading screen before InWorld")
 		return
 	player = client.get_node_or_null("WorldUnits/" + character) as Node3D

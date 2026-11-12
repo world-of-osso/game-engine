@@ -119,6 +119,7 @@ impl GameClient {
         }
         if self.spells.prefetched_book_ui.is_none() {
             self.spells.prefetched_book_key = None;
+            self.spells.prefetched_book_created_frame = None;
             self.spells.book_art_state = None;
         }
     }
@@ -138,6 +139,7 @@ impl GameClient {
             ui.set_name("SpellBookPrewarmUI");
             self.spells.prefetched_book_ui = Some(ui);
             self.spells.prefetched_book_key = key;
+            self.spells.prefetched_book_created_frame = None;
             return true;
         }
         ui.free();
@@ -204,6 +206,7 @@ impl GameClient {
         if self.spells.prefetched_book_key == Some(key) {
             let ui = self.spells.prefetched_book_ui.take();
             if ui.is_some() {
+                self.spells.prefetched_book_created_frame = None;
                 return ui;
             }
         }
@@ -211,6 +214,7 @@ impl GameClient {
             ui.free();
         }
         self.spells.prefetched_book_key = None;
+        self.spells.prefetched_book_created_frame = None;
         None
     }
 
@@ -231,6 +235,20 @@ impl GameClient {
         ))
     }
 
+    pub(super) fn should_delay_world_entry_for_talent_ui(&self, frame_id: u64) -> bool {
+        let Some(key) = self.active_talent_key() else {
+            return false;
+        };
+        if self.spells.prefetched_book_key == Some(key) && self.spells.prefetched_book_ui.is_some()
+        {
+            return self.spells.prefetched_book_created_frame == Some(frame_id);
+        }
+        if self.spells.talent_prewarm_attempted_key == Some(key) {
+            return false;
+        }
+        !matches!(&self.spells.catalog, super::CatalogLoad::Failed)
+    }
+
     fn read_saved_spellbook_position(&self, character_id: u64) -> Result<Option<[f32; 2]>, String> {
         let path =
             game_engine_core::client_options_data::options_path().with_file_name("ui_layout.ron");
@@ -244,14 +262,20 @@ impl GameClient {
         let Some(key) = self.active_talent_key() else {
             return Ok(());
         };
-        if self.spells.prefetched_book_key == Some(key) {
+        if self.spells.prefetched_book_key == Some(key) && self.spells.prefetched_book_ui.is_some()
+        {
+            return Ok(());
+        }
+        if self.spells.talent_prewarm_attempted_key == Some(key) {
             return Ok(());
         }
         if let Some(ui) = self.spells.prefetched_book_ui.take() {
             ui.free();
         }
         self.spells.prefetched_book_key = None;
+        self.spells.prefetched_book_created_frame = None;
         self.spells.book_position_applied = None;
+        self.spells.talent_prewarm_attempted_key = Some(key);
 
         let state = self.load_talent_book_state()?;
         let rect = placed_book_rect(state.viewport, self.spells.book_position);
@@ -259,7 +283,9 @@ impl GameClient {
         let ui = self.create_prefetched_talent_ui(state, scale, rect)?;
         self.spells.prefetched_book_ui = Some(ui);
         self.spells.prefetched_book_key = Some(key);
+        self.spells.prefetched_book_created_frame = Some(self.frame_id);
         self.spells.book_position_applied = Some([rect[0], rect[1]]);
+        self.spells.talent_prewarm_attempted_key = None;
         Ok(())
     }
 
