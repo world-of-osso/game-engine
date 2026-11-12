@@ -34,7 +34,7 @@ Dropdowns, context menus and breadcrumb navigation implement Retail Mainline `Bl
 
 ## Known gaps (current cycle)
 
-- [ ] Capture and inspect Group Finder Type from a full GameClient against the private loopback server; current rendered caption captures use RegistryUi previews and do not prove live startup.
+None open for the current cycle. The full GameClient Group Finder Type evidence is recorded in the [menu-primitives wiki](../wiki/systems/menu-primitives.md#wowstyle1-caption-source-region-alignment-2026-11-11).
 
 Source textures used by these templates are present in canonical `data/textures/`; no extraction performed.
 
