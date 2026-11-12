@@ -5,11 +5,13 @@ use game_engine_ui_model::merchant_frame_component::{
     resize_panel_tab,
 };
 use ui_toolkit::atlas::{ActiveSkin, set_thread_skin};
-use ui_toolkit::frame::Dimension;
+use ui_toolkit::frame::{Dimension, WidgetData};
 use ui_toolkit::layout_values::Val;
 use ui_toolkit::registry::FrameRegistry;
+use ui_toolkit::rsx;
 use ui_toolkit::screen::{Screen, SharedContext};
 use ui_toolkit::text_measure::measure_text;
+use ui_toolkit::widgets::button::ButtonState;
 
 const GROUP_FINDER_FRAME_WIDTH: f32 = 563.0;
 const GROUP_FINDER_TAB_LEFT: f32 = 19.0;
@@ -22,7 +24,7 @@ fn tab_screen(_: &SharedContext) -> ui_toolkit::widget_def::Element {
         PanelTab::new("PanelTab2", "Player vs. Player", "tabs:pvp", false),
         PanelTab::new("PanelTab3", "Mythic+ Dungeons", "tabs:mythic", false),
     ];
-    panel_tabs(
+    let row = panel_tabs(
         &tabs,
         (GROUP_FINDER_TAB_LEFT, GROUP_FINDER_TAB_TOP),
         PanelTabResize {
@@ -30,7 +32,18 @@ fn tab_screen(_: &SharedContext) -> ui_toolkit::widget_def::Element {
             ..PanelTabResize::default()
         },
         ui_toolkit::tab_art::TabLayout::Panel,
-    )
+    );
+    rsx! {
+        r#frame {
+            name: "PanelTabsTestRoot",
+            width: 1280.0,
+            height: 720.0,
+            pos_type: "absolute",
+            left: 0.0,
+            top: 0.0,
+            {row}
+        }
+    }
 }
 
 fn registry() -> FrameRegistry {
@@ -65,9 +78,19 @@ fn rect(registry: &FrameRegistry, name: &str) -> (f32, f32, f32, f32) {
 }
 
 #[test]
-fn panel_tab_row_uses_caption_width_and_anchors_without_overlap() {
+fn panel_tab_row_uses_caption_width_anchors_without_overlap_and_draws_selected_last() {
     let registry = registry();
     let labels = ["All", "Player vs. Player", "Mythic+ Dungeons"];
+    let child_names: Vec<_> = frame(&registry, "PanelTabsTestRoot")
+        .children
+        .iter()
+        .map(|id| registry.get(*id).unwrap().name.clone().unwrap())
+        .collect();
+    assert_eq!(child_names, vec!["PanelTab2", "PanelTab3", "PanelTab1"]);
+    let Some(WidgetData::Button(selected)) = &frame(&registry, "PanelTab1").widget_data else {
+        panic!("selected panel tab is not a button");
+    };
+    assert_eq!(selected.state, ButtonState::Disabled);
     let resize = PanelTabResize {
         max_width: Some((GROUP_FINDER_FRAME_WIDTH - GROUP_FINDER_TAB_LEFT) / labels.len() as f32),
         ..PanelTabResize::default()
