@@ -288,6 +288,12 @@ impl Portrait {
         state.set("appearance", shown.as_str());
         state
     }
+
+    pub(crate) fn model_ready(&self) -> bool {
+        self.scene
+            .as_ref()
+            .is_some_and(|scene| scene.model.is_some() && scene.mask_loaded)
+    }
 }
 
 impl Scene {

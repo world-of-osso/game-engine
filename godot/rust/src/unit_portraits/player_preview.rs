@@ -88,6 +88,11 @@ impl PlayerPortraitFixture {
         self.portrait.snapshot()
     }
 
+    #[func]
+    fn portrait_model_ready(&self) -> bool {
+        self.portrait.model_ready()
+    }
+
     /// Diagnostic control only, never used to satisfy the normal readiness oracle.
     #[func]
     fn redraw(&mut self) {
