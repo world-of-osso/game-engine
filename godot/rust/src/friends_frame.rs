@@ -172,20 +172,32 @@ impl GameClient {
             return Ok(true);
         }
         if let Some(tab) = FriendsTab::from_action(action) {
-            self.release_friends_input_focus(tab);
-            self.friends_frame.state.select_tab(tab);
-            self.friends_frame.error = None;
-            if tab == FriendsTab::Who {
-                self.account.who_error = None;
-                self.account.who_message = None;
-                self.account
-                    .query_who(self.friends_frame.state.who_query.clone())?;
-            }
+            self.select_friends_tab(tab)?;
             return Ok(false);
         }
         if self.select_friends_row(action, false) {
             return Ok(false);
         }
+        if self.dispatch_friends_frame_action(action)? {
+            self.friends_frame.state.context_menu_open = false;
+        }
+        Ok(false)
+    }
+
+    fn select_friends_tab(&mut self, tab: FriendsTab) -> Result<(), FrameError> {
+        self.release_friends_input_focus(tab);
+        self.friends_frame.state.select_tab(tab);
+        self.friends_frame.error = None;
+        if tab == FriendsTab::Who {
+            self.account.who_error = None;
+            self.account.who_message = None;
+            self.account
+                .query_who(self.friends_frame.state.who_query.clone())?;
+        }
+        Ok(())
+    }
+
+    fn dispatch_friends_frame_action(&mut self, action: &str) -> Result<bool, FrameError> {
         match action {
             ACTION_ADD_OPEN => {
                 self.friends_frame.state.add_friend_open = true;
@@ -208,8 +220,7 @@ impl GameClient {
             ACTION_RAID_INFO => self.open_raid_info()?,
             _ => return Ok(false),
         }
-        self.friends_frame.state.context_menu_open = false;
-        Ok(false)
+        Ok(true)
     }
 
     fn select_friends_row(&mut self, action: &str, right: bool) -> bool {
@@ -332,16 +343,41 @@ impl GameClient {
     fn sync_friends_frame_ui(&mut self) -> Result<(), String> {
         let view = self.friends_frame_view();
         let scale = self.effective_ui_scale();
-        if let Some(ui) = self.friends_frame.ui.as_mut() {
-            ui.bind_mut().set_ui_scale(scale)?;
-            ui.bind_mut().set_state(view.clone())?;
-            Self::sync_friends_editboxes(ui, &self.friends_frame.state, &view)?;
-            if self.friends_frame.focus_add_friend {
-                ui.bind_mut().focus_frame_named(ADD_FRIEND_EDIT_BOX)?;
-                self.friends_frame.focus_add_friend = false;
-            }
-            return Ok(());
+        if let Some(mut ui) = self.friends_frame.ui.clone() {
+            self.update_friends_frame_ui(&mut ui, &view, scale)
+        } else {
+            self.mount_friends_frame_ui(&view, scale)
         }
+    }
+
+    fn update_friends_frame_ui(
+        &mut self,
+        ui: &mut Gd<RegistryUi>,
+        view: &FriendsFrameView,
+        scale: f32,
+    ) -> Result<(), String> {
+        ui.bind_mut().set_ui_scale(scale)?;
+        ui.bind_mut().set_state(view.clone())?;
+        Self::sync_friends_editboxes(ui, &self.friends_frame.state, view)?;
+        Self::focus_add_friend_edit_box(ui, &mut self.friends_frame.focus_add_friend)
+    }
+
+    fn mount_friends_frame_ui(
+        &mut self,
+        view: &FriendsFrameView,
+        scale: f32,
+    ) -> Result<(), String> {
+        let mut ui = self.build_friends_frame_ui(view, scale)?;
+        self.friends_frame.ui = Some(ui.clone());
+        self.raise_above_layer(&ui)?;
+        Self::focus_add_friend_edit_box(&mut ui, &mut self.friends_frame.focus_add_friend)
+    }
+
+    fn build_friends_frame_ui(
+        &mut self,
+        view: &FriendsFrameView,
+        scale: f32,
+    ) -> Result<Gd<RegistryUi>, String> {
         for fdid in FRAME_ART {
             self.drawable_fdid(fdid);
         }
@@ -361,12 +397,17 @@ impl GameClient {
             ui.free();
             return Err(error);
         }
-        Self::sync_friends_editboxes(&mut ui, &self.friends_frame.state, &view)?;
-        self.friends_frame.ui = Some(ui.clone());
-        self.raise_above_layer(&ui)?;
-        if self.friends_frame.focus_add_friend {
+        Self::sync_friends_editboxes(&mut ui, &self.friends_frame.state, view)?;
+        Ok(ui)
+    }
+
+    fn focus_add_friend_edit_box(
+        ui: &mut Gd<RegistryUi>,
+        should_focus: &mut bool,
+    ) -> Result<(), String> {
+        if *should_focus {
             ui.bind_mut().focus_frame_named(ADD_FRIEND_EDIT_BOX)?;
-            self.friends_frame.focus_add_friend = false;
+            *should_focus = false;
         }
         Ok(())
     }
@@ -387,26 +428,7 @@ impl GameClient {
 
     fn friends_frame_view(&self) -> FriendsFrameView {
         let local_name = self.account.session.selected_character_name.as_deref();
-        let (error, feedback) = match self.friends_frame.state.tab {
-            FriendsTab::Friends => (
-                self.friends_frame
-                    .error
-                    .clone()
-                    .or_else(|| self.account.friends_error.clone()),
-                self.account.friends_message.clone(),
-            ),
-            FriendsTab::Who => (
-                self.friends_frame
-                    .error
-                    .clone()
-                    .or_else(|| self.account.who_error.clone()),
-                self.account.who_message.clone(),
-            ),
-            FriendsTab::Raid => (
-                self.friends_frame.error.clone(),
-                self.account.group.last_server_message.clone(),
-            ),
-        };
+        let (error, feedback) = self.friends_frame_status();
         FriendsFrameView {
             visible: self.friends_frame.state.open,
             position: DEFAULT_POSITION,
@@ -425,6 +447,29 @@ impl GameClient {
             feedback,
             error,
             context_menu_open: self.friends_frame.state.context_menu_open,
+        }
+    }
+
+    fn friends_frame_status(&self) -> (Option<String>, Option<String>) {
+        match self.friends_frame.state.tab {
+            FriendsTab::Friends => (
+                self.friends_frame
+                    .error
+                    .clone()
+                    .or_else(|| self.account.friends_error.clone()),
+                self.account.friends_message.clone(),
+            ),
+            FriendsTab::Who => (
+                self.friends_frame
+                    .error
+                    .clone()
+                    .or_else(|| self.account.who_error.clone()),
+                self.account.who_message.clone(),
+            ),
+            FriendsTab::Raid => (
+                self.friends_frame.error.clone(),
+                self.account.group.last_server_message.clone(),
+            ),
         }
     }
 }

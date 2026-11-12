@@ -136,42 +136,50 @@ pub fn project_friend_rows(snapshot: Option<&FriendsSnapshot>) -> Vec<FriendList
     snapshot
         .into_iter()
         .flat_map(|snapshot| &snapshot.entries)
-        .map(|friend| {
-            let online = friend.presence != PresenceStatus::Offline;
-            let (status_icon, info_text) = match friend.presence {
-                PresenceStatus::Online => (STATUS_ONLINE, friend.area.clone()),
-                PresenceStatus::Afk => (STATUS_AFK, format!("{} - Away", friend.area)),
-                PresenceStatus::Dnd => (STATUS_DND, format!("{} - Do Not Disturb", friend.area)),
-                PresenceStatus::Offline => (STATUS_OFFLINE, "Offline".to_owned()),
-            };
-            let name_text = if online {
-                format!(
-                    "{}, Level {} {}",
-                    friend.name, friend.level, friend.class_name
-                )
-            } else {
-                friend.name.clone()
-            };
-            FriendListRow {
-                name: friend.name.clone(),
-                name_text,
-                info_text,
-                presence: friend.presence,
-                status_icon,
-                name_color: if online {
-                    "0.51,0.77,1,1"
-                } else {
-                    "0.5,0.5,0.5,1"
-                },
-                background_color: if online {
-                    "0.08,0.12,0.18,0.55"
-                } else {
-                    "0.08,0.08,0.08,0.25"
-                },
-                can_send_message: online,
-            }
-        })
+        .map(project_friend_row)
         .collect()
+}
+
+fn project_friend_row(
+    friend: &shared::protocol_snapshots::FriendCharacterSnapshot,
+) -> FriendListRow {
+    let online = friend.presence != PresenceStatus::Offline;
+    let (status_icon, info_text) = friend_status(friend);
+    let name_text = if online {
+        format!(
+            "{}, Level {} {}",
+            friend.name, friend.level, friend.class_name
+        )
+    } else {
+        friend.name.clone()
+    };
+    FriendListRow {
+        name: friend.name.clone(),
+        name_text,
+        info_text,
+        presence: friend.presence,
+        status_icon,
+        name_color: if online {
+            "0.51,0.77,1,1"
+        } else {
+            "0.5,0.5,0.5,1"
+        },
+        background_color: if online {
+            "0.08,0.12,0.18,0.55"
+        } else {
+            "0.08,0.08,0.08,0.25"
+        },
+        can_send_message: online,
+    }
+}
+
+fn friend_status(friend: &shared::protocol_snapshots::FriendCharacterSnapshot) -> (u32, String) {
+    match friend.presence {
+        PresenceStatus::Online => (STATUS_ONLINE, friend.area.clone()),
+        PresenceStatus::Afk => (STATUS_AFK, format!("{} - Away", friend.area)),
+        PresenceStatus::Dnd => (STATUS_DND, format!("{} - Do Not Disturb", friend.area)),
+        PresenceStatus::Offline => (STATUS_OFFLINE, "Offline".to_owned()),
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
