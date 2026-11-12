@@ -9,7 +9,7 @@ Server gameplay contract: [follower dungeons](../../../game-server/docs/specs/fo
 ## Server-authoritative eligibility
 
 - [x] The client uses only the server catalog's inclusive level bounds with the current player level. An out-of-range row shows the Retail lock marker, is disabled, displays the matching localized GlobalString reason, and cannot be selected or queued; the server still checks admission before map transfer.
-- [ ] The locked follower row uses Retail's `UI-LFG-ICON-LOCK` texture at its authored 12×14 size and UV crop.
+- [x] The locked follower row uses Retail's `UI-LFG-ICON-LOCK` texture at its authored 12×14 size and UV crop; a rendered-output test verifies the FileDataID, crop and size.
 - [x] Server refusal keys use Retail GlobalStrings in the Group Finder description and system chat.
 - [x] VERIFIED (private UDP 5996 on November 11, 2026): a level-10 Paladin queued Ruby Life Pools (dungeon2436, map2521) and entered instance2. Scene captures at 23:44:57.030 and 23:46:53.328 CST, 116.298 seconds apart, and party-frame captures at 23:44:57.602 and 23:46:54.048 CST, 116.446 seconds apart, show the Paladin with `Follower1`–`Follower4`. The private server log and captures are under `data/diagnostics/follower-join-fail-2026-11-11/private-run/`; this proof covers the selected party only.
 - Existing LFG dequeue/role-check requests use the same transport. Completed follower admission is a running instance, not a human matchmaking queue entry.

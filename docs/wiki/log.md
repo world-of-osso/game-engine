@@ -174,3 +174,11 @@ Crowded combat (40 geared warriors, Battle Shout spam): drape queries no longer 
 ## Floating combat-text parity — 2026-11-10
 
 VERIFIED: the cached Retail Lua/XML maps the self-frame scroll, 20-line pool, 1.9 s lifetime, 1.3 s fade and crit scale; the implementation now supports incoming Damage/Heal/Miss events behind the default-off switch and persists mapped CVar defaults. WRONG and fixed: world crit `!` punctuation and cross-unit slot eviction. MISSING: native directional/gravity/min-alpha/random-Z equations and screen-space packing across world units. The full source-line matrix and per-skin JPEG paths are in [[floating-combat-text-parity]].
+
+## Follower-dungeon locked-row art — 2026-11-12
+
+VERIFIED, SOURCE: Retail `Mainline/LFGFrame.xml:253–258` assigns the follower row `Interface/LFGFrame/UI-LFG-ICON-LOCK` at12×14 with UVs `[0,0.71875,0,0.875]`; `community-listfile.csv:147284` maps it to FileDataID340023. The separate role-button `LFG-lock` atlas is FileDataID999232.
+
+VERIFIED, CODE/TEST: commit `ae6af95fa` uses the row's FileDataID and UVs; its targeted UI-model test passes1/1 and asserts locked state, source art, localized reason and blocked selection/queueing.
+
+UNVERIFIED: the private release-server Forever capture and three nearest-neighbour 3× row-crop reviews remain pending. See [[follower-dungeons#server-authoritative-level-eligibility--2026-11-12]].
