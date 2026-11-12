@@ -32,6 +32,10 @@ func capture_world_trace() -> void:
 	recording = true
 	while Time.get_ticks_usec() - started_usec < int(world_trace_seconds * 1000000.0):
 		await process_frame
+	var final_usec := Time.get_ticks_usec()
+	if last_usec > 0:
+		intervals.append(float(final_usec - last_usec) / 1000.0)
+		client_ms.append(client.process_ms())
 	recording = false
 	world_trace_finished = true
 	if intervals.size() != client_ms.size():
