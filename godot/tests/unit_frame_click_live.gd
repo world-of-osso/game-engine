@@ -86,12 +86,19 @@ func roster_card(ui: Node) -> Control:
 	return null
 
 func click_player_frame() -> bool:
-	var ui := client.get_node_or_null("UnitFramesUI")
-	var frame := ui.find_child("PlayerFrame", true, false) as Control if ui != null else null
-	if frame == null or not frame.is_visible_in_tree():
-		return reject("Forever PlayerFrame is absent or hidden")
-	await click_control(frame)
+	var ui: Node
+	var frame: Control
 	var deadline := Time.get_ticks_msec() + TARGET_WAIT_MS
+	while Time.get_ticks_msec() < deadline:
+		await process_frame
+		ui = client.get_node_or_null("UnitFramesUI")
+		frame = ui.find_child("PlayerFrame", true, false) as Control if ui != null else null
+		if frame != null and frame.is_visible_in_tree():
+			break
+	if frame == null or not frame.is_visible_in_tree():
+		return reject("Forever PlayerFrame did not become visible: " + str(client.account_state()))
+	await click_control(frame)
+	deadline = Time.get_ticks_msec() + TARGET_WAIT_MS
 	while Time.get_ticks_msec() < deadline:
 		await process_frame
 		var state: Dictionary = client.target_state()
