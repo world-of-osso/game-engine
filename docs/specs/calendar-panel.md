@@ -5,12 +5,15 @@ The in-world Forever Calendar panel is the native `CalendarFrame` opened from `G
 ## What it must do
 
 - [x] Open and close from the Forever minimap date button.
-- [ ] Render the 659×624 CalendarFrame at its XML anchor, with authored border art, month/year title, weekday headers, and six rows of seven 91×91 day cells using the Retail day-atlas subrects at edge-to-edge XML positions.
-- [x] Use the Sunday-first week order defined by the cached Retail calendar source; highlight the current local day.
-- [ ] Place the year and current-day textures at their XML anchors, and omit event-bar art when the server snapshot is empty.
-- [x] Navigate months in both directions, including December-to-January year changes.
+- [x] Render 42 day buttons as 91×91 cells at edge-to-edge positions, using all four Retail day-atlas quadrants.
+- [x] Use a Sunday-first week and highlight the current local day.
+- [ ] Render the authored outer border and month/year header at their Retail anchors.
+- [x] Place year/current-day art at the tested source anchors, keep the year above weekday labels, and omit event-bar art for empty days.
+- [x] Navigate both directions, including December-to-January year changes.
 - [x] Display only events received in `CalendarStateUpdate`; do not invent holidays or event rows when the server snapshot is empty.
 - [x] Keep the panel limited to the Forever skin. Add no calendar key binding unless the Retail source defines one.
+- [ ] Darken dates outside the viewed month with the Retail dark-day treatment while leaving viewed-month cells unchanged.
+- [ ] Keep the full year label visible at its XML anchor.
 
 ## How it works
 
@@ -32,18 +35,20 @@ The in-world Forever Calendar panel is the native `CalendarFrame` opened from `G
 
 ## Verification
 
-- [ ] Targeted calendar rendering tests, helper dev/release builds, and format checks pass.
-- [ ] Private UDP `127.0.0.1:5995` proof covers opening, both month controls, close, and reopen.
-- [ ] Inspect and save the source-texture reference, Forever panel screenshot, and 3× crop under `/syncthing/AgentShared/2026-11-12/calendar-panel/`.
+- [x] Calendar integration tests pass 5/5; native dev and local release helper builds pass; `cargo fmt --all -- --check` passes.
+- [x] Private UDP `127.0.0.1:5995` proof covers opening, both month controls, close, and reopen.
+- [x] Compare the authored texture reconstruction with the fresh panel capture; the 3× grid crop shows no world bleed between day cells.
 
 ## Known gaps (current cycle)
 
-- [ ] Verify the corrected day tiles hide the world between and around the grid in the private capture.
+- [ ] Add the Retail dark-day overlay for dates outside the viewed month; keep November 29–30 unchanged while darkening December 1–12.
+- [ ] Make the `2026` label fully visible above the overlapping month-title art without moving its XML anchor.
 
-UNVERIFIED, LIVE: The final screenshot contains no event title, so it does not prove visual rendering of a non-empty live server snapshot; the model test covers event display from a server snapshot fixture.
+UNVERIFIED, LIVE: The final screenshot contains no event title, so it does not prove visual rendering of a non-empty live server snapshot; the model test covers display from a concrete server snapshot fixture.
 
 ## Out of scope
 
 - Creating, editing, inviting, or signing up for calendar events; the panel only displays server snapshots.
 - Retail holidays, lockouts, or battleground events that the server does not provide.
 - A Modern-skin Calendar panel or a new calendar key binding.
+- A full-frame backdrop; the checked Retail XML defines no root backdrop, and no backdrop may be invented.

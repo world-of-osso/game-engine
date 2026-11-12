@@ -1,10 +1,14 @@
 ## Native Calendar panel — 2026-11-12
 
-VERIFIED, CODE: `GameTimeFrame` opens the native CalendarFrame only in Forever; `CalendarStateUpdate` snapshots populate the local-date grid, and no local holiday/event fallback was added. The current-day glow now matches the source anchor/additive mode, and year text renders above weekday labels.
+VERIFIED, CODE: `GameTimeFrame` opens the native CalendarFrame only in Forever; `CalendarStateUpdate` snapshots populate the local-date grid, with no local holiday/event fallback or invented full-frame backdrop. The corrected tile atlas, grid bounds, weekday tiles, year anchor, and current-day glow are covered by the presentation test.
 
-VERIFIED, TEST: Three calendar model tests and the current-day/year-layer presentation test pass; targeted account and UDP snapshot tests passed earlier in this slice. `cargo fmt --all -- --check` and helper dev/release builds pass with no warnings.
+VERIFIED, TEST: The focused calendar integration filter passes 5/5 tests. The native dev helper build, local release helper build, and `cargo fmt --all -- --check` pass.
 
-VERIFIED, LIVE: Private UDP `127.0.0.1:5995` automation opened the panel, changed November 2026 to December and back, closed it, and reopened it from the minimap. The final UI tree and inspected screenshots/crops are under `/syncthing/AgentShared/2026-11-11/calendar-panel/`.
+VERIFIED, LIVE: Private UDP `127.0.0.1:5995` automation opened the panel, navigated November 2026 to December and back, closed it, and reopened it from the minimap. The fresh capture has no automation or texture-load errors. Evidence is under `/syncthing/AgentShared/2026-11-12/calendar-panel/`.
+
+VERIFIED, IMAGE: The 3× source comparison shows tile art across the full grid with no world bleed. Two remaining defects are visible in the 4× crops: December 1–12 are not dimmed, and the top of `2026` is obscured by the month-title art. See [[calendar-panel-rendering]].
+
+VERIFIED, CLEANUP: The owned client and server stopped after capture, and UDP port 5995 is free.
 
 UNVERIFIED, LIVE: The final image contains no event title, so non-empty event rendering was not proven against a live server; the model test supplies a concrete `CalendarEventSnapshot`.
 
