@@ -25,8 +25,10 @@ func run_fixture() -> void:
 	if not await wait_until(func(): return not client.account_state().assets_starting, "asset startup", 180000): return
 	var error: String = client.connect_account("127.0.0.1:5901", account, "fbtest", false)
 	if error != "": fail(error); return
-	if not await wait_until(func(): return client.get_node_or_null("CharacterSelectUI") != null, "character select", 120000): return
-	await click("CharCard_" + OS.get_environment("MOUNT_CHARACTER_INDEX"))
+	var character_index := OS.get_environment("MOUNT_CHARACTER_INDEX")
+	var character_card := "CharCard_" + character_index
+	if not await wait_until(func(): return client.account_state().screen == "CharacterSelect" and int(client.account_state().character_count) > int(character_index) and control(character_card) != null and control("EnterWorld") != null, "character roster", 120000): return
+	await click(character_card)
 	await click("EnterWorld")
 	if not await wait_until(func(): return client.account_state().screen == "InWorld" and int(client.mount_journal_state().catalog_count) > 0 and control("MinimapLauncherButton") != null, "world/catalog", 180000): return
 
@@ -137,8 +139,10 @@ func reconnect_same_character(character_name: String) -> bool:
 	if not await wait_until(func(): return not client.account_state().assets_starting, "reconnect asset startup", 180000): return false
 	var error: String = client.connect_account("127.0.0.1:5901", OS.get_environment("MOUNT_ACCOUNT"), "fbtest", false)
 	if error != "": fail("Reconnect: " + error); return false
-	if not await wait_until(func(): return client.get_node_or_null("CharacterSelectUI") != null, "reconnect character select", 120000): return false
-	await click("CharCard_" + OS.get_environment("MOUNT_CHARACTER_INDEX"))
+	var character_index := OS.get_environment("MOUNT_CHARACTER_INDEX")
+	var character_card := "CharCard_" + character_index
+	if not await wait_until(func(): return client.account_state().screen == "CharacterSelect" and int(client.account_state().character_count) > int(character_index) and control(character_card) != null and control("EnterWorld") != null, "reconnect character roster", 120000): return false
+	await click(character_card)
 	await click("EnterWorld")
 	if not await wait_until(func(): return client.account_state().screen == "InWorld" and str(client.account_state().selected_character_name) == character_name and has_random_favorite_action_slot(), "same-character action-bar restoration", 180000): return false
 	if client.account_state().ui_skin != "Forever": fail("Reconnect changed UI skin"); return false
