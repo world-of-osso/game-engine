@@ -307,7 +307,6 @@ func move_tooltip_pointer(point: Vector2) -> void:
 	motion.global_position = point
 	motion.relative = point - previous
 	root.push_input(motion, true)
-	Input.warp_mouse(point)
 	for frame in range(3):
 		await process_frame
 
