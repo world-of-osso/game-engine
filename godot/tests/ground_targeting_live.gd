@@ -119,6 +119,7 @@ func wait_for_spell_setup() -> bool:
 		fail("Could not write spell setup barrier: " + ready_path)
 		return false
 	ready.store_string("online " + character)
+	ready.close()
 	print("GROUND_TARGETING_SETUP_READY character=", character)
 	return await wait_until(func(): return FileAccess.file_exists(continue_path), 120000, "admin spell setup")
 
