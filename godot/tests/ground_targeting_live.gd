@@ -154,6 +154,8 @@ func consecration_targeting_proof(baseline: bool) -> bool:
 	return true
 
 func capture_valid_reticle(sent_before: int) -> bool:
+	client.set_camera_orbit(PI, -0.3, 24.0)
+	await wait_frames(12)
 	var decal: Decal
 	for screen_y in [480, 540, 420, 600, 360]:
 		for screen_x in [640, 880, 400]:
@@ -258,7 +260,7 @@ func capture_out_of_range_reticle() -> bool:
 	return true
 
 func place_flamestrike(sent_before: int) -> bool:
-	client.set_camera_orbit(PI, -0.3, 12.0)
+	client.set_camera_orbit(PI, -0.3, 24.0)
 	await wait_frames(12)
 	var point := valid_ground_point
 	await pointer(point)
