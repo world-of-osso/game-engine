@@ -8,12 +8,66 @@ const SPEC_TIMEOUT_MS := 30000
 const OPEN_TIMEOUT_MS := 60000
 const SETTLE_SECONDS := 5.0
 
+var world_trace_seconds := 0.0
+var world_trace_path := ""
+var world_trace_started_usec := 0
+var world_trace_skip_first := false
+var world_trace_frames: Array[Dictionary] = []
+var world_trace_finished := false
+var world_trace_prefetched_at_entry := false
+var loading_prewarm_seen := false
+
 class InputEventProbe extends Node:
 	var n_pressed_events := 0
 
 	func _input(event: InputEvent) -> void:
 		if event is InputEventKey and event.physical_keycode == KEY_N and event.pressed:
 			n_pressed_events += 1
+
+func _process(delta: float) -> bool:
+	record_world_trace_frame()
+	return super._process(delta)
+
+func begin_world_trace() -> void:
+	if world_trace_seconds <= 0.0 or world_trace_started_usec != 0:
+		return
+	world_trace_started_usec = Time.get_ticks_usec()
+	world_trace_skip_first = true
+	world_trace_prefetched_at_entry = client.get_node_or_null("SpellBookPrewarmUI") != null
+	print("TALENTS_PANEL_WORLD_TRACE_START ", JSON.stringify({"ticks_usec": world_trace_started_usec,
+		"prefetched_ui_at_entry": world_trace_prefetched_at_entry}))
+
+func record_world_trace_frame() -> void:
+	if world_trace_seconds <= 0.0 or world_trace_started_usec == 0 or world_trace_finished:
+		return
+	if world_trace_skip_first:
+		world_trace_skip_first = false
+		return
+	var now_usec := Time.get_ticks_usec()
+	var elapsed_usec := now_usec - world_trace_started_usec
+	if elapsed_usec >= int(world_trace_seconds * 1000000.0):
+		write_world_trace()
+		return
+	world_trace_frames.append({
+		"elapsed_ms": float(elapsed_usec) / 1000.0,
+		"frame_interval_ms": float(now_usec - last_usec) / 1000.0,
+		"client_process_ms": client.process_ms()
+	})
+
+func write_world_trace() -> void:
+	world_trace_finished = true
+	var file := FileAccess.open(world_trace_path, FileAccess.WRITE)
+	if file == null:
+		fail("Could not save in-world frame trace %s: %s" % [world_trace_path, FileAccess.get_open_error()])
+		return
+	file.store_line(JSON.stringify({"duration_s": world_trace_seconds,
+		"prefetched_ui_at_entry": world_trace_prefetched_at_entry,
+		"loading_prewarm_seen": loading_prewarm_seen, "frames": world_trace_frames}))
+	file.close()
+	print("TALENTS_PANEL_WORLD_TRACE_PASS ", JSON.stringify({"path": world_trace_path,
+		"duration_s": world_trace_seconds, "frames": world_trace_frames.size(),
+		"prefetched_ui_at_entry": world_trace_prefetched_at_entry,
+		"loading_prewarm_seen": loading_prewarm_seen}))
 
 func select_specialization(spec_id: int) -> bool:
 	var error: String = client.set_specialization(spec_id)
@@ -55,7 +109,12 @@ func wait_for_startup_world(character: String) -> bool:
 		await process_frame
 		max_process_frame_ms = maxf(max_process_frame_ms, Performance.get_monitor(Performance.TIME_PROCESS) * 1000.0)
 		var state: Dictionary = client.account_state()
-		if state.screen == "InWorld" and Readiness.is_ready(state) and state.local_player_position != null:
+		if state.screen == "Loading" and OS.get_environment("BENCH_REQUIRE_LOADING_PREWARM") == "1":
+			loading_prewarm_seen = loading_prewarm_seen or client.get_node_or_null("SpellBookPrewarmUI") != null
+		if state.screen == "InWorld":
+			begin_world_trace()
+		if state.screen == "InWorld" and Readiness.is_ready(state) and state.local_player_position != null \
+				and (world_trace_seconds <= 0.0 or world_trace_finished):
 			print("TALENTS_PANEL_INWORLD_READY ", JSON.stringify({
 				"elapsed_ms": float(Time.get_ticks_usec() - started_usec) / 1000.0,
 				"max_process_frame_ms": max_process_frame_ms
@@ -84,6 +143,14 @@ func run_test() -> void:
 	if server.is_empty() or account.is_empty() or character.is_empty() or screenshot.is_empty():
 		fail("GODOT_TEST_SERVER, BENCH_ACCOUNT, BENCH_CHARACTER and BENCH_TALENTS_SCREENSHOT are required")
 		return
+	world_trace_seconds = float(OS.get_environment("BENCH_WORLD_TRACE_S")) if OS.get_environment("BENCH_WORLD_TRACE_S") != "" else 0.0
+	world_trace_path = OS.get_environment("BENCH_WORLD_TRACE_PATH")
+	if world_trace_seconds > 0.0 and world_trace_path.is_empty():
+		fail("BENCH_WORLD_TRACE_PATH is required when BENCH_WORLD_TRACE_S is set")
+		return
+	if world_trace_seconds > 0.0 and OS.get_environment("BENCH_STARTUP_INWORLD") != "1":
+		fail("BENCH_WORLD_TRACE_S requires BENCH_STARTUP_INWORLD=1")
+		return
 	var segment_s := float(OS.get_environment("BENCH_SEGMENT_S")) if OS.get_environment("BENCH_SEGMENT_S") != "" else 10.0
 	RenderingServer.viewport_set_measure_render_time(root.get_viewport_rid(), true)
 	client = load("res://scenes/client.tscn").instantiate()
@@ -100,6 +167,10 @@ func run_test() -> void:
 			return
 		if not await enter_world(character):
 			return
+	if OS.get_environment("BENCH_REQUIRE_LOADING_PREWARM") == "1" \
+			and (not loading_prewarm_seen or not world_trace_prefetched_at_entry):
+		fail("Talent UI was not prewarmed on the Loading screen before InWorld")
+		return
 	player = client.get_node_or_null("WorldUnits/" + character) as Node3D
 	if player == null:
 		fail("No local player node WorldUnits/" + character)
