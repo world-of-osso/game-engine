@@ -54,13 +54,13 @@ fn journal_text_uses_explicit_spell_references_without_a_section_spell() {
 fn ground_targeting_uses_explicit_destination_restrictions() {
     let data = catalog();
     for id in [
-        2120, 2484, 6197, 114158, 145205, 190356, 43265, 52212, 6544, 189110,
+        2120, 2484, 6197, 114158, 145205, 190356, 43265, 50915, 52212, 6544, 189110,
     ] {
         assert!(data.get(id).unwrap().ground_targeted, "spell {id}");
     }
     for id in [
-        26573, 32773, 33559, 36946, 37553, 38385, 41541, 43429, 50915, 57798, 59998, 69930, 194246,
-        1953, 186260, 196884,
+        26573, 32773, 33559, 36946, 37553, 38385, 41541, 43429, 57798, 59998, 69930, 194246, 1953,
+        186260, 196884,
     ] {
         assert!(!data.get(id).unwrap().ground_targeted, "spell {id}");
     }
@@ -74,6 +74,7 @@ fn ground_target_texture_selector_uses_documented_school_art() {
         (2484, 1_001_695),   // Nature: Earthbind Totem
         (6197, 1_001_690),   // Arcane: Eagle Eye
         (114158, 1_001_694), // Holy: Light's Hammer
+        (50915, 1_001_694),  // Holy: Raging Consecration
         (145205, 1_001_695), // Nature: Efflorescence
         (190356, 1_001_693), // Frost: Blizzard
         (43265, 1_001_697),  // Shadow: Death and Decay
@@ -109,6 +110,7 @@ fn ground_target_radius_uses_destination_area_effects_only() {
         (190356, Some(12.0)), // Blizzard's destination area.
         (207778, Some(12.0)), // Downpour's destination-area heal.
         (43265, Some(8.0)),   // Death and Decay's destination area.
+        (50915, Some(6.0)),   // Raging Consecration's destination area.
         (61882, Some(8.0)),   // Earthquake's destination area trigger.
         (6544, Some(3.0)),    // Heroic Leap's destination effect.
         (189110, Some(3.0)),  // Infernal Strike's destination effect.
