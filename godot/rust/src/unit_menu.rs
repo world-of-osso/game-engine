@@ -1,5 +1,6 @@
-//! TargetFrame, FocusFrame and PetFrame right-click menu (Retail `UnitPopup`; Bevy
-//! `rendering/ui/unit_frames.rs` `UnitFrameClick`): right-clicking any frame opens the
+//! Retail `SecureUnitButton` clicks: left-click targets that frame's unit; right-click
+//! opens the matching unit menu. TargetFrame, FocusFrame and PetFrame menu actions live here.
+//! The original Bevy `rendering/ui/unit_frames.rs` `UnitFrameClick` handled this path.
 //! authored `UnitFrameContextMenu`. It leads with Set Focus (`FocusUnit(unit)`), or Clear
 //! Focus (`ClearFocus()`) when opened from FocusFrame (the `FOCUS` menu). The focus is
 //! client-local, as in Retail. For a player it has the group entries and, for another player,
@@ -19,7 +20,8 @@ use shared::components::Player;
 
 use crate::GameClient;
 use crate::frame_error::{FrameError, SessionError};
-use crate::replicated::UnitFields;
+use crate::replicated::{UnitFields, is_unit};
+use crate::ui::RegistryUi;
 
 /// `UnitPopupRaidTarget<n>ButtonMixin:OnClick` → `SetRaidTargetIcon(unit, n)`.
 const ACTION_UNIT_MENU_RAID_TARGET_PREFIX: &str = "unit_menu_raid_target:";
@@ -109,21 +111,6 @@ pub(crate) fn player_items(
     items
 }
 
-/// The unit a right-click on the unit frames opens the menu for, and whether it came from
-/// FocusFrame (`FocusFrame_OpenMenu`, TargetFrame.lua:1131-1138). FocusFrame is shown only
-/// while the focus unit is replicated, so `focus` is that replicated unit.
-fn menu_unit(
-    on_target_frame: bool,
-    on_focus_frame: bool,
-    target: Option<u64>,
-    focus: Option<u64>,
-) -> Option<(u64, bool)> {
-    if on_focus_frame {
-        return focus.map(|unit| (unit, true));
-    }
-    target.filter(|_| on_target_frame).map(|unit| (unit, false))
-}
-
 /// The open menu's entries: the focus entry, the player entries, the raid target icons.
 fn ride_item() -> UnitMenuItem {
     UnitMenuItem {
@@ -192,6 +179,36 @@ fn inside([x, y, w, h]: [f32; 4], point: Vector2) -> bool {
     point.x >= x && point.x <= x + w && point.y >= y && point.y <= y + h
 }
 
+#[derive(Clone, Copy)]
+struct UnitFrameClickTarget {
+    rect: [f32; 4],
+    unit: u64,
+    from_focus_frame: bool,
+}
+
+fn clicked_unit_frame(point: Vector2, targets: &[UnitFrameClickTarget]) -> Option<(u64, bool)> {
+    targets
+        .iter()
+        .find(|target| inside(target.rect, point))
+        .map(|target| (target.unit, target.from_focus_frame))
+}
+
+fn apply_unit_frame_click(clicked_unit: Option<(u64, bool)>, selected: &mut Option<u64>) -> bool {
+    let Some((unit, _)) = clicked_unit else {
+        return false;
+    };
+    *selected = Some(unit);
+    true
+}
+
+fn visible_frame_rect(ui: &RegistryUi, name: &str) -> Option<[f32; 4]> {
+    let frame = ui.frame_control(name)?;
+    if !frame.is_visible_in_tree() {
+        return None;
+    }
+    ui.frame_rect(name).map(|(rect, _)| rect)
+}
+
 fn group_member_at<'a>(
     frames: &'a game_engine_ui_model::group_frames_component::GroupFramesState,
     compact: bool,
@@ -229,10 +246,20 @@ fn group_member_at<'a>(
         .find_map(|(index, member)| hit(format!("PartyMemberFrame{}", index + 1), &member.name))
 }
 
+fn group_member_target_at<'a>(
+    frames: &'a game_engine_ui_model::group_frames_component::GroupFramesState,
+    compact: bool,
+    point: Vector2,
+    rect: impl Fn(&str) -> Option<[f32; 4]>,
+    unit_for_name: impl FnOnce(&str) -> Option<u64>,
+) -> Option<u64> {
+    let member = group_member_at(frames, compact, point, rect)?;
+    unit_for_name(member)
+}
+
 impl GameClient {
-    /// Right-click on group, TargetFrame, FocusFrame or the local PetFrame opens the menu; other right-clicks
-    /// closes it; a left press outside the open menu closes it. Clicks on its entries
-    /// reach the authored buttons. Returns whether the event opened the menu.
+    /// Unit-frame left clicks select their unit. Right clicks open the unit menu; clicks
+    /// outside an open menu close it and continue through normal input dispatch.
     pub(super) fn unit_menu_pointer(&mut self, event: &Gd<InputEvent>) -> bool {
         let Ok(button) = event.clone().try_cast::<InputEventMouseButton>() else {
             return false;
@@ -242,10 +269,24 @@ impl GameClient {
         }
         let point = button.get_position();
         match button.get_button_index() {
-            MouseButton::RIGHT => self.open_unit_menu(point),
-            MouseButton::LEFT if !self.pointer_over_unit_menu() => {
+            MouseButton::RIGHT => {
+                let opened = self.open_unit_menu(point);
+                if opened {
+                    self.mark_unit_frame_click_handled();
+                }
+                opened
+            }
+            MouseButton::LEFT if self.pointer_over_unit_menu() => false,
+            MouseButton::LEFT => {
                 self.unit_menu = UnitMenu::default();
-                false
+                let mut selected = self.targeting_target();
+                let clicked_unit = self.unit_frame_click_target(point);
+                if !apply_unit_frame_click(clicked_unit, &mut selected) {
+                    return false;
+                }
+                self.set_target(selected);
+                self.mark_unit_frame_click_handled();
+                true
             }
             _ => false,
         }
@@ -256,31 +297,7 @@ impl GameClient {
         if self.open_group_member_menu(point) {
             return true;
         }
-        let on_frame = |name: &str| {
-            self.targeting
-                .frame_ui()
-                .and_then(|ui| ui.bind().frame_rect(name))
-                .is_some_and(|(rect, _)| inside(rect, point))
-        };
-        let (on_target_frame, on_focus_frame) = (on_frame("TargetFrame"), on_frame("FocusFrame"));
-        let focus = self.targeting.focus.filter(|&id| {
-            self.replica
-                .unit(id)
-                .is_some_and(crate::replicated::is_unit)
-        });
-        let selected = if on_frame("PlayerFrame") {
-            self.world.local_player_id().map(|id| (id, false))
-        } else if on_frame("PetFrame") {
-            self.local_pet_id().map(|pet| (pet, false))
-        } else {
-            menu_unit(
-                on_target_frame,
-                on_focus_frame,
-                self.targeting_target(),
-                focus,
-            )
-        };
-        let Some((unit, from_focus_frame)) = selected else {
+        let Some((unit, from_focus_frame)) = self.unit_frame_click_target(point) else {
             return false;
         };
         let Some(local) = self.account.session.selected_character_name.clone() else {
@@ -326,15 +343,16 @@ impl GameClient {
     }
 
     fn open_group_member_menu(&mut self, point: Vector2) -> bool {
-        let Some(ui) = self.group_frames.frame_ui() else {
+        let Some(ui) = self.group_frames.frame_ui().cloned() else {
             return false;
         };
         let frames = self.group_frames_view();
         let compact = game_engine_ui_model::hud_layout::active_layout_settings()
             .use_raid_style_party_frames
             .unwrap_or(true);
+        let host = ui.bind();
         let member = group_member_at(&frames, compact, point, |name| {
-            ui.bind().frame_rect(name).map(|(rect, _)| rect)
+            visible_frame_rect(&host, name)
         });
         let Some(member) = member else {
             return false;
@@ -356,6 +374,73 @@ impl GameClient {
 
     /// Group menus depend on roster membership, not replicated unit visibility.
     /// Other menus close once their unit is neither target, focus nor the local pet.
+    fn unit_frame_click_target(&self, point: Vector2) -> Option<(u64, bool)> {
+        if let Some(unit) = self.group_frame_unit_at(point) {
+            return Some((unit, false));
+        }
+        let ui = self.targeting.frame_ui()?.clone();
+        let targets = self.unit_frame_click_targets(&ui.bind());
+        clicked_unit_frame(point, &targets)
+    }
+
+    fn group_frame_unit_at(&self, point: Vector2) -> Option<u64> {
+        let ui = self.group_frames.frame_ui()?.clone();
+        let frames = self.group_frames_view();
+        let compact = game_engine_ui_model::hud_layout::active_layout_settings()
+            .use_raid_style_party_frames
+            .unwrap_or(true);
+        let host = ui.bind();
+        group_member_target_at(
+            &frames,
+            compact,
+            point,
+            |name| visible_frame_rect(&host, name),
+            |name| self.group_member_unit(name),
+        )
+    }
+
+    fn unit_frame_click_targets(&self, ui: &RegistryUi) -> Vec<UnitFrameClickTarget> {
+        let target = self
+            .targeting_target()
+            .filter(|id| self.replica.unit(*id).is_some_and(is_unit));
+        let target_of_target = target
+            .and_then(|id| self.replica.unit(id)?.unit_target())
+            .filter(|id| self.replica.unit(*id).is_some_and(is_unit));
+        let focus = self
+            .targeting
+            .focus
+            .filter(|id| self.replica.unit(*id).is_some_and(is_unit));
+        let player = self
+            .world
+            .local_player_id()
+            .filter(|id| self.replica.unit(*id).is_some_and(is_unit));
+        let pet = self.local_pet_id();
+        [
+            ("PetFrame", pet, false),
+            ("TargetOfTargetFrame", target_of_target, false),
+            ("FocusFrame", focus, true),
+            ("TargetFrame", target, false),
+            ("PlayerFrame", player, false),
+        ]
+        .into_iter()
+        .filter_map(|(name, unit, from_focus_frame)| {
+            let unit = unit?;
+            let rect = visible_frame_rect(ui, name)?;
+            Some(UnitFrameClickTarget {
+                rect,
+                unit,
+                from_focus_frame,
+            })
+        })
+        .collect()
+    }
+
+    fn mark_unit_frame_click_handled(&mut self) {
+        if let Some(mut viewport) = self.base().get_viewport() {
+            viewport.set_input_as_handled();
+        }
+    }
+
     pub(super) fn close_unit_menu_without_unit(&mut self) {
         let Some(unit) = self.unit_menu.unit else {
             if let Some(name) = &self.unit_menu.player {
@@ -780,20 +865,67 @@ mod tests {
     /// Retail `TARGET` lists Set Focus; `FOCUS`, opened from FocusFrame, Clear Focus.
     #[test]
     fn clear_focus_is_offered_only_on_the_focus_units_menu() {
-        let target_menu = menu_unit(true, false, Some(HOGGER), Some(WOLF));
-        assert_eq!(target_menu, Some((HOGGER, false)));
-        let focus_menu = menu_unit(false, true, Some(HOGGER), Some(WOLF));
-        assert_eq!(focus_menu, Some((WOLF, true)));
-        assert_eq!(menu_unit(false, true, Some(HOGGER), None), None, "no focus");
-        assert_eq!(menu_unit(false, false, Some(HOGGER), Some(WOLF)), None);
+        let targets = [
+            UnitFrameClickTarget {
+                rect: [0.0, 0.0, 20.0, 20.0],
+                unit: HOGGER,
+                from_focus_frame: false,
+            },
+            UnitFrameClickTarget {
+                rect: [30.0, 0.0, 20.0, 20.0],
+                unit: WOLF,
+                from_focus_frame: true,
+            },
+        ];
+        let target_menu_unit = clicked_unit_frame(Vector2::new(10.0, 10.0), &targets);
+        assert_eq!(target_menu_unit, Some((HOGGER, false)));
+        let focus_menu_unit = clicked_unit_frame(Vector2::new(40.0, 10.0), &targets);
+        assert_eq!(focus_menu_unit, Some((WOLF, true)));
 
-        let target_items = menu_items(false, Vec::new());
+        let target_items = menu_items(target_menu_unit.unwrap().1, Vec::new());
         assert_eq!(labels(&target_items)[0], "Set Focus");
         assert!(!labels(&target_items).contains(&"Clear Focus"));
-        let focus_items = menu_items(true, Vec::new());
+        let focus_items = menu_items(focus_menu_unit.unwrap().1, Vec::new());
         assert_eq!(labels(&focus_items)[0], "Clear Focus");
         assert!(!labels(&focus_items).contains(&"Set Focus"));
         assert!(labels(&focus_items).contains(&"Skull"), "raid targets stay");
+    }
+
+    #[test]
+    fn player_and_party_frame_clicks_target_the_displayed_unit() {
+        const PLAYER: u64 = 101;
+        const PARTY_MEMBER: u64 = 202;
+        let player_frame = [UnitFrameClickTarget {
+            rect: [0.0, 0.0, 100.0, 50.0],
+            unit: PLAYER,
+            from_focus_frame: false,
+        }];
+        let mut selected = Some(HOGGER);
+        assert!(apply_unit_frame_click(
+            clicked_unit_frame(Vector2::new(50.0, 25.0), &player_frame),
+            &mut selected,
+        ));
+        assert_eq!(selected, Some(PLAYER));
+
+        let mut frames = game_engine_ui_model::group_frames_component::GroupFramesState::default();
+        frames.portrait_party.members.push(
+            game_engine_ui_model::portrait_party_frame_component::PortraitPartyMemberView::named(
+                "Ann",
+            ),
+        );
+        let party_target = group_member_target_at(
+            &frames,
+            false,
+            Vector2::new(160.0, 20.0),
+            |name| (name == "PartyMemberFrame1").then_some([120.0, 0.0, 80.0, 40.0]),
+            |name| (name == "Ann").then_some(PARTY_MEMBER),
+        );
+        selected = Some(PLAYER);
+        assert!(apply_unit_frame_click(
+            party_target.map(|unit| (unit, false)),
+            &mut selected,
+        ));
+        assert_eq!(selected, Some(PARTY_MEMBER));
     }
 
     #[test]

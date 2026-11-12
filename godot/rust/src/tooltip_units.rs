@@ -41,14 +41,11 @@ impl GameClient {
         }
     }
 
-    /// The replicated player named `name`.
-    fn group_member_unit(&self, name: &str) -> Option<u64> {
+    /// The replicated unit named by a party or raid frame.
+    pub(crate) fn group_member_unit(&self, name: &str) -> Option<u64> {
         self.replica
             .units()
-            .find(|unit| {
-                unit.get::<Player>()
-                    .is_some_and(|player| player.name == name)
-            })
+            .find(|unit| unit.name() == Some(name))
             .map(|unit| unit.server_id)
     }
 
