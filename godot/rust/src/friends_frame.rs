@@ -135,7 +135,7 @@ impl GameClient {
 
     /// Drain queued native text edits before copying them into FriendsFrameState.
     fn read_friends_frame_inputs(&mut self) -> Result<(), FrameError> {
-        let Some(ui) = self.friends_frame.ui.as_ref() else {
+        let Some(ui) = self.friends_frame.ui.as_mut() else {
             return Ok(());
         };
         let error = ui.bind_mut().sync_input();
