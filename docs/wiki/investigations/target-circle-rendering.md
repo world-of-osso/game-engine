@@ -46,7 +46,7 @@ VERIFIED: `godot/tests/ground_targeting_live.gd` passed for Flamestrike 2120 on 
 
 VERIFIED: The same fixture passed for ordinary Consecration 26573 (`after-consecration-final.log`), sent it without opening `GroundSpellReticle`, and saved `forever-consecration-after.png`; this proves caster-centred behavior, not cursor placement.
 
-VERIFIED: The 3× nearest-neighbour comparison `data/diagnostics/ground-target-fidelity-2026-11-11/visual-review/reviewed-valid-user-fire-3x-unique.png` places the private render beside the user crop and the decoded Fire texture. The Fire decal appears as broad filled green art; the user crop shows a thin ring. The camera, spell radius and school art differ, so these images do not establish a screen-size match. The valid capture pointer is at y=480 in a 720-pixel frame, so the large projected area crosses the lower viewport edge.
+VERIFIED: The 3× nearest-neighbour comparison `data/diagnostics/ground-target-fidelity-2026-11-11/visual-review/reviewed-valid-user-fire-3x-unique.png` places the private render beside the user crop and the decoded Fire texture. The Fire decal appears as broad filled green art; the user crop shows a thin ring. The camera, spell radius and school art differ, so these images do not establish a screen-size match. VERIFIED: The valid screenshot targets y=480 in a 720-pixel frame; the broad decal crosses the lower viewport edge behind the action bar.
 
 UNVERIFIED: The visual difference is not a like-for-like comparison, so parity with the user reference is not established. Raging Consecration 50915 has catalog coverage for Holy art and its 6 yd radius, but no private live capture in this pass.
 
