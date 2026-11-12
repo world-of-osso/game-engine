@@ -163,10 +163,14 @@ func capture_valid_reticle(sent_before: int) -> bool:
 			if candidate == null or not candidate.visible:
 				continue
 			var distance := player.global_position.distance_to(candidate.global_position)
-			var height_difference: float = absf(candidate.global_position.y - player.global_position.y)
+			var terrain_height: Variant = client.terrain_height_at(
+				candidate.global_position.x, candidate.global_position.z)
+			if terrain_height == null:
+				continue
+			var terrain_offset: float = absf(candidate.global_position.y - float(terrain_height))
 			print("GROUND_VALID_PROBE point=", point, " distance=", distance,
-				" height_difference=", height_difference)
-			if distance < 3.0 or distance > 40.0 or height_difference > 1.5:
+				" terrain_offset=", terrain_offset)
+			if distance < 3.0 or distance > 40.0 or terrain_offset > 0.25:
 				continue
 			decal = candidate
 			valid_ground_point = point
@@ -221,9 +225,14 @@ func capture_out_of_range_reticle() -> bool:
 			if decal == null or not decal.visible:
 				continue
 			var distance := player.global_position.distance_to(decal.global_position)
+			var terrain_height: Variant = client.terrain_height_at(
+				decal.global_position.x, decal.global_position.z)
+			if terrain_height == null:
+				continue
+			var terrain_offset: float = absf(decal.global_position.y - float(terrain_height))
 			print("GROUND_RANGE_PROBE point=", point, " distance=", distance,
-				" max=40.0 color=", decal.modulate)
-			if distance <= 40.0:
+				" terrain_offset=", terrain_offset, " max=40.0 color=", decal.modulate)
+			if distance <= 40.0 or terrain_offset > 0.25:
 				continue
 			if decal.modulate.r <= decal.modulate.g:
 				fail("Out-of-range Flamestrike decal is not red")
