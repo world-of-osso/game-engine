@@ -157,6 +157,8 @@ func click_control(control: Control) -> void:
 		event.pressed = pressed
 		root.push_input(event, true)
 		await process_frame
+	for frame in range(3):
+		await process_frame
 
 func reject(message: String) -> bool:
 	push_error(message)
