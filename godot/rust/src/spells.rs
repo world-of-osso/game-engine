@@ -70,6 +70,7 @@ pub(crate) struct SpellsHud {
     /// Exact last text handed to DisplayServer; diagnostics, not OS delivery proof.
     pub(crate) talent_export_clipboard: Option<String>,
     book_position: Option<[f32; 2]>,
+    book_position_applied: Option<[f32; 2]>,
     book_drag: Option<WindowDrag>,
     book: SpellbookFrameState,
     /// Last page whose textures were resolved; input mutates `book` before sync.
@@ -112,6 +113,7 @@ impl Default for SpellsHud {
             book_ui: None,
             talent_export_clipboard: None,
             book_position: None,
+            book_position_applied: None,
             book_drag: None,
             book: SpellbookFrameState::default(),
             book_art_state: None,
@@ -191,6 +193,7 @@ impl SpellsHud {
         }
         self.held_cast_bindings.clear();
         self.book_position = None;
+        self.book_position_applied = None;
         self.book_drag = None;
         self.book = SpellbookFrameState::default();
         self.book_art_state = None;

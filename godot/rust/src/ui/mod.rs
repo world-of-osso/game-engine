@@ -2940,6 +2940,9 @@ impl RegistryUi {
             .registry
             .set_pos(id, x, y)
             .map_err(|error| format!("Window {root} position: {error:?}"))?;
+        crate::rebuild_guard::count_detail(crate::rebuild_guard::Rebuild::UiLayout, 1, || {
+            Some(root.to_owned())
+        });
         self.projection
             .as_mut()
             .ok_or("Window projection missing")?

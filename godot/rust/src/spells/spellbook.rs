@@ -110,6 +110,7 @@ impl GameClient {
             ui.free();
         }
         self.spells.book_position = None;
+        self.spells.book_position_applied = None;
         self.spells.book_drag = None;
         self.spells.book_art_state = None;
     }
@@ -355,12 +356,18 @@ impl GameClient {
 
     pub(super) fn place_spellbook(&mut self) -> Result<(), String> {
         let rect = placed_book_rect(self.spells.book.viewport, self.spells.book_position);
+        let position = [rect[0], rect[1]];
+        if self.spells.book_position_applied == Some(position) {
+            return Ok(());
+        }
         self.spells
             .book_ui
             .as_mut()
             .ok_or("Spellbook UI vanished")?
             .bind_mut()
-            .set_window_position("SpellBookRoot", [rect[0], rect[1]])
+            .set_window_position("SpellBookRoot", position)?;
+        self.spells.book_position_applied = Some(position);
+        Ok(())
     }
 
     pub(crate) fn reset_open_spellbook_position(&mut self) -> Result<(), String> {
