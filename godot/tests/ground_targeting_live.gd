@@ -39,9 +39,9 @@ func run_test() -> void:
 	player = client.get_node("WorldUnits/" + character) as Node3D
 	client.set_world_minutes(720.0)
 	client.set_camera_orbit(PI, -0.3, 12.0)
-	if not await wait_for_spell_setup():
-		return
 	if not await wait_until(func(): return client.spells_state().catalog_ready, 60000, "spell catalog"):
+		return
+	if not await wait_for_spell_setup():
 		return
 	if phase.ends_with("consecration"):
 		if not await consecration_targeting_proof(phase == "before-consecration"):
