@@ -2,14 +2,14 @@
 //! title, a close button that closes that bag, and one slot background per slot.
 use std::path::PathBuf;
 
-use game_engine_ui_model::bag_data::InventorySlot;
+use game_engine_ui_model::bag_data::{BagInfo, InventorySlot};
 use game_engine_ui_model::bag_frame_component::{
     BACKPACK_PORTRAIT, BagContainerState, BagFrameState, BagSlotState, bag_frame_screen,
     parse_bag_close_action,
 };
 use game_engine_ui_model::merchant::MerchantSession;
 use game_engine_ui_model::panel_style_data::{MetalGeometry, MetalTopLeft, metal_frame_style};
-use ui_toolkit::atlas::{ActiveSkin, set_thread_skin};
+use ui_toolkit::atlas::{ActiveSkin, AtlasRegion, AtlasSource, resolve_region, set_thread_skin};
 use ui_toolkit::frame::{Dimension, Frame, WidgetData};
 use ui_toolkit::layout_values::Val;
 use ui_toolkit::registry::FrameRegistry;
@@ -17,13 +17,21 @@ use ui_toolkit::screen::{Screen, SharedContext};
 use ui_toolkit::widgets::texture::{DynamicTextureId, TextureSource};
 
 const SLOTS: usize = 16;
+const HELD_BAG_RING_CENTER: [f32; 2] = [53.0, 65.0];
+const HELD_BAG_RING_ANGLE_SAMPLES: usize = 360;
+const HELD_BAG_RING_RADIUS_MIN_TENTHS: i32 = 250;
+const HELD_BAG_RING_RADIUS_MAX_TENTHS: i32 = 420;
+const RING_RADIUS_TENTHS_PER_PIXEL: f32 = 10.0;
+const GOLD_PIXEL_MIN_ALPHA: u8 = 80;
+const GOLD_RED_GREEN_RATIO: f32 = 1.25;
+const GOLD_GREEN_BLUE_RATIO: f32 = 1.15;
 
 fn backpack() -> BagFrameState {
     BagFrameState {
         bags: vec![BagContainerState {
             bag_index: 0,
             title: "Backpack".into(),
-            portrait_fdid: BACKPACK_PORTRAIT,
+            portrait_fdid: Some(BACKPACK_PORTRAIT),
             visible: true,
             slots: (0..SLOTS)
                 .map(|i| BagSlotState {
@@ -237,6 +245,130 @@ fn open_backpack_draws_a_container_window_under_both_skins() {
     let forever = assert_backpack_window(ActiveSkin::Forever);
     assert_ne!(modern, forever, "Forever draws its own slot art");
     set_thread_skin(ActiveSkin::Modern);
+}
+
+#[test]
+fn forever_held_bag_ring_matches_the_masked_portrait_circle() {
+    set_data_root();
+    set_thread_skin(ActiveSkin::Forever);
+    let registry = mount();
+    let portrait = frame(&registry, "ContainerFrame0Portrait");
+    let ring = frame(&registry, "ContainerFrame0PortraitRing");
+    let ring_rect = rect(ring);
+    let portrait_rect = rect(portrait);
+    let region = resolve_region(
+        "ui-frame-portraitmetal-cornertopleftsmall",
+        ActiveSkin::Forever,
+    )
+    .expect("Forever HeldBagLayout portrait corner");
+    let AtlasSource::FileDataId(fdid) = region.source else {
+        panic!("HeldBagLayout corner is not FileDataID-backed")
+    };
+    assert_eq!(texture_source(ring), TextureSource::FileDataId(fdid));
+    assert_eq!(
+        ring_rect,
+        [-13.0, -16.0, region.width / 2.0, region.height / 2.0]
+    );
+
+    // The authored 2x corner's ring centre is at (53, 65) in its 190px cell.
+    let ring_circle_center = [
+        ring_rect[0] + HELD_BAG_RING_CENTER[0] / 2.0,
+        ring_rect[1] + HELD_BAG_RING_CENTER[1] / 2.0,
+    ];
+    let portrait_circle_center = [
+        portrait_rect[0] + portrait_rect[2] / 2.0,
+        portrait_rect[1] + portrait_rect[3] / 2.0,
+    ];
+    let center_error = [
+        (ring_circle_center[0] - portrait_circle_center[0]).abs(),
+        (ring_circle_center[1] - portrait_circle_center[1]).abs(),
+    ];
+    assert!(center_error.into_iter().all(|error| error <= 1.0));
+    let ring_diameter = measure_held_bag_ring_diameter(fdid, region, ring_rect[2]);
+    let diameter_error = (ring_diameter - portrait_rect[2]).abs();
+    assert!(
+        diameter_error <= 1.0,
+        "ring diameter {ring_diameter:.2}, portrait diameter {:.2}",
+        portrait_rect[2]
+    );
+}
+
+fn measure_held_bag_ring_diameter(fdid: u32, region: AtlasRegion, display_width: f32) -> f32 {
+    let path =
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(format!("../../data/textures/{fdid}.blp"));
+    let bytes = std::fs::read(&path).unwrap_or_else(|error| panic!("{}: {error}", path.display()));
+    let image = game_engine_core::blp::decode_rgba(&bytes)
+        .unwrap_or_else(|error| panic!("decode {}: {error}", path.display()));
+    let source_scale = region.width / display_width;
+    let origin = [
+        (region.left * image.width as f32).round() as i32,
+        (region.top * image.height as f32).round() as i32,
+    ];
+    let centerline_radius_sum: f32 = (0..HELD_BAG_RING_ANGLE_SAMPLES)
+        .map(|angle| {
+            let angle = angle as f32 * std::f32::consts::TAU / HELD_BAG_RING_ANGLE_SAMPLES as f32;
+            let [inner, outer] =
+                held_bag_gold_radius_bounds(&image.pixels, image.width, origin, angle)
+                    .expect("gold ring pixels around every angle");
+            (inner + outer) / 2.0
+        })
+        .sum();
+    2.0 * centerline_radius_sum / (HELD_BAG_RING_ANGLE_SAMPLES as f32 * source_scale)
+}
+
+fn held_bag_gold_radius_bounds(
+    pixels: &[u8],
+    image_width: u32,
+    origin: [i32; 2],
+    angle: f32,
+) -> Option<[f32; 2]> {
+    let center = HELD_BAG_RING_CENTER;
+    let (sin, cos) = angle.sin_cos();
+    let mut inner = None;
+    let mut outer = None;
+    for step in HELD_BAG_RING_RADIUS_MIN_TENTHS..=HELD_BAG_RING_RADIUS_MAX_TENTHS {
+        let radius = step as f32 / RING_RADIUS_TENTHS_PER_PIXEL;
+        let x = origin[0] + (center[0] + radius * cos).round() as i32;
+        let y = origin[1] + (center[1] + radius * sin).round() as i32;
+        if held_bag_gold_pixel(pixels, image_width, x, y) {
+            inner.get_or_insert(radius);
+            outer = Some(radius);
+        }
+    }
+    Some([inner?, outer?])
+}
+
+fn held_bag_gold_pixel(pixels: &[u8], image_width: u32, x: i32, y: i32) -> bool {
+    let offset = ((y as u32 * image_width + x as u32) * 4) as usize;
+    let [red, green, blue, alpha]: [u8; 4] = pixels[offset..offset + 4].try_into().unwrap();
+    alpha > GOLD_PIXEL_MIN_ALPHA
+        && red as f32 > green as f32 * GOLD_RED_GREEN_RATIO
+        && green as f32 > blue as f32 * GOLD_GREEN_BLUE_RATIO
+}
+
+#[test]
+fn forever_bag_without_an_equipped_icon_keeps_the_ring_and_omits_the_portrait() {
+    set_data_root();
+    set_thread_skin(ActiveSkin::Forever);
+    let mut session = MerchantSession::default();
+    session.inventory.add_bag(BagInfo {
+        index: 1,
+        name: "Empty Bag".into(),
+        size: 8,
+        icon_fdid: 0,
+    });
+    let mut state = session.bag_state();
+    assert_eq!(state.bags[1].portrait_fdid, None);
+    state.bags[1].visible = true;
+
+    let registry = mount_state(state);
+    assert!(registry.get_by_name("ContainerFrame1Portrait").is_none());
+    assert_eq!(frame(&registry, "ContainerFrame1").hidden, false);
+    assert!(
+        registry
+            .get_by_name("ContainerFrame1PortraitRing")
+            .is_some()
+    );
 }
 
 fn set_data_root() {
