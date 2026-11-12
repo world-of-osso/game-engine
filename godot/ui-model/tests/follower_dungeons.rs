@@ -26,6 +26,8 @@ fn catalog() -> FollowerDungeons {
             id: 2436,
             name: "Ruby Life Pools".into(),
             map_id: 2521,
+            min_level: 70,
+            max_level: 80,
         }],
     }
 }
@@ -370,11 +372,15 @@ fn follower_group_finder_queues_entries_from_server_catalog_without_local_level_
                 id: 2436,
                 name: "Ruby Life Pools".into(),
                 map_id: 2521,
+                min_level: 70,
+                max_level: 80,
             },
             FollowerDungeonEntry {
                 id: 2439,
                 name: "Brackenhide Hollow".into(),
                 map_id: 2520,
+                min_level: 70,
+                max_level: 80,
             },
         ],
     });
@@ -397,6 +403,8 @@ fn follower_group_finder_queues_entries_from_server_catalog_without_local_level_
             id: 2439,
             name: "Brackenhide Hollow".into(),
             map_id: 2520,
+            min_level: 70,
+            max_level: 80,
         }],
     });
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
