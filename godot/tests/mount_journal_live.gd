@@ -39,10 +39,19 @@ func run_fixture() -> void:
 	ready.close()
 	if not await wait_until(func(): return FileAccess.file_exists(OS.get_environment("MOUNT_GO_FILE")), "online riding setup", 120000): return
 	if client.account_state().ui_skin != "Forever": fail("Wrong active skin for proof"); return
-	var selected_character_name := str(client.account_state().selected_character_name)
 	client.set_world_minutes(720.0)
 	client.set_camera_orbit(PI, -0.3, 12.0)
 	await wait_frames(90)
+	if OS.get_environment("MOUNT_ACTION_BAR_ONLY") == "1":
+		if not await wait_until(func(): return not learned().is_empty() and learned().favourite and has_random_favorite_action_slot(), "restored mount and action-bar state", 180000): return
+		await capture("random-favorite-bar-slot")
+		await click(RANDOM_FAVORITE_ACTION_BAR_BUTTON)
+		if not await wait_until(func(): return mounted(), "relogged action-bar summon", 60000): return
+		await capture("random-favorite-mounted-from-bar")
+		print("MOUNT_JOURNAL_LIVE ACTION_BAR_RELOG PASS skin=", skin, " state=", client.mount_journal_state(), " spells=", client.spells_state())
+		client.free()
+		quit(0)
+		return
 	if OS.get_environment("MOUNT_VENDOR") == "1" and not relog:
 		if not await buy_mare(): return
 	await open_mounts()
@@ -123,39 +132,19 @@ func run_fixture() -> void:
 	if not await wait_until(func(): return has_random_favorite_action_slot(), "random favorite action-bar assignment"): return
 	await tap(KEY_ESCAPE)
 	if not await wait_until(func(): return control("MountJournalSearchBox") == null, "close journal before action-bar activation"): return
-	if not await logout_and_relogin_same_character(selected_character_name): return
-	await capture("random-favorite-bar-slot")
-	await click(RANDOM_FAVORITE_ACTION_BAR_BUTTON)
-	if not await wait_until(func(): return mounted(), "action-bar random favorite summon", 60000): return
-	await capture("random-favorite-mounted-from-bar")
-	print("MOUNT_JOURNAL_LIVE PASS skin=", skin, " relog=", relog, " state=", client.mount_journal_state())
+	await capture("random-favorite-bar-slot-before-relog")
+	if not await logout_to_character_select(): return
+	print("MOUNT_JOURNAL_LIVE ACTION_BAR_PREPARE PASS skin=", skin, " state=", client.mount_journal_state(), " spells=", client.spells_state())
 	client.free()
 	quit(0)
 
-func logout_and_relogin_same_character(character_name: String) -> bool:
+func logout_to_character_select() -> bool:
 	await tap(KEY_ESCAPE)
 	if not await wait_until(func(): return control("MenuBtnLogout") != null, "game menu logout button"): return false
 	await click("MenuBtnLogout")
 	var character_index := OS.get_environment("MOUNT_CHARACTER_INDEX")
 	var character_card := "CharCard_" + character_index
-	if not await wait_until(func(): return client.account_state().screen == "CharacterSelect" and int(client.account_state().character_count) > int(character_index) and control(character_card) != null and control("EnterWorld") != null, "logout to character roster", 120000): return false
-	client.free()
-	client = null
-	await process_frame
-	client = load("res://scenes/client.tscn").instantiate()
-	root.add_child(client)
-	if not await wait_until(func(): return not client.account_state().assets_starting, "relogin asset startup", 180000): return false
-	var error: String = client.connect_account("127.0.0.1:5901", OS.get_environment("MOUNT_ACCOUNT"), "fbtest", false)
-	if error != "": fail("Relogin: " + error); return false
-	if not await wait_until(func(): return client.account_state().screen == "CharacterSelect" and int(client.account_state().character_count) > int(character_index) and control(character_card) != null and control("EnterWorld") != null, "relogin character roster", 120000): return false
-	await click(character_card)
-	await click("EnterWorld")
-	if not await wait_until(func(): return client.account_state().screen == "InWorld" and str(client.account_state().selected_character_name) == character_name and has_random_favorite_action_slot(), "same-character action-bar restoration", 180000): return false
-	if client.account_state().ui_skin != "Forever": fail("Relogin changed UI skin"); return false
-	client.set_world_minutes(720.0)
-	client.set_camera_orbit(PI, -0.3, 12.0)
-	await wait_frames(90)
-	return true
+	return await wait_until(func(): return client.account_state().screen == "CharacterSelect" and int(client.account_state().character_count) > int(character_index) and control(character_card) != null and control("EnterWorld") != null, "logout to character roster", 120000)
 
 func has_random_favorite_action_slot() -> bool:
 	var bar: Array = client.spells_state().bar
