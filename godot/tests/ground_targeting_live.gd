@@ -215,7 +215,7 @@ func save_texture_reference(decal: Decal) -> bool:
 	return true
 
 func capture_out_of_range_reticle() -> bool:
-	client.set_camera_orbit(PI, -0.3, 120.0)
+	client.set_camera_orbit(PI, -0.3, 60.0)
 	await wait_frames(12)
 	var best_point := Vector2.ZERO
 	var best_distance: float = INF
