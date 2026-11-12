@@ -171,9 +171,12 @@ pub fn with_catalog_item_data(
     catalog: Option<&crate::item_catalog::ItemCatalog>,
 ) -> InventorySlot {
     let entry = catalog.and_then(|catalog| catalog.get(slot.item_id));
+    let icon_fdid = catalog
+        .and_then(|catalog| catalog.icon_fdid(slot.item_id))
+        .or_else(|| crate::item_icons::item_icon_fdid_for(slot.definition_source, slot.item_id))
+        .unwrap_or(UNKNOWN_ICON_FDID);
     InventorySlot {
-        icon_fdid: crate::item_icons::item_icon_fdid_for(slot.definition_source, slot.item_id)
-            .unwrap_or(UNKNOWN_ICON_FDID),
+        icon_fdid,
         quality: entry.map_or(ItemQuality::Common, |entry| {
             ItemQuality::from_id(entry.quality)
         }),
