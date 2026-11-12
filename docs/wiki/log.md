@@ -42,6 +42,9 @@ VERIFIED: The random-mount icon used the SpellMisc row ID instead of its `SpellI
 VERIFIED: `TerrainObjects::update_particles` reuses doodad frustum admission when the exact plane list is unchanged; the bit-field fixture matches fresh AABB culling for 25 bounds across changed and unchanged views. Particle simulation and deferral still run each frame. See [[follower-combat-fps#emitter-frustum-admission-cache-2026-11-11]].
 
 UNVERIFIED: No paired A/B was run because the 1-minute `uptime` average was 14.56 at 13:21:18; no performance effect is claimed.
+## Starting-kit item source selection — 2026-11-11
+
+VERIFIED: `items: starting` now mirrors `NewCharacterKit` Purpose-9 source-build, RaceMask and TDB-override rules. The targeted player-source tests pass 5/5: a Troll Shaman's item 157655 reaches Retail FDID 464822, race 95 reaches Forever70205 FDID 464823, and wrong-source/build or wrong-mask rows stay out; the root-product tests pass 6/6, including unresolved bare item IDs. Code: `scripts/closure_seeds.py`, `scripts/closure_player_roots.py`; proof: `scripts/tests/test_closure_player_sources.py` and `scripts/tests/test_closure_root_products.py`.
 
 ## GameObject M2 receipt gate closed — 2026-11-11
 

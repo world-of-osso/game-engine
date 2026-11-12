@@ -1,17 +1,48 @@
-"""Player body/customization ownership mirrors the explicit native Skyborne overlay.
+"""Player body/customization and starting-item selectors mirror native source rules.
 
-Sources: core/player_model_data.rs and customization_catalog::overlay_forever.
-Only races95/96 use Forever; this policy never selects owned-item definitions.
+Body sources: core/player_model_data.rs and customization_catalog::overlay_forever.
+Starting-item sources: server-combat::NewCharacterKit::new_item.
 """
 
 from closure_root_products import SOURCES, source_catalog
 from closure_seeds import number, seed_customizations
 
-SKYBORNE_RACES = {95, 96}
+SKYBORNE_RACE_MASK_BITS = {95: 32, 96: 33}
+SKYBORNE_RACES = set(SKYBORNE_RACE_MASK_BITS)
 
 
 def player_product(race):
     return "wow_classic_beta" if race in SKYBORNE_RACES else "wow"
+
+
+def player_item_definition_source(race):
+    return "Forever70205" if race in SKYBORNE_RACES else "Retail"
+
+
+def player_race_mask_bit(graph, catalogs, race):
+    if race in SKYBORNE_RACE_MASK_BITS:
+        return SKYBORNE_RACE_MASK_BITS[race]
+    row = catalogs.index("ChrRaces").get(race)
+    if row is None:
+        graph.issue(
+            "missing_metadata_row", f"ChrRaces ID={race} for starting-item race mask"
+        )
+        return None
+    try:
+        bit = int(row["PlayableRaceBit"])
+    except (KeyError, TypeError, ValueError):
+        graph.issue(
+            "missing_metadata_row",
+            f"ChrRaces ID={race} PlayableRaceBit for starting-item race mask",
+        )
+        return None
+    if not 0 <= bit < 64:
+        graph.issue(
+            "invalid_race_mask_bit",
+            f"ChrRaces ID={race} PlayableRaceBit={bit} is outside RaceMasks",
+        )
+        return None
+    return bit
 
 
 def player_requests(graph, selector):
