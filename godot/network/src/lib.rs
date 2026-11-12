@@ -290,6 +290,8 @@ impl NetworkBridge {
             .receive::<protocol::WildPetBattleUpdate>()
             .receive::<protocol::PetBattleQueueUpdate>()
             .receive::<protocol::PvpStateUpdate>()
+            .receive::<protocol::FriendsStateUpdate>()
+            .receive::<protocol::WhoStateUpdate>()
             .receive::<protocol::CurrencyStateUpdate>()
             .receive::<protocol::TrainerList>()
             .receive::<protocol::TrainerBuyFailed>()
@@ -1144,6 +1146,8 @@ mod currency_wire_tests;
 mod dungeonclient_wire_tests;
 #[cfg(test)]
 mod follower_wire_tests;
+#[cfg(test)]
+mod friends_who_wire_tests;
 #[cfg(test)]
 mod guild_rank_wire_tests;
 #[cfg(test)]
