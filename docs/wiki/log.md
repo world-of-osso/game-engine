@@ -1,3 +1,7 @@
+## Follower-dungeon level authority — 2026-11-12
+
+VERIFIED: deployment seed tests3/3; server signed-bound test1/1, queue refusal/source tests2/2 and spawn-failure log test1/1; engine UI-model11/11 and account/chat4/4. These assert local-seed requirements, existing/absent runtime-file behavior, signed LFG bounds with squish fallback, pre-transfer level refusal, server-catalog selection and localized Group Finder/system-chat errors. INFERRED: `TargetLevelMin/TargetLevelMax` identify the intended queue bounds; the server contract records this boundary. UNVERIFIED: private UDP 5996 level-10 Ruby admission with four followers retained for 60 seconds. See [[follower-dungeons#server-authoritative-level-eligibility--2026-11-12]].
+
 ## Ruby emitter frustum cache — 2026-11-11
 
 VERIFIED: `TerrainObjects::update_particles` reuses doodad frustum admission when the exact plane list is unchanged; the bit-field fixture matches fresh AABB culling for 25 bounds across changed and unchanged views. Particle simulation and deferral still run each frame. See [[follower-combat-fps#emitter-frustum-admission-cache-2026-11-11]].

@@ -30,7 +30,7 @@ Server gameplay contract: [follower dungeons](../../../game-server/docs/specs/fo
 - `ui-model/tests/follower_dungeons.rs` — real Modern/Forever registries, server-catalog row visibility and queue action without local level filtering, localized gear-source and level-refusal descriptions, selected-role queue actions and pending/refusal/match state.
 - `godot/rust/src/chat_tests.rs::follower_refusals_are_localized_in_system_chat` — level and gear-source refusal keys become localized system lines.
 - `network/src/wire_tests.rs::follower_group_finder_default_bridge_receives_catalog_over_udp` — default bridge, real loopback UDP catalog delivery.
-- `account_dungeonclient_tests.rs::follower_group_finder_account_dispatches_catalog_and_authoritative_state` — decoded catalog and LFG state reach the native host while IPC retains authoritative state.
+- `godot/rust/src/account_dungeonclient_tests.rs::follower_group_finder_account_dispatches_catalog_and_authoritative_state` — decoded catalog and refusal reach the native host while IPC retains authoritative state.
 - Private UDP5761 Group Finder admission now has both-skin proof: actual native microbutton/type/role/dungeon/Find Group clicks, authoritative five-member party and four companions following14m movement. [Exact proof and limits](../wiki/systems/follower-dungeons.md#both-skin-native-admission--2026-10-13). This does not prove combat, the walked route or dungeon completion.
 
 - `account_dungeonclient_tests.rs::follower_queue_native_account_retains_server_rejection_and_match_state` — actual decoded account traffic.
