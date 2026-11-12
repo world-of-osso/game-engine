@@ -147,6 +147,10 @@ fn lines(model: &ChatModel, tab: ChatTab) -> Vec<(String, [f32; 4])> {
 
 #[test]
 fn follower_refusals_are_localized_in_system_chat() {
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
     let mut model = ChatModel::default();
     model.receive_group_notice("LFG_LOCKSTATUS_TOO_LOW_LEVEL");
     model.receive_group_notice("FOLLOWER_GEAR_SOURCE_UNAVAILABLE");
