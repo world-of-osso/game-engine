@@ -13,6 +13,9 @@ GATE BLOCKED: The full native build records a transitive `libquickjs-sys` C warn
 
 UNVERIFIED: No live book screenshots; NPC/source not verified. The user directed that private-server provisioning stop, so no private server or client was started. See [[profession-micro-button-unavailable]].
 VERIFIED, CODE: The guild-only model previously rendered a row with an empty name when its profile was absent. It now routes `NotInGuild` to a finder presentation and omits the missing-profile row; the Forever-only integration filter passes 2/2 tests. VERIFIED, BUILD: debug and release extension builds exit0 with zero warnings, and `cargo fmt --all --check` passes. VERIFIED, CAPTURE: the native client renders the Forever offline `NotInGuild` fixture at `/syncthing/AgentShared/2026-11-11/guild-no-guild-state/forever-after.png`; it shows Guild Finder, Find a Community and Join or create a Community, with no guild row or roster. The supplied before image is `/syncthing/AgentShared/2026-11-11/guild-no-guild-state/forever-before.png`. This capture does not prove authenticated server state.
+## Bag hover Xvfb harness — 2026-11-11
+
+VERIFIED: The old X11 fixture warp left the target slot unhovered; relative `root.push_input` without `Input.warp_mouse` makes the full Forever bag fixture pass at 1920×1080 and 2560×1440. The direct pinned-Godot/Xvfb run exits0; its deliberate child kill is not normal-shutdown proof. INFERRED: the original tooltip failure was an Xvfb input-harness issue, not a client regression. See [[godot-conversion#xvfb-bag-hover-harness-follow-up-2026-11-11]] and persistent triage note `/home/osso/Projects/world-of-osso/game-engine/data/diagnostics/backpack-icon-gap-2026-11-11/xvfb-hover-triage-2026-11-11.txt`.
 
 ## Ruby emitter frustum cache — 2026-11-11
 

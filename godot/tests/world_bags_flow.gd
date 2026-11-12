@@ -293,12 +293,14 @@ func hover_bag_slot(client: Node, slot: int) -> bool:
 	return true
 
 func move_tooltip_pointer(point: Vector2) -> void:
-	Input.warp_mouse(point)
+	var previous := root.get_mouse_position()
 	var motion := InputEventMouseMotion.new()
 	motion.position = point
 	motion.global_position = point
+	motion.relative = point - previous
 	root.push_input(motion, true)
-	await process_frame
+	for frame in range(3):
+		await process_frame
 
 func wait_item_tooltip(client: Node, title_text: String, title_color: Color, copper: String, item_id_line: String) -> bool:
 	var deadline := Time.get_ticks_msec() + BAG_WAIT_MS
@@ -330,7 +332,7 @@ func wait_item_tooltip(client: Node, title_text: String, title_color: Color, cop
 			return false
 		print("BAGS TOOLTIP observed title=", title_text, " color=", title.get_theme_color("font_color"), " copper=", copper, " id=", item_id_line)
 		return true
-	fail("RED: physical authored bag hover did not project original TooltipFrame/TooltipTitle for " + title_text)
+	fail("RED: authored bag-slot hover did not project original TooltipFrame/TooltipTitle for %s: mouse=%s hovered=%s tooltip=%s" % [title_text, root.get_mouse_position(), root.gui_get_hovered_control(), client.tooltip_state()])
 	return false
 
 func check_item_tooltip_rect(client: Node, panel: Control, owner_slot: int) -> bool:
