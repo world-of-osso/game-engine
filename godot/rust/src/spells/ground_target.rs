@@ -11,7 +11,7 @@ use godot::{
 use super::SpellsHud;
 use crate::{GameClient, frame_error::FrameError};
 
-const RETICLE_DEPTH: f32 = 1.0;
+const RETICLE_DEPTH: f32 = 16.0;
 const RETICLE_EMISSION_ENERGY: f32 = 1.5;
 const RETICLE_LIFT: f32 = 0.06;
 
