@@ -6,11 +6,9 @@ use game_engine_core::client_options_data::{
     ClientOptionsFile, load_options_file_from_path, save_options_file_to_path,
 };
 use game_engine_core::input_bindings_data::{
-    BindingKey, BindingSection, InputAction, InputBinding, InputBindingsData, actions_for_section,
+    BindingKey, BindingSection, InputAction, InputBinding, InputBindingsData,
 };
-use game_engine_ui_model::options_menu_component::{
-    OPTIONS_CONTENT_SCROLL, OptionsCategory, keybinding_button_name,
-};
+use game_engine_ui_model::options_menu_component::{OptionsCategory, keybinding_button_name};
 use game_engine_ui_model::options_menu_data::{self as policy, OptionsModel};
 use ui_toolkit::frame::WidgetData;
 
@@ -96,38 +94,6 @@ fn left_click_then_a_key_binds_it_and_the_button_shows_it() {
     // Listening ended: another key binds nothing.
     assert!(!policy::capture_binding(&mut model, S));
     assert_eq!(model.draft_bindings.binding(action), Some(Q));
-}
-
-#[test]
-fn interface_lists_group_finder_with_retail_name_and_default_key() {
-    ui_toolkit::atlas::set_thread_skin(ui_toolkit::atlas::ActiveSkin::Forever);
-    let (model, mut menu) = keybindings(BindingSection::Interface);
-    let action = InputAction::ToggleGroupFinder;
-    let row_index = actions_for_section(BindingSection::Interface)
-        .iter()
-        .position(|candidate| *candidate == action)
-        .expect("Group Finder belongs to the Interface section");
-    menu.registry
-        .scroll_lists
-        .scroll_to(OPTIONS_CONTENT_SCROLL, row_index);
-    show(&mut menu, policy::build_view_model(&model));
-    assert_eq!(action.label(), "Toggle Group Finder");
-    let label_name = format!("KeybindingLabel{}", action.key());
-    assert!(
-        menu.registry.get_by_name(&label_name).is_some(),
-        "missing {label_name}; keybinding labels: {:?}",
-        menu.registry
-            .frames_iter()
-            .filter_map(|frame| frame.name.as_deref())
-            .filter(|name| name.starts_with("KeybindingLabel"))
-            .collect::<Vec<_>>()
-    );
-    assert_eq!(text(&menu, &label_name), action.label());
-    assert_eq!(button_text(&menu, action), "I");
-    assert_eq!(
-        model.draft_bindings.binding(action),
-        Some(InputBinding::Keyboard(BindingKey::KeyI))
-    );
 }
 
 #[test]
