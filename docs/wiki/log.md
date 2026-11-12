@@ -1,3 +1,7 @@
+## Bag hover Xvfb harness — 2026-11-11
+
+VERIFIED: The old X11 fixture warp left the target slot unhovered; relative `root.push_input` without `Input.warp_mouse` makes the full Forever bag fixture pass at 1920×1080 and 2560×1440. The direct pinned-Godot/Xvfb run exits0; its deliberate child kill is not normal-shutdown proof. INFERRED: the original tooltip failure was an Xvfb input-harness issue, not a client regression. See [[godot-conversion#xvfb-bag-hover-harness-follow-up-2026-11-11]] and persistent triage note `/home/osso/Projects/world-of-osso/game-engine/data/diagnostics/backpack-icon-gap-2026-11-11/xvfb-hover-triage-2026-11-11.txt`.
+
 ## Ruby emitter frustum cache — 2026-11-11
 
 VERIFIED: `TerrainObjects::update_particles` reuses doodad frustum admission when the exact plane list is unchanged; the bit-field fixture matches fresh AABB culling for 25 bounds across changed and unchanged views. Particle simulation and deferral still run each frame. See [[follower-combat-fps#emitter-frustum-admission-cache-2026-11-11]].
