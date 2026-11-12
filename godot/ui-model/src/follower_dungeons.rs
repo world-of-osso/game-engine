@@ -107,10 +107,10 @@ fn parse_content_tuning_ranges(
     let mut ranges = HashMap::new();
     for row in table.records() {
         let id = parse_db2_u32(&row, id_column, table, "ID")?;
-        let lfg_min = parse_db2_u32(&row, lfg_min_column, table, "LfgMinLevel")?;
-        let lfg_max = parse_db2_u32(&row, lfg_max_column, table, "LfgMaxLevel")?;
-        let squish_min = parse_db2_u32(&row, squish_min_column, table, "MinLevelSquish")?;
-        let squish_max = parse_db2_u32(&row, squish_max_column, table, "MaxLevelSquish")?;
+        let lfg_min = parse_db2_i32(&row, lfg_min_column, table, "LfgMinLevel")?;
+        let lfg_max = parse_db2_i32(&row, lfg_max_column, table, "LfgMaxLevel")?;
+        let squish_min = parse_db2_i32(&row, squish_min_column, table, "MinLevelSquish")?;
+        let squish_max = parse_db2_i32(&row, squish_max_column, table, "MaxLevelSquish")?;
         if let Some(range) = select_level_range(lfg_min, lfg_max, squish_min, squish_max) {
             ranges.insert(id, range);
         }
@@ -127,8 +127,8 @@ fn parse_lfg_level_ranges(
     let mut ranges = HashMap::new();
     for row in table.records() {
         let id = parse_db2_u32(&row, id_column, table, "ID")?;
-        let tuning = parse_db2_u32(&row, tuning_column, table, "ContentTuningID")?;
-        if let Some(range) = ranges_by_tuning.get(&tuning) {
+        let content_tuning_id = parse_db2_u32(&row, tuning_column, table, "ContentTuningID")?;
+        if let Some(range) = ranges_by_tuning.get(&content_tuning_id) {
             ranges.insert(id, *range);
         }
     }
@@ -147,18 +147,36 @@ fn parse_db2_u32(
         .map_err(|error| format!("{} has invalid {name}: {error}", table.path().display()))
 }
 
+fn parse_db2_i32(
+    row: &[std::borrow::Cow<'_, str>],
+    column: usize,
+    table: &CsvTable,
+    name: &str,
+) -> Result<i32, String> {
+    row.get(column)
+        .ok_or_else(|| format!("{} row is missing {name}", table.path().display()))?
+        .parse::<i32>()
+        .map_err(|error| format!("{} has invalid {name}: {error}", table.path().display()))
+}
+
 fn select_level_range(
-    lfg_min: u32,
-    lfg_max: u32,
-    squish_min: u32,
-    squish_max: u32,
+    lfg_min: i32,
+    lfg_max: i32,
+    squish_min: i32,
+    squish_max: i32,
 ) -> Option<DungeonLevelRange> {
     let (min, max) = if lfg_min > 0 && lfg_max >= lfg_min {
         (lfg_min, lfg_max)
     } else {
         (squish_min, squish_max)
     };
-    (min > 0 && max >= min).then_some(DungeonLevelRange { min, max })
+    if min <= 0 || max < min {
+        return None;
+    }
+    Some(DungeonLevelRange {
+        min: u32::try_from(min).ok()?,
+        max: u32::try_from(max).ok()?,
+    })
 }
 
 pub fn localize_error(error: &str) -> String {
