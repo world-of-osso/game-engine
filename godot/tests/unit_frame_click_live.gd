@@ -10,6 +10,7 @@ const TARGET_WAIT_MS := 5000
 var client: Node
 var character := ""
 var screenshot_path := ""
+var pointer_notified := false
 
 func _initialize() -> void:
 	Engine.max_fps = 60
@@ -107,7 +108,10 @@ func click_player_frame() -> bool:
 		if state.target != null and state.target_name == character and state.circle_on == state.target:
 			if target_frame == null or not target_frame.is_visible_in_tree() or target_name == null or target_name.text != character:
 				return reject("TargetFrame did not show the selected player")
-			if not await capture_player_target():
+			if not await capture_target_screenshot(
+				screenshot_path,
+				"UNITFRAME_CLICK_PASS Forever PlayerFrame -> TargetFrame and selection circle"
+			):
 				return false
 			print("UNITFRAME_WAITING_FOR_PARTY_FRAME")
 			return await click_party_frame()
@@ -128,7 +132,12 @@ func click_party_frame() -> bool:
 		var target_name := ui.find_child("TargetName", true, false) as Label if ui != null else null
 		if target_name == null or target_name.text != party.name:
 			return reject("TargetFrame did not show party member " + party.name)
-		print("UNITFRAME_PARTY_CLICK_PASS member=" + party.name + " id=" + str(state.target))
+		var party_screenshot := screenshot_path.get_base_dir().path_join("party-frame-target.png")
+		if not await capture_target_screenshot(
+			party_screenshot,
+			"UNITFRAME_PARTY_CLICK_PASS member=" + party.name + " id=" + str(state.target)
+		):
+			return false
 		return true
 	return reject("No non-local party frame appeared before timeout")
 
@@ -151,32 +160,37 @@ func first_non_local_party_frame() -> Dictionary:
 			return {"frame": frame, "name": label.text}
 	return {}
 
-func capture_player_target() -> bool:
+func capture_target_screenshot(path: String, message: String) -> bool:
 	await RenderingServer.frame_post_draw
 	var image := root.get_texture().get_image()
-	DirAccess.make_dir_recursive_absolute(screenshot_path.get_base_dir())
-	var error := image.save_png(screenshot_path)
+	DirAccess.make_dir_recursive_absolute(path.get_base_dir())
+	var error := image.save_png(path)
 	if error != OK:
-		return reject("Could not save screenshot: " + screenshot_path)
-	print("UNITFRAME_CLICK_PASS Forever PlayerFrame -> TargetFrame and selection circle; screenshot=" + screenshot_path)
+		return reject("Could not save screenshot: " + path)
+	print(message + "; screenshot=" + path)
 	return true
 
 func click_control(control: Control) -> void:
+	if not pointer_notified:
+		root.notify_mouse_entered()
+		pointer_notified = true
 	var point := control.get_global_rect().get_center()
 	var motion := InputEventMouseMotion.new()
 	motion.position = point
 	motion.global_position = point
 	root.push_input(motion, true)
-	await process_frame
+	for _frame in range(6):
+		await process_frame
 	for pressed in [true, false]:
 		var event := InputEventMouseButton.new()
 		event.position = point
 		event.global_position = point
 		event.button_index = MOUSE_BUTTON_LEFT
+		event.button_mask = (1 << (MOUSE_BUTTON_LEFT - 1)) if pressed else 0
 		event.pressed = pressed
 		root.push_input(event, true)
 		await process_frame
-	for frame in range(3):
+	for _frame in range(6):
 		await process_frame
 
 func reject(message: String) -> bool:
