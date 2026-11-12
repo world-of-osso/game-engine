@@ -11,6 +11,7 @@ Forever-only reference chrome in `godot/ui-model/src/ui/screens/{chat_frame,dama
 - [x] Modern serialized chat/meter trees remain byte-identical to the pre-change baseline, for all chat tabs and an open meter session menu.
 - [x] Forever header buttons retain 22-square hit boxes and 13.2-square glyphs. Chat centres on its header band; meter glyph centres match its title box (y=7, height=15, centre=14.5), within 0.5 px, and clear the separator.
 - [x] Header glyph crops exclude atlas-cell padding and button or dropdown frames.
+- [ ] In Forever, the Social glyph uses Retail's `QuickJoinToastButton` art in the authored header slot and dispatches `ToggleSocial` to the Friends frame.
 
 ## Number and colour provenance
 
@@ -82,7 +83,7 @@ Inspected comparison crops and exact logs: `data/diagnostics/metergaps-2026-10-0
 
 ## Known gaps (current cycle)
 
-- [ ] Chat header channel/menu/social/volume icons are presentation only where the client has no corresponding action; existing copy action remains available on the menu icon, scrolling control preserved.
+- [ ] Channel/menu/volume header glyphs remain presentation-only where no matching action exists; Copy Chat remains available on the menu icon, and the scroll control stays active.
 - [ ] Full live HUD parity remains outside this task. Offline meter pixel capture uses the existing `godot/tests/capture_ui_screen.gd` fixture with `GODOT_CAPTURE_SCREEN=forever_damage_meter_preview`; no recorded fixture is edited by hand.
 
 ## Out of scope
