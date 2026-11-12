@@ -178,18 +178,24 @@ fn frame_context_menu(view: &FriendsFrameView) -> Element {
 }
 
 fn frame_feedback(view: &FriendsFrameView) -> Element {
+    // Retail's WhoFrameTotals uses the strip between results and the search box.
+    let bounds = if view.tab == FriendsTab::Who {
+        (18.0, FRAME_H - 64.0, FRAME_W - 31.0, 12.0)
+    } else {
+        (72.0, 62.0, FRAME_W - 84.0, 12.0)
+    };
     if let Some(error) = &view.error {
         label(
             "FriendsFrameErrorText".into(),
             error,
-            (72.0, 62.0, FRAME_W - 84.0, 12.0),
+            bounds,
             (10.0, "1,0.2,0.2,1", "CENTER"),
         )
     } else if let Some(feedback) = &view.feedback {
         label(
             "FriendsFrameFeedbackText".into(),
             feedback,
-            (72.0, 62.0, FRAME_W - 84.0, 12.0),
+            bounds,
             (10.0, NORMAL_FONT_COLOR, "CENTER"),
         )
     } else {

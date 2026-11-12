@@ -38,6 +38,7 @@ mod forever_pet_bar;
 mod forever_quest_windows;
 mod forever_small_windows;
 mod forever_unit_reference;
+mod friends_frame_component;
 mod game_menu;
 mod golden_layer_census;
 mod group_countdown;

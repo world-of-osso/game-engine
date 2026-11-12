@@ -16,6 +16,7 @@ The native `FriendsFrame` is the Retail-style social window. It is rendered by t
 
 ### Who and Raid
 - [ ] Who submits the entered query and projects the server's returned character rows; Add Friend and Group Invite use the existing server requests.
+- [ ] Who result feedback uses the totals strip below results and above the search box; it does not cover the column headers.
 - [ ] Raid reflects the current group/raid state; Convert to Raid and Raid Info use existing server actions.
 
 ## How it works
@@ -29,6 +30,7 @@ The native `FriendsFrame` is the Retail-style social window. It is rendered by t
 - `godot/ui-model/src/friends_frame.rs` — tab/open state and friend, Who and raid row projections.
 - `godot/ui-model/src/ui/screens/friends_frame_component.rs` — Retail frame, tabs, rows, controls and context menu.
 - `godot/ui-model/src/selection_list.rs` — reusable Retail Friends/Who row art.
+- `godot/network/src/lib.rs` — default native bridge subscriptions for Friends and Who replies.
 - `godot/rust/src/friends_frame.rs` — keybind, chat-button, panel and request handlers.
 - `godot/rust/src/account.rs` — Friends/Who protocol state and request methods.
 - `godot/rust/src/chat.rs` — chat-frame social button dispatch.
@@ -38,6 +40,8 @@ The native `FriendsFrame` is the Retail-style social window. It is rendered by t
 ## Tests asserting this spec
 
 - `godot/ui-model/src/friends_frame.rs` — open/close state and concrete Friends, Who and Raid projections.
+- `godot/network/src/friends_who_wire_tests.rs` — default bridge receives Friends and Who snapshots over real UDP.
+- `godot/ui-model/tests/friends_frame_component.rs` — Who feedback avoids the list, column headers and search box in both skins.
 - Private-server native proof — O toggle, chat social button, friend add, online/offline rows and whisper prefill.
 
 ## Known gaps (current cycle)
