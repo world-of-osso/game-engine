@@ -1,5 +1,5 @@
 //! Explicitly resolved geometry resources. No filename/FDID guessing lives here.
-use crate::assets::material::{SCENERY_FADE_SHADER_META, shared_shader};
+use crate::assets::material::{SCENERY_FADE_ALPHA, SCENERY_FADE_SHADER_META, shared_shader};
 use crate::particles::ModelParticles;
 use game_engine_core::{
     m2::ParticleEmitter,
@@ -65,13 +65,11 @@ fn geometry_material(authored: &Gd<ShaderMaterial>) -> Result<Gd<ShaderMaterial>
                 "vec4(mesh_color, transparency)",
                 "vec4(mesh_color, transparency) * particle_rgba",
             )
-            .replace(
-                "ALPHA = scenery_opacity;",
-                "ALPHA = particle_rgba.a * scenery_opacity;",
-            )
+            .replace(SCENERY_FADE_ALPHA, "ALPHA *= particle_rgba.a;")
     } else {
         return Err("particle geometry material is not an M2 model shader".into());
     };
+    crate::rebuild_guard::count(crate::rebuild_guard::Rebuild::ShaderMaterial, 1);
     let mut material = authored.duplicate_resource();
     material.set_shader(&shared_shader(&source));
     Ok(material)

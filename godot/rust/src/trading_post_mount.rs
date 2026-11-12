@@ -1,4 +1,5 @@
 //! Detached Trading Post mount actors; user yaw never overwrites authored actor scale.
+use crate::assets::attachments::visual_attachment_point;
 use crate::character_frame::preview::pet_actor_bounds;
 use game_engine_core::model_scene_actor::ModelSceneActor;
 use godot::{
@@ -10,7 +11,8 @@ use godot::{
 pub(super) const RIDER_ANIMATION: u16 = 91;
 // PerksProgramModel.lua MOUNT_SELF_IDLE_ANIM.
 pub(super) const SELF_MOUNT_ANIMATION: u16 = 618;
-const SADDLE: &str = "NpcModel/Skeleton3D/AttachmentBone0/Attachment0";
+/// The mount model's saddle: attachment 0 (MountMain).
+const SADDLE: u32 = 0;
 
 fn stage_actor(
     name: &str,
@@ -55,8 +57,7 @@ pub(super) fn attach_rider(
     rider: Gd<Node3D>,
     authored: &ModelSceneActor,
 ) -> Result<Gd<Node3D>, String> {
-    let mut saddle = mount
-        .try_get_node_as::<Node3D>(SADDLE)
+    let mut saddle = visual_attachment_point(mount, SADDLE)
         .ok_or("Trading Post mount has no attachment0 saddle")?;
     let actor = stage_actor("PlayerRiderActor", rider, authored)?;
     saddle.add_child(&actor);

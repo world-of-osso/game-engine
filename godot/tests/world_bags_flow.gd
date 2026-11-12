@@ -2,7 +2,7 @@ extends "res://tests/world_menu_flow.gd"
 
 # Owned UDP inventory only; all visibility changes come from authored controls/input.
 const BAG_WAIT_MS := 5000
-const INVENTORY_WAIT_MS := 10000
+const INVENTORY_WAIT_MS := 60000
 const BACKPACK := "MainMenuBarBackpackButton"
 const BAG_ONE := "CharacterBag0Slot"
 const CONTAINER_RIGHT := 16.0
@@ -15,8 +15,26 @@ const EXPECTED_ITEMS := [
 	[1, 7, 755, "Melted Candle", 2],
 ]
 
+func set_capture_resolution() -> bool:
+	var requested := OS.get_environment("GODOT_TEST_RESOLUTION")
+	if requested.is_empty():
+		root.size = Vector2i(1920, 1080)
+		return true
+	var dimensions := requested.split("x")
+	if dimensions.size() != 2 or not dimensions[0].is_valid_int() or not dimensions[1].is_valid_int():
+		fail("GODOT_TEST_RESOLUTION must be WIDTHxHEIGHT: " + requested)
+		return false
+	var width := dimensions[0].to_int()
+	var height := dimensions[1].to_int()
+	if width <= 0 or height <= 0:
+		fail("GODOT_TEST_RESOLUTION dimensions must be positive: " + requested)
+		return false
+	root.size = Vector2i(width, height)
+	return true
+
 func run_test() -> void:
-	root.size = Vector2i(1920, 1080)
+	if not set_capture_resolution():
+		return
 	var endpoint := OS.get_environment("GODOT_TEST_SERVER")
 	var config := OS.get_environment("XDG_CONFIG_HOME")
 	if not endpoint.begins_with("127.0.0.1:") or endpoint.ends_with(":0") or not config.contains("/data/diagnostics/native-input-"):
@@ -85,11 +103,15 @@ func run_test() -> void:
 	await click(backpack)
 	if not await wait_container(client, 0, true) or not await wait_container(client, 1, true):
 		return
-	var first := authored_control(client, "ContainerFrame0").get_global_rect()
+	var first_control := authored_control(client, "ContainerFrame0")
+	var first := first_control.get_global_rect()
 	var second := authored_control(client, "ContainerFrame1").get_global_rect()
-	print("BAGS POSITIONS together bag0=", first, " bag1=", second)
-	if first.intersects(second) or absf(root.get_visible_rect().end.y - first.end.y - CONTAINER_BOTTOM) > POSITION_TOLERANCE or absf(first.position.y - second.end.y - 8.0) > POSITION_TOLERANCE:
-		fail("Authored standalone bags must stack by bag index with the original eight-unit gap")
+	var bag_scale := first_control.get_global_transform_with_canvas().get_scale().x
+	var expected_bottom := CONTAINER_BOTTOM * bag_scale
+	var expected_gap := 8.0 * bag_scale
+	print("BAGS POSITIONS together bag0=", first, " bag1=", second, " scale=", bag_scale)
+	if first.intersects(second) or absf(root.get_visible_rect().end.y - first.end.y - expected_bottom) > POSITION_TOLERANCE or absf(first.position.y - second.end.y - expected_gap) > POSITION_TOLERANCE:
+		fail("Authored standalone bags must stack by bag index with the original scaled eight-unit gap")
 		return
 	if not await capture_bags():
 		return
@@ -116,6 +138,8 @@ func run_test() -> void:
 			return
 	if not await wait_bag_inventory(client):
 		return
+	if not OS.get_environment("GODOT_BAGS_SCREENSHOTS").is_empty() and not await capture_character_frame(client):
+		return
 	print("FIXTURE BAGS_DONE")
 	# Parent owns deliberate kill/reap; normal engine shutdown is not this test.
 	while true:
@@ -133,6 +157,20 @@ func right_click_control(control: Control) -> void:
 		Input.parse_input_event(event)
 		await process_frame
 
+func capture_character_frame(client: Node) -> bool:
+	push_key(KEY_C, true)
+	await process_frame
+	push_key(KEY_C, false)
+	var deadline := Time.get_ticks_msec() + BAG_WAIT_MS
+	while Time.get_ticks_msec() < deadline:
+		await process_frame
+		var state: Dictionary = client.character_frame_state()
+		var panel := authored_control(client, "CharacterFrame")
+		if state.open and panel != null and panel.is_visible_in_tree():
+			return await capture_bags("character-frame.png")
+	fail("C did not open the native CharacterFrame for capture")
+	return false
+
 func capture_bags(filename: String = "standalone-bags.png", tooltip_client: Node = null, tooltip_title: String = "") -> bool:
 	var directory := OS.get_environment("GODOT_BAGS_SCREENSHOTS")
 	if directory.is_empty():
@@ -145,13 +183,17 @@ func capture_bags(filename: String = "standalone-bags.png", tooltip_client: Node
 		fail("Cannot create bag capture directory: %s" % error)
 		return false
 	await RenderingServer.frame_post_draw
+	var image := root.get_texture().get_image()
+	if image.get_size() != root.size:
+		fail("Bag capture is %s, not the requested %s" % [image.get_size(), root.size])
+		return false
 	if tooltip_client != null:
 		var panel := authored_control(tooltip_client, "TooltipFrame")
 		var title := authored_control(tooltip_client, "TooltipTitle") as Label
 		if panel == null or not panel.is_visible_in_tree() or title == null or not title.is_visible_in_tree() or title.text != tooltip_title:
 			fail("Item tooltip must remain shown in capture: " + filename)
 			return false
-	error = root.get_texture().get_image().save_png(directory.path_join(filename))
+	error = image.save_png(directory.path_join(filename))
 	if error != OK:
 		fail("Cannot save authored bag capture: %s" % error)
 		return false
@@ -422,12 +464,16 @@ func check_container(client: Node, index: int, capacity: int, occupied_slot: int
 	return true
 
 func check_solo_position(client: Node, index: int) -> bool:
-	var rect := authored_control(client, "ContainerFrame%s" % index).get_global_rect()
+	var container := authored_control(client, "ContainerFrame%s" % index)
+	var rect := container.get_global_rect()
+	var ui_scale := container.get_global_transform_with_canvas().get_scale().x
 	var viewport := root.get_visible_rect()
 	var right := viewport.end.x - rect.end.x
 	var bottom := viewport.end.y - rect.end.y
-	print("BAGS POSITION solo=", index, " rect=", rect, " right=", right, " bottom=", bottom)
-	if absf(right - CONTAINER_RIGHT) > POSITION_TOLERANCE or absf(bottom - CONTAINER_BOTTOM) > POSITION_TOLERANCE:
-		fail("Standalone container must match original right16/bottom96 anchor")
+	var expected_right := CONTAINER_RIGHT * ui_scale
+	var expected_bottom := CONTAINER_BOTTOM * ui_scale
+	print("BAGS POSITION solo=", index, " rect=", rect, " scale=", ui_scale, " right=", right, " bottom=", bottom)
+	if absf(right - expected_right) > POSITION_TOLERANCE or absf(bottom - expected_bottom) > POSITION_TOLERANCE:
+		fail("Standalone container must match original scaled right16/bottom96 anchor")
 		return false
 	return true

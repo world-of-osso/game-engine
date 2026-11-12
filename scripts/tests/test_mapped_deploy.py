@@ -63,6 +63,21 @@ else:
             mapped_deploy.build(root, generated, windows, output, packs)
             first = json.loads((output / 'manifest.json').read_text())
             first_v2 = json.loads((packs / 'manifest-v2.json').read_text())
+            import gzip
+            import hashlib
+            root_bytes = (packs / 'manifest-v3.json').read_bytes()
+            self.assertLess(len(root_bytes), 512)
+            revision = json.loads(root_bytes)
+            self.assertEqual(revision['version'], 3)
+            index = revision['index']
+            compressed = (packs / 'indexes' / (index['sha256'] + '.json.gz')).read_bytes()
+            self.assertEqual(hashlib.sha256(compressed).hexdigest(), index['sha256'])
+            self.assertEqual(len(compressed), index['size'])
+            body = gzip.decompress(compressed)
+            self.assertEqual(len(body), index['uncompressed_size'])
+            self.assertEqual(json.loads(body), first_v2)
+            mapped_deploy.build(root, generated, windows, output, packs)
+            self.assertEqual((packs / 'manifest-v3.json').read_bytes(), root_bytes)
             self.assertEqual([entry['path'] for entry in first['files']],
                              [entry['path'] for entry in first_v2['files']])
             asset.unlink()

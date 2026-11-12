@@ -1,7 +1,7 @@
 //! Retail ADT water inputs: MH2O LVF 0 vertex depths and the DB2 water material chain.
 use std::path::PathBuf;
 
-use game_engine_core::adt::parse_root;
+use game_engine_core::adt::{build_water_geometry, parse_root};
 use game_engine_core::asset::adt_format::adt_tex::parse_mh2o;
 use game_engine_core::liquid_data::{
     LiquidCatalog, LiquidMaterial, LiquidShader, WaterColorSource,
@@ -60,6 +60,34 @@ fn narrow_layer_exists_bits_run_across_rows() {
     let layer = &water.chunks[0].layers[0];
     assert_eq!(layer.exists[..2], [0b101, 0b010]);
     assert!(layer.exists[2..].iter().all(|row| *row == 0));
+}
+
+/// A layer whose mask offset is zero uses the engine's default bitmap: every tile of the
+/// layer rectangle is present, and the tiles outside it are not. The coverage is binary, so
+/// the unmeshed layer is exactly `width * height` quads.
+#[test]
+fn a_layer_without_a_mask_marks_every_rectangle_tile_present() {
+    for (width, height) in [(1, 1), (3, 2), (8, 8)] {
+        let mut payload = mh2o_masked_payload(width, height, &[]);
+        // The mask offset is the fifth dword of the 24-byte layer record.
+        let header_size = 256 * 12;
+        payload[header_size + 16..header_size + 20].copy_from_slice(&0u32.to_le_bytes());
+        let water = parse_mh2o(&payload).expect("maskless MH2O");
+        let layer = &water.chunks[0].layers[0];
+        let present = ((1u16 << width) - 1) as u8;
+        assert!(
+            layer.exists[..height as usize]
+                .iter()
+                .all(|row| *row == present)
+        );
+        assert!(layer.exists[height as usize..].iter().all(|row| *row == 0));
+        let geometry = game_engine_core::adt::build_water_geometry([0.0; 3], layer);
+        assert_eq!(
+            geometry.indices.len(),
+            usize::from(width) * usize::from(height) * 6
+        );
+        assert!(geometry.colors.iter().all(|color| color[3] == 1.0));
+    }
 }
 
 const HEIGHTS: [f32; 4] = [10.0, 10.25, 10.5, 11.0];
@@ -144,6 +172,59 @@ fn northshire_stream_layers_carry_varying_vertex_depth() {
         depths.iter().any(|&depth| depth > 64),
         "stream centre is deeper"
     );
+}
+
+/// G7 ocean coast: azeroth_31_58 (FDID 777877) carries both type 2 ocean layers on object
+/// 42 and type 5/1 water layers. The ocean layers use the sentinel format field 42, store
+/// surface and minimum height 0.0, and resolve to vertex format 2 (depths only), so the
+/// emitted surface sits at world y = 0. The water layers keep their material's LVF 0 and
+/// authored heights.
+#[test]
+fn ocean_coast_tile_places_type_two_layers_at_sea_level() {
+    let catalog = catalog();
+    let bytes = std::fs::read(data_root().join("terrain/777877.adt")).expect("cached ADT");
+    let root = parse_root(&bytes).expect("parse ADT");
+    let mut water = parse_mh2o(mh2o_chunk(&bytes)).expect("MH2O");
+    let mut ocean_layers = 0;
+    let mut water_layers = 0;
+    for (index, chunk) in water.chunks.iter_mut().enumerate() {
+        let position = root.chunk_positions[index];
+        for layer in &mut chunk.layers {
+            if layer.liquid_type == 2 {
+                ocean_layers += 1;
+                assert_eq!(layer.liquid_object, 42, "ocean object");
+                assert_eq!(layer.min_height, 0.0, "ocean surface height");
+                assert_eq!(layer.max_height, 0.0, "ocean minimum height");
+                let material = catalog
+                    .liquid_material(layer.liquid_type, layer.liquid_object)
+                    .expect("ocean material");
+                assert_eq!((material.material_id, material.lvf), (1, 2));
+                layer
+                    .decode_object_vertices(material.lvf)
+                    .expect("LVF 2 depths");
+                assert!(layer.vertex_heights.is_empty(), "LVF 2 has no heights");
+                assert_eq!(layer.vertex_depths.len(), 81);
+                let geometry = build_water_geometry(position, layer);
+                assert!(!geometry.indices.is_empty(), "ocean layer draws");
+                assert!(
+                    geometry.positions.iter().all(|vertex| vertex[1] == 0.0),
+                    "ocean surface is at world y = 0"
+                );
+            } else {
+                water_layers += 1;
+                let material = catalog
+                    .liquid_material(layer.liquid_type, layer.liquid_object)
+                    .expect("water material");
+                assert_eq!(material.lvf, 0, "water keeps its material LVF");
+                assert!(
+                    !layer.vertex_heights.is_empty(),
+                    "water layer has authored heights"
+                );
+            }
+        }
+    }
+    assert!(ocean_layers >= 30, "only {ocean_layers} ocean layers");
+    assert!(water_layers >= 20, "only {water_layers} water layers");
 }
 
 #[test]
@@ -234,6 +315,43 @@ fn mh2o_chunk(adt: &[u8]) -> &[u8] {
     panic!("root ADT has no MH2O");
 }
 
+#[test]
+fn terrain_depth_bytes_are_preserved_verbatim_for_the_asset_side_nine_per_yard_unit() {
+    // G7 measures the MH2O depth byte at 9 units per yard and clamped at 28.3 yd; the
+    // client never converts it. The engine must hand the authored bytes through unchanged,
+    // so any 1/9-yd scaling stays a shader/consumer decision.
+    let catalog = catalog();
+    let bytes = std::fs::read(data_root().join("terrain/5493433.adt")).expect("cached ADT");
+    let mut water = parse_mh2o(mh2o_chunk(&bytes)).expect("MH2O");
+    let mut depths = 0;
+    let mut saturated = 0;
+    for chunk in water.chunks.iter_mut() {
+        for layer in &mut chunk.layers {
+            let material = catalog
+                .liquid_material(layer.liquid_type, layer.liquid_object)
+                .expect("terrain material");
+            layer
+                .decode_object_vertices(material.lvf)
+                .expect("LVF depths");
+            for &byte in &layer.vertex_depths {
+                depths += 1;
+                saturated += usize::from(byte == 255);
+            }
+        }
+    }
+    assert!(depths > 2000, "only {depths} authored depth bytes");
+    // A river tile mixes shallow and deep columns; a normalised or grey-ramp port would
+    // spread values over the whole range instead of the authored clamped ones.
+    assert!(
+        saturated < depths,
+        "no unsaturated depth byte: {saturated}/{depths}"
+    );
+    // The material is the only source of units, and it exposes none.
+    let material = catalog.liquid_material(5, 0).unwrap();
+    assert_eq!(material.material_id, 1);
+    assert_eq!(material.lvf, 0);
+}
+
 /// Every Adventurer's Rest layer, 133 of them on objectless LiquidObjects, has a material
 /// whose LVF reads its whole vertex block: ocean depths at sea level, river heights and
 /// depths.
@@ -289,15 +407,110 @@ fn kul_tiras_ocean_object_42_layers_read_material_lvf0() {
 }
 
 #[test]
-fn unknown_liquid_type_is_an_error() {
-    let error = catalog().liquid_material(65_000, 0).unwrap_err();
+fn forge_fel_constant_block_comes_from_the_row() {
+    let material = catalog().liquid_material(1192, 0).unwrap();
+    let (block_0, block_1) = material.fel_params(0.0);
+    // Float_11 is the shore width in yards; the shader receives its reciprocal.
+    let width = material.floats[11];
+    assert_eq!(width, 2.5999999);
+    assert_eq!(block_0[1], 1.0 / width);
+    assert!((block_0[1] - 0.384_615_4).abs() < 1e-6, "{:?}", block_0);
+    assert_eq!(block_0, [1.0, 1.0 / width, 4.5, 1.0]);
+    assert_eq!(block_1, [0.0, 0.7, 10.0, 0.0]);
+    // A row without a positive width still yields a usable block, not an infinity.
+    let mut widthless = material.clone();
+    widthless.floats[11] = 0.0;
+    assert_eq!(widthless.fel_params(0.0).0[1], 1.0);
+}
+
+#[test]
+fn terrain_water_resolves_its_type_verbatim_without_a_wmo_rewrite_or_type_eight_retry() {
+    let catalog = catalog();
+    // G7: classic ids 3 (magma) and 5 (water) keep their own rows on the terrain path;
+    // the WMO id set (19 magma, 13 water) is a chunk-header rewrite and must not appear.
+    for (kind, material) in [(3, 2), (5, 1)] {
+        assert_eq!(
+            catalog.liquid_material(kind, 0).unwrap().material_id,
+            material
+        );
+    }
+    // G7: a miss draws nothing and never borrows type 8's Slime/Magma material.
+    let error = catalog.liquid_material(65_000, 0).unwrap_err();
     assert_eq!(error, "LiquidType 65000 has no DB2 row");
+    // E6: the same miss on the WMO path retries the shared type 8.
+    assert_eq!(
+        catalog.wmo_material(65_000, 0).unwrap(),
+        catalog.liquid_material(8, 0).unwrap()
+    );
+}
+
+#[test]
+fn terrain_draw_skips_the_fog_material_column_only() {
+    let catalog = catalog();
+    assert!(game_engine_core::liquid_data::terrain_draws_surface(1));
+    assert!(game_engine_core::liquid_data::terrain_draws_surface(13));
+    assert!(!game_engine_core::liquid_data::terrain_draws_surface(10));
+    // The rule is live: shipped rows use the Fog material column.
+    let fog = catalog.liquid_material(733, 0).unwrap();
+    assert_eq!(fog.material_id, 10);
+    assert_eq!(fog.shader, LiquidShader::Fog);
+}
+
+#[test]
+fn unknown_and_zero_liquid_types_retry_type_eight_not_material_eight() {
+    let catalog = catalog();
+    let slow_slime = catalog.liquid_material(8, 0).unwrap();
+    assert_eq!(slow_slime.material_id, 2);
+    assert_eq!(slow_slime.shader, LiquidShader::Magma);
+    for id in [0, 65_000] {
+        assert_eq!(catalog.wmo_material(id, 0).unwrap(), slow_slime);
+    }
+}
+
+#[test]
+fn forge_molten_lava_selects_fel_from_db2_and_keeps_all_six_layer_groups() {
+    // G7: 42 is the sentinel format field, so the material's LVF 3 applies. A value below
+    // 42 is the vertex format itself and would override the material.
+    let material = catalog().liquid_material(1192, 42).unwrap();
+    assert_eq!((material.material_id, material.lvf), (13, 3));
+    assert_eq!(material.shader, LiquidShader::Fel);
+    assert_eq!(
+        material.texture_slots[..5],
+        [
+            vec![3920543],
+            vec![3888632],
+            vec![3887333],
+            vec![3920233],
+            vec![3920224],
+        ]
+    );
+    assert_eq!(material.texture_slots[5].len(), 30);
+    assert_eq!(material.texture_slots[5][0], 5186474);
+    assert_eq!((material.flow_speed, material.flow_direction), (0.0, 0.0));
+    let catalog = catalog();
+    let moving = catalog.liquid_material(1192, 10949).unwrap();
+    let static_row = catalog.liquid_material(1192, 11187).unwrap();
+    let missing_row = catalog.liquid_material(1192, 65000).unwrap();
+    assert_eq!((moving.flow_speed, moving.flow_direction), (2.0, 10.0));
+    assert_eq!(
+        (static_row.flow_speed, static_row.flow_direction),
+        (0.0, 0.0)
+    );
+    assert_eq!(
+        (missing_row.flow_speed, missing_row.flow_direction),
+        (0.0, 0.0)
+    );
+    // The definition changes only flow. Each row preserves all18 LiquidType floats.
+    assert_eq!(moving.floats.len(), 18);
+    assert_eq!(moving.floats, material.floats);
+    assert_eq!(static_row.floats, material.floats);
+    assert_eq!(missing_row.floats, material.floats);
 }
 
 #[test]
 fn magma_and_slime_use_the_magma_shader_with_lvf1_layers_and_int2_base_colour() {
     let catalog = catalog();
-    let magma = catalog.liquid_material(3, 3).expect("Magma");
+    let magma = catalog.liquid_material(3, 42).expect("Magma");
     assert_eq!(magma.shader, LiquidShader::Magma);
     assert_eq!((magma.material_id, magma.lvf), (2, 1));
     assert_eq!(magma.texture_slots[0].len(), 30);
@@ -306,7 +519,7 @@ fn magma_and_slime_use_the_magma_shader_with_lvf1_layers_and_int2_base_colour() 
         [vec![340_156], vec![340_157], vec![340_158]]
     );
     assert_eq!(magma.ints[2], 0x00ff_6600);
-    let slime = catalog.liquid_material(4, 4).expect("Slime");
+    let slime = catalog.liquid_material(4, 42).expect("Slime");
     assert_eq!(slime.shader, LiquidShader::Magma);
     assert_eq!(slime.texture_slots[1], [374_986]);
 }
@@ -335,4 +548,38 @@ fn searing_gorge_magma_layers_reread_as_lvf1() {
         assert_eq!(layer.vertex_uvs.len(), vertices);
         assert!(layer.vertex_depths.is_empty());
     }
+}
+
+/// G13: retail applies the depth curve once on the CPU at vertex write. `Int_0` selects two
+/// hard-coded curves for the water formats, `Int_0 >= 2` uses the row coefficients, and the
+/// level-1 magma format uses `(0, 1, 0, 1)`. Only the upper side is clamped.
+#[test]
+fn depth_curve_follows_the_g13_branch_table() {
+    let catalog = catalog();
+    let slow = catalog.liquid_material(5, 0).unwrap();
+    // The shipped constant is 255/42 to five significant digits (`min(1, byte/42)`).
+    assert_eq!(slow.depth_curve, [0.0, 6.071_400_3, 0.0, 0.0]);
+    assert!((slow.depth_curve[1] / (255.0 / 42.0) - 1.0).abs() < 5e-6);
+    assert_eq!(slow.curved_depth(0.0), 0.0);
+    assert!((slow.curved_depth(20.0 / 255.0) - 20.0 / 42.0).abs() < 1e-5);
+    assert!(slow.curved_depth(42.0 / 255.0) > 0.9999);
+    assert_eq!(slow.curved_depth(43.0 / 255.0), 1.0);
+    assert_eq!(slow.curved_depth(1.0), 1.0);
+
+    let ocean = catalog.liquid_material(2, 42).unwrap();
+    assert_eq!(ocean.depth_curve, [0.0, 1.0, 0.0, 0.0]);
+    assert!((ocean.curved_depth(0.25) - 0.25).abs() < 1e-6);
+
+    // Forge molten lava selects `Int_0 = 1`, so its draw channel stays linear.
+    assert_eq!(
+        catalog.liquid_material(1192, 0).unwrap().depth_curve,
+        [0.0, 1.0, 0.0, 0.0]
+    );
+    // Solid lava selects `Int_0 >= 2`, the only branch that reads Coefficient_0..3.
+    let solid = catalog.liquid_material(1174, 0).unwrap();
+    assert_eq!(solid.depth_curve, solid.depth_coefficients);
+
+    let magma = catalog.liquid_material(3, 3).unwrap();
+    assert_eq!(magma.depth_curve, [0.0, 1.0, 0.0, 1.0]);
+    assert!((magma.curved_depth(0.5) - 0.625).abs() < 1e-6);
 }

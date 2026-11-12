@@ -128,49 +128,46 @@ class ForeverLiquidTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "LiquidType 999"):
             liquids.asset_references(raw, tables)
 
-    def test_pbr_closure_includes_borrowed_required_slots_and_rejects_missing_inputs(
-        self,
-    ):
+    def test_material130_closure_keeps_authored_textures_and_fallback(self):
         from scripts import forever_liquids as liquids
 
-        legacy = {
-            "ID": "5",
-            "MaterialID": "1",
-            **{f"FrameCountTexture_{i}": "0" for i in range(6)},
-        }
-        tables = {
-            "LiquidType": [{"ID": "1251", "MaterialID": "130"}, legacy],
-            "LiquidMaterial": [{"ID": "130", "LVF": "0"}, {"ID": "1", "LVF": "0"}],
-            "LiquidObject": [],
-            "LiquidTypeXTexture": [
+        def tables(fdids):
+            legacy = {
+                "ID": "5",
+                "MaterialID": "1",
+                **{f"FrameCountTexture_{i}": "0" for i in range(6)},
+            }
+            rows = [
                 {
-                    "ID": "1",
+                    "ID": str(10 + i),
                     "LiquidTypeID": "1251",
-                    "FileDataID": "777",
-                    "OrderIndex": "0",
-                },
-                *[
-                    {
-                        "ID": str(10 + i),
-                        "LiquidTypeID": "5",
-                        "FileDataID": str(fdid),
-                        "OrderIndex": str(i),
-                    }
-                    for i, fdid in enumerate([111, 0, 555, 556])
-                ],
-            ],
-        }
+                    "FileDataID": str(fdid),
+                    "OrderIndex": str(i),
+                }
+                for i, fdid in enumerate(fdids)
+            ]
+            rows += [
+                {
+                    "ID": str(30 + i),
+                    "LiquidTypeID": "5",
+                    "FileDataID": str(fdid),
+                    "OrderIndex": str(i),
+                }
+                for i, fdid in enumerate([111, 0, 555, 556])
+            ]
+            return {
+                "LiquidType": [{"ID": "1251", "MaterialID": "130"}, legacy],
+                "LiquidMaterial": [{"ID": "130", "LVF": "0"}, {"ID": "1", "LVF": "0"}],
+                "LiquidObject": [],
+                "LiquidTypeXTexture": rows,
+            }
+
         self.assertEqual(
-            liquids.texture_references({(1251, 0)}, tables),
-            [
-                (555, "textures/555.blp"),
-                (556, "textures/556.blp"),
-                (777, "textures/777.blp"),
-            ],
+            liquids.texture_references({(1251, 0)}, tables([771, 772, 773, 774, 775, 776])),
+            [(fdid, f"textures/{fdid}.blp") for fdid in (555, 556, 771, 772, 773, 774, 775, 776)],
         )
-        tables["LiquidTypeXTexture"].pop()
-        with self.assertRaisesRegex(ValueError, "borrowed LiquidType5"):
-            liquids.texture_references({(1251, 0)}, tables)
+        with self.assertRaisesRegex(ValueError, "six authored textures"):
+            liquids.texture_references({(1251, 0)}, tables([771, 772, 773, 0, 775, 776]))
 
     def test_adt_closure_includes_liquid_textures(self):
         payload = bytearray(256 * 12)

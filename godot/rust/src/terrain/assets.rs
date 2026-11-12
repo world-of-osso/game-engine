@@ -1,5 +1,15 @@
 //! Local-CASC map and split-ADT reads for the native world host.
 
+/// Explicit opt-in for the Forever Material130 PBR path. Off by default: the authored
+/// path still lacks the procedural depth texture and the PBR prepass, so the LiquidType5
+/// fallback remains the default image.
+fn pbr_water_enabled() -> bool {
+    matches!(
+        std::env::var("GAME_ENGINE_PBR_WATER").as_deref(),
+        Ok("1") | Ok("true")
+    )
+}
+
 use std::path::{Path, PathBuf};
 use std::{
     cell::RefCell,
@@ -13,8 +23,8 @@ use game_engine_core::{
     footstep_data::FootstepSurface,
     ground_effect_data,
     liquid_data::{
-        FIRST_LIQUID_OBJECT, LiquidMaterial, MAGMA_NOISE_FDID, MAGMA_NOISE_SIZE, MapLiquidCatalog,
-        TEXTURE_SLOTS,
+        FIRST_LIQUID_OBJECT, LiquidFamily, LiquidMaterial, MAGMA_NOISE_FDID, MAGMA_NOISE_SIZE,
+        MapLiquidCatalog, TEXTURE_SLOTS,
     },
     terrain_surface_data, wdt,
     wmo_surface_data::{WmoSurfaceBounds, select_wmo_material_surface},
@@ -117,8 +127,8 @@ pub(crate) struct NativeMapWdt {
     pub flags: wdt::MphdFlags,
     pub tiles: wdt::WdtTiles,
     pub global_wmo: Option<PlacedWmo>,
-    pub m2_floors: Vec<shared::los::LosTile>,
-    pub m2_solids: Vec<shared::los::LosTile>,
+    pub m2_floors: Vec<Arc<shared::los::LosTile>>,
+    pub m2_solids: Vec<Arc<shared::los::LosTile>>,
     pub lighting: Arc<LightingCatalog>,
 }
 
@@ -136,10 +146,11 @@ pub(crate) struct NativeTerrainTile {
     /// tile is parsed, before any WMO node spawns. A WMO spanning tiles is in each tile's list.
     pub wmo_floors: Vec<(u32, WmoCollision)>,
     pub wmo_liquids: Vec<crate::wmo::placement::PlacedLiquid>,
-    /// Authored M2 hulls, including the neighbouring centroid tiles. Loaded on the
-    /// worker before ground prediction, independent of render-node spawning/culling.
-    pub m2_floors: Vec<shared::los::LosTile>,
-    pub m2_solids: Vec<shared::los::LosTile>,
+    /// Authored M2 hulls by LOS file, including the neighbouring centroid tiles. Loaded on
+    /// the worker before ground prediction, independent of render-node spawning/culling.
+    /// The stream keeps each file in the first parsed tile that loaded it.
+    pub m2_floors: Vec<(PathBuf, Arc<shared::los::LosTile>)>,
+    pub m2_solids: Vec<(PathBuf, Arc<shared::los::LosTile>)>,
     pub wmo_surfaces: Vec<(WmoSurfaceBounds, FootstepSurface)>,
     /// Liquid material of each MH2O `(liquid_type, liquid_object)` on the tile.
     pub liquid_materials: BTreeMap<(u16, u16), Result<Arc<NativeLiquidMaterial>, String>>,
@@ -174,6 +185,13 @@ impl NativeTerrainAssets {
         }
     }
 
+    /// Release the per-map CPU caches: parsed WMO collision groups and decoded terrain
+    /// images. The worker owns this reader for the process, so a map change must clear it.
+    pub fn clear_map_cache(&self) {
+        self.wmo_groups.borrow_mut().clear();
+        self.textures.borrow_mut().clear();
+    }
+
     pub fn read_map_wdt(&self, map: &str) -> Result<NativeMapWdt, String> {
         let identity = self.map_identity(map)?;
         let (path, bytes) = self.read_fdid_file(identity.wdt_fdid, "wdt")?;
@@ -195,10 +213,11 @@ impl NativeTerrainAssets {
             })
             .transpose()?;
         let (m2_floors, m2_solids) = if global_wmo.is_some() {
-            (
-                self.read_m2_tiles(identity.id, None, false)?,
-                self.read_m2_tiles(identity.id, None, true)?,
-            )
+            let tiles = |solid| {
+                self.read_m2_tiles(identity.id, None, solid)
+                    .map(|tiles| tiles.into_iter().map(|(_, tile)| tile).collect())
+            };
+            (tiles(false)?, tiles(true)?)
         } else {
             (Vec::new(), Vec::new())
         };
@@ -266,7 +285,7 @@ impl NativeTerrainAssets {
         map_id: u32,
         tile: Option<(u32, u32)>,
         solid: bool,
-    ) -> Result<Vec<shared::los::LosTile>, String> {
+    ) -> Result<Vec<(PathBuf, Arc<shared::los::LosTile>)>, String> {
         let directory = if solid { "m2-solid" } else { "m2" };
         let dir = self.data_root.join(format!("los/{map_id}/{directory}"));
         if solid && !dir.is_dir() && self.data_root.join(format!("los/{map_id}/m2")).is_dir() {
@@ -301,10 +320,11 @@ impl NativeTerrainAssets {
             .filter(|path| path.extension().is_some_and(|ext| ext == "los"))
         {
             match fs::read(&path) {
-                Ok(bytes) => floors.push(
-                    shared::los::LosTile::from_bytes(&bytes)
-                        .map_err(|error| format!("{}: {error}", path.display()))?,
-                ),
+                Ok(bytes) => {
+                    let tile = shared::los::LosTile::from_bytes(&bytes)
+                        .map_err(|error| format!("{}: {error}", path.display()))?;
+                    floors.push((path, Arc::new(tile)));
+                }
                 // An absent companion provides no baked floor; never substitute render faces.
                 Err(error) if error.kind() == std::io::ErrorKind::NotFound => continue,
                 Err(error) => return Err(format!("{}: {error}", path.display())),
@@ -379,6 +399,7 @@ impl NativeTerrainAssets {
     fn liquid_source(&self, map_id: u32) -> LiquidSource<'_> {
         LiquidSource {
             map_id,
+            family: LiquidFamily::Terrain,
             resolver: &self.resolver,
             data_root: &self.data_root,
             textures: &self.textures,
@@ -653,6 +674,7 @@ fn read_bytes(path: &Path) -> Result<Vec<u8>, String> {
 /// the object spawner's for WMO group liquids.
 pub(crate) struct LiquidSource<'a> {
     pub map_id: u32,
+    pub family: LiquidFamily,
     pub resolver: &'a CascListfileResolver,
     pub data_root: &'a Path,
     pub textures: &'a RefCell<TerrainTextureCache>,
@@ -723,12 +745,16 @@ impl LiquidSource<'_> {
     fn resolve(&self, (liquid_type, liquid_object): (u16, u16)) -> Result<LiquidMaterial, String> {
         let catalog = self
             .catalog
-            .get_or_init(|| MapLiquidCatalog::read(self.data_root))
+            .get_or_init(|| {
+                MapLiquidCatalog::read(self.data_root).map(|mut catalog| {
+                    catalog.set_pbr_water(pbr_water_enabled());
+                    catalog
+                })
+            })
             .as_ref()
             .map_err(Clone::clone)?;
-        catalog.render_material(self.map_id, liquid_type, liquid_object)
+        catalog.render_material(self.family, self.map_id, liquid_type, liquid_object)
     }
-
     fn read_frames(&self, fdids: &[u32]) -> Result<Vec<LiquidFrame>, String> {
         fdids
             .iter()
@@ -823,6 +849,26 @@ pub(crate) fn wmo_surface_bounds(placement: &adt::WmoPlacement, global: bool) ->
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn magma_noise_upload_preserves_all_sixteen_authored_rgba_planes() {
+        let assets = cached_assets();
+        let native = assets.read_liquid_material(0, (7, 413)).unwrap();
+        let (_, image) = native
+            .globals
+            .iter()
+            .find(|(name, _)| *name == "noise_volume")
+            .unwrap();
+        let source = fs::read(test_data_root().join("textures/768431.blob")).unwrap();
+        assert_eq!(source.len(), 16 * 128 * 128 * 4);
+        assert_eq!((image.width, image.height), (128, 16 * 128));
+        assert_eq!(image.pixels, source);
+        let plane_bytes = 128 * 128 * 4;
+        assert_ne!(
+            &image.pixels[..plane_bytes],
+            &image.pixels[plane_bytes..2 * plane_bytes]
+        );
+    }
 
     #[test]
     fn missing_m2_solid_companion_is_explicit() {

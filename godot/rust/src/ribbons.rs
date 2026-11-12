@@ -217,7 +217,7 @@ fn place_ribbon(
             })
         })
         .collect::<Result<Vec<_>, String>>()?;
-    let geometry = ArrayMesh::new_gd();
+    let geometry = crate::rebuild_guard::new_array_mesh();
     let meshes = materials
         .iter()
         .map(|material| spawn_ribbon_mesh(root, &geometry, &material.material))
@@ -348,7 +348,7 @@ fn create_ribbon_material(
         ));
     }
     let (shader, blend) = material::ribbon_material_shader(authored)?;
-    let mut material = ShaderMaterial::new_gd();
+    let mut material = crate::rebuild_guard::new_shader_material();
     material.set_shader(&shader);
     material.set_render_priority(i32::from(priority));
     material.set_shader_parameter("ribbon_texture", &image.to_variant());
@@ -357,6 +357,7 @@ fn create_ribbon_material(
 }
 
 fn upload_geometry(mesh: &mut Gd<ArrayMesh>, vertices: &[RibbonVertex]) {
+    crate::rebuild_guard::count(crate::rebuild_guard::Rebuild::MeshBuild, 1);
     mesh.clear_surfaces();
     if vertices.is_empty() {
         return;

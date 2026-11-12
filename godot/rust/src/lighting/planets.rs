@@ -40,7 +40,7 @@ impl Planets {
             let mut missing = PackedInt32Array::new();
             let texture = assets::material::shared_texture(fdid, &texture_dir, &mut missing)?
                 .ok_or_else(|| format!("Planet texture {fdid} missing"))?;
-            let mut material = ShaderMaterial::new_gd();
+            let mut material = crate::rebuild_guard::new_shader_material();
             material.set_shader(&shader);
             material.set_render_priority(super::PLANETS_PRIORITY);
             material.set_shader_parameter("planet_texture", &texture.to_variant());

@@ -53,6 +53,24 @@ Same server session, alternating instrumented builds, indoor pose, host shared
 The swap chain acquire then waits about 0.6 ms for the previous present. No run logged a
 present error.
 
+## Windows DWM present wait (2026-11-06)
+
+On Windows, windowed and borderless frames at the Stormwind pose were bimodal: most at
+7-9 ms, a second population at 13-17 ms (1% low 58-60 FPS) with flat client time. Exclusive
+fullscreen had one cluster at 9-10 ms (1% low 82.5). The mode follows the DWM-composited path:
+MAILBOX instead of IMMEDIATE and borderless fullscreen stayed bimodal, and a runtime without
+this patch did too (105.9 FPS, 1% low 57.9), so the present thread is not the cause.
+`rendering/rendering_device/vsync/frame_queue_size=3` with `swapchain_image_count=4` (defaults
+2 and 3) absorbed it: windowed p50 116.7 FPS, 1% low 95.0, and two of three segments with 0-1
+slow frames (`data/diagnostics/fps-diagnostic-present{,2}-6e2c5588b-2026-11-06/`). The third
+segment still went bimodal; its cause is open.
+
+`project.godot` sets both for the `windows` feature only. Cost: the CPU may run one more frame
+ahead of the GPU, at most one frame (about 9 ms) more input latency while the GPU queue is full.
+The Stormwind frame is CPU-bound, so the queue is rarely full; the latency was not measured.
+Retire the overrides when a Windows present path without composition stalls (DXGI flip model
+through D3D12, or a Vulkan layered present) measures no slow population at the defaults.
+
 ## Retirement
 
 Drop the patch once Godot presents off the render thread, or once the supported Linux

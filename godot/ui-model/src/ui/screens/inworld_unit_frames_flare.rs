@@ -204,6 +204,7 @@ pub fn flare_frame(
     unit: Option<FlareUnit<'_>>,
     hidden: bool,
     anchor: &HudAnchor,
+    extra_content: Element,
 ) -> Element {
     let (width, height) = spec.size;
     let at = anchor.place(spec.size);
@@ -226,6 +227,7 @@ pub fn flare_frame(
             margin_left: {at.margin_left},
             margin_top: {at.margin_top},
             {content}
+            {extra_content}
         }
     }
 }

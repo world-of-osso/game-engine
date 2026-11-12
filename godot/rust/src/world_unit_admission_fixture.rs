@@ -5,7 +5,8 @@ use crate::wmo::portals::HalfSpace;
 use glam::Vec3;
 use godot::{
     classes::{
-        BoxMesh, MeshInstance3D, ProjectSettings, geometry_instance_3d::ShadowCastingSetting,
+        BoxMesh, MeshInstance3D, ProjectSettings, ShaderMaterial,
+        geometry_instance_3d::ShadowCastingSetting,
     },
     prelude::*,
 };
@@ -59,7 +60,7 @@ impl UnitAdmissionFixture {
     }
 
     /// A new `NpcVisualRoot/NpcModel` whose 1×2×1 box batches `On`, `DoubleSided` and
-    /// `Off` cast shadows as named.
+    /// `Off` cast shadows as named, each with its own `ShaderMaterial`.
     #[func]
     fn replace_visual(&mut self, index: i64) {
         let unit = self
@@ -84,11 +85,23 @@ impl UnitAdmissionFixture {
             batch.set_name(name);
             batch.set_mesh(&mesh);
             batch.set_cast_shadows_setting(shadows);
+            batch.set_material_override(&ShaderMaterial::new_gd());
             model.add_child(&batch);
         }
         visual.add_child(&model);
         unit.node.add_child(&visual);
         unit.replace_visual(Some(visual));
+    }
+
+    /// Moves a unit, as a replicated position does.
+    #[func]
+    fn place_unit(&mut self, index: i64, position: Vector3) {
+        let unit = self
+            .world
+            .units
+            .get_mut(&(index as u64 + 1))
+            .expect("Fixture unit");
+        unit.node.set_position(position);
     }
 
     /// Reapplies attachment participation, as attachment gates do when it changes.
@@ -100,7 +113,8 @@ impl UnitAdmissionFixture {
 
     /// Culls from an indoor camera whose interior group spans `interior_min..interior_max`
     /// and whose visible exterior windows are each one half space `(normal, d)`;
-    /// `outdoor` culls from an outdoor camera instead.
+    /// `outdoor` culls from an outdoor camera instead. The camera stands at `camera`, and
+    /// units cast shadows within `shadow_radius` of it.
     #[func]
     fn cull(
         &mut self,
@@ -108,6 +122,8 @@ impl UnitAdmissionFixture {
         interior_min: Vector3,
         interior_max: Vector3,
         windows: PackedVector4Array,
+        camera: Vector3,
+        shadow_radius: f32,
     ) {
         let to_glam = |v: Vector3| Vec3::new(v.x, v.y, v.z);
         let windows: Vec<Vec<HalfSpace>> = windows
@@ -121,7 +137,11 @@ impl UnitAdmissionFixture {
             })
             .collect();
         let interiors = [(to_glam(interior_min), to_glam(interior_max))];
-        self.world
-            .cull_outdoor((!outdoor).then_some(windows.as_slice()), &interiors);
+        self.world.cull_outdoor(
+            (!outdoor).then_some(windows.as_slice()),
+            &interiors,
+            to_glam(camera),
+            shadow_radius,
+        );
     }
 }

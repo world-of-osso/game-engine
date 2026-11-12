@@ -121,7 +121,7 @@ pub(super) fn mask_material(additive: bool) -> Gd<ShaderMaterial> {
     };
     let mut shader = Shader::new_gd();
     shader.set_code(&code);
-    let mut material = ShaderMaterial::new_gd();
+    let mut material = crate::rebuild_guard::new_shader_material();
     material.set_shader(&shader);
     material
 }

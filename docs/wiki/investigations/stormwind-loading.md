@@ -57,6 +57,92 @@ Headless dummy rendering avoids real uploads/rendering and advances the same sma
 
 Evidence and exact argv: `data/diagnostics/swload2-2026-10-06/` (`before3.log`, `after.log`, `before-profile.json`, `after-profile.json`, `headless2.log`, targeted test logs and proof ledger).
 
+## In-world budget regression (November 9, 2026)
+
+`9a10e8154` (2026-11-05) gave offline previews a loading focus and, with it, set the object
+loading focus to the local player on every frame, InWorld included. In-world object streaming
+then spent the 64-ms loading slice each frame instead of `WORLD_OBJECT_BUDGET` (8 ms). After an
+online teleport from Lakeshire (-9226, -2155) into the Trade District (51 WMOs streamed in), the
+Linux profile showed the `World objects` step at about 75 ms per frame for 177 frames. The focus
+follows the player only on the loading screen again (`loading::object_loading_focus`); previews
+keep theirs.
+
+Windows release, 6 interleaved runs each, 40 s after the teleport (means, master `fca0c3ac9`
+vs fix `d43504260`): frames over 50 ms 60.7 -> 2.7, worst frame median 226 -> 135 ms, p99.9
+88 -> 32 ms, total time over 8.33 ms 5.07 -> 3.45 s. Streaming spreads out as the spec intends:
+the last WMO enters after 7.1 s instead of 5.1 s, and frames over 8.33 ms rise 125 -> 463.
+Remaining: one unit-replication frame (NPC models built synchronously as units arrive) and
+terrain tile finishing after the per-chunk gathering. Evidence:
+`data/diagnostics/fps-120-close-2026-11-06/windows-diag-stream/win-sb-*` and
+`profile/stream-prof-{o2a,b1a}.log`.
+
+## Game-object visuals off the replication event (November 9, 2026)
+
+After the Lakeshire -> Trade District teleport, one replication event cost 110 ms of main-thread
+CPU on Linux debug (up to 455 ms wall with a cold model cache): `GameObjects::upsert` extracted,
+parsed and decoded every new game object's model inline (52 objects; one 37-material model
+alone took 166 ms). Units were already worker-loaded. Game objects now take the world-object
+path: the node is placed at once, an `AssetLoader` worker loads and decodes the model, and the
+main thread publishes one texture per iteration and attaches visuals within 8 ms per frame.
+
+Linux debug, 3 profiled interleaved runs each, main-thread on-CPU ms: worst replication event
+110 -> 25, replication total 148 -> 81, new visual step worst 14 (total 41), worst frame
+142 -> 85. All 52 objects end with their visual; the visual follows its node by a median of
+1 frame (at most 13). Remaining >50 ms frames are terrain tile finishing and single WMO texture
+uploads. Evidence: `data/diagnostics/fps-120-close-2026-11-06/profile/stream-up-*`, `stream-ua-*`.
+
+## Terrain tile finishing (November 9, 2026)
+
+After the gathering, a tile finished in one frame: 256 `Chunk{x}_{y}` collision bodies
+(~15 ms on Linux debug), the liquid (5-9 ms) and the material, alpha atlas and mesh (10-23 ms).
+The bodies are now allocated with their chunk inside the gathering budget, and the liquid builds
+in its own frame before the material/mesh frame. Linux debug, Lakeshire -> Trade District
+teleport, profiled (6 runs master `71329b5e1`, 3 runs `5ca673411`): largest `Terrain materials`
+step 31-50 -> 9-14 ms; frames over 33 ms CPU 12-24 -> 4-9 per run. Attached tiles, bodies,
+collision faces and liquid blocks match master; no orphan nodes. Evidence:
+`data/diagnostics/fps-120-close-2026-11-06/profile/stream-{tc-m*,tw-t*,st-*}.log`.
+
+Not fixed: a single object texture upload sometimes takes 40-190 ms. It is kernel time inside
+`ImageTexture::create_from_image` (`sys` 40-56 ms, no page faults), not the texture: the same
+2048x2048 DXT5 texture takes 3.6 ms in another run, and in one run the first 2048x2048 upload
+took 5.9 ms and a later one 189 ms. This matches the driver allocating a new GPU memory block
+(inferred, NVIDIA on Linux); the cause is in Godot's allocator, not in the client.
+Evidence: `profile/stream-ur-*.log` (`DIAG_UPLOAD`).
+
+## Object queueing and WMO finishing (November 9, 2026)
+
+Two object-streaming steps ran past the 8-ms in-world budget after the Lakeshire -> Trade
+District teleport (Linux debug, main-thread CPU):
+
+- `WorldObjects.queue_tiles` (up to 25 ms): queueing a tile resolved every doodad's model path,
+  and each fdid the listfile had not cached yet was a SQLite query on the main thread (1700-2450
+  doodads per tile). Only the character-select campsite selection reads the path; the path is
+  now resolved only when a selection asks for it.
+- `objects.wmo_step` (up to 26 ms): after the last batch, a WMO built all its merged batch
+  nodes at once (59-134 for the large Trade District WMOs, 5-12 ms), then placed itself
+  (liquids, culling, attach; 2-12 ms) in the same frame. Merged nodes now build under the step
+  budget, and a WMO whose build already spanned frames is placed at the start of the next
+  frame. Smaller WMOs still place in the frame they are built, so loading slices are unchanged.
+
+Interleaved profiled runs (3 master `618f5ab01`, 3 branch; host load 60-110): largest
+`queue_tiles` 6-18 -> 0-1.4 ms, largest `wmo_step` 17-23 -> 8.0-8.8 ms. The node tree after
+streaming (each WMO's child names and mesh count, terrain tiles, 89 WMO nodes, 8036 other object
+nodes, no orphans) is identical in every run that finished; WMO arrival times match master.
+Remaining `World objects` spikes are the texture-upload stall above. Evidence:
+`profile/stream-{hd,oh}-*.log`, `fps120close-tools/objhitch-summary.py`.
+
+## Character-select process fixture readiness (November 9, 2026)
+
+VERIFIED: On engine `618f5ab01`, `native_reconnect_fixture` reached account state `CharacterSelect` before `CharacterSelectUI`, `CharCard_0` or `EnterWorld` existed, then failed its immediate control assertion. The fixture had treated account state as rendered UI readiness.
+
+VERIFIED: The selected card and Enter World action are present in the Forever product UI. The inspected 1920×1080 capture is `data/diagnostics/charselect-fixtures-2026-11-09/charselect-forever-master.png`; it came from an owned game-server `88959866b4` with protocol `7fa253f` on private UDP 5964.
+
+INFERRED, SOURCE-ONLY: `23c06168e` added `receive_account_during_startup`, which advances authentication state while screen attachment waits for asset initialization. This is a source-history pointer, not a historical runtime bisect; the lead waived that bisect.
+
+VERIFIED: The reconnect and transfer fixtures now wait for the expected authenticated roster plus a `CharCard_0` and enabled `EnterWorld` visible in the scene tree. They use the 1920×1080 viewport. No product code changed.
+
+VERIFIED: Both real-process fixtures pass in commit `d631259b9`. Reconnect reaches `RECONNECTED`; transfer completes all phases and receives one `WorldPortAck`. Debug/release workspace checks pass with zero warnings and `cargo fmt --all --check` passes. Evidence, including exact logs and the inspected screenshot, is in `data/diagnostics/charselect-fixtures-2026-11-09/`.
+
 ## Proof
 
 Baseline samples, profile summary, argv, server setup and logs: `data/diagnostics/swload-2026-10-05/`. Automated coverage includes dynamic child discovery, moved-player requirements, inclusive boundaries, duplicate completion, tile-edge coverage, and `godot/tests/stormwind_loading.gd` for real private-server entry with nonzero distant pending and eventual drain. Before/after rendered and headless proof must be interpreted separately.

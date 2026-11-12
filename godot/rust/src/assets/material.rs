@@ -52,6 +52,9 @@ thread_local! {
         RefCell::new(HashMap::new());
     static SCENERY_SHADER_DEFAULTS: RefCell<HashMap<i64, Vec<(String, Variant)>>> =
         RefCell::new(HashMap::new());
+    /// The fade-shader copy of each shared scenery material, shared by its fading placements.
+    static SCENERY_FADE_MATERIALS: RefCell<HashMap<InstanceId, Gd<ShaderMaterial>>> =
+        RefCell::new(HashMap::new());
 }
 
 /// A batch's base texture: the file itself, or the file with its character overlays
@@ -120,6 +123,27 @@ pub(crate) fn clear_shared_shaders() {
     BATCH_SHADERS.with_borrow_mut(HashMap::clear);
     SCENERY_MATERIALS.with_borrow_mut(HashMap::clear);
     SCENERY_SHADER_DEFAULTS.with_borrow_mut(HashMap::clear);
+    SCENERY_FADE_MATERIALS.with_borrow_mut(HashMap::clear);
+}
+
+/// Release the GPU resources a map built: its uploaded textures, scenery materials and
+/// per-placement fade copies. The shader objects stay because their variants are bounded
+/// by the shader source, not by the map.
+pub(crate) fn clear_world_resource_caches() {
+    TEXTURES.with_borrow_mut(HashMap::clear);
+    SCENERY_MATERIALS.with_borrow_mut(HashMap::clear);
+    SCENERY_SHADER_DEFAULTS.with_borrow_mut(HashMap::clear);
+    SCENERY_FADE_MATERIALS.with_borrow_mut(HashMap::clear);
+}
+
+/// Uploaded textures, scenery materials, fade materials and compiled shader variants.
+pub(crate) fn cache_counts() -> (usize, usize, usize, usize) {
+    (
+        TEXTURES.with_borrow(HashMap::len),
+        SCENERY_MATERIALS.with_borrow(HashMap::len),
+        SCENERY_FADE_MATERIALS.with_borrow(HashMap::len),
+        SHADERS.with_borrow(HashMap::len),
+    )
 }
 
 /// Compiles `pipeline`'s shader and, when opaque, its scenery-fade shader: Godot
@@ -133,16 +157,15 @@ pub(crate) fn compile_pipeline(pipeline: Pipeline) -> Result<(), String> {
     Ok(())
 }
 
-/// The batch's material and the binding its animation samples.
+/// The material of `batch`, which binds `binding`.
 pub(super) fn load_material(
-    model: &m2::Model,
     tracks: &MaterialTracks,
     batch: &ResolvedBatch,
-    skin_texture_fdids: &[u32],
+    binding: &BatchBinding,
     path: &GString,
     missing: &mut PackedInt32Array,
     replacements: Option<&HashMap<u32, Gd<ImageTexture>>>,
-) -> Result<(Gd<ShaderMaterial>, BatchBinding), String> {
+) -> Result<Gd<ShaderMaterial>, String> {
     let _material = crate::profile::span(|| "phase.material.m2".to_owned());
     let texture_dir = Path::new(
         &ProjectSettings::singleton()
@@ -153,16 +176,12 @@ pub(super) fn load_material(
     .and_then(Path::parent)
     .ok_or("Model path has no asset root")?
     .join("textures");
-    let unit = model
-        .batches
-        .get(batch.source_unit_index)
-        .ok_or("Resolved batch has no skin batch")?;
-    let binding = m2_material::batch_binding(model, unit, skin_texture_fdids)?;
     let pipeline = Pipeline::of(batch)?;
     let (shader, fade) = batch_shaders(pipeline)?;
     let span = crate::profile::span(|| "material.set_shader".to_owned());
-    let mut material = ShaderMaterial::new_gd();
+    let mut material = crate::rebuild_guard::new_shader_material();
     material.set_shader(&shader);
+    material.set_render_priority(i32::from(batch.priority_plane));
     drop(span);
     let _span = crate::profile::span(|| "material.parameters".to_owned());
     if let Some(fade) = fade {
@@ -170,6 +189,7 @@ pub(super) fn load_material(
     }
     // Every slot of a replaceable type takes that type's texture, the second eye slot
     // as much as the first (WebWowViewerCpp getBlpTextureData per texture index).
+    let mut bound_slots = 0;
     for (slot, fdid) in binding.textures.iter().enumerate() {
         let replacement = replacements
             .zip(binding.texture_types.get(slot).filter(|kind| **kind != 0))
@@ -187,6 +207,7 @@ pub(super) fn load_material(
         };
         if let Some(texture) = texture {
             material.set_shader_parameter(TEXTURE_SLOTS[slot], &texture.to_variant());
+            bound_slots = slot + 1;
         }
     }
     material.set_meta(
@@ -204,14 +225,19 @@ pub(super) fn load_material(
         &i32::from(binding.vertex_shader).to_variant(),
     );
     material.set_shader_parameter("texture_wrap", &(binding.texture_wrap as i32).to_variant());
+    // texture_count: the slots that resolved, so a combiner reads only bound samplers.
+    material.set_shader_parameter(
+        "texture_count",
+        &i32::try_from(bound_slots).unwrap_or(0).to_variant(),
+    );
     material.set_shader_parameter("render_flags", &i32::from(batch.render_flags).to_variant());
     material.set_shader_parameter("gx_blend", &i32::from(pipeline.gx_blend).to_variant());
     apply_sample(
         &mut material,
-        &m2_material::sample_material(tracks, &binding, m2_material::MaterialTime::default()),
+        &m2_material::sample_material(tracks, binding, m2_material::MaterialTime::default()),
         None,
     );
-    Ok((material, binding))
+    Ok(material)
 }
 
 /// Sets the animated inputs of a batch material at one time that differ from `applied`,
@@ -392,6 +418,7 @@ pub(crate) struct SceneryFade {
     batches: Vec<FadedBatch>,
     opacity: f32,
     camera_admitted: bool,
+    shadow_admitted: bool,
 }
 
 struct FadedBatch {
@@ -473,16 +500,60 @@ fn share_scenery_material(
     })
 }
 
+/// The fade-shader copy of `shared`, made once. Its parameters are copied by uniform name:
+/// `Resource::duplicate` reads the shader's uniform list from the render thread, and that
+/// blocking call stalled the main thread for each placement that started to fade.
+fn shared_fade_material(
+    shared: &Gd<ShaderMaterial>,
+    authored: &Gd<Shader>,
+    fade: &Gd<Shader>,
+) -> Gd<ShaderMaterial> {
+    SCENERY_FADE_MATERIALS.with_borrow_mut(|cache| {
+        cache
+            .entry(shared.instance_id())
+            .or_insert_with(|| copy_with_shader(shared, authored, fade))
+            .clone()
+    })
+}
+
+/// A copy of `material` that its holder may change alone, made like `shared_fade_material`.
+pub(super) fn copy_material(material: &Gd<ShaderMaterial>) -> Gd<ShaderMaterial> {
+    let shader = material
+        .get_shader()
+        .expect("an M2 batch material has its shader");
+    copy_with_shader(material, &shader, &shader)
+}
+
+/// `source` drawn with `shader`, its parameters copied by the uniform names of `authored`,
+/// the shader `source` draws with.
+fn copy_with_shader(
+    source: &Gd<ShaderMaterial>,
+    authored: &Gd<Shader>,
+    shader: &Gd<Shader>,
+) -> Gd<ShaderMaterial> {
+    let mut copy = crate::rebuild_guard::new_shader_material();
+    copy.set_shader(shader);
+    copy.set_render_priority(source.get_render_priority());
+    if let Some(next) = source.get_next_pass() {
+        copy.set_next_pass(&next);
+    }
+    for (name, _) in scenery_shader_defaults(authored) {
+        let value = source.get_shader_parameter(name.as_str());
+        if !value.is_nil() {
+            copy.set_shader_parameter(name.as_str(), &value);
+        }
+    }
+    for name in source.get_meta_list().iter_shared() {
+        copy.set_meta(&name, &source.get_meta(&name));
+    }
+    copy
+}
+
 impl SceneryFade {
     /// The `Batch*` mesh materials under a `build_model` root.
     pub fn from_model(root: &Gd<Node3D>, light_bound: bool) -> Self {
         // Changing material animation and elastic trees retain and mutate their handles.
-        let animated = root
-            .get_node_or_null("M2MaterialAnimation")
-            .is_some_and(|node| {
-                node.try_cast::<super::uv_animation::WowMaterialAnimation>()
-                    .map_or(true, |animation| animation.bind().animates())
-            });
+        let animated = root.has_node("M2MaterialAnimation");
         let share = light_bound && !animated && !root.has_node("ElasticTree");
         let batches = root
             .get_children()
@@ -517,7 +588,31 @@ impl SceneryFade {
             batches,
             opacity: 1.0,
             camera_admitted: true,
+            shadow_admitted: true,
         }
+    }
+
+    /// An opaque placement inside its shadow radius casts its authored shadows. A fading
+    /// placement casts none: retail admits scenery shadows only within the fade-start
+    /// radius (solarityclient `SceneryDistance::admits_shadow`).
+    fn casts_shadows(&self) -> bool {
+        self.opacity >= 1.0 && self.shadow_admitted
+    }
+
+    fn apply_shadows(&mut self) {
+        let (admitted, casts) = (self.camera_admitted, self.casts_shadows());
+        for batch in &mut self.batches {
+            batch.apply_camera_admission(admitted, casts);
+        }
+    }
+
+    /// Admit or drop the placement's shadows, independently of its fade band.
+    pub fn set_shadow_admitted(&mut self, admitted: bool) {
+        if self.shadow_admitted == admitted {
+            return;
+        }
+        self.shadow_admitted = admitted;
+        self.apply_shadows();
     }
 
     /// Hide camera-rejected batches without discarding their admitted shadows.
@@ -528,6 +623,7 @@ impl SceneryFade {
             return;
         }
         self.camera_admitted = admitted;
+        let casts = self.casts_shadows();
         for batch in &mut self.batches {
             if admitted {
                 if let Some(visible) = batch.visible_before_cull.take() {
@@ -536,13 +632,11 @@ impl SceneryFade {
             } else {
                 batch.visible_before_cull = Some(batch.mesh.is_visible());
             }
-            batch.apply_camera_admission(admitted, self.opacity);
+            batch.apply_camera_admission(admitted, casts);
         }
     }
 
-    /// Opaque batches blend only while `opacity` is below 1. A fading placement casts
-    /// no shadow: retail admits scenery shadows only within the fade-start radius
-    /// (solarityclient `SceneryDistance::admits_shadow`).
+    /// Opaque batches blend only while `opacity` is below 1.
     pub fn set_opacity(&mut self, opacity: f32) {
         if opacity == self.opacity {
             return;
@@ -551,48 +645,44 @@ impl SceneryFade {
         let swap = fading != (self.opacity < 1.0);
         for batch in &mut self.batches {
             if swap {
-                if let Some(shared) = &batch.shared {
-                    batch.material = if fading {
-                        shared.duplicate_resource()
-                    } else {
-                        shared.clone()
-                    };
-                    batch.mesh.set_material_override(&batch.material);
-                    if !fading {
-                        batch.mesh.set_cast_shadows_setting(batch.shadows);
-                        continue;
-                    }
-                }
-                if let Some(fade) = &batch.fade {
-                    batch
-                        .material
-                        .set_shader(if fading { fade } else { &batch.authored });
-                }
-                batch.mesh.set_cast_shadows_setting(if fading {
-                    ShadowCastingSetting::OFF
-                } else {
-                    batch.shadows
-                });
+                batch.swap_fade_shader(fading);
             }
-            batch
-                .material
-                .set_shader_parameter("scenery_opacity", &opacity.to_variant());
+            batch.mesh.set_transparency(1.0 - opacity);
         }
         self.opacity = opacity;
-        if !self.camera_admitted {
-            for batch in &mut self.batches {
-                batch.apply_camera_admission(false, opacity);
-            }
+        if swap {
+            self.apply_shadows();
         }
     }
 }
 
 impl FadedBatch {
-    fn apply_camera_admission(&mut self, admitted: bool, opacity: f32) {
-        let shadows = if opacity < 1.0 {
-            ShadowCastingSetting::OFF
-        } else {
+    /// Opaque batches draw with their fade shader while fading. A shared material switches
+    /// to its shared fade copy; an own material swaps its shader. Blended batches keep their
+    /// material: the opacity is the instance transparency.
+    fn swap_fade_shader(&mut self, fading: bool) {
+        if let Some(fade) = &self.fade {
+            match &self.shared {
+                Some(shared) => {
+                    self.material = if fading {
+                        shared_fade_material(shared, &self.authored, fade)
+                    } else {
+                        shared.clone()
+                    };
+                    self.mesh.set_material_override(&self.material);
+                }
+                None => self
+                    .material
+                    .set_shader(if fading { fade } else { &self.authored }),
+            }
+        }
+    }
+
+    fn apply_camera_admission(&mut self, admitted: bool, casts: bool) {
+        let shadows = if casts {
             self.shadows
+        } else {
+            ShadowCastingSetting::OFF
         };
         if admitted || shadows == ShadowCastingSetting::DOUBLE_SIDED {
             self.mesh.set_cast_shadows_setting(shadows);
@@ -649,14 +739,19 @@ impl WowSceneryFadeProbe {
             .expect("scenery probe is not tracking a model")
             .set_opacity(opacity);
     }
+
+    #[func]
+    fn set_shadow_admitted(&mut self, admitted: bool) {
+        self.fade
+            .as_mut()
+            .expect("scenery probe is not tracking a model")
+            .set_shadow_admitted(admitted);
+    }
 }
 
 fn preview_additive_variant(source: &str, gx_blend: u8) -> Result<Option<String>, String> {
     let (alpha, opacity) = match gx_blend {
-        3 => (
-            "ALPHA = color.a * scenery_opacity;",
-            "color.a * scenery_opacity",
-        ),
+        3 => ("ALPHA *= color.a;", "ALPHA * color.a"),
         10 => ("ALPHA = 1.0;", "1.0"),
         _ => return Ok(None),
     };
@@ -700,17 +795,16 @@ fn replace_shader_fragments(
 
 fn shader_variant(source: &str, pipeline: Pipeline) -> Result<String, String> {
     let variant = with_render_mode(source, pipeline, false)?;
-    let alpha = match pipeline.gx_blend {
-        0 | 1 => "",
-        10 => "ALPHA = 1.0;",
-        _ => return Ok(variant),
-    };
-    replace_alpha(&variant, alpha)
+    match pipeline.gx_blend {
+        0 | 1 => replace_opaque_alpha(&variant, ""),
+        10 => replace_alpha(&variant, "ALPHA = 1.0;"),
+        _ => Ok(variant),
+    }
 }
 
-/// The blended variant of an opaque batch: source-alpha blending by the placement's
-/// `scenery_opacity` alone, as the opaque combiners ignore texture alpha. Blended
-/// batches already multiply their alpha by it. It keeps the opaque depth write, as the
+/// The blended variant of an opaque batch: source-alpha blending by the placement's fade
+/// (its GeometryInstance3D transparency) alone, as the opaque combiners ignore texture
+/// alpha. Blended batches already multiply their alpha by it. It keeps the opaque depth write, as the
 /// fade only enables blending: without it the overlapping cards of a fading tree
 /// compound their coverage toward opaque.
 fn scenery_fade_variant(source: &str, pipeline: Pipeline) -> Result<Option<String>, String> {
@@ -718,15 +812,30 @@ fn scenery_fade_variant(source: &str, pipeline: Pipeline) -> Result<Option<Strin
         return Ok(None);
     }
     let variant = with_render_mode(source, pipeline, true)?;
-    replace_alpha(&variant, "ALPHA = scenery_opacity;").map(Some)
+    replace_opaque_alpha(&variant, SCENERY_FADE_ALPHA).map(Some)
 }
 
+/// The fade variant's alpha output: the instance fade, with no texel alpha.
+pub(crate) const SCENERY_FADE_ALPHA: &str = "ALPHA *= 1.0;";
+
 fn replace_alpha(variant: &str, alpha: &str) -> Result<String, String> {
-    const AUTHORED: &str = "ALPHA = color.a * scenery_opacity;";
+    const AUTHORED: &str = "ALPHA *= color.a;";
     if variant.matches(AUTHORED).count() != 1 {
         return Err("Expected one M2 alpha output".into());
     }
     Ok(variant.replace(AUTHORED, alpha))
+}
+
+/// An opaque combiner's alpha output and a premultiply that reads no ALPHA.
+fn replace_opaque_alpha(variant: &str, alpha: &str) -> Result<String, String> {
+    const PREMULTIPLIED: &str = "premultiplied = gx_blend == 13 ? ALPHA : 1.0;";
+    if variant.matches(PREMULTIPLIED).count() != 1 {
+        return Err("Expected one M2 premultiply".into());
+    }
+    replace_alpha(
+        &variant.replace(PREMULTIPLIED, "premultiplied = 1.0;"),
+        alpha,
+    )
 }
 
 fn with_render_mode(source: &str, pipeline: Pipeline, fading: bool) -> Result<String, String> {

@@ -18,6 +18,10 @@ pub const FOLLOWER_LIST: &str = "LFDQueueFrameFollowerScrollBox";
 pub const ROW_HEIGHT: usize = 20;
 const LIST_HEIGHT: f32 = 177.0;
 const QUEUE_LEFT: f32 = 224.0;
+// LFGRole.lua locks the nested checkbox highlight on enter. Its minimal art is 30×29
+// scaled by 0.7, matching LFGRole.xml's BOTTOMLEFT checkbox anchor.
+const ROLE_CHECKBOX_HIGHLIGHT_SIZE: &str = "21,20.3";
+const ROLE_CHECKBOX_HIGHLIGHT_OFFSET: &str = "-17,16.65";
 
 pub(super) fn screen(shared: &SharedContext) -> Element {
     let view = shared.get::<View>().cloned().unwrap_or_default();
@@ -278,6 +282,7 @@ fn roles(view: &View) -> Element {
             "tank",
             GroupRoleSnapshot::Tank,
             "UI-LFG-RoleIcon-Tank",
+            "ROLE_DESCRIPTION_TANK",
             50.0,
         ),
         (
@@ -285,6 +290,7 @@ fn roles(view: &View) -> Element {
             "healer",
             GroupRoleSnapshot::Healer,
             "UI-LFG-RoleIcon-Healer",
+            "ROLE_DESCRIPTION_HEALER",
             123.0,
         ),
         (
@@ -292,12 +298,13 @@ fn roles(view: &View) -> Element {
             "damage",
             GroupRoleSnapshot::Damage,
             "UI-LFG-RoleIcon-DPS",
+            "ROLE_DESCRIPTION_DAMAGER",
             194.0,
         ),
     ]
     .into_iter()
-    .flat_map(|(name, action, role, atlas, left)| {
-        role_button(view, name, action, role, atlas, left)
+    .flat_map(|(name, action, role, atlas, description_tag, left)| {
+        role_button(view, name, action, role, atlas, description_tag, left)
     })
     .collect();
     buttons.extend(leader_button(view));
@@ -341,6 +348,7 @@ fn role_button(
     action: &str,
     role: GroupRoleSnapshot,
     atlas: &str,
+    description_tag: &str,
     left: f32,
 ) -> Element {
     let name = format!("LFDQueueFrameRoleButton{key}");
@@ -355,9 +363,16 @@ fn role_button(
     ));
     art.extend(role_checkbox(&name, view.role == role));
     let disabled = view.pending || view.matched();
+    let description = crate::auction_mail::text(description_tag);
     let action = format!("follower:role:{action}");
     rsx! { button { name: {DynName(name)}, width: 48.0, height: 48.0, left, top: 46.0,
-    pos_type: "absolute", button_default_skin: false, onclick: action, disabled, {art} } }
+    pos_type: "absolute", button_default_skin: false,
+    button_atlas_highlight: "checkbox-minimal", button_highlight_blend_mode: "ADD",
+    button_highlight_size: ROLE_CHECKBOX_HIGHLIGHT_SIZE,
+    button_highlight_offset: ROLE_CHECKBOX_HIGHLIGHT_OFFSET,
+    tooltip_title: {description}, tooltip_anchor: "ANCHOR_RIGHT",
+    disabled_tooltip: {description}, disabled_tooltip_color: "1,1,1,1",
+    onclick: action, disabled, {art} } }
 }
 fn dungeon_type(view: &View) -> Element {
     let mut elements = label(

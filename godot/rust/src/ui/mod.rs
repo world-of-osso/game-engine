@@ -181,6 +181,8 @@ pub struct RegistryUi {
     ui_scale: Option<f32>,
     scroll_stepper: Option<scroll_lists::StepperHold>,
     section_flash: Option<(u32, std::time::Instant)>,
+    /// Frames given a cooldown swipe node; any other frame has none to update.
+    cooldown_swipes: std::collections::HashSet<String>,
 }
 
 /// Raw authored-slider input; the host applies its own policy and passes back a view.
@@ -1156,6 +1158,7 @@ impl ICanvasLayer for RegistryUi {
             ui_scale: None,
             scroll_stepper: None,
             section_flash: None,
+            cooldown_swipes: std::collections::HashSet::new(),
         }
     }
 }
@@ -2728,6 +2731,38 @@ impl RegistryUi {
             .sync(&mut model.registry)
     }
 
+    /// Set attributes of named frames as the screen's attribute diff would, without
+    /// rebuilding the screen (art animated every frame); projects only when one changed.
+    /// Frames the screen does not draw (another skin's layout) are skipped.
+    pub fn patch_frames(
+        &mut self,
+        patches: impl IntoIterator<Item = (String, Vec<(&'static str, String)>)>,
+    ) -> Result<(), String> {
+        let model = self
+            .model
+            .as_mut()
+            .ok_or("Registry model not initialized")?;
+        for (name, attrs) in patches {
+            let Some(id) = model.registry.get_by_name(&name) else {
+                continue;
+            };
+            for (attr, value) in attrs {
+                ui_toolkit::attrs::apply_attribute(&mut model.registry, id, attr, &value);
+            }
+        }
+        model.registry.resolve_pending_writes();
+        if !model
+            .registry
+            .projection_outdated(model.registry.frame_count())
+        {
+            return Ok(());
+        }
+        self.projection
+            .as_mut()
+            .ok_or("Native projection not initialized")?
+            .sync(&mut model.registry)
+    }
+
     /// A frame's last laid-out rect `[x, y, w, h]` in viewport pixels.
     pub fn frame_viewport_rect(&self, name: &str) -> Option<[f32; 4]> {
         let registry = &self.model.as_ref()?.registry;
@@ -2922,6 +2957,7 @@ impl RegistryUi {
         if !model.replace_state(state) {
             return Ok(());
         }
+        let _span = crate::profile::span(|| format!("ui.set_state {}", std::any::type_name::<T>()));
         self.sync_model()
     }
 

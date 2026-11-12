@@ -208,7 +208,7 @@ impl RibbonMaterialFixture {
             color: [color.r, color.g, color.b, color.a],
         })
         .collect();
-        let mut geometry = ArrayMesh::new_gd();
+        let mut geometry = crate::rebuild_guard::new_array_mesh();
         upload_geometry(&mut geometry, &vertices);
         let root = self.to_gd().upcast::<Node3D>();
         let mut mesh = spawn_ribbon_mesh(&root, &geometry, &material);

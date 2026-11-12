@@ -1,4 +1,4 @@
-use game_engine_core::world_time::half_minutes;
+use game_engine_core::world_time::{half_minutes, light_half_minutes};
 
 #[test]
 fn server_local_time_is_the_lightdata_half_minute_of_the_day() {
@@ -15,4 +15,18 @@ fn game_time_runs_at_real_time_and_wraps_at_midnight() {
     // 23:59 plus two minutes is 00:01.
     let wrapped = half_minutes(23 * 3600 + 59 * 60, 0.016_666_67, 120.0);
     assert!((wrapped - 2.0).abs() < 1e-2, "{wrapped}");
+}
+
+#[test]
+fn lit_time_holds_for_a_real_second_at_real_time_speed() {
+    let speed = 0.016_666_67;
+    let noon = 12 * 3600;
+    let frames: Vec<f32> = (0..60)
+        .map(|frame| light_half_minutes(half_minutes(noon, speed, f64::from(frame) / 120.0)))
+        .collect();
+    // Half a second of 120 fps frames lights one time of day.
+    assert!(frames.iter().all(|&lit| lit == 1440.0), "{frames:?}");
+    // Two seconds later the light moved on by two steps.
+    let later = light_half_minutes(half_minutes(noon, speed, 2.0));
+    assert_eq!(later, 1440.0625);
 }

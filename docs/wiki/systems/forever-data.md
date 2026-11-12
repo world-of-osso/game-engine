@@ -28,7 +28,7 @@ Development proof: names-only exporter tests 2/2 pass against pinned local bytes
 
 ## Liquid exports
 
-The importer exports hash-matched LiquidType, LiquidMaterial, LiquidObject and LiquidTypeXTexture. Only Forever LiquidType expands to all38 DBD-named Float columns; Retail inputs/other headers stay unchanged. **Material130 drawn with LiquidType5 legacy inputs; PBR parity unsupported.** This is an explicitly borrowed fallback, not client-authored PBR data; source floats/foam textures remain intact. [Terrain: Forever liquid catalogs](terrain.md#forever-liquid-catalogs--bounded-cpu-proof) owns isolation/closure; [near-white water cause and captures](../investigations/northshire-pale-water.md#zephras-material130--explicit-borrowed-legacy-fallback) owns the rendering boundary.
+The importer exports hash-matched LiquidType, LiquidMaterial, LiquidObject and LiquidTypeXTexture. Only Forever LiquidType expands to all38 DBD-named Float columns; Retail inputs/other headers stay unchanged. **Material130 keeps the LiquidType5 fallback by default**; the authored PBR path (six LiquidTypeXTexture foam masks, the 38-float EF2 material batch) is behind `GAME_ENGINE_PBR_WATER=1` until the procedural depth texture and prepass exist. The uber's cb hop and unit map remain labelled adaptations. [Terrain: Forever liquid catalogs](terrain.md#forever-liquid-catalogs--bounded-cpu-proof) owns isolation/closure; [Material130 contract and captures](../investigations/northshire-pale-water.md#zephras-material130--pbr-contract-opt-in-fallback-default) owns the rendering boundary.
 
 ## Source limitations
 

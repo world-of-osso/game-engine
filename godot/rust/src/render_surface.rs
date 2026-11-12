@@ -1,0 +1,356 @@
+//! Client-side source of the visible render surface: WMO render batches and M2 render
+//! geometry, as they are drawn.
+//!
+//! Collision keeps the MOPY collision-only WMO faces, so render stairs and carpets can sit
+//! above the collision floor. M2 and WMO builders retain packed vertex/index streams; this
+//! cache converts them once and builds one BVH per root node in world space.
+//! Terrain heights join the same query in `TerrainObjects::visible_surface`.
+//!
+//! Movement, the server and the navmesh never read this.
+
+use std::{collections::HashMap, sync::Arc};
+
+use game_engine_core::render_surface::RenderSurface;
+use glam::{Affine3A, Vec3};
+use godot::{
+    classes::{ArrayMesh, MeshInstance3D, Node3D, mesh},
+    prelude::*,
+};
+
+const RENDER_SURFACE_ARRAYS_META: &str = "world_render_surface_arrays";
+
+/// Retains the exact vertex and index streams used to build this mesh surface.
+pub(crate) fn store_render_surface_arrays(mesh: &mut Gd<ArrayMesh>, arrays: &VarArray) {
+    let mut surfaces = if mesh.has_meta(RENDER_SURFACE_ARRAYS_META) {
+        mesh.get_meta(RENDER_SURFACE_ARRAYS_META).to::<VarArray>()
+    } else {
+        VarArray::new()
+    };
+    let positions = arrays
+        .get(mesh::ArrayType::VERTEX.ord() as usize)
+        .and_then(|value| value.try_to::<PackedVector3Array>().ok());
+    let indices = arrays
+        .get(mesh::ArrayType::INDEX.ord() as usize)
+        .and_then(|value| value.try_to::<PackedInt32Array>().ok());
+    match positions {
+        Some(positions) => surfaces.push(&positions.to_variant()),
+        None => surfaces.push(&Variant::nil()),
+    }
+    match indices {
+        Some(indices) => surfaces.push(&indices.to_variant()),
+        None => surfaces.push(&Variant::nil()),
+    }
+    mesh.set_meta(RENDER_SURFACE_ARRAYS_META, &surfaces.to_variant());
+}
+
+/// `Transform3D` to the `glam` affine the client already uses for doodad placement.
+pub(crate) fn affine(transform: Transform3D) -> Affine3A {
+    let column = |vector: Vector3| Vec3::new(vector.x, vector.y, vector.z);
+    Affine3A::from_cols(
+        column(transform.basis.col_a()).into(),
+        column(transform.basis.col_b()).into(),
+        column(transform.basis.col_c()).into(),
+        column(transform.origin).into(),
+    )
+}
+
+/// One mesh's triangles in the mesh's own space.
+pub(crate) struct MeshTriangles {
+    pub vertices: Vec<Vec3>,
+    pub triangles: Vec<[u32; 3]>,
+}
+
+/// Mesh triangle sets and per-root world surfaces, built on first use.
+#[derive(Default)]
+pub(crate) struct RenderSurfaceCache {
+    meshes: HashMap<InstanceId, Option<Arc<MeshTriangles>>>,
+    roots: HashMap<InstanceId, Option<Arc<RenderSurface>>>,
+}
+
+impl RenderSurfaceCache {
+    /// Drops every cached surface: spawned nodes and their meshes were freed or replaced.
+    pub(crate) fn clear(&mut self) {
+        self.meshes.clear();
+        self.roots.clear();
+    }
+
+    /// The world-space render surface drawn under `root`, reading its mesh children once.
+    ///
+    /// A mesh on a skeleton is skipped: it draws the animated pose, not the authored
+    /// vertices these arrays hold.
+    pub(crate) fn root_surface(&mut self, root: &Gd<Node3D>) -> Option<Arc<RenderSurface>> {
+        let key = root.instance_id();
+        if let Some(cached) = self.roots.get(&key) {
+            return cached.clone();
+        }
+        let surface = self.root_inputs(root).build().map(Arc::new);
+        self.roots.insert(key, surface.clone());
+        surface
+    }
+
+    /// `root`'s surface when it was built already: `None` when not built yet.
+    pub(crate) fn built_root(&self, root: &Gd<Node3D>) -> Option<Option<Arc<RenderSurface>>> {
+        self.roots.get(&root.instance_id()).cloned()
+    }
+
+    /// Records the surface built elsewhere from `root`'s [`RootInputs`].
+    pub(crate) fn adopt_root(&mut self, root: InstanceId, surface: Option<Arc<RenderSurface>>) {
+        self.roots.entry(root).or_insert(surface);
+    }
+
+    /// What `root`'s surface is built from: stored mesh triangles and their world placements.
+    pub(crate) fn root_inputs(&mut self, root: &Gd<Node3D>) -> RootInputs {
+        // A WMO batch node is itself the mesh; a doodad wraps its meshes as children.
+        let mut instances: Vec<Gd<MeshInstance3D>> = root
+            .clone()
+            .try_cast::<MeshInstance3D>()
+            .into_iter()
+            .collect();
+        instances.extend(
+            root.find_children_ex("*")
+                .type_("MeshInstance3D")
+                .owned(false)
+                .recursive(true)
+                .done()
+                .iter_shared()
+                .filter_map(|node| node.try_cast::<MeshInstance3D>().ok()),
+        );
+        let mut parts = Vec::new();
+        for instance in &instances {
+            if !instance.get_skeleton_path().is_empty() {
+                continue;
+            }
+            let Some(mesh) = instance
+                .get_mesh()
+                .and_then(|mesh| mesh.try_cast::<ArrayMesh>().ok())
+            else {
+                continue;
+            };
+            let Some(local) = self.mesh_triangles(&mesh) else {
+                continue;
+            };
+            parts.push((local, affine(instance.get_global_transform())));
+        }
+        RootInputs { parts }
+    }
+
+    /// The triangles of a mesh as authored, in the mesh's own space, read once.
+    fn mesh_triangles(&mut self, mesh: &Gd<ArrayMesh>) -> Option<Arc<MeshTriangles>> {
+        let key = mesh.instance_id();
+        if let Some(cached) = self.meshes.get(&key) {
+            return cached.clone();
+        }
+        let extracted = extract_mesh(mesh).map(Arc::new);
+        self.meshes.insert(key, extracted.clone());
+        extracted
+    }
+}
+
+/// A root node's drawn meshes, in mesh space, with their world placements: everything its
+/// render surface is built from, so the build can run off the main thread.
+pub(crate) struct RootInputs {
+    parts: Vec<(Arc<MeshTriangles>, Affine3A)>,
+}
+
+impl RootInputs {
+    /// The world-space surface of these meshes; `None` without a usable triangle.
+    pub(crate) fn build(&self) -> Option<RenderSurface> {
+        let mut vertices: Vec<Vec3> = Vec::new();
+        let mut triangles: Vec<[u32; 3]> = Vec::new();
+        for (local, world_from_mesh) in &self.parts {
+            let base = vertices.len() as u32;
+            vertices.extend(
+                local
+                    .vertices
+                    .iter()
+                    .map(|&vertex| world_from_mesh.transform_point3(vertex)),
+            );
+            triangles.extend(
+                local
+                    .triangles
+                    .iter()
+                    .map(|triangle| triangle.map(|index| index + base)),
+            );
+        }
+        RenderSurface::build(vertices, triangles)
+    }
+}
+
+/// Builds one triangle list from the position/index streams stored on `mesh`.
+fn extract_mesh(mesh: &Gd<ArrayMesh>) -> Option<MeshTriangles> {
+    let Some(surfaces) = mesh
+        .get_meta(RENDER_SURFACE_ARRAYS_META)
+        .try_to::<VarArray>()
+        .ok()
+    else {
+        godot_error!("ArrayMesh is missing stored render-surface arrays");
+        return None;
+    };
+    if surfaces.len() % 2 != 0 {
+        godot_error!("ArrayMesh has malformed stored render-surface arrays");
+        return None;
+    }
+
+    let mut vertices = Vec::new();
+    let mut triangles = Vec::new();
+    for surface in (0..surfaces.len()).step_by(2) {
+        let Some(positions) = surfaces
+            .get(surface)
+            .and_then(|value| value.try_to::<PackedVector3Array>().ok())
+        else {
+            continue;
+        };
+        let indices = surfaces
+            .get(surface + 1)
+            .and_then(|value| value.try_to::<PackedInt32Array>().ok())
+            .filter(|indices| !indices.is_empty());
+        append_surface_triangles(&positions, indices, &mut vertices, &mut triangles);
+    }
+    (!triangles.is_empty()).then_some(MeshTriangles {
+        vertices,
+        triangles,
+    })
+}
+
+/// Appends one surface, reversing Godot's front-face winding for upward-floor queries.
+fn append_surface_triangles(
+    positions: &PackedVector3Array,
+    indices: Option<PackedInt32Array>,
+    vertices: &mut Vec<Vec3>,
+    triangles: &mut Vec<[u32; 3]>,
+) {
+    let base = vertices.len() as u32;
+    vertices.extend(
+        positions
+            .as_slice()
+            .iter()
+            .map(|vertex| Vec3::new(vertex.x, vertex.y, vertex.z)),
+    );
+    let source: Vec<u32> = match indices {
+        Some(indices) => indices
+            .as_slice()
+            .iter()
+            .filter_map(|index| (*index >= 0).then_some(*index as u32))
+            .collect(),
+        None => (0..positions.len() as u32).collect(),
+    };
+    triangles.extend(
+        complete_triangles(source.as_slice(), positions.len())
+            .into_iter()
+            .map(|triangle| [base + triangle[0], base + triangle[2], base + triangle[1]]),
+    );
+}
+
+/// Keeps only complete triangles and drops vertices outside the surface.
+fn complete_triangles(indices: &[u32], vertices: usize) -> Vec<[u32; 3]> {
+    indices
+        .chunks_exact(3)
+        .filter(|triangle| triangle.iter().all(|&index| (index as usize) < vertices))
+        .map(|triangle| [triangle[0], triangle[1], triangle[2]])
+        .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::wmo::assets::NativeWmoAsset;
+    use game_engine_core::render_surface::SurfaceSet;
+    use shared::ground::WmoCollision;
+
+    fn data_root() -> std::path::PathBuf {
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data")
+    }
+
+    fn read_wmo(fdid: u32) -> NativeWmoAsset {
+        let data_root = data_root();
+        let resolver = osso_asset_resolver::CascListfileResolver::new(
+            osso_asset_resolver::AssetResolverConfig::new()
+                .with_data_root(&data_root)
+                .with_shared_data_root(&data_root),
+        );
+        crate::wmo::assets::read_wmo(&resolver, &data_root, fdid).expect("local WMO")
+    }
+
+    /// Render batches of `asset` in WMO-local space, one surface per group, with the
+    /// Godot front-face winding the drawn mesh carries (`wmo::scene` swaps it).
+    fn render_surfaces(asset: &NativeWmoAsset) -> SurfaceSet {
+        let mut surfaces = SurfaceSet::default();
+        for group in &asset.groups {
+            let mut vertices = Vec::new();
+            let mut triangles = Vec::new();
+            for batch in &group.batches {
+                let base = vertices.len() as u32;
+                vertices.extend(batch.positions.iter().map(|point| Vec3::from_array(*point)));
+                triangles.extend(batch.indices.chunks_exact(3).map(|triangle| {
+                    [
+                        base + triangle[0] as u32,
+                        base + triangle[2] as u32,
+                        base + triangle[1] as u32,
+                    ]
+                }));
+            }
+            if let Some(surface) = RenderSurface::build(vertices, triangles) {
+                surfaces.push(surface);
+            }
+        }
+        surfaces
+    }
+
+    fn collision(asset: &NativeWmoAsset) -> WmoCollision {
+        WmoCollision::new(
+            Affine3A::IDENTITY,
+            asset
+                .groups
+                .iter()
+                .map(|group| group.collision.clone())
+                .collect(),
+        )
+    }
+
+    /// Stormwind's city WMO draws stair treads over collision-only ramps; the query must
+    /// return the tread, not the ramp under it.
+    #[test]
+    fn stormwind_render_stairs_are_the_highest_visible_surface() {
+        let asset = read_wmo(107_243);
+        let surfaces = render_surfaces(&asset);
+        let collision = collision(&asset);
+        assert!(surfaces.len() > 1, "stormwind renders several groups");
+        let mut heights = Vec::new();
+        let mut checked = 0usize;
+        let mut over_ramp = 0usize;
+        let mut sample = None;
+        for part in 0..surfaces.len() {
+            let Some(surface) = surfaces.part(part) else {
+                continue;
+            };
+            // A tread triangle's centroid is a column on that tread.
+            let stride = (surface.triangle_count() / 97).max(1);
+            for index in (0..surface.triangle_count()).step_by(stride) {
+                let Some(centroid) = surface.triangle_centroid(index) else {
+                    continue;
+                };
+                let (x, z, tread) = (centroid.x, centroid.z, centroid.y);
+                checked += 1;
+                heights.clear();
+                collision.collision_heights(x, z, tread + 1.6, tread - 0.2, &mut heights);
+                let Some(floor) = heights.iter().copied().max_by(f32::total_cmp) else {
+                    continue;
+                };
+                let render = surfaces.highest_upward_below(x, z, floor + 1.6, floor);
+                if let Some(render) = render.map(|(height, _)| height) {
+                    if render - floor > 0.02 {
+                        over_ramp += 1;
+                        sample = sample.or(Some((x, z, floor, render)));
+                    }
+                }
+            }
+        }
+        assert!(checked > 100, "checked {checked} render columns");
+        assert!(
+            over_ramp > 0,
+            "no stormwind render tread stands above its collision face"
+        );
+        let (x, z, floor, render) = sample.expect("first raised tread");
+        assert!(render > floor, "({x}, {z}) render {render} > floor {floor}");
+    }
+}

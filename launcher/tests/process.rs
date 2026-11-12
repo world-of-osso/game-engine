@@ -657,7 +657,7 @@ fn missing_pinned_godot_names_build_script_and_prevents_build() {
     let output = fixture.launch_with_cache(&fixture.directory.join("cache"));
     assert!(!output.status.success());
     let stderr = String::from_utf8_lossy(&output.stderr);
-    let pinned = "cache/game-engine/godot/4.7.2-pr123946-pr123546-pr123391-matlist-bonepose-present/godot-4.7.2-pr123946-pr123546-pr123391-matlist-bonepose-present is missing";
+    let pinned = "cache/game-engine/godot/4.7.2-pr123946-pr123546-pr123391-matlist-bonepose-present-audiobus/godot-4.7.2-pr123946-pr123546-pr123391-matlist-bonepose-present-audiobus is missing";
     assert!(stderr.contains(pinned), "{stderr}");
     assert!(
         stderr.contains("scripts/godot/build-patched-godot.sh"),
@@ -670,12 +670,14 @@ fn missing_pinned_godot_names_build_script_and_prevents_build() {
 fn unpinned_godot_is_refused_before_build() {
     let fixture = Fixture::new();
     let cache = fixture.directory.join("cache");
-    let version = cache.join("game-engine/godot/4.7.2-pr123946-pr123546-pr123391-matlist-bonepose-present");
+    let version = cache.join(
+        "game-engine/godot/4.7.2-pr123946-pr123546-pr123391-matlist-bonepose-present-audiobus",
+    );
     fs::create_dir_all(&version).unwrap();
     // Any binary other than the pinned build is refused, even in the pinned slot.
     fs::copy(
         &fixture.godot,
-        version.join("godot-4.7.2-pr123946-pr123546-pr123391-matlist-bonepose-present"),
+        version.join("godot-4.7.2-pr123946-pr123546-pr123391-matlist-bonepose-present-audiobus"),
     )
     .unwrap();
     let output = fixture.launch_with_cache(&cache);

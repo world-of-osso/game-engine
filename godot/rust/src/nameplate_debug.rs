@@ -3,6 +3,7 @@
 //! plate renderer: three stationary owners with names, health, a looping cast and a
 //! looping channel; Space pauses and resumes, a click on a plate selects its owner.
 
+use crate::rebuild_guard::ThemeOverrides;
 use std::path::PathBuf;
 use std::sync::mpsc::{self, Receiver, TryRecvError};
 
@@ -356,8 +357,8 @@ impl WowNameplateDebug {
         let mut label = Label::new_alloc();
         label.set_name("Caption");
         label.set_position(Vector2::new(24.0, 24.0));
-        label.add_theme_font_size_override("font_size", 16);
-        label.add_theme_color_override("font_color", Color::WHITE);
+        label.change_theme_font_size_override("font_size", 16);
+        label.change_theme_color_override("font_color", Color::WHITE);
         layer.add_child(&label);
         self.base_mut().add_child(&layer);
         self.caption = Some(label);

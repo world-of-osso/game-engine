@@ -21,8 +21,8 @@ use lightyear::prelude::{
 };
 use shared::{
     components::{
-        EquipmentAppearance, EquipmentVisualSlot, EquippedAppearanceEntry, Gold, ModelDisplay, Npc,
-        Player, Position, UnitFactionTemplate,
+        CharacterVisual, EquipmentAppearance, EquipmentVisualSlot, EquippedAppearanceEntry, Gold,
+        ModelDisplay, Npc, Player, Position, UnitFactionTemplate,
     },
     protocol::{
         ActionBarSnapshot, ActionRef, AuthChannel, BagContents, CharacterListEntry,
@@ -542,7 +542,7 @@ fn launch_godot(
             .map(PathBuf::from)
             .unwrap_or_else(|| {
                 PathBuf::from(std::env::var_os("HOME").expect("HOME for pinned Godot"))
-                    .join(".cache/game-engine/godot/4.7.2-pr123946-pr123546-pr123391-matlist-bonepose-present/godot-4.7.2-pr123946-pr123546-pr123391-matlist-bonepose-present")
+                    .join(".cache/game-engine/godot/4.7.2-pr123946-pr123546-pr123391-matlist-bonepose-present-audiobus/godot-4.7.2-pr123946-pr123546-pr123391-matlist-bonepose-present-audiobus")
             })
     } else {
         root.join("target/debug/game-engine-launcher")
@@ -905,15 +905,18 @@ fn respond_to_selection(
         } else {
             FIRST
         };
+        let player_data = Player {
+            name: NAME.into(),
+            race: 1,
+            class: 2,
+            appearance: Default::default(),
+        };
+        let player_visual = CharacterVisual::from(&player_data);
         let player = app
             .world_mut()
             .spawn((
-                Player {
-                    name: NAME.into(),
-                    race: 1,
-                    class: 2,
-                    appearance: Default::default(),
-                },
+                player_data,
+                player_visual,
                 starter_equipment(),
                 Position {
                     x: spawn[0],
@@ -969,10 +972,12 @@ fn respond_to_selection(
             appearance: Default::default(),
         };
         remote_player.appearance.sex = 1;
+        let remote_visual = CharacterVisual::from(&remote_player);
         *remote = Some(
             app.world_mut()
                 .spawn((
                     remote_player,
+                    remote_visual,
                     starter_equipment(),
                     Position {
                         x: REMOTE[0],

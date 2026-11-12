@@ -107,7 +107,7 @@ Type2 kit models wait for pending owner visual loads while retaining their origi
     | 81575 | PrecastStart, looped until PrecastEnd | 85500 (vol 0.35, 0x200) | 1631387-1631390 `precast_loop_01-04` |
     | 81337 | Cast (`SpellGo`) | 85502 (vol 0.35) | 1631379-1631382 `frostbolt_cast_01-04` |
     | 80718 | Impact (missile arrival) | 85503 (vol 0.8, MinDistance 25, cutoff 55) | 1631383-1631386 `frostbolt_impact_01-04` |
-- **Kit model placement.** A model hangs from the unit model's `Skeleton3D/AttachmentBone{id}/Attachment{id}`; `-1` means the unit's origin. It plays its start clip once (the kit's, else Stand), Hold (158) while a held kit lasts, then Decay (159) at the end, and is freed after its particles' longest life. These defaults are inferred from how spell models author their emission. Battle Shout's buff 6194303 enables emitters at 133 ms of Stand, holds steady in Hold, and ramps down in Decay.
+- **Kit model placement.** A model hangs from the unit model's `Skeleton3D/AttachmentBone{id}/Attachment{id}`, made on first use by `attachments::attachment_point` from the skeleton's attachment table; `-1` means the unit's origin. It plays its start clip once (the kit's, else Stand), Hold (158) while a held kit lasts, then Decay (159) at the end, and is freed after its particles' longest life. These defaults are inferred from how spell models author their emission. Battle Shout's buff 6194303 enables emitters at 133 ms of Stand, holds steady in Hold, and ramps down in Decay.
 - **Virtual attachment 56.** VirtualSpellDirected is absent from character models. It is taken as the midpoint of SpellLeftHand 21 and SpellRightHand 22 (inferred). Any other missing attachment is reported and uses the origin.
 - **Keyframed emission.** Spell effect emitters author their bursts as keyframed `emissionRate`/`emissionSpeed`/`enabledIn` tracks; the static first key is usually 0. `EmitterSim::set_animation` evaluates them at the placed model's playing sequence time, and pools are sized for the track's peak rate. Doodads get the same behavior.
 
@@ -371,6 +371,77 @@ Runtime: the account's existing `SpecializationChanged` updates `PlayerSpells.sp
 `PlayerCondition` 87160 requires class mask 1, spec index 0 and weapon mask 1312110; 87161 requires class mask 1, spec index 0 and weapon mask 768145 (one-handed weapons). Condition 18183 requires class mask 1 and spec index 1, without a weapon requirement. The unrestricted two-handed row 313354 (condition 64724, priority 0) loses to the matching specialization row. Both visuals now use impact kit278885: events561992/230297 target4, type2 kit effect789206→model attach638041→effect name25213/model1283017 at attachment15. Type1 effect789205 is not a model attachment; the initial refresh probe misclassified it and was corrected without changing runtime. Cast event561991 selects kit278884 for Arms; effect789202→SpellVisualAnim434904→AnimKit7583→segment14620 selects animation812. Fury's cast event230296/kit128672→effect320219→SpellVisualAnim373261→AnimKit8451/segment16259 still selects818. The known Initial OrderIndex 4 instead reaches unrestricted row 313354, producing the same two-handed kit as no snapshot by a different condition path.
 
 Behavioral proof is in the [contract's tests](../../specs/spell-visuals.md#tests-asserting-this-spec): local spell state before the snapshot and Arms→Fury transitions, actual DB2 ID-to-index resolution, same-weapon kits, and remote identity rejection. Native raster/live proof is not claimed; the existing capture fixture requires a live server and no offline spec cast path was found.
+
+## Area trigger ground visuals (2026-11-05)
+
+A replicated `SpellAreaTrigger` carries the persistent ground art, not the cast kit. The art
+is authored as a **display kit** (`SpellVisualEvent` `StartEvent` 9 -> `EndEvent` 10), which
+the trigger holds for its whole lifetime:
+
+| Spell | Display kit | Cast/burst kits | Effect (model, authored radius) |
+|---|---|---|---|
+| Death and Decay 43265 | 243682 | 243680, 243681, 230208 | 36976 (1522961, no radius) |
+| Consecration 26573 | 59234 / 187938 | 59536 / 189337 | 34171 (1248077, `EffectRadius` 8) |
+| Flamestrike 2120 | none authored | 265776, 265781 | 27593/27921 (1387770, 1387771) |
+
+Consequences, all measured in the offline preview:
+
+- Replaying only the burst kits (`end` = 13) is what made Consecration invisible: its burst
+  kits 59536/189337 are small hand-scale models, and its golden circle is 59234/187938.
+- DB2 events 9/10 must decode to `DisplayStart`/`DisplayEnd`; they are real
+  `SpellVisualEvent` rows, not client-only states. A cached catalog built before that
+  decode keeps the old `Other(9)` values, so the cache format has to move with it.
+- Scale: `SpellVisualEffectName.EffectRadius` is the effect's authored ground radius in
+  yards (absent before 12.1.5). A trigger fits the art by `trigger radius / EffectRadius`;
+  effects without one keep their authored size (Death and Decay's held disc is 11.8 yd
+  across, Consecration's circle 19.4 yd, Flamestrike 17.9 yd).
+- The held kits are drape candidates like any other kit model, so they bend onto treads and
+  carpets through `drape_ground_effects`; the drape log reports their batch span, discarded
+  and steep triangle counts.
+- A server pulse is not a re-cast: the burst plays once on first sight and the display kit
+  is held from then on (`AreaTriggerVisuals::replays` returns a trigger only when new). This
+  matches retail's per-message rule: the force-one-shot (3->13) pass runs only when a server
+  `ClientAreaTrigger` message (opcode 0x460002) arrives, and each such message creates a
+  fresh burst instance with no cancellation, while per-frame work is only the
+  channel/display pass, which de-duplicates on the live instance id so 9->10 rows never
+  re-erupt. Our server sends no repeated area-trigger updates, so one burst per trigger is
+  the correct client behaviour (decompilation: engine-3d/AT-PASS-CADENCE-AND-DISCS.md).
+
+## Square ground quads: what is ruled out (2026-11-05)
+
+Death and Decay's and Consecration's ground art renders with straight edges. Six hypotheses were
+measured against the offline preview and all are ruled out; record them so nobody repeats them.
+
+1. **The visible art is not the disc mesh.** Hiding the two 4-vertex quads of Death and Decay's
+   model 1522961 drops the effect from 202,185 px to 217 px against a same-frame no-effect frame.
+   `Batch0`, the 42-vertex disc with the radial texture 167013, contributes almost nothing.
+2. **The quads' textures are flat in alpha.** Ring profiles from the texture centre to its corner
+   (luminance/alpha): 1603902 1/76 ... 2/91, 1522978 20/101 ... 37/148, 1601200 54/161 ... 29/73,
+   1620780 51/82 ... 90/168, and Consecration's 1248078 is opaque everywhere (163/164 ... 134/157).
+   The only clean radial falloff, 167013 (255/255 ... 67/54), is on the disc batches.
+3. **The third texture is not a mask these batches use.** It is radial (1603903 peaks at 167 alpha
+   in ring 4 and is 0 at the corners; 1612964 is a ring; 1248079 is centre-bright; 1387801 is
+   centre-bright), but `Model::texture_unit_lookup` is empty for all four models, every batch's
+   `texture_coord_index` is 0, vertex combiner 2 assigns coordinates to two slots only, and pixel
+   combiner 8 reads two textures. Sampling it anyway made things worse: at `uv3` (a constant texel)
+   Death and Decay fell to 65,872 px spread off the disc, at `uv1` to 5,012 px off the ground.
+4. **The authored coordinates are already the decal mapping.** The quads are 45-degree diamonds in
+   model space (vertices (0, 3.92), (-3.92, 0), (3.92, 0), (0, -3.92), kit yaw 0) and their UV1
+   spans -0.0009..1.0009 along the diamond's diagonals. Projecting axis-aligned bounds onto [0, 1]
+   turns the texture 45 degrees and grows the footprint: Death and Decay 135,062 -> 200,683 px,
+   Flamestrike 183,948 -> 429,896 px, Consecration 391,836 -> 335,974 px.
+5. **The client has no radius, falloff or edge-fade term** (decompilation, VERIFIED NEGATIVE), so
+   nothing clips a quad to a circle outside the shader.
+6. **The projected-texture pass's ramp alone is not a disc.** A preview-only decal over the batch's
+   box with `ShadowAddCallback`'s procedural ramp (alpha 0->1 over t 0..2, flat to 10, 1->0 by 12,
+   along the texture's 64-texel axis) produces a one-dimensional band, not a circle: Death and Decay
+   65,725 px with 32% of the change in the box corners at 9 s. The circular shape can only come from
+   the terrain triangles that pass draws and their own shadow-map coordinates, which are not
+   derivable from the M2 or from the client image.
+
+Conclusion: the quad geometry, its coordinates, its textures and the client's state are all
+accounted for, and none of them clips the art. What remains is the projected pass's terrain draw,
+whose texture coordinates are not recoverable without the `.bls` shader bytecode.
 
 ## Gaps
 

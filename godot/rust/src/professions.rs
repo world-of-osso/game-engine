@@ -4,7 +4,7 @@ use game_engine_core::input_bindings_data::InputAction;
 use game_engine_session::SessionScreen;
 use game_engine_ui_model::item_catalog::item_catalog;
 use game_engine_ui_model::professions::ProfessionBook;
-use game_engine_ui_professions::professions_catalog::RecipeCatalog;
+use game_engine_ui_professions::professions_catalog::{ProfessionBookSummary, RecipeCatalog};
 use game_engine_ui_professions::professions_frame::{
     ItemDisplay, ProfessionPage, ProfessionView, QUANTITY, SEARCH, professions_screen,
 };
@@ -22,6 +22,7 @@ mod reagents;
 #[derive(Default)]
 pub(crate) struct Professions {
     pub(crate) book: ProfessionBook,
+    pub(crate) book_frame_visible: bool,
     catalog: Option<RecipeCatalog>,
     loading: Option<Receiver<Result<RecipeCatalog, String>>>,
     started: bool,
@@ -41,6 +42,8 @@ pub(crate) struct Professions {
     order_form_initialized: bool,
     pub(crate) concentration: Option<shared::concentration::ConcentrationSnapshot>,
     concentration_skill: Option<u32>,
+    /// Whether `book.recipes` reflects the current snapshot and catalogs.
+    recipes_current: bool,
 }
 impl Professions {
     pub(crate) fn recipe(
@@ -97,6 +100,7 @@ impl Professions {
             Ok(result) => {
                 self.loading = None;
                 self.catalog = Some(result?);
+                self.recipes_current = false;
             }
             Err(TryRecvError::Empty) => {}
             Err(TryRecvError::Disconnected) => {
@@ -119,6 +123,7 @@ impl GameClient {
             self.professions.selected_favorite = false;
         }
         self.professions.book.snapshot = snapshot;
+        self.professions.recipes_current = false;
     }
     pub(super) fn receive_profession_concentration(
         &mut self,
@@ -174,8 +179,9 @@ impl GameClient {
     }
 
     pub(super) fn close_professions(&mut self) -> bool {
-        let visible = self.professions.book.visible;
+        let visible = self.professions.book.visible || self.professions.book_frame_visible;
         self.professions.book.visible = false;
+        self.professions.book_frame_visible = false;
         self.professions.book.reset_visibility_filters();
         self.professions.filter_open = false;
         self.professions.concentration = None;
@@ -196,6 +202,38 @@ impl GameClient {
             self.account.send_close_interaction(npc)?;
         }
         Ok(self.close_professions())
+    }
+    pub(super) fn toggle_professions_book(&mut self) -> Result<(), FrameError> {
+        let open = !self.professions.book_frame_visible;
+        self.close_professions_window()?;
+        self.professions.book_frame_visible = open;
+        Ok(())
+    }
+    fn poll_profession_book_inputs(&mut self) -> Result<(), FrameError> {
+        let Some(mut ui) = self.professions.ui.clone() else {
+            return Ok(());
+        };
+        loop {
+            let action = ui.bind_mut().pop_action().to_string();
+            if action.is_empty() {
+                break;
+            }
+            if action == "profession:close" {
+                self.close_professions_window()?;
+                break;
+            }
+            let Some(raw_spell) = action.strip_prefix("profession:open:") else {
+                return Err(format!("Unknown profession book action: {action}").into());
+            };
+            let spell = raw_spell
+                .parse::<u32>()
+                .map_err(|error| format!("Invalid profession opener {raw_spell}: {error}"))?;
+            if !self.open_profession_spell(spell)? {
+                return Err(format!("Unknown learned profession opener {spell}").into());
+            }
+            break;
+        }
+        Ok(())
     }
     pub(super) fn open_profession_spell(
         &mut self,
@@ -239,23 +277,53 @@ impl GameClient {
         self.professions.poll_catalog(&self.data_root)?;
         self.refresh_profession_recipes();
         self.apply_profession_key()?;
-        if !self.professions.book.visible {
+        if !self.professions.book.visible && !self.professions.book_frame_visible {
             return Ok(());
         }
-        self.poll_profession_inputs()?;
+        if self.professions.book_frame_visible {
+            self.poll_profession_book_inputs()?;
+        } else {
+            self.poll_profession_inputs()?;
+        }
         if self.professions.book.visible {
             self.query_profession_concentration()?;
+        }
+        if self.professions.book.visible || self.professions.book_frame_visible {
             self.sync_professions()?;
         }
         Ok(())
     }
     fn refresh_profession_recipes(&mut self) {
-        let Some(catalog) = self.professions.catalog.as_ref() else {
+        if !self.professions.recipes_current && !self.rebuild_profession_recipes() {
             return;
+        }
+        if self.professions.book.selected_recipe().is_none() {
+            self.professions.book.selected = self
+                .professions
+                .book
+                .recipes
+                .iter()
+                .min_by_key(|recipe| {
+                    !self
+                        .professions
+                        .book
+                        .snapshot
+                        .spells
+                        .contains(&recipe.spell_id)
+                })
+                .map(|recipe| recipe.spell_id);
+        }
+    }
+    /// The learned recipes, rebuilt only after the snapshot or the recipe catalog
+    /// changed; `false` until both catalogs are loaded.
+    fn rebuild_profession_recipes(&mut self) -> bool {
+        let Some(catalog) = self.professions.catalog.as_ref() else {
+            return false;
         };
         let Some(spells) = self.spells.catalog() else {
-            return;
+            return false;
         };
+        self.professions.recipes_current = true;
         self.professions.book.recipes = catalog
             .recipes
             .iter()
@@ -274,22 +342,7 @@ impl GameClient {
                 Some(recipe)
             })
             .collect();
-        if self.professions.book.selected_recipe().is_none() {
-            self.professions.book.selected = self
-                .professions
-                .book
-                .recipes
-                .iter()
-                .min_by_key(|recipe| {
-                    !self
-                        .professions
-                        .book
-                        .snapshot
-                        .spells
-                        .contains(&recipe.spell_id)
-                })
-                .map(|recipe| recipe.spell_id);
-        }
+        true
     }
     fn apply_profession_key(&mut self) -> Result<(), FrameError> {
         if self.game_menu_ui.is_some() || !self.account.session.gameplay_input_allowed() {
@@ -301,12 +354,7 @@ impl GameClient {
             .bindings
             .is_just_pressed(InputAction::ToggleProfessions, &input)
         {
-            if self.professions.book.visible {
-                self.close_professions_window()?;
-            } else {
-                self.professions.book.visible = true;
-                self.professions.book.quantity = 1;
-            }
+            self.toggle_professions_book()?;
         }
         Ok(())
     }
@@ -535,8 +583,17 @@ impl GameClient {
                 Some((*item, quality.clone()))
             })
             .collect();
+        let profession_book = self
+            .professions
+            .catalog
+            .as_ref()
+            .map_or_else(ProfessionBookSummary::default, |catalog| {
+                catalog.book_summary(&book.snapshot)
+            });
         let mut view = ProfessionView {
             page: self.professions.page,
+            profession_book_visible: self.professions.book_frame_visible,
+            profession_book,
             favorite_menu: self.professions.favorite_menu,
             selected_favorite: self.professions.selected_favorite,
             filter_open: self.professions.filter_open,
@@ -610,6 +667,14 @@ impl GameClient {
         }
         if let Some(snapshot) = &mut view.concentration {
             snapshot.currency.icon = self.drawable_fdid(snapshot.currency.icon);
+        }
+        for slot in view
+            .profession_book
+            .primary
+            .iter_mut()
+            .chain(view.profession_book.secondary.iter_mut().flatten())
+        {
+            slot.icon_fdid = self.drawable_fdid(slot.icon_fdid);
         }
         for item in view.items.values_mut() {
             item.icon_fdid = self.drawable_fdid(item.icon_fdid);

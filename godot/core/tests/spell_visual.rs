@@ -649,3 +649,29 @@ fn frost_nova_aura_kits_sound_while_rooted_and_when_it_ends() {
         )]
     );
 }
+
+/// An area trigger holds the display kit for its whole lifetime and re-issues the burst:
+/// Consecration's ground art is 59234 (effect 34171, authored for an 8 yd radius) and Death
+/// and Decay's is 243682, not the cast kits the trigger used to replay.
+#[test]
+fn area_triggers_hold_display_kits_and_replay_the_burst() {
+    let consecration = catalog().area_trigger_kits(26573);
+    let ids: Vec<u32> = consecration.iter().map(|kit| kit.kit_id).collect();
+    assert_eq!(
+        ids.first(),
+        Some(&59234),
+        "held ground kit comes first: {ids:?}"
+    );
+    assert_eq!(consecration[0].end, VisualEvent::DisplayEnd);
+    let ground = &consecration[0].models[0];
+    assert_eq!(ground.model_fdid, 1248077);
+    assert_eq!(ground.effect_radius, 8.0);
+
+    let decay: Vec<u32> = catalog()
+        .area_trigger_kits(43265)
+        .into_iter()
+        .map(|kit| kit.kit_id)
+        .collect();
+    assert_eq!(decay.first(), Some(&243682), "held disc first: {decay:?}");
+    assert!(decay.contains(&230208), "burst still replayed: {decay:?}");
+}

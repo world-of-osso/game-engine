@@ -434,7 +434,7 @@ fn portrait_viewport() -> (Gd<SubViewport>, Gd<Node3D>, Gd<Camera3D>) {
 fn mask_material(slot: &PortraitSlot) -> Gd<ShaderMaterial> {
     let mut shader = Shader::new_gd();
     shader.set_code(MASK_SHADER);
-    let mut material = ShaderMaterial::new_gd();
+    let mut material = crate::rebuild_guard::new_shader_material();
     material.set_shader(&shader);
     set_slot_rects(&mut material, slot);
     material.set_shader_parameter("desaturated", &false.to_variant());

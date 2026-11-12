@@ -172,9 +172,11 @@ void main() {
 		// Mod2x: DST_COLOR, SRC_COLOR; 0.5 is neutral.
 		rgb = mix(vec3(0.5), rgb, fade);
 	} else if (gx_blend == 13) {
-		// BlendAdd: ONE, ONE_MINUS_SRC_ALPHA over premultiplied output.
-		rgb *= fade;
+		// BlendAdd is ONE, ONE_MINUS_SRC_ALPHA (`particle_composite_effect.gd`
+		// BLEND_FACTORS): the written colour must carry its own alpha, or a texel with
+		// alpha 0 still adds its full colour and every sprite quad paints its whole square.
 		alpha *= fade;
+		rgb *= alpha;
 	} else if (gx_blend >= 2) {
 		alpha *= fade;
 	}

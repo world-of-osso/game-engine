@@ -26,13 +26,64 @@ const OCEAN_LVF: u8 = 2;
 /// Texture slots per LiquidType (`FrameCountTexture[6]`).
 pub const TEXTURE_SLOTS: usize = 6;
 pub const PBR_WATER_MATERIAL: u8 = 130;
+
+/// RF3: the six `LiquidTypeXTexture` roles a Forever Material130 row binds, in the canonical
+/// order: foam high, mid, low, rim, depth, river. Two rows store rim and depth in the
+/// opposite order; the catalog detects that pair swap and `LiquidMaterial::pbr_mask_slots`
+/// reports the role-to-slot mapping.
+pub const PBR_MASK_ROLES: [&str; 6] = [
+    "foam_high",
+    "foam_mid",
+    "foam_low",
+    "foam_rim",
+    "foam_depth",
+    "foam_river",
+];
+/// RF3: the authored `_depth` art is slot 4 in the canonical row order.
+const PBR_CANONICAL_DEPTH_SLOT: u8 = 4;
 const LEGACY_WATER_TYPE: u16 = 5;
+/// Retail 70688 E6: a missing LiquidType retries row 8, not LiquidMaterial 8.
+const MISSING_LIQUID_TYPE: u32 = 8;
+
+/// G13: the `LiquidType.Int_0 = 0` depth curve. It is `255 / 42`, i.e.
+/// `min(1, depthYards / 4.6667)`: the channel saturates at byte 42 (4.67 yd).
+const STEEP_DEPTH_CURVE: [f32; 4] = [0.0, 6.071_400_3, 0.0, 0.0];
+/// G13: `Int_0 = 1`, and the fallback when no row resolves.
+const LINEAR_DEPTH_CURVE: [f32; 4] = [0.0, 1.0, 0.0, 0.0];
+
+/// G13: retail applies the liquid depth curve once, on the CPU at draw-vertex write, and
+/// stores the curved value in the second texture pair's second component; no pixel
+/// program contains the polynomial. `material_lvf` is the `LiquidMaterial.LVF` row value
+/// (not the ocean instance override): `Int_0` 0/1 select the two hard-coded curves for
+/// formats 0 and 3, `Int_0 >= 2` uses the row's `Coefficient_0..3`, and level-1 magma
+/// uses `(0, 1, 0, 1)`. Every other case is the identity curve.
+pub fn liquid_depth_curve(material_lvf: u8, selector: i32, coefficients: [f32; 4]) -> [f32; 4] {
+    match material_lvf {
+        0 | 3 => match selector {
+            0 => STEEP_DEPTH_CURVE,
+            1 => LINEAR_DEPTH_CURVE,
+            _ => coefficients,
+        },
+        1 => [0.0, 1.0, 0.0, 1.0],
+        _ => LINEAR_DEPTH_CURVE,
+    }
+}
+
+/// G13: the CPU depth channel for an authored `byte / 255` input. Only the upper side is
+/// clamped to one, so an all-negative coefficient set can yield a negative channel.
+pub fn curved_depth_channel(curve: [f32; 4], normalized: f32) -> f32 {
+    let [c0, c1, c2, c3] = curve;
+    let d = normalized;
+    (c0 + c1 * d + c2 * d * d + c3 * d * d * d).min(1.0)
+}
 
 /// The pixel shader of a LiquidMaterial (LiquidMaterialManager.cpp `createLiquidMaterial`;
 /// IDs without a case, such as 8, use water).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum LiquidShader {
     Water,
+    /// Forever Material130 `Liquid::LiquidTypePBRWater`; six authored foam masks.
+    PbrWater,
     Magma,
     Mercury,
     Fog,
@@ -45,6 +96,7 @@ pub enum LiquidShader {
 impl LiquidShader {
     pub fn for_material(material_id: u8) -> Self {
         match material_id {
+            PBR_WATER_MATERIAL => Self::PbrWater,
             2 | 4 => Self::Magma,
             5 => Self::Mercury,
             10 => Self::Fog,
@@ -60,7 +112,10 @@ impl LiquidShader {
     pub fn texture_slots(self) -> &'static [usize] {
         match self {
             Self::Water => &[2, 3],
-            Self::Magma => &[1, 2, 3],
+            Self::PbrWater => &[0, 1, 2, 3, 4, 5],
+            // E5: level 0 draws environment group 0 (the type's first texture); levels 1+
+            // replace it with the class-owned noise blob, so both are read.
+            Self::Magma => &[0, 1, 2, 3],
             Self::Mercury => &[2],
             Self::Fog => &[0],
             Self::LeyLine => &[0, 1, 3, 4],
@@ -121,6 +176,13 @@ pub struct LiquidMaterial {
     pub floats: Vec<f32>,
     /// Cubic depth-to-colour polynomial `LiquidType.Coefficient[0..4]`.
     pub depth_coefficients: [f32; 4],
+    /// G13: the curve retail's draw-vertex writer applies to the authored depth byte, once,
+    /// before interpolation. Selected from `Int_0`, the material's `LVF` and the row
+    /// coefficients; the pixel program consumes the result directly.
+    pub depth_curve: [f32; 4],
+    /// RF3: the slot holding the `_depth` art among the six PBR masks (4 canonically, 3 in
+    /// the two rows whose rim and depth paths are swapped).
+    pub pbr_depth_slot: u8,
     /// `LiquidType.Color[0..3]` as CSqliteDB.cpp `getFloatFromInt<0..2>`: bytes 0, 1, 2 / 255.
     pub colors: [[f32; 3]; 3],
     /// `LiquidType.Int[0..4]`.
@@ -132,6 +194,131 @@ pub struct LiquidMaterial {
     pub texture_slots: [Vec<u32>; TEXTURE_SLOTS],
     /// `LiquidWater.cpp` CalculateWavePeriod of the two wave scales; zero without wave speed.
     pub wave_periods: [f32; 2],
+}
+
+impl LiquidMaterial {
+    /// Forever Material130 G4-compatible layer transforms: three layers, each
+    /// `(scale, phase degrees, velocity)` from `Float[3k..3k+2]`. The six authored
+    /// textures share these three transforms; G4 proves the roles for the first three
+    /// triples and the count matches the row's `Float[0..8]`.
+    pub fn pbr_layer_transforms(&self) -> [[f32; 3]; 3] {
+        let mut layers = [[0.0; 3]; 3];
+        for (layer, values) in layers.iter_mut().enumerate() {
+            for (role, value) in values.iter_mut().enumerate() {
+                *value = self.floats.get(layer * 3 + role).copied().unwrap_or(0.0);
+            }
+        }
+        layers
+    }
+
+    /// Forever EF2: the PBRWater prepare copies all 38 floats verbatim into a
+    /// CPU-assembled material block. Vector 0 is `(1-Color0.rgb, Float_0)`, then
+    /// `Float[3..6]`, then `(Color1.rgb, Float_2)`, then `(Color2.rgb, Float_1)`,
+    /// then `Float[7..25]` with `+0x60 = Float_15` and `+0x64 = Float_19`.
+    /// Colors are returned in the stored BGR order, as LiquidData stores them.
+    pub fn pbr_material_batch(&self) -> [f32; 38] {
+        let float = |index: usize| self.floats.get(index).copied().unwrap_or(0.0);
+        let color = |index: usize| self.colors.get(index).copied().unwrap_or([0.0; 3]);
+        let mut batch = [0.0; 38];
+        let color_0 = color(0);
+        batch[0..3].copy_from_slice(&[1.0 - color_0[0], 1.0 - color_0[1], 1.0 - color_0[2]]);
+        batch[3] = float(0);
+        batch[4..8].copy_from_slice(&[float(3), float(4), float(5), float(6)]);
+        batch[8..11].copy_from_slice(&color(1));
+        batch[11] = float(2);
+        batch[12..15].copy_from_slice(&color(2));
+        batch[15] = float(1);
+        for index in 0..19 {
+            batch[16 + index] = float(7 + index);
+        }
+        // EF2's two explicit batch-word overrides.
+        batch[24] = float(15);
+        batch[25] = float(19);
+        batch
+    }
+
+    /// G4: `Float[13..17]` are the raw shader constants. Forever Water permutation 2
+    /// evaluates one cubic on its t14 mask and scales the result by a single weight;
+    /// the only five row floats left after `[0..12]` are these.
+    pub fn pbr_foam(&self) -> ([f32; 4], f32) {
+        let mut cubic = [0.0; 4];
+        for (index, value) in cubic.iter_mut().enumerate() {
+            *value = self.floats.get(13 + index).copied().unwrap_or(0.0);
+        }
+        (cubic, self.floats.get(17).copied().unwrap_or(0.0))
+    }
+}
+
+/// Which client path resolves a liquid surface. G7: the terrain `MH2O` draw uses the layer's
+/// id verbatim and has no miss retry; E6: the WMO path's instance factory retries an unknown
+/// id with the shared type 8. The 1..20 -> {13,14,19,20} rewrite lives only in the WMO chunk
+/// header bind (`crate::wmo_liquid::group_liquid_type`), never on the terrain path.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum LiquidFamily {
+    Terrain,
+    Wmo,
+}
+
+/// G7: the terrain draw skips a record whose LiquidMaterial column is Fog (10).
+pub const FOG_MATERIAL: u8 = 10;
+
+/// Whether the terrain `MH2O` draw paints a surface of this material.
+pub fn terrain_draws_surface(material_id: u8) -> bool {
+    material_id != FOG_MATERIAL
+}
+
+impl LiquidMaterial {
+    /// Retail70688 G8: the ProcFel per-draw constant block, derived from the row.
+    /// `cb1[12]` = {Float_13, 1/Float_11, Float_14, Float_15} and
+    /// `cb1[13]` = {frame-pair blend, Float_16, Float_17, 0}. The reciprocal is 1 when
+    /// `Float_11` is not positive, so a row without a width makes the shore fade immediate.
+    /// G13: the authored depth byte's draw channel, curved exactly once at vertex write.
+    /// `normalized` is the authored byte divided by 255.
+    pub fn curved_depth(&self, normalized: f32) -> f32 {
+        curved_depth_channel(self.depth_curve, normalized)
+    }
+
+    /// RF3: the six PBR mask role -> `LiquidTypeXTexture` slot mapping. Rim and depth swap
+    /// together, so a row whose depth art lives in slot 3 has rim in slot 4.
+    pub fn pbr_mask_slots(&self) -> [usize; 6] {
+        let depth = usize::from(self.pbr_depth_slot);
+        let rim = if depth == usize::from(PBR_CANONICAL_DEPTH_SLOT) {
+            depth - 1
+        } else {
+            depth + 1
+        };
+        [0, 1, 2, rim, depth, 5]
+    }
+
+    pub fn fel_params(&self, pair_blend: f32) -> ([f32; 4], [f32; 4]) {
+        let float = |index: usize| self.floats.get(index).copied().unwrap_or(0.0);
+        let width = float(11);
+        let shore_scale = if width > 0.0 { 1.0 / width } else { 1.0 };
+        (
+            [float(13), shore_scale, float(14), float(15)],
+            [pair_blend, float(16), float(17), 0.0],
+        )
+    }
+}
+
+/// RF3: slot 4 holds the `_depth` art unless the row stores the catalog's `(rim, depth)`
+/// pair reversed. Non-PBR rows keep the canonical slot, which they never bind.
+fn pbr_depth_slot(
+    material_id: u8,
+    modal_pair: Option<(u32, u32)>,
+    slots: &[Vec<u32>; TEXTURE_SLOTS],
+) -> u8 {
+    if material_id != PBR_WATER_MATERIAL {
+        return PBR_CANONICAL_DEPTH_SLOT;
+    }
+    let Some((rim, depth)) = modal_pair else {
+        return PBR_CANONICAL_DEPTH_SLOT;
+    };
+    if slots[3].as_slice() == [depth] && slots[4].as_slice() == [rim] {
+        3
+    } else {
+        PBR_CANONICAL_DEPTH_SLOT
+    }
 }
 
 struct LiquidTypeRow {
@@ -160,6 +347,9 @@ pub struct LiquidCatalog {
     objects: HashMap<u32, LiquidObjectRow>,
     material_lvf: HashMap<u32, u8>,
     textures: HashMap<u32, Vec<TextureRow>>,
+    /// RF3: the modal PBR `(rim, depth)` slot-3/slot-4 pair in this product, used to detect the
+    /// two rows that swap those two paths.
+    pbr_rim_depth_pair: Option<(u32, u32)>,
 }
 
 /// Separate product catalogs: only maps absent by ID and directory in Retail use Forever.
@@ -168,6 +358,10 @@ pub struct MapLiquidCatalog {
     retail: LiquidCatalog,
     forever_maps: HashSet<u32>,
     forever: Result<LiquidCatalog, String>,
+    /// Explicit opt-in for the Forever Material130 PBR path. Off by default: the
+    /// authored PBR inputs are incomplete (procedural depth texture and prepass are
+    /// still unpublished), so the same-product LiquidType5 fallback stays default.
+    pbr_water: bool,
 }
 
 impl MapLiquidCatalog {
@@ -186,20 +380,31 @@ impl MapLiquidCatalog {
             retail: LiquidCatalog::read(&retail_dir)?,
             forever_maps,
             forever: LiquidCatalog::read(&forever_dir),
+            pbr_water: false,
         })
     }
 
-    /// Material130 has no implemented PBR renderer. This explicitly borrows LiquidType5
-    /// legacy inputs, not a client-authored fallback. Retire when the PBR contract is ported.
-    /// Source metadata remains intact in `liquid_material`.
+    /// Opt in to the Forever Material130 PBR path. Off by default until the
+    /// procedural depth texture and prepass exist; the fallback below is otherwise used.
+    pub fn set_pbr_water(&mut self, enabled: bool) {
+        self.pbr_water = enabled;
+    }
+
+    pub fn pbr_water(&self) -> bool {
+        self.pbr_water
+    }
+
+    /// Material130 default: the same-product LiquidType5 fallback (master behaviour).
+    /// With `set_pbr_water(true)` it renders its own six authored masks and 38 floats.
     pub fn render_material(
         &self,
+        family: LiquidFamily,
         map_id: u32,
         liquid_type: u16,
         liquid_object: u16,
     ) -> Result<LiquidMaterial, String> {
-        let source = self.liquid_material(map_id, liquid_type, liquid_object)?;
-        if source.material_id != PBR_WATER_MATERIAL {
+        let source = self.surface(family, map_id, liquid_type, liquid_object)?;
+        if source.material_id != PBR_WATER_MATERIAL || self.pbr_water {
             return Ok(source);
         }
         let catalog = if self.uses_forever(map_id) {
@@ -207,16 +412,17 @@ impl MapLiquidCatalog {
         } else {
             &self.retail
         };
-        let mut borrowed = catalog.liquid_material(LEGACY_WATER_TYPE, 0)
-            .map_err(|error| format!("LiquidType {liquid_type} Material130 requires borrowed LiquidType5 inputs: {error}"))?;
+        let mut borrowed = catalog.liquid_material(LEGACY_WATER_TYPE, 0).map_err(|error| {
+            format!("LiquidType {liquid_type} Material130 requires LiquidType5 fallback inputs: {error}")
+        })?;
         if borrowed.material_id != 1 {
-            return Err("Borrowed LiquidType5 must identify legacy Water material1".into());
+            return Err("LiquidType5 fallback must identify legacy Water material1".into());
         }
         for &slot in LiquidShader::Water.texture_slots() {
             let frames = &borrowed.texture_slots[slot];
             if frames.is_empty() || frames.contains(&0) {
                 return Err(format!(
-                    "LiquidType {liquid_type} Material130 borrowed LiquidType5 has no valid texture for required legacy slot {slot}"
+                    "LiquidType {liquid_type} Material130 LiquidType5 fallback has no valid texture for required slot {slot}"
                 ));
             }
         }
@@ -238,22 +444,40 @@ impl MapLiquidCatalog {
         liquid_type: u16,
         liquid_object: u16,
     ) -> Result<LiquidMaterial, String> {
+        self.surface(LiquidFamily::Terrain, map_id, liquid_type, liquid_object)
+    }
+
+    /// A WMO group liquid. Same tables, but an unknown id retries the shared type 8 (E6).
+    pub fn wmo_material(
+        &self,
+        map_id: u32,
+        liquid_type: u16,
+        liquid_object: u16,
+    ) -> Result<LiquidMaterial, String> {
+        self.surface(LiquidFamily::Wmo, map_id, liquid_type, liquid_object)
+    }
+
+    fn surface(
+        &self,
+        family: LiquidFamily,
+        map_id: u32,
+        liquid_type: u16,
+        liquid_object: u16,
+    ) -> Result<LiquidMaterial, String> {
         if !self.uses_forever(map_id) {
-            return self.retail.liquid_material(liquid_type, liquid_object);
+            return self.retail.surface(family, liquid_type, liquid_object);
         }
         let catalog = self
             .forever
             .as_ref()
             .map_err(|error| format!("Forever map {map_id}: {error}"))?;
-        if liquid_object >= FIRST_LIQUID_OBJECT
-            && !catalog.objects.contains_key(&u32::from(liquid_object))
-        {
-            return Err(format!(
-                "Forever LiquidObject {liquid_object} has no DB2 row"
-            ));
-        }
+        // A LiquidObject without a DB2 row (the ocean object 42 on every Forever map, plus a
+        // few authored ids the shipped table omits) takes the layer's own `liquid_type` with
+        // no flow, exactly as the Retail path and WebWowViewerCpp
+        // `CSqliteDB::getLiquidObjectData` do. Returning an error dropped the layer instead:
+        // map 2959 alone carries 73 ocean layers, so whole seas were missing.
         let material = catalog
-            .liquid_material(liquid_type, liquid_object)
+            .surface(family, liquid_type, liquid_object)
             .map_err(|error| format!("Forever map {map_id}: {error}"))?;
         for &slot in material.shader.texture_slots() {
             if material.texture_slots[slot].is_empty() {
@@ -295,39 +519,84 @@ impl LiquidCatalog {
         })?;
         let material_lvf = read_table(db2_dir, "LiquidMaterial", |row| row.number("LVF"))?;
         let textures = read_textures(db2_dir)?;
-        Ok(Self {
+        let mut catalog = Self {
             types,
             objects,
             material_lvf,
             textures,
-        })
+            pbr_rim_depth_pair: None,
+        };
+        catalog.pbr_rim_depth_pair = catalog.modal_pbr_rim_depth_pair();
+        Ok(catalog)
     }
 
-    /// The liquid material of an MH2O instance (`liquid_type`, `liquid_object_or_lvf`).
-    /// A LiquidObject without a DB2 row (ocean object 42 and a few authored IDs the shipped
-    /// table omits) takes the instance's own `liquid_type` with no flow, as WebWowViewerCpp
+    /// RF3: most Material130 rows store rim in slot 3 and the `_depth` art in slot 4; two
+    /// rows swap them. The modal single-frame pair identifies the roles without a path
+    /// table, which our Forever export does not carry.
+    fn modal_pbr_rim_depth_pair(&self) -> Option<(u32, u32)> {
+        let mut counts: HashMap<(u32, u32), usize> = HashMap::new();
+        for (&type_id, row) in &self.types {
+            if row.material_id != PBR_WATER_MATERIAL
+                || row.frame_counts[3] != 0
+                || row.frame_counts[4] != 0
+            {
+                continue;
+            }
+            let Ok((slots, _)) = self.texture_slots(type_id, row) else {
+                continue;
+            };
+            let (Some(rim), Some(depth)) = (slots[3].first(), slots[4].first()) else {
+                continue;
+            };
+            *counts.entry((*rim, *depth)).or_default() += 1;
+        }
+        counts
+            .into_iter()
+            .max_by_key(|(_, count)| *count)
+            .map(|(pair, _)| pair)
+    }
+
+    /// The surface of one `MH2O` layer, resolved on the terrain path: the layer's type id is
+    /// used verbatim with no 1..20 rewrite and no miss retry (G7). A LiquidObject without a
+    /// DB2 row (ocean object 42 and a few authored IDs the shipped table omits) takes the
+    /// instance's own `liquid_type` with no flow, as WebWowViewerCpp
     /// `CSqliteDB::getLiquidObjectData` does.
     pub fn liquid_material(
         &self,
         liquid_type: u16,
         liquid_object: u16,
     ) -> Result<LiquidMaterial, String> {
-        let object = (liquid_object >= FIRST_LIQUID_OBJECT)
+        self.surface(LiquidFamily::Terrain, liquid_type, liquid_object)
+    }
+
+    pub fn surface(
+        &self,
+        family: LiquidFamily,
+        liquid_type: u16,
+        liquid_object: u16,
+    ) -> Result<LiquidMaterial, String> {
+        // MH2O's `LiquidObject` is a hybrid field, verified against build 70707: below 42 the
+        // value IS the vertex format and is used literally with no lookup, exactly 42 is a
+        // sentinel for "no overridden vertex format" and is never looked up, and above 42 it is
+        // a real key whose miss falls back to a zero-flow record.
+        let object = (liquid_object > FIRST_LIQUID_OBJECT)
             .then(|| self.objects.get(&u32::from(liquid_object)))
             .flatten();
         let (type_id, flow_direction, flow_speed) = match object {
             Some(object) => (object.liquid_type, object.flow_direction, object.flow_speed),
             None => (u32::from(liquid_type), 0.0, 0.0),
         };
-        let row = self
-            .types
-            .get(&type_id)
-            .ok_or_else(|| format!("LiquidType {type_id} has no DB2 row"))?;
+        let (type_id, row) = self.resolve_type_row(family, type_id)?;
         let material_lvf = *self
             .material_lvf
             .get(&u32::from(row.material_id))
             .ok_or_else(|| format!("LiquidMaterial {} has no DB2 row", row.material_id))?;
-        let lvf = if type_id == OCEAN_LIQUID_TYPE && liquid_object >= FIRST_LIQUID_OBJECT {
+        let lvf = if liquid_object < FIRST_LIQUID_OBJECT {
+            liquid_object as u8
+        } else if u32::from(liquid_type) == OCEAN_LIQUID_TYPE {
+            // G7: the sentinel's hard-coded rule is keyed on the layer's own type, not on
+            // object 42: an Ocean layer is vertex format 2 whenever the format field is a
+            // sentinel (>= 42), overriding LiquidMaterial 1's LVF 0.
             OCEAN_LVF
         } else {
             material_lvf
@@ -340,6 +609,16 @@ impl LiquidCatalog {
             lvf,
             floats: row.floats.clone(),
             depth_coefficients: row.coefficients,
+            depth_curve: liquid_depth_curve(
+                material_lvf,
+                row.ints.first().copied().unwrap_or(0),
+                row.coefficients,
+            ),
+            pbr_depth_slot: pbr_depth_slot(
+                row.material_id,
+                self.pbr_rim_depth_pair,
+                &texture_slots,
+            ),
             flow_direction,
             flow_speed,
             colors: row
@@ -355,6 +634,36 @@ impl LiquidCatalog {
                 wave_periods(&row.floats)
             },
         })
+    }
+
+    /// A WMO group liquid. Same tables, but an unknown id retries the shared type 8 (E6).
+    pub fn wmo_material(
+        &self,
+        liquid_type: u16,
+        liquid_object: u16,
+    ) -> Result<LiquidMaterial, String> {
+        self.surface(LiquidFamily::Wmo, liquid_type, liquid_object)
+    }
+
+    /// Terrain resolves the row verbatim; only the WMO instance factory retries type 8.
+    fn resolve_type_row(
+        &self,
+        family: LiquidFamily,
+        type_id: u32,
+    ) -> Result<(u32, &LiquidTypeRow), String> {
+        if let Some(row) = self.types.get(&type_id) {
+            return Ok((type_id, row));
+        }
+        if family == LiquidFamily::Terrain {
+            return Err(format!("LiquidType {type_id} has no DB2 row"));
+        }
+        let row = self.types.get(&MISSING_LIQUID_TYPE).ok_or_else(|| {
+            format!(
+                "LiquidType {type_id} missing; retry LiquidType {MISSING_LIQUID_TYPE} also missing"
+            )
+        })?;
+        eprintln!("LiquidType {type_id} missing; using LiquidType {MISSING_LIQUID_TYPE}");
+        Ok((MISSING_LIQUID_TYPE, row))
     }
 
     /// LiquidMaterialManager.cpp `assignLiquidTextures`: rows in `OrderIndex` order fill a

@@ -14,6 +14,9 @@ const WOW_POSITION := Vector3(-9030.0, -260.0, 70.2)
 const WATER := Vector3(-9030.0, 70.2, 260.0)
 const NOON := 1440.0
 const SIZE := Vector2i(128, 64)
+## G13: Northshire LiquidType 5's hard-coded `Int_0 = 0` curve, `min(1, byte / 42)`.
+## Retail applies it once at vertex write, so the fixture writes the curved channel.
+const DEPTH_CURVE_SLOPE := 255.0 / 42.0
 const HALF_WIDTH := 4.0
 const BACKING_WIDTH := 400.0
 
@@ -40,12 +43,14 @@ func run() -> void:
 	material = result.material
 	scene_light = result.scene_light
 	make_viewport()
-	var checks := [check_vertex_depth, check_depth_zero, check_thickness, check_colour, check_animation]
+	var checks := [check_vertex_depth, check_depth_zero, check_shallow_shore, check_thickness, check_colour, check_animation]
 	for check in checks:
 		var error: String = await check.call()
 		if error != "":
 			fail(error)
 			return
+	var image := await capture()
+	image.save_png("res://../data/diagnostics/northshire-water-after.png")
 	print("PASS: WATER_MATERIAL_PIXELS")
 	quit(0)
 
@@ -60,22 +65,37 @@ func backing_response(depths: Vector2, backing_below: Vector2) -> Vector2:
 		color_distance(mean(red, 0), mean(blue, 0)) / baseline,
 		color_distance(mean(red, 1), mean(blue, 1)) / baseline)
 
+func curve(byte: float) -> float:
+	return minf(1.0, byte / 255.0 * DEPTH_CURVE_SLOPE)
+
 func check_vertex_depth() -> String:
-	var response := await backing_response(Vector2(10.0, 80.0) / 255.0, Vector2(2.0, 2.0))
+	var response := await backing_response(Vector2(curve(10.0), curve(80.0)), Vector2(2.0, 2.0))
 	print("WATER depth response shallow=", response.x, " deep=", response.y)
 	if not (response.x < 0.9 and response.y < response.x - 0.05):
 		return "Deeper authored vertex depth did not hide more backing: %s" % response
 	return ""
 
 func check_depth_zero() -> String:
-	var response := await backing_response(Vector2(0.0, 40.0 / 255.0), Vector2(2.0, 2.0))
+	var response := await backing_response(Vector2(0.0, curve(40.0)), Vector2(2.0, 2.0))
 	print("WATER depth0 response=", response.x, " wet=", response.y)
 	if response.x < 0.98 or response.y > 0.9:
 		return "Authored depth 0 is not invisible while depth 40 covers: %s" % response
 	return ""
 
+## View-depth shore (G10): the same sample ProcFel uses, over the row's Float_11 width. Two
+## backings sit at fractional multiples of that width, so the near one is under the fade and
+## the far one past it.
+func check_shallow_shore() -> String:
+	var scale: float = material.get_shader_parameter("shore_scale")
+	var width := 1.0 / scale
+	var response := await backing_response(Vector2(curve(40.0), curve(40.0)), Vector2(0.4 * width, 3.0 * width))
+	print("WATER shore width=", width, " at0.4w=", response.x, " at3w=", response.y)
+	if response.x < 0.35 or response.y > response.x - 0.25:
+		return "View-depth shore did not thin the water inside Float_11: %s" % response
+	return ""
+
 func check_thickness() -> String:
-	var response := await backing_response(Vector2(40.0, 40.0) / 255.0, Vector2(1.0, 60.0))
+	var response := await backing_response(Vector2(curve(40.0), curve(40.0)), Vector2(1.0, 60.0))
 	print("WATER thickness response thin=", response.x, " thick=", response.y)
 	if not (response.y < response.x - 0.03):
 		return "Backing 60 yd below is not fogged more than 1 yd below: %s" % response
@@ -84,12 +104,11 @@ func check_thickness() -> String:
 ## Shallow water 2 yd over black: retail colour = mix(fogged backing, lit river colour,
 ## (1 - 0.1 fresnel) alpha) + f9 N·L direct lit colour, with close/far mixed by depth.
 func check_colour() -> String:
-	var depth := 20.0 / 255.0
-	build(Vector2(depth, depth), Vector2(2.0, 2.0), Color.BLACK)
+	# G13: the channel is already curved; the pixel program only applies the affine mix.
+	var d := curve(20.0)
+	build(Vector2(d, d), Vector2(2.0, 2.0), Color.BLACK)
 	var image := await capture()
-	var coefficients: Vector4 = material.get_shader_parameter("depth_coefficients")
-	var d := depth
-	var mix_amount := clampf(coefficients.x + coefficients.y * d + coefficients.z * d * d + coefficients.w * d * d * d, 0.0, 1.0)
+	var mix_amount := d
 	var close: Vector4 = scene_light.river_close
 	var far: Vector4 = scene_light.river_far
 	var water := close.lerp(far, mix_amount)
@@ -113,7 +132,7 @@ func check_colour() -> String:
 	return ""
 
 func check_animation() -> String:
-	build(Vector2(40.0, 40.0) / 255.0, Vector2(2.0, 2.0), Color(0.3, 0.3, 0.3))
+	build(Vector2(curve(40.0), curve(40.0)), Vector2(2.0, 2.0), Color(0.3, 0.3, 0.3))
 	RenderingServer.global_shader_parameter_set("liquid_animation_time_ms", 0.0)
 	var first := await capture()
 	var again := await capture()
@@ -150,8 +169,8 @@ func make_viewport() -> void:
 	backing_root = Node3D.new()
 	viewport.add_child(backing_root)
 
-## Left and right water quads with authored vertex `depths` over backing planes
-## `backing_below` yards under the surface.
+## Left and right water quads with authored vertex depth channel `depths` (already curved at
+## vertex write, as G13 requires) over backing planes `backing_below` yards under the surface.
 func build(depths: Vector2, backing_below: Vector2, backing: Color) -> void:
 	for child in water_root.get_children() + backing_root.get_children():
 		child.free()
@@ -187,12 +206,17 @@ func water_quad(x0: float, x1: float, depth: float) -> ArrayMesh:
 		Vector3(x0, WATER.y, z1), Vector3(x1, WATER.y, z1)])
 	var colors := PackedColorArray()
 	colors.resize(4)
-	colors.fill(Color(1.0, 1.0, 1.0, depth))
+	colors.fill(Color.WHITE)
+	# I2 B.4: the authored depth byte rides the second texture pair's second component.
+	var depths := PackedVector2Array()
+	depths.resize(4)
+	depths.fill(Vector2(0.0, depth))
 	var arrays := []
 	arrays.resize(Mesh.ARRAY_MAX)
 	arrays[Mesh.ARRAY_VERTEX] = vertices
 	arrays[Mesh.ARRAY_NORMAL] = PackedVector3Array([Vector3.UP, Vector3.UP, Vector3.UP, Vector3.UP])
 	arrays[Mesh.ARRAY_COLOR] = colors
+	arrays[Mesh.ARRAY_TEX_UV2] = depths
 	arrays[Mesh.ARRAY_INDEX] = PackedInt32Array([0, 1, 2, 1, 3, 2])
 	var mesh := ArrayMesh.new()
 	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)

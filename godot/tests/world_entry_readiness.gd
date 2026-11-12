@@ -4,4 +4,5 @@ extends RefCounted
 static func is_ready(state: Dictionary) -> bool:
 	if state.terrain.pending_count != 0:
 		return false
-	return state.world_objects.pending == 0 and state.unit_visuals_pending == 0
+	return state.world_objects.pending == 0 and state.unit_visuals_pending == 0 \
+		and state.game_object_visuals_pending == 0

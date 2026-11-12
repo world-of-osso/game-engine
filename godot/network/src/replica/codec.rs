@@ -64,6 +64,7 @@ fn shared_codecs() -> Vec<Codec> {
         Codec::of::<CombatStatus>(),
         Codec::of::<Mounted>(),
         Codec::of::<shared::components::VehiclePassenger>(),
+        Codec::of::<shared::components::VehicleDriverMovement>(),
         Codec::of::<shared::components::TransportState>(),
         Codec::of::<shared::components::TransportPassenger>(),
         Codec::of::<MovementControl>(),
@@ -109,6 +110,7 @@ fn shared_codecs() -> Vec<Codec> {
         Codec::of::<UnitSummonedBy>(),
         Codec::of::<UnitIsPet>(),
         Codec::of::<shared::components::DynamicObjectInfo>(),
+        Codec::of::<shared::AreaTriggerVisual>(),
     ]
 }
 
@@ -215,7 +217,7 @@ impl Schema {
     /// produce the protocol hash) against the codec list.
     pub(crate) fn from_world(world: &World) -> Result<Arc<Self>, String> {
         let codecs = codecs();
-        assert!(codecs.len() <= 64, "ComponentSet holds at most 64 codecs");
+        assert!(codecs.len() <= 128, "ComponentSet holds at most 128 codecs");
         let by_type: TypeIndex = codecs
             .iter()
             .enumerate()

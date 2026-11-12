@@ -4,7 +4,11 @@
 //! (`wowViewerLib/src/engine/objects/iWmoApi.h` `wmoMaterialShader`), whose math
 //! `shaders/wmo.gdshader` ports from `commonWMOMaterial.slang`.
 
-use std::{collections::BTreeSet, ops::RangeInclusive, path::Path};
+use std::{
+    collections::{BTreeSet, HashMap},
+    ops::RangeInclusive,
+    path::Path,
+};
 
 use game_engine_core::{asset::wmo_format::parser::WmoMaterialDef, wmo};
 use godot::{
@@ -18,6 +22,8 @@ use godot::{
 use osso_asset_resolver::CascListfileResolver;
 
 use super::assets::{NativeWmoAsset, group_casts_shadow};
+use super::merge::{MergeKey, MergedBatch};
+use super::occluder::{OccluderGeometry, occludes};
 use crate::lighting::TerrainLight;
 
 const SHADER_PATH: &str = "res://shaders/wmo.gdshader";
@@ -103,12 +109,12 @@ fn pixel_shader_texture_slots(pixel: i32) -> u16 {
 /// MOC2 the group file carries, whatever the material flags. Missing streams use
 /// the reference defaults in the shader: UV (1,1), MOCV2 alpha 1, MOC2 (0,0,0,1).
 #[derive(Default)]
-struct RetailWmoStreams {
-    uv2: Option<Vec<[f32; 2]>>,
-    uv3: Option<Vec<[f32; 2]>>,
-    uv4: Option<Vec<[f32; 2]>>,
-    second_mocv_alpha: Option<Vec<f32>>,
-    moc2: Option<Vec<[f32; 4]>>,
+pub(super) struct RetailWmoStreams {
+    pub(super) uv2: Option<Vec<[f32; 2]>>,
+    pub(super) uv3: Option<Vec<[f32; 2]>>,
+    pub(super) uv4: Option<Vec<[f32; 2]>>,
+    pub(super) second_mocv_alpha: Option<Vec<f32>>,
+    pub(super) moc2: Option<Vec<[f32; 4]>>,
 }
 
 fn retail_streams(raw: &wmo::RawGroupData, range: RangeInclusive<usize>) -> RetailWmoStreams {
@@ -176,7 +182,18 @@ pub(crate) struct WmoBuild {
     source: String,
     black: Gd<ImageTexture>,
     batch_errors: Vec<String>,
+    /// Exterior batches merged so far, in first-seen order, with their material.
+    merged: Vec<(MergeKey, MergedBatch, Gd<ShaderMaterial>)>,
+    /// Merged batches whose node is added: they are built after the last batch, some
+    /// at a time like the batches (a large WMO has over a hundred, ~10 ms).
+    merged_added: usize,
+    merged_index: HashMap<MergeKey, usize>,
+    /// The drawn opaque batches of exterior groups, for occlusion culling.
+    occluder: OccluderGeometry,
 }
+
+/// Node metadata of a merged batch: the indices of the groups it draws.
+pub(crate) const MERGED_GROUPS_META: &str = "wmo_groups";
 
 impl WmoBuild {
     pub(crate) fn new(asset: &NativeWmoAsset, doodad_sets: &[u16]) -> Result<Self, String> {
@@ -195,6 +212,10 @@ impl WmoBuild {
             source,
             black,
             batch_errors: Vec::new(),
+            merged: Vec::new(),
+            merged_added: 0,
+            merged_index: HashMap::new(),
+            occluder: OccluderGeometry::default(),
         })
     }
 
@@ -231,6 +252,26 @@ impl WmoBuild {
             };
             let index = self.prepared;
             self.prepared += 1;
+            let key = MergeKey::of(
+                &group.group.header,
+                portal_culled(asset, group),
+                prepared.material.blend_mode,
+                &prepared.mesh,
+                &prepared.streams,
+            );
+            let occluding = occludes(
+                group.group.header.group_flags.exterior,
+                prepared.material.blend_mode,
+            );
+            if let Some(&slot) = key.as_ref().and_then(|key| self.merged_index.get(key)) {
+                if occluding {
+                    self.occluder
+                        .append(&prepared.mesh.positions, &prepared.mesh.indices);
+                }
+                let (_, merged, _) = &mut self.merged[slot];
+                merged.append(&prepared.mesh, &prepared.streams, prepared.group_index);
+                continue;
+            }
             let material = build_batch_material(
                 &prepared,
                 &self.source,
@@ -250,6 +291,17 @@ impl WmoBuild {
                     continue;
                 }
             };
+            if occluding {
+                self.occluder
+                    .append(&prepared.mesh.positions, &prepared.mesh.indices);
+            }
+            if let Some(key) = key {
+                self.merged_index.insert(key, self.merged.len());
+                let merged =
+                    MergedBatch::new(prepared.mesh, prepared.streams, prepared.group_index);
+                self.merged.push((key, merged, material));
+                continue;
+            }
             let mut instance = MeshInstance3D::new_alloc();
             instance.set_name(&format!("Group{}_Batch{index}", prepared.group_index));
             instance.set_mesh(&build_batch_mesh(&prepared));
@@ -259,6 +311,38 @@ impl WmoBuild {
             }
             self.root.add_child(&instance);
         }
+        if !self.add_merged_batches(&stop) {
+            return false;
+        }
+        if let Some(occluder) = std::mem::take(&mut self.occluder).into_node() {
+            self.root.add_child(&occluder);
+        }
+        true
+    }
+
+    /// One node per merged key, after the last batch, named by its first group, until
+    /// `stop` asks to; `true` once every merged node is added.
+    fn add_merged_batches(&mut self, stop: &impl Fn() -> bool) -> bool {
+        while let Some((key, merged, material)) = self.merged.get(self.merged_added) {
+            if stop() {
+                return false;
+            }
+            let index = self.merged_added;
+            self.merged_added += 1;
+            let mut instance = MeshInstance3D::new_alloc();
+            instance.set_name(&format!("Group{}_Merged{index}", merged.groups[0]));
+            instance.set_mesh(&build_mesh(&merged.mesh, &merged.streams));
+            instance.set_surface_override_material(0, material);
+            if !key.casts_shadow() {
+                instance.set_cast_shadows_setting(ShadowCastingSetting::OFF);
+            }
+            let groups: PackedInt32Array =
+                merged.groups.iter().map(|&group| group as i32).collect();
+            instance.set_meta(MERGED_GROUPS_META, &groups.to_variant());
+            self.root.add_child(&instance);
+        }
+        self.merged.clear();
+        self.merged_index.clear();
         true
     }
 
@@ -302,6 +386,15 @@ pub(crate) fn texture_fdids(asset: &NativeWmoAsset) -> BTreeSet<u32> {
 }
 
 /// (group, batch) indices of the batches with triangles, outside antiportal groups.
+/// Whether the portal graph culls `group`; groups outside it are never drawn by the cull.
+fn portal_culled(asset: &NativeWmoAsset, group: &super::assets::NativeWmoGroup) -> bool {
+    asset
+        .root
+        .group_infos
+        .get(group.index as usize)
+        .is_some_and(|info| info.flags & super::portals::ROOT_ANTIPORTAL == 0)
+}
+
 fn renderable_batches(asset: &NativeWmoAsset) -> Vec<(usize, usize)> {
     asset
         .groups
@@ -397,13 +490,18 @@ fn prepare_group_batch<'a>(
 }
 
 fn build_batch_mesh(batch: &PreparedWmoBatch<'_>) -> Gd<ArrayMesh> {
+    build_mesh(&batch.mesh, &batch.streams)
+}
+
+fn build_mesh(batch: &wmo::WmoMeshBatch, streams: &RetailWmoStreams) -> Gd<ArrayMesh> {
     let _mesh = crate::profile::span(|| "phase.mesh_build.wmo_main".to_owned());
-    let mut arrays = wmo_mesh_arrays(&batch.mesh);
-    let flags = bind_retail_streams(&mut arrays, &batch.streams);
-    let mut mesh = ArrayMesh::new_gd();
+    let mut arrays = wmo_mesh_arrays(batch);
+    let flags = bind_retail_streams(&mut arrays, streams);
+    let mut mesh = crate::rebuild_guard::new_array_mesh();
     mesh.add_surface_from_arrays_ex(mesh::PrimitiveType::TRIANGLES, &arrays)
         .flags(flags)
         .done();
+    crate::render_surface::store_render_surface_arrays(&mut mesh, &arrays);
     mesh
 }
 
@@ -535,7 +633,7 @@ fn build_batch_material(
     let _material = crate::profile::span(|| "phase.material.wmo".to_owned());
     let authored = batch.material;
     let span = crate::profile::span(|| "wmo.set_shader".to_owned());
-    let mut material = ShaderMaterial::new_gd();
+    let mut material = crate::rebuild_guard::new_shader_material();
     material.set_shader(&material_shader(source, WmoShaderKey::of(authored))?);
     drop(span);
     let slots = pixel_shader_texture_slots(batch.shader.pixel);

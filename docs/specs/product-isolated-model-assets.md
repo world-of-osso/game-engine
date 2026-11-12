@@ -28,6 +28,12 @@ files/receipts use the build actually read, never the former receipt's namespace
 unchanged. No DB2 re-export or old-build extraction fallback is authorized.
 This supersedes the active-install prohibition below for local extraction only.
 
+## Client receipts for local-CASC misses (lead-approved 2026-11-09)
+
+In `local-casc` mode, a model-chain asset with no shared receipt is extracted from the product's unique active `.build.info` build into that build's namespace, then accepted only when its MD5 equals that build's root content key (the closure-authentication check) and its file magic matches the kind. The receipt goes to this client's own fragment, `user://model-asset-receipts/model-asset-receipts-<product>.json`, never to shared `data/cache`. Shared receipts are consulted first, so a later publication of the same asset takes over without a duplicate. `extracted-only` keeps the missing-receipt error, and duplicate handling among shared fragments is unchanged.
+
+- [x] An empty shared index plus a level-90 gear texture yields a verified client receipt and file; forged bytes at the build path are rejected; extracted-only errors and writes nothing (`godot/rust/src/assets/client_receipts_tests.rs`).
+
 ## Live Retail index migration (2026-10-13)
 
 [DB2 follows the installed build](db2-follow-install.md#lead-publication) supersedes the earlier no-re-export/historical-live-index restriction for Retail. Authenticate identical bytes against the current root before recording the current build; extract and authenticate changed bytes. Keep one live mapping per product/FDID/kind, migrate companion aliases, and preserve original files and receipts only as history/backup. Stale frozen receipts cannot undo a newer published mapping. Runtime paths remain receipt-derived, without a compiled build key. Bundles include indexed paths, not every historical namespace. Canonical DB2 and index publication is one lead-only runtime-build command with backup and fingerprint diff.

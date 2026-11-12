@@ -8,7 +8,11 @@ use crate::asset::m2_texture;
 use crate::m2::{Model, TextureUnit};
 
 /// M2ShaderTable: (pixel shader, vertex shader) of `shader_id & 0x7FFF` when 0x8000 is set.
-const SHADER_TABLE: [(u8, u8); 36] = [
+/// Retail's explicit-id table (`0x144852a70`, 37 entries x 8 bytes in 12.1.5.70688): low dword
+/// is the pixel-table index, high dword the vertex index. Decoded from the client image
+/// (`work/engine-3d/M2-SHADERID-TABLES.md`); the WebWowViewerCpp copy this replaced had the
+/// vertex index one too high for every entry from 8 up, and no trailing `(0, 0)`.
+const SHADER_TABLE: [(u8, u8); 37] = [
     (12, 3),
     (13, 3),
     (14, 3),
@@ -28,23 +32,24 @@ const SHADER_TABLE: [(u8, u8); 36] = [
     (24, 3),
     (25, 6),
     (26, 0),
-    (33, 9),
-    (27, 11),
-    (6, 12),
+    (33, 8),
+    (27, 10),
+    (6, 11),
     (28, 2),
     (29, 7),
-    (25, 11),
-    (33, 13),
-    (30, 14),
+    (25, 10),
+    (33, 12),
+    (30, 13),
     (31, 2),
-    (32, 14),
+    (32, 13),
     (34, 7),
+    (35, 14),
     (35, 15),
-    (35, 16),
     (0, 0),
-    (7, 12),
-    (1, 9),
-    (36, 12),
+    (7, 11),
+    (1, 8),
+    (36, 11),
+    (0, 0),
 ];
 
 /// Vertex shader that takes its second texture matrix from slot 2 (Diffuse_T1_Env_T2).
@@ -489,21 +494,37 @@ pub fn sample_material(
 
 /// Some input changes with time or when the model switches sequence.
 pub fn material_animates(tracks: &MaterialTracks, binding: &BatchBinding) -> bool {
-    fn varies<T: PartialEq>(track: &AnimTrack<T>) -> bool {
-        !crate::m2::track_is_constant(track)
+    animates_where(tracks, binding, |_| true)
+}
+
+/// Whether some input of `binding` changes over its model's sequence timeline rather than a
+/// global sequence: only then do two models playing different sequences sample it apart.
+pub fn material_animates_locally(tracks: &MaterialTracks, binding: &BatchBinding) -> bool {
+    animates_where(tracks, binding, |global_sequence| global_sequence < 0)
+}
+
+/// Whether an input of `binding` whose track's timeline `timeline` accepts (its global
+/// sequence, or -1 for the playing sequence's own) changes over time.
+fn animates_where(
+    tracks: &MaterialTracks,
+    binding: &BatchBinding,
+    timeline: impl Fn(i16) -> bool,
+) -> bool {
+    fn varies<T: PartialEq>(track: &AnimTrack<T>, timeline: &impl Fn(i16) -> bool) -> bool {
+        timeline(track.global_sequence) && !crate::m2::track_is_constant(track)
     }
     binding.color.is_some_and(|index| {
         let color = &tracks.colors[index];
-        varies(&color.color) || varies(&color.opacity)
+        varies(&color.color, &timeline) || varies(&color.opacity, &timeline)
     }) || binding
         .texture_weights
         .iter()
         .flatten()
-        .any(|&index| varies(&tracks.weights[index]))
+        .any(|&index| varies(&tracks.weights[index], &timeline))
         || binding.texture_transforms.iter().flatten().any(|&index| {
             let transform = &tracks.transforms[index];
-            varies(&transform.translation)
-                || varies(&transform.rotation)
-                || varies(&transform.scale)
+            varies(&transform.translation, &timeline)
+                || varies(&transform.rotation, &timeline)
+                || varies(&transform.scale, &timeline)
         })
 }

@@ -57,6 +57,7 @@ fn retail_war_mode_control_exists_but_requires_authoritative_context_in_both_ski
         let mut pvp = game_engine_ui_pvp::battleground::PvpView::default();
         pvp.snapshot = Some(shared::protocol::PvpSnapshot {
             lifetime_honor_xp: 0,
+            account_lifetime_honor_xp: 0,
             honor_level: None,
             honor: 750,
             honor_max: 15000,
@@ -166,6 +167,7 @@ fn three_source_pvp_slots_and_authoritative_choice_actions_render_in_both_skins(
         let mut view = game_engine_ui_pvp::battleground::PvpView::default();
         view.snapshot = Some(PvpSnapshot {
             lifetime_honor_xp: 0,
+            account_lifetime_honor_xp: 0,
             honor_level: None,
             honor: 0,
             honor_max: 15000,

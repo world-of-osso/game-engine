@@ -71,6 +71,8 @@ pub mod guild_charter_frame;
 pub mod guild_charters;
 pub mod guild_tabard_frame;
 pub mod guild_tabards;
+#[path = "healer_ground_ring.rs"]
+pub mod healer_ground_ring;
 pub mod menu_template_art;
 pub mod mythic_mentor;
 pub mod navigation_bar;

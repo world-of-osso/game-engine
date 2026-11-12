@@ -44,6 +44,100 @@ light) is `godot/tests/m2_material_pixels.gd`. Evidence and the coverage matrix:
 `data/diagnostics/m2render-20261001/` and the M2 materials row of
 [the parity matrix](../../specs/godot-parity-matrix.md).
 
+## World creature visual templates
+
+A world unit's creature visual is built once per display and gear, packed as a
+`PackedScene` and then instantiated (`godot/rust/src/assets/creature_template.rs`,
+`WorldModels::build_world_visual`). Before,
+every arrival rebuilt it: a Stormwind guard (display 3167) is four models (body, two
+shoulders, helm), 107 batch nodes before the merge, four skeletons and animation players,
+composited NPC textures and its equipment, 10-15 ms of one main-thread frame each time a
+guard came into view (Linux spans; the 2026-11-07 Windows Stormwind survey's only frames
+under 120 FPS were these arrivals). The instance shares the meshes, skins and materials.
+Instantiating the guard's 205 nodes took 3-5 ms where `Node::duplicate` (property-list
+copy per node) took 16-31 ms; packing took about 13 ms once, at first sight:
+
+- The packed scene holds no skeleton bones: `PackedScene::pack` saves each bone's
+  name, parent, rest and pose as named properties, 70-90% of the pack (guard 1.69 of
+  2.48 ms, display 37850 1.19 of 1.31 ms, Linux debug library) and the largest step of a
+  first sight on the Windows release build (`template.pack` median 4.27 ms, 70 first
+  sights, 2026-11-08 noon DIAGNOSTIC). The template records them (`SkeletonBones`) and
+  each instance adds them back (`template.bones`, about 0.1 ms). The first-built visual
+  gets them back too, and its animation players reapply the billboard and non-inheriting
+  bones' persistent global overrides (`reapply_bone_overrides`), which removing the bones
+  dropped; without that a seated rider sat on a saddle 0.005 rad off its authored pose.
+- Nor does it hold the mesh nodes. `pack` reads every node's property list, and a
+  `GeometryInstance3D`'s list asks the rendering server for the instance shader
+  parameters, a call that waits for the render thread to finish the frame it is drawing.
+  In the world the first such read of a frame took 10-20 ms against 0.1-0.6 ms for the
+  next (loaded Linux host), which was most of a first sight's 4 ms `template.pack` on
+  Windows. The template records each leaf mesh node's stored properties that differ from
+  a new `MeshInstance3D` (the names read once per session), its metadata and surface
+  materials (`MeshNode`), and puts the nodes back at their indices; each instance makes
+  them (`template.parts`). In the world the template step went from 12.1 to 0.9 ms
+  (Linux, 71 first sights). `Node::duplicate` reads property lists as well.
+- A packed scene holds no Rust node state, so the template holds no Rust node; each
+  instance builds its `WowAnimationPlayer`, `WowMaterialAnimation` and `WowM2Lights` from
+  the parsed model (`creature::model_at`).
+- `WowMaterialAnimation` holds only materials whose inputs change over time; a constant
+  input keeps the sample `load_material` set. Of those, a material that changes on its
+  model's sequence timeline is copied per instance; one that changes on global sequences
+  only samples alike in every model, so the instances share it and the first one the NPC
+  animation LOD lets sample it in a frame sets it. (A
+  first version sampled every shared material every frame from `WowMaterialClock`, without
+  the LOD: the d40ef54ab receipt lost 7.6 outdoor FPS to it, +3 M render-thread and +2-4 M
+  main-thread instructions per frame in a Linux A/B.)
+- `bind_visual_light` and `mark_unit_shadow_fade` skip a material that already holds their
+  constant values.
+- Portraits and previews keep their own builds (`build_visual`): `bind_preview_light`
+  writes their materials.
+
+A creature's geosets never change once it is built, so its build skips the batches its
+appearance and display geosets hide (`creature::creature_shows` as the `build_model`
+filter): no node, material, mesh or material animation. A humanoid NPC hid about 95 of
+its ~105 batch nodes; display 72724's only animated materials were on 5 hidden batches,
+sampled every frame. Without them the guard's template packs in half the time and its
+instance takes 1 ms (Linux CPU, canals, `57ec9c681`).
+
+A first sight is built in parts, one per frame, within `VISUAL_BUDGET` (2 ms, the 120 FPS
+headroom over the Windows outdoor frame) in `WorldUnits::attach_loaded_visuals`: body
+(`CreatureBuild::body`), each armor or held item (`attach_next`), the merge and visual root
+(`WorldModels::continue_build`), the template pack (`make_template`), then the attach.
+Arrivals of the same display and gear wait for the template. At the Stormwind canals this
+took the worst unit-visual frame from 33 to 15 ms CPU and the frames over 5 ms from 66 to 24
+(Linux, one run each). The pack (about 4 ms CPU) is the largest remaining part: the body
+skeleton's 216 bones and its ~45 attachment nodes.
+
+A unit whose display and replicated virtual items an earlier unit's template was made
+for is answered by the template at request time (`WorldModels::request`): the template
+keeps the parts the attach reads (display, parsed model, gear) and its item keys, and the
+request places the items for the unit's sheath (`virtual_item_placements`). There is no
+worker load: before, every re-arrival re-ran the worker's catalog reads, NPC texture
+compositing (`appearance.compose`) and decode, which the instance discarded, and its ~10
+frames of loading ran 2-6 ms slower on Windows (receipt 9753528a3 outdoor R3 idle_3, 1%
+low 113.5). Worker parts whose gear matches a template add their items as its key.
+
+A model's M2 attachment points are made on first use (`godot/rust/src/assets/attachments.rs`):
+the skeleton records its attachment table (`m2_attachments` meta), and one accessor
+(`attachment_point`, or `skeleton_attachment_point` before the skeleton has a parent)
+makes the `BoneAttachment3D` and point when equipment, held items, spell effects, mounts,
+vehicle seats or the Trading Post first ask, posed at once (`on_skeleton_update`). A
+model whose attachments show and hide with its animation (`AttachmentGates`) makes all of
+them at build. A guard holds 5-7 points instead of 55; packing its template took half the
+time without the unused ones (2.90 to 1.46 ms offline), and 100 animated guards cost 0.7-1.7 ms
+less main-thread time per frame (Linux, offline). Proof: `godot/tests/attachment_points_on_demand.gd`
+(a point made while the guard animates sits at its bone's pose at once); a drawn guard's
+sword, a guard on a riding horse's saddle and a spell effect on a point made for it render
+the same pixels as with every point built (2026-11-08 DIAGNOSTIC, max difference 0).
+
+Proof: `godot/tests/creature_template_instances.gd` builds display 3167 twice through
+`WowAssetLoader.load_world_creature_display` and checks the second visual's nodes, its 0
+new materials, its own players and equal pixels, and that the world's request for a drawn
+guard is ready in the same call (`WowAssetLoader.request_world_creature_display`) with the
+drawn instance's nodes and sword and no material; a Dark Iron dwarf (display 8803, the one
+display of 300 scanned whose shown batches animate on global sequences only) checks that
+its second visual makes no material and the clock animates the materials it shares.
+
 ## M2 effect fog specialization
 
 Commit `fbda0693` compiles `m2_fog_color` only under `DISTANCE_FOG`, matching Bevy's conditional fog binding. Previously the no-fog pipeline referenced a nonexistent binding. The fog-enabled path also supplies fragment coordinates to Bevy 0.19's five-argument `apply_fog` API. Binding paths and authored blend-mode fog colors are unchanged.

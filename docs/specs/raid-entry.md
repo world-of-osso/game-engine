@@ -19,11 +19,14 @@ Retail Mainline raid entry uses the [server raid contract](../../../game-server/
 ## Tests asserting this spec
 - `godot/ui-model/tests/raid_entry.rs`.
 - `godot/rust/src/account_dungeonclient_tests.rs`.
+- [Server actor-set source tests](../../../game-server/scripts/tests/test_raid_encounters.py).
+- [Server multi-actor death-credit tests](../../../game-server/crates/server-combat/src/scripted_ai/tests/multi_boss_credit.rs).
 
 ## Known gaps (current cycle)
 - [x] Two-account Modern/Forever native frame/menu/portal/reset proof recorded.
 - [ ] Generic SocialUI raid-tab opener is not converted; native frame is currently reachable through /raidinfo and its show API.
-- [ ] Ambiguous/multi-actor raid bosses remain explicit server data gaps; no invented credit.
+- [ ] The all-actor death mechanism has tests for Four Horsemen and Theralion/Valiona. The corrected generator accepts eight sets with encounter-specific evidence and reports other multi-actor groups as gaps; historical sources do not prove current Retail event timing.
+- [ ] VERIFIED (read-only runtime query, 2026-11-08): `raid_encounter_creature` has 520 rows after the lead removed 35 previously published actor rows. The corrected generator retains the remaining 24 rows and does not emit the removed sets. See the [server source-gap census](../../../game-server/docs/wiki/systems/raid-entry.md#multi-actor-source-census--2026-11-08).
 
 ## Out of scope
 Raid encounter mechanics and rewards.

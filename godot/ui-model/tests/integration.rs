@@ -42,6 +42,8 @@ mod game_menu;
 mod golden_layer_census;
 mod group_countdown;
 mod guild_charters;
+#[path = "guild_no_guild.rs"]
+mod guild_no_guild;
 mod guild_rank_widgets;
 mod guild_tabards;
 mod item_confirmation_shadow;
@@ -109,6 +111,7 @@ mod ui_error_hold_fidelity;
 mod ui_errors;
 mod unit_dead_text;
 mod unit_frame_atlas;
+mod unit_frame_aura_state;
 mod vigor_bar;
 mod window_tiling;
 mod world_map_quest_panel;

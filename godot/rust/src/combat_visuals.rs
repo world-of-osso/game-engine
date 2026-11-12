@@ -2,12 +2,14 @@
 //! `WorldUnits` clips (`world_combat`), `SpellEffects` kits and melee sounds, per-frame
 //! cast holds, kit lifetimes, missiles and particles, and automation state.
 
-use std::time::Instant;
+use std::{collections::HashMap, time::Instant};
 
 use godot::prelude::*;
 
 use crate::GameClient;
 use crate::account::CombatMessage;
+use crate::drape_batch::{BatchArrays, Drape};
+use crate::drape_worker::{DrapeInputs, DrapeJob};
 use crate::frame_error::FrameError;
 
 impl GameClient {
@@ -81,7 +83,13 @@ impl GameClient {
         let held = self
             .spell_effects
             .sync_casts(&self.replica, &mut self.world);
-        let camera = self.world_camera.transform();
+        // The offline preview has no world camera; its own Camera3D is current, and the
+        // particle pass needs a view to draw at all. Without this the preview shows a kit's
+        // mesh layers and none of its emitters.
+        let camera = self
+            .world_camera
+            .transform()
+            .or_else(|| self.viewport_camera_transform());
         let sound = &self.client_options.sound;
         let gain = if sound.muted {
             0.0
@@ -91,8 +99,284 @@ impl GameClient {
         let advanced = self
             .spell_effects
             .advance(delta, camera, gain, &mut self.world);
+        self.replay_area_trigger_visuals();
+        self.drape_ground_effects();
         self.spell_effects.end_frame(started.elapsed());
         prefetched.and(held).and(advanced)
+    }
+
+    /// Re-issue each live area trigger's one-shot kits when the server pulses its visual
+    /// (native-evidence-12.1.5/AT-visual-held-kit.md).
+    fn replay_area_trigger_visuals(&mut self) {
+        if !crate::area_trigger_visuals::SHOW_AREA_TRIGGER_VISUALS {
+            return;
+        }
+        let live = crate::area_trigger_visuals::live_area_triggers(&self.replica);
+        let replays = self.area_trigger_visuals.replays(&live);
+        for replay in replays {
+            if let Err(error) = self.spell_effects.replay_area_trigger(
+                replay.id,
+                replay.spell_id,
+                replay.center,
+                replay.radius,
+                &mut self.world,
+            ) {
+                godot_error!("Area trigger {} visual: {error}", replay.id);
+            }
+        }
+        let retired = self.area_trigger_visuals.retired(&live);
+        self.spell_effects.retain_area_triggers(&retired);
+    }
+
+    /// Drape the flat ground batches of newly spawned spell models onto the visible render
+    /// surface (carpets, stair treads), leaving vertical parts and particles alone.
+    ///
+    /// A model whose column has no render geometry yet is retried for a bounded number of
+    /// frames while the surrounding terrain and world objects spawn.
+    fn drape_ground_effects(&mut self) {
+        if !self.client_options.graphics.ground_effect_draping_enabled {
+            return;
+        }
+        self.apply_finished_drapes();
+        let drape = game_engine_core::ground_drape::GroundDrape::default();
+        // A vertex may follow a carpet or one tread, never a wall top or a shelf higher up.
+        let window = game_engine_core::ground_drape::MAX_SURFACE_RISE;
+        let frame = self.frame_id;
+        let space = self
+            .world
+            .local_player_node()
+            .and_then(|node| node.get_world_3d())
+            .and_then(|world| world.get_direct_space_state());
+        let storable = self.drape_cache.observe(self.ground_epoch(frame), frame);
+        let mut pending = self.spell_effects.take_drape_pending();
+        if pending.is_empty() {
+            return;
+        }
+        let rays = space.map(|space| std::cell::RefCell::new(self.game_objects.floor_rays(space)));
+        for mut candidate in pending.drain(..) {
+            if !candidate.node.is_instance_valid() {
+                continue;
+            }
+            let anchor = candidate.node.get_global_position();
+            let anchor = glam::Vec3::new(anchor.x, anchor.y, anchor.z);
+            // A kit model node can be the mesh itself or wrap its batches.
+            let mut instances: Vec<Gd<godot::classes::MeshInstance3D>> = candidate
+                .node
+                .clone()
+                .try_cast::<godot::classes::MeshInstance3D>()
+                .into_iter()
+                .collect();
+            instances.extend(
+                candidate
+                    .node
+                    .find_children_ex("*")
+                    .type_("MeshInstance3D")
+                    .owned(false)
+                    .recursive(true)
+                    .done()
+                    .iter_shared()
+                    .filter_map(|node| node.try_cast::<godot::classes::MeshInstance3D>().ok()),
+            );
+            let (low, high) = drape_footprint(anchor, &instances);
+            let mut misses = Vec::new();
+            for mut instance in instances {
+                let Some(mesh) = instance
+                    .get_mesh()
+                    .and_then(|mesh| mesh.try_cast::<godot::classes::ArrayMesh>().ok())
+                else {
+                    continue;
+                };
+                let key = drape_key(&mesh, &instance, anchor);
+                match self.drape_cache.get(&key) {
+                    Some(draped) => install_draped(&mut instance, &draped),
+                    None => misses.push((instance, mesh, key)),
+                }
+            }
+            if misses.is_empty() {
+                continue;
+            }
+            // A game-object floor is a physics ray, which only the main thread can cast.
+            let rays_reach = rays
+                .as_ref()
+                .is_some_and(|rays| rays.borrow().can_cast_within(low, high));
+            if !rays_reach {
+                let floors = self.terrain_ground().footprint_floors(low, high);
+                let global_wmo = self.terrain_ground().global_wmo_map();
+                let inputs = DrapeInputs {
+                    floors,
+                    heights: self.terrain.heights_snapshot(low, high),
+                    surfaces: self.world_objects.surface_snapshot(low, high),
+                    global_wmo,
+                    anchor,
+                    drape,
+                    window,
+                };
+                self.submit_drape(candidate, inputs, misses, storable);
+                continue;
+            }
+            let ground = crate::ground::TerrainGround {
+                terrain: &self.terrain,
+                walls: &|_, _, _| None,
+                step_wall_blocked: &|_, _, _| false,
+                game_object_floor: &|feet| {
+                    rays.as_ref().and_then(|rays| rays.borrow_mut().floor(feet))
+                },
+            };
+            let footprint = ground.footprint_floors(low, high);
+            let floor_at = |x: f32, z: f32| {
+                self.terrain
+                    .height_at(x, z)
+                    .into_iter()
+                    .chain(ground.collision_floor_in(&footprint, glam::Vec3::new(x, anchor.y, z)))
+                    .max_by(f32::total_cmp)
+            };
+            let ground_y = floor_at(anchor.x, anchor.z).unwrap_or(anchor.y);
+            let mut retry = false;
+            for (mut instance, mesh, key) in misses {
+                let arrays = self.batch_arrays.read(&mesh);
+                let outcome = drape_mesh(
+                    &mut instance,
+                    arrays.as_deref(),
+                    &drape,
+                    ground_y,
+                    window,
+                    frame,
+                    &mut self.world_objects,
+                    &self.terrain,
+                    &floor_at,
+                );
+                match outcome {
+                    DrapeOutcome::Draped if storable => {
+                        if let Some(draped) = instance
+                            .get_mesh()
+                            .and_then(|mesh| mesh.try_cast::<godot::classes::ArrayMesh>().ok())
+                        {
+                            self.drape_cache.insert(key, draped);
+                        }
+                    }
+                    DrapeOutcome::Draped | DrapeOutcome::NotGround => {}
+                    DrapeOutcome::NoSurface => retry = true,
+                }
+            }
+            if retry && candidate.retry() {
+                self.spell_effects.requeue_drape(candidate);
+            }
+        }
+    }
+
+    /// Collision ground with no game-object floor, for the off-main-thread snapshot.
+    fn terrain_ground(&self) -> crate::ground::TerrainGround<'_> {
+        crate::ground::TerrainGround {
+            terrain: &self.terrain,
+            walls: &|_, _, _| None,
+            step_wall_blocked: &|_, _, _| false,
+            game_object_floor: &|_| None,
+        }
+    }
+
+    /// Hands a kit's uncached batches to the drape workers and hides the kit until all of
+    /// them are back, so it never shows flat in the meantime.
+    fn submit_drape(
+        &mut self,
+        mut candidate: crate::spell_effects::DrapeCandidate,
+        inputs: DrapeInputs,
+        misses: Vec<(
+            Gd<godot::classes::MeshInstance3D>,
+            Gd<godot::classes::ArrayMesh>,
+            DrapeKey,
+        )>,
+        storable: bool,
+    ) {
+        let inputs = std::sync::Arc::new(inputs);
+        let kit = self.drape_flights.next_kit();
+        let mut batches = Vec::new();
+        for (instance, mesh, key) in misses {
+            let Some(arrays) = self.batch_arrays.read(&mesh) else {
+                continue;
+            };
+            let placement = crate::render_surface::affine(instance.get_global_transform());
+            self.drape_workers.submit(DrapeJob {
+                kit,
+                batch: batches.len(),
+                inputs: inputs.clone(),
+                arrays,
+                placement,
+            });
+            batches.push(FlightBatch {
+                instance,
+                key,
+                placement,
+                result: None,
+            });
+        }
+        if batches.is_empty() {
+            return;
+        }
+        let shown = candidate.node.is_visible();
+        candidate.node.set_visible(false);
+        self.drape_flights.kits.insert(
+            kit,
+            KitFlight {
+                candidate,
+                shown,
+                inputs,
+                batches,
+                epoch: self.drape_cache.epoch,
+                storable,
+            },
+        );
+    }
+
+    /// Installs the batches the drape workers finished and shows each kit whose batches are
+    /// all back. A kit that ended meanwhile is gone; its batches are dropped.
+    fn apply_finished_drapes(&mut self) {
+        for done in self.drape_workers.finished() {
+            let Some(flight) = self.drape_flights.kits.get_mut(&done.kit) else {
+                continue;
+            };
+            flight.batches[done.batch].result = Some(done.result);
+            if flight.batches.iter().any(|batch| batch.result.is_none()) {
+                continue;
+            }
+            let Some(mut flight) = self.drape_flights.kits.remove(&done.kit) else {
+                continue;
+            };
+            // Surfaces the workers built for this kit serve every later query.
+            self.world_objects.adopt_surfaces(&flight.inputs.surfaces);
+            if !flight.candidate.node.is_instance_valid() {
+                continue;
+            }
+            let mut retry = false;
+            for batch in flight.batches {
+                let FlightBatch {
+                    mut instance,
+                    key,
+                    placement,
+                    result,
+                } = batch;
+                let Some(result) = result.filter(|_| instance.is_instance_valid()) else {
+                    continue;
+                };
+                match apply_drape(&mut instance, placement, result) {
+                    DrapeOutcome::Draped
+                        if flight.storable && self.drape_cache.epoch == flight.epoch =>
+                    {
+                        if let Some(draped) = instance
+                            .get_mesh()
+                            .and_then(|mesh| mesh.try_cast::<godot::classes::ArrayMesh>().ok())
+                        {
+                            self.drape_cache.insert(key, draped);
+                        }
+                    }
+                    DrapeOutcome::Draped | DrapeOutcome::NotGround => {}
+                    DrapeOutcome::NoSurface => retry = true,
+                }
+            }
+            flight.candidate.node.set_visible(flight.shown);
+            if retry && flight.candidate.retry() {
+                self.spell_effects.requeue_drape(flight.candidate);
+            }
+        }
     }
 
     /// Recent kit starts and missile flights, and the kit models and missiles shown now.
@@ -122,6 +406,7 @@ impl GameClient {
             active.push(&entry.to_variant());
         }
         state.set("active", &active);
+        state.set("drape_cache_hits", self.drape_cache.hits as i64);
         state.set("missiles", self.spell_effects.missile_count() as i64);
         let mut flights = VarArray::new();
         for flight in self.spell_effects.flights() {
@@ -182,3 +467,342 @@ impl GameClient {
         state
     }
 }
+
+/// What draping one of a spell model's meshes did.
+enum DrapeOutcome {
+    /// Not a flat ground batch (a vertical part, a particle plane, a plinth).
+    NotGround,
+    /// A ground batch, but the client has no visible render surface under it yet.
+    NoSurface,
+    /// The batch now follows the visible surface.
+    Draped,
+}
+
+/// Drapes one `MeshInstance3D` of a spell model, keeping its UVs, second UVs, colours and
+/// material. A skinned batch is measured in its authored bind pose; once draped it draws
+/// as the static ground decal it now is, with the kit's own transform and material.
+#[allow(clippy::too_many_arguments)]
+fn drape_mesh(
+    instance: &mut Gd<godot::classes::MeshInstance3D>,
+    arrays: Option<&BatchArrays>,
+    drape: &game_engine_core::ground_drape::GroundDrape,
+    ground_y: f32,
+    window: f32,
+    frame: u64,
+    surfaces: &mut crate::terrain::objects::TerrainObjects,
+    terrain: &crate::terrain::streaming::StreamedTerrain,
+    floor_at: &dyn Fn(f32, f32) -> Option<f32>,
+) -> DrapeOutcome {
+    let Some(arrays) = arrays else {
+        return DrapeOutcome::NotGround;
+    };
+    let placement = crate::render_surface::affine(instance.get_global_transform());
+    let mut surface = |x: f32, z: f32, ceiling: f32, floor: f32| {
+        surfaces.visible_surface(terrain.height_at(x, z), x, z, floor, ceiling - floor, frame)
+    };
+    let result = arrays.drape(drape, placement, ground_y, window, floor_at, &mut surface);
+    apply_drape(instance, placement, result)
+}
+
+/// Installs a drape `result` on `instance` (placed by `placement` when draped).
+fn apply_drape(
+    instance: &mut Gd<godot::classes::MeshInstance3D>,
+    placement: glam::Affine3A,
+    result: Drape,
+) -> DrapeOutcome {
+    match result {
+        Drape::NotGround => DrapeOutcome::NotGround,
+        Drape::NoSurface => DrapeOutcome::NoSurface,
+        Drape::Draped(draped, flip_normals) => {
+            log_draped_batch(instance, placement, &draped);
+            install_draped(instance, &draped_mesh(&draped, flip_normals));
+            DrapeOutcome::Draped
+        }
+    }
+}
+
+/// Margin of a kit's floor footprint over its batch bounds: covers the rounding between
+/// Godot's transformed bounds and the drape's own world points.
+const DRAPE_FOOTPRINT_MARGIN: f32 = 0.5;
+
+/// XZ bounds of every column a kit's drape samples: its anchor and its batches' world
+/// bounds, widened by [`DRAPE_FOOTPRINT_MARGIN`].
+fn drape_footprint(
+    anchor: glam::Vec3,
+    instances: &[Gd<godot::classes::MeshInstance3D>],
+) -> (glam::Vec2, glam::Vec2) {
+    let corners = instances.iter().flat_map(|instance| {
+        let transform = instance.get_global_transform();
+        let bounds = instance
+            .get_mesh()
+            .map(|mesh| mesh.get_aabb())
+            .unwrap_or_default();
+        (0..8).map(move |corner: usize| {
+            let pick = |bit: usize, size: f32| if corner & bit == 0 { 0.0 } else { size };
+            let local = bounds.position
+                + Vector3::new(
+                    pick(1, bounds.size.x),
+                    pick(2, bounds.size.y),
+                    pick(4, bounds.size.z),
+                );
+            let point = transform * local;
+            glam::Vec2::new(point.x, point.z)
+        })
+    });
+    let (low, high) = corners.fold(
+        (
+            glam::Vec2::new(anchor.x, anchor.z),
+            glam::Vec2::new(anchor.x, anchor.z),
+        ),
+        |(low, high), corner| (low.min(corner), high.max(corner)),
+    );
+    let margin = glam::Vec2::splat(DRAPE_FOOTPRINT_MARGIN);
+    (low - margin, high + margin)
+}
+
+/// Shows `draped` on `instance` as the static ground decal it now is.
+fn install_draped(
+    instance: &mut Gd<godot::classes::MeshInstance3D>,
+    draped: &Gd<godot::classes::ArrayMesh>,
+) {
+    let skinned = !instance.get_skeleton_path().is_empty();
+    instance.set_mesh(draped);
+    if skinned {
+        // The draped geometry is measured in the instance's space, not the animated pose.
+        instance.set_skeleton_path(&NodePath::from(""));
+    }
+}
+
+/// Everything a draped batch depends on besides the ground: its shared source mesh, its
+/// world placement and the kit anchor whose floor sets the drape height, as exact bits.
+type DrapeKey = (InstanceId, [u32; 12], [u32; 3]);
+
+fn drape_key(
+    mesh: &Gd<godot::classes::ArrayMesh>,
+    instance: &Gd<godot::classes::MeshInstance3D>,
+    anchor: glam::Vec3,
+) -> DrapeKey {
+    let transform = instance.get_global_transform();
+    let basis = transform.basis;
+    let rows = [
+        basis.rows[0],
+        basis.rows[1],
+        basis.rows[2],
+        transform.origin,
+    ];
+    let placement = rows
+        .iter()
+        .flat_map(|row| [row.x, row.y, row.z])
+        .map(f32::to_bits)
+        .collect::<Vec<_>>()
+        .try_into()
+        .expect("twelve transform components");
+    (
+        mesh.instance_id(),
+        placement,
+        anchor.to_array().map(f32::to_bits),
+    )
+}
+
+/// Kits whose batches are being draped off the main thread, by ticket.
+#[derive(Default)]
+pub(crate) struct DrapeFlights {
+    next: u64,
+    kits: HashMap<u64, KitFlight>,
+}
+
+impl DrapeFlights {
+    fn next_kit(&mut self) -> u64 {
+        self.next += 1;
+        self.next
+    }
+}
+
+/// A hidden kit waiting for its draped batches.
+struct KitFlight {
+    candidate: crate::spell_effects::DrapeCandidate,
+    /// The kit's visibility before it was hidden.
+    shown: bool,
+    inputs: std::sync::Arc<DrapeInputs>,
+    batches: Vec<FlightBatch>,
+    /// The cache's ground epoch at submission; a result drawn from another is not stored.
+    epoch: Option<u64>,
+    storable: bool,
+}
+
+struct FlightBatch {
+    instance: Gd<godot::classes::MeshInstance3D>,
+    key: DrapeKey,
+    placement: glam::Affine3A,
+    result: Option<Drape>,
+}
+
+/// Most draped batches this cache keeps; reached, it starts over.
+const DRAPE_CACHE_CAPACITY: usize = 256;
+
+/// Draped batches by their inputs while the ground epoch is unchanged: a caster recasting
+/// where it stands gets the same draped mesh back instead of draping again.
+#[derive(Default)]
+pub(crate) struct DrapeCache {
+    epoch: Option<u64>,
+    /// The first frame that saw `epoch`. A game object moved in that frame may not have
+    /// reached the physics space yet, so batches draped in it are not stored.
+    since: u64,
+    meshes: HashMap<DrapeKey, Gd<godot::classes::ArrayMesh>>,
+    hits: u64,
+}
+
+impl DrapeCache {
+    /// Records frame `frame`'s ground `epoch`; returns whether batches draped in this frame
+    /// may be stored.
+    fn observe(&mut self, epoch: u64, frame: u64) -> bool {
+        if self.epoch != Some(epoch) {
+            self.epoch = Some(epoch);
+            self.since = frame;
+            self.meshes.clear();
+        }
+        frame > self.since
+    }
+
+    fn get(&mut self, key: &DrapeKey) -> Option<Gd<godot::classes::ArrayMesh>> {
+        let draped = self.meshes.get(key).cloned();
+        self.hits += u64::from(draped.is_some());
+        draped
+    }
+
+    fn insert(&mut self, key: DrapeKey, draped: Gd<godot::classes::ArrayMesh>) {
+        if self.meshes.len() >= DRAPE_CACHE_CAPACITY {
+            self.meshes.clear();
+        }
+        self.meshes.insert(key, draped);
+    }
+}
+
+/// Logs one draped batch's real geometry, for capture-run proof.
+fn log_draped_batch(
+    instance: &Gd<godot::classes::MeshInstance3D>,
+    placement: glam::Affine3A,
+    draped: &game_engine_core::ground_drape::DrapedBatch,
+) {
+    let mut min = glam::Vec3::splat(f32::INFINITY);
+    let mut max = glam::Vec3::splat(f32::NEG_INFINITY);
+    for point in &draped.positions {
+        let world = placement.transform_point3(glam::Vec3::from_array(*point));
+        min = min.min(world);
+        max = max.max(world);
+    }
+    // The material override is the instance's own, untouched by draping: the log records
+    // which material the drawn batch kept.
+    let material = instance
+        .get_material_override()
+        .map(|material| material.get_class().to_string())
+        .unwrap_or_else(|| "none".to_string());
+    godot_print!(
+        "drape batch {}: vertices={} triangles={} hits={} discarded={} steep={} steep_floor_vertices={} max_edge_span={:.3} min_normal_y={:.3} x={:.2}..{:.2} z={:.2}..{:.2} y={:.2}..{:.2} uv2={} colors={} material={}",
+        instance.get_name(),
+        draped.positions.len(),
+        draped.triangle_count(),
+        draped.dropped,
+        draped.discarded,
+        draped.steep_discarded,
+        draped.steep_floor_vertices,
+        draped.max_edge_span,
+        draped.min_normal_y,
+        min.x,
+        max.x,
+        min.z,
+        max.z,
+        min.y,
+        max.y,
+        draped.uvs2.is_some(),
+        draped.colors.is_some(),
+        material,
+    );
+}
+
+/// Rebuilds the authored surface with the draped geometry and smooth normals; the UV,
+/// second UV and vertex colours interpolate from the source.
+fn draped_mesh(
+    draped: &game_engine_core::ground_drape::DrapedBatch,
+    flip_normals: bool,
+) -> Gd<godot::classes::ArrayMesh> {
+    use godot::classes::mesh::{ArrayType, PrimitiveType};
+    let vertices: Vec<Vector3> = draped
+        .positions
+        .iter()
+        .map(|point| Vector3::from_array(*point))
+        .collect();
+    let uvs: Vec<Vector2> = draped
+        .uvs
+        .iter()
+        .map(|uv| Vector2::from_array(*uv))
+        .collect();
+    let normals = draped_normals(&draped.positions, &draped.indices, flip_normals);
+    let indices: Vec<i32> = draped.indices.iter().map(|index| *index as i32).collect();
+    let mut arrays = VarArray::new();
+    arrays.resize(ArrayType::MAX.ord() as usize, &Variant::nil());
+    arrays.set(
+        ArrayType::VERTEX.ord() as usize,
+        &PackedVector3Array::from(vertices.as_slice()).to_variant(),
+    );
+    arrays.set(
+        ArrayType::NORMAL.ord() as usize,
+        &PackedVector3Array::from(normals.as_slice()).to_variant(),
+    );
+    arrays.set(
+        ArrayType::TEX_UV.ord() as usize,
+        &PackedVector2Array::from(uvs.as_slice()).to_variant(),
+    );
+    if let Some(uvs2) = &draped.uvs2 {
+        let values: Vec<Vector2> = uvs2.iter().map(|uv| Vector2::from_array(*uv)).collect();
+        arrays.set(
+            ArrayType::TEX_UV2.ord() as usize,
+            &PackedVector2Array::from(values.as_slice()).to_variant(),
+        );
+    }
+    if let Some(colors) = &draped.colors {
+        let values: Vec<Color> = colors
+            .iter()
+            .map(|color| Color::from_rgba(color[0], color[1], color[2], color[3]))
+            .collect();
+        arrays.set(
+            ArrayType::COLOR.ord() as usize,
+            &PackedColorArray::from(values.as_slice()).to_variant(),
+        );
+    }
+    arrays.set(
+        ArrayType::INDEX.ord() as usize,
+        &PackedInt32Array::from(indices.as_slice()).to_variant(),
+    );
+    let mut mesh = crate::rebuild_guard::new_array_mesh();
+    mesh.add_surface_from_arrays(PrimitiveType::TRIANGLES, &arrays);
+    mesh
+}
+
+/// Area-weighted vertex normals, so the draped surface keeps a lit, unbroken shading.
+fn draped_normals(positions: &[[f32; 3]], indices: &[u32], flip: bool) -> Vec<Vector3> {
+    let mut normals = vec![glam::Vec3::ZERO; positions.len()];
+    for triangle in indices.chunks_exact(3) {
+        let corners = [
+            glam::Vec3::from_array(positions[triangle[0] as usize]),
+            glam::Vec3::from_array(positions[triangle[1] as usize]),
+            glam::Vec3::from_array(positions[triangle[2] as usize]),
+        ];
+        let normal = (corners[1] - corners[0]).cross(corners[2] - corners[0])
+            * if flip { -1.0 } else { 1.0 };
+        for index in triangle {
+            normals[*index as usize] += normal;
+        }
+    }
+    normals
+        .into_iter()
+        .map(|normal| {
+            let normal = normal.normalize_or(glam::Vec3::Y);
+            Vector3::new(normal.x, normal.y, normal.z)
+        })
+        .collect()
+}
+
+#[cfg(test)]
+#[path = "combat_visuals_ground_batch_tests.rs"]
+mod ground_batch_tests;

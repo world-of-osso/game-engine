@@ -650,8 +650,9 @@ fn attachment_override_part(slot: EquipmentSlot, value: i16) -> Option<u16> {
         EquipmentSlot::Head => 27,
         EquipmentSlot::ShoulderLeft | EquipmentSlot::ShoulderRight => 26,
         EquipmentSlot::Waist => 18,
-        // Primary weapons; the ordinary off-hand shield's 52xx range is INFERRED.
-        EquipmentSlot::MainHand | EquipmentSlot::OffHand => 52,
+        // Primary weapons. The ranged slot shares their ordinary attachment constructor
+        // (clean-room census 70688), and the off-hand shield's 52xx range is INFERRED.
+        EquipmentSlot::MainHand | EquipmentSlot::OffHand | EquipmentSlot::Ranged => 52,
         _ => return None,
     };
     Some(group * 100 + 1 + u16::try_from(value).ok()?)
@@ -1256,7 +1257,7 @@ mod tests {
     /// `R-item-geoset-variant-selection`, `R-attachment-geoset-selectors`).
     #[test]
     fn model_column_modes_select_their_geosets() {
-        use EquipmentSlot::{Back, Head, Legs, MainHand, OffHand, Waist, Wrist};
+        use EquipmentSlot::{Back, Head, Legs, MainHand, OffHand, Ranged, Waist, Wrist};
         use ItemGeosets::{Attachment, Collection};
         let display = |model_types, geoset_group_override| {
             game_engine_core::outfit_data::DisplayInfoResolved {
@@ -1280,6 +1281,34 @@ mod tests {
             select(OffHand, false, 0, display([0, -1], 1)),
             Some(Attachment(Some(5202)))
         );
+        // The ranged slot builds through the same ordinary primary-weapon attachment
+        // constructor (census 70688): 5201 + GeosetGroupOverride.
+        assert_eq!(
+            select(Ranged, false, 0, display([0, -1], 0)),
+            Some(Attachment(Some(5201)))
+        );
+        assert_eq!(
+            select(Ranged, false, 0, display([0, -1], 3)),
+            Some(Attachment(Some(5204)))
+        );
+        // A negative scalar skips the whole operation: every part stays visible.
+        assert_eq!(
+            select(Ranged, false, 0, display([0, -1], -1)),
+            Some(Attachment(None))
+        );
+        // Extra-resource columns (ModelType 2, 3, 4) get neither GeosetGroupOverride nor
+        // AttachmentGeosetGroup_n, so a ranged column leaves visibility unchanged.
+        for mode in [2, 3, 4] {
+            assert_eq!(
+                select(Ranged, false, 1, display([0, mode], 0)),
+                Some(Attachment(None))
+            );
+        }
+        assert!(Attachment(None).shows(Ranged, 5201));
+        assert!(Attachment(None).shows(Ranged, 5202));
+        assert!(Attachment(Some(5201)).shows(Ranged, 0));
+        assert!(Attachment(Some(5201)).shows(Ranged, 5201));
+        assert!(!Attachment(Some(5201)).shows(Ranged, 5202));
         assert_eq!(
             select(Head, false, 0, display([0, -1], -1)),
             Some(Attachment(None))
@@ -1303,6 +1332,26 @@ mod tests {
             Some(Collection(vec![1502]))
         );
         assert_eq!(select(Legs, true, 0, display([-1, -1], 0)), None);
+    }
+
+    /// Creature ranged items resolve through the ordinary primary-weapon attachment: three
+    /// spawned creatures whose `creature_equip_template.ItemID3` is a ranged weapon
+    /// (Anvilrage Reservist's rifle, Scarlet Fleet Defender's crossbow, Hearthglen
+    /// Crusader's bow) all select the single part 5201 from ModelType 0.
+    #[test]
+    fn creature_ranged_items_use_the_primary_weapon_selector() {
+        for (item, fdid) in [(2552, 145_319), (11_021, 145_333), (5258, 145_109)] {
+            let resolved = resolve(vec![entry(EquipmentVisualSlot::Ranged, item)]);
+            assert_eq!(resolved.runtime_models.len(), 1, "item {item}");
+            let model = &resolved.runtime_models[0];
+            assert_eq!(model.slot, EquipmentSlot::Ranged, "item {item}");
+            assert_eq!(model.fdid, fdid, "item {item}");
+            assert_eq!(
+                model.geosets,
+                ItemGeosets::Attachment(Some(5201)),
+                "item {item}"
+            );
+        }
     }
 
     /// Ancestral Chieftain's Greatbelt 168296 (display 180643): buckle 2429565 in model

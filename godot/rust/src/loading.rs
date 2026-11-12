@@ -19,6 +19,17 @@ pub(crate) fn nearby_tiles(player: glam::Vec3) -> BTreeSet<(u32, u32)> {
         .collect()
 }
 
+/// Where world objects prioritize nearby placements and spend the loading budget: the local
+/// player only while the loading screen is up (InWorld streaming keeps its small per-frame
+/// budget, docs/specs/world-loading.md), an offline preview's focus at any time.
+pub(crate) fn object_loading_focus(
+    loading: bool,
+    player: Option<glam::Vec3>,
+    preview: Option<glam::Vec3>,
+) -> Option<glam::Vec3> {
+    player.filter(|_| loading).or(preview)
+}
+
 /// Local entry bubble: nearby placements done (attached or failed and reported),
 /// and nearby WMO collision groups not built yet. Distant work is not included.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -106,6 +117,16 @@ pub(crate) fn evaluate_native_loading(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn in_world_player_has_no_object_loading_focus() {
+        let player = Some(glam::Vec3::new(-8855.0, 97.0, -645.0));
+        let preview = Some(glam::Vec3::new(1.0, 2.0, 3.0));
+        assert_eq!(object_loading_focus(true, player, None), player);
+        assert_eq!(object_loading_focus(false, player, None), None);
+        assert_eq!(object_loading_focus(false, None, preview), preview);
+        assert_eq!(object_loading_focus(false, player, preview), preview);
+    }
 
     #[test]
     fn entry_bubble_covers_neighbor_when_player_is_near_tile_edge() {

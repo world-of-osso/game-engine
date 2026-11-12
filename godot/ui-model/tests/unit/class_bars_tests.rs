@@ -937,3 +937,77 @@ fn load_atlas_tables() {
     )
     .unwrap();
 }
+
+/// The screen drawn from a bar's at-rest layout, then patched with its live animated
+/// values, equals the screen drawn from the live bar, frame for frame.
+fn assert_patched_layout_draws_live(live: &ClassBarView) {
+    let expected = registry_with(live.clone());
+    let mut patched = registry_with(class_bar_layout(live));
+    for texture in &live.textures {
+        let id = patched.get_by_name(&texture.name).expect(&texture.name);
+        for (name, value) in class_bar_texture_patch(texture) {
+            ui_toolkit::attrs::apply_attribute(&mut patched, id, name, &value);
+        }
+    }
+    patched.resolve_pending_writes();
+    for texture in &live.textures {
+        let id = |reg: &FrameRegistry| reg.get_by_name(&texture.name).unwrap();
+        let attrs = |reg: &FrameRegistry| {
+            [
+                "pos_x",
+                "pos_y",
+                "width",
+                "height",
+                "hidden",
+                "vertex_color",
+                "rotation",
+                "alpha",
+            ]
+            .map(|name| ui_toolkit::attrs::read_attribute(reg, id(reg), name))
+        };
+        assert!(
+            patched.get(id(&patched)) == expected.get(id(&expected)),
+            "{}: patched {:?}, live {:?}",
+            texture.name,
+            attrs(&patched),
+            attrs(&expected)
+        );
+    }
+}
+
+/// A filling essence point spins and fades every frame, and a recharging rune swipes:
+/// their at-rest layout holds between frames, and patching it draws the live bar.
+#[test]
+fn animating_class_bars_keep_their_layout_and_patch_to_the_live_draw() {
+    let mut animator = ClassBarAnimator::default();
+    let mut three = resource(ClassBar::Essence, 3, 5);
+    three.dynamics.received_at = 100.0;
+    let spinning = run(&mut animator, &[(&three, 100.0), (&three, 102.5)]);
+    let later = run(&mut animator, &[(&three, 102.52)]);
+    assert_ne!(spinning, later);
+    assert_eq!(class_bar_layout(&spinning), class_bar_layout(&later));
+    let spinner = texture(&spinning, "PlayerSecondaryResourcePip3FillingTimerSpinner");
+    assert!(spinner.rotation != 0.0 && spinner.alpha > 0.0);
+    assert_patched_layout_draws_live(&spinning);
+
+    let mut blood = resource(ClassBar::Runes, 6, 6);
+    blood.spec = Some(250);
+    let mut four = blood.clone();
+    four.current = 4;
+    four.dynamics.received_at = 100.0;
+    four.dynamics.runes.as_mut().unwrap().ready_in_ms = vec![0, 0, 0, 0, 10000, 20000];
+    let mut runes = ClassBarAnimator::default();
+    let steps = [
+        (&blood, 90.0),
+        (&blood, 100.0),
+        (&four, 100.0),
+        (&four, 103.0),
+    ];
+    let recharging = run(&mut runes, &steps);
+    let next = run(&mut runes, &[(&four, 103.02)]);
+    let swipe = |view: &ClassBarView| texture(view, "PlayerSecondaryResourcePip4Cooldown").swipe;
+    assert!(swipe(&recharging).is_some_and(|progress| progress > 0.0 && progress < 1.0));
+    assert_ne!(swipe(&recharging), swipe(&next));
+    assert_eq!(class_bar_layout(&recharging), class_bar_layout(&next));
+    assert_patched_layout_draws_live(&recharging);
+}

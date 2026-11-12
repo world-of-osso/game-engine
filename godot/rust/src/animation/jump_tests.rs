@@ -51,7 +51,20 @@ pub(super) fn player(with_running_landing: bool) -> AnimationState {
         weights: Vec::new(),
         transforms: Vec::new(),
     };
+    let tracks: std::sync::Arc<Vec<m2::BoneAnimTracks>> = vec![m2::BoneAnimTracks {
+        translation,
+        rotation: track(vec![
+            [0, 0, 0, 32767];
+            if with_running_landing { 6 } else { 5 }
+        ]),
+        scale: track(vec![
+            [1.0, 1.0, 1.0];
+            if with_running_landing { 6 } else { 5 }
+        ]),
+    }]
+    .into();
     AnimationState {
+        plans: super::sequence_plan::SequencePlans::shared(&tracks, sequences.len()),
         material_snapshot: MaterialSnapshot::new(&material_tracks),
         material_tracks,
         sequence_animated: vec![false; sequences.len()],
@@ -62,18 +75,7 @@ pub(super) fn player(with_running_landing: bool) -> AnimationState {
         global_sequences: Vec::new(),
         global_ms: 0.0,
         parent: None,
-        tracks: vec![m2::BoneAnimTracks {
-            translation,
-            rotation: track(vec![
-                [0, 0, 0, 32767];
-                if with_running_landing { 6 } else { 5 }
-            ]),
-            scale: track(vec![
-                [1.0, 1.0, 1.0];
-                if with_running_landing { 6 } else { 5 }
-            ]),
-        }]
-        .into(),
+        tracks,
         local_pivots: vec![godot::builtin::Vector3::ZERO],
         current: 0,
         replacements: Default::default(),

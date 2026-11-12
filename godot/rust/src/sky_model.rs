@@ -470,7 +470,7 @@ fn build_material(
     }
     let shader_source = source.replace(RENDER_MODE, &variant);
     let span = crate::profile::span(|| "sky.set_shader".to_owned());
-    let mut material = ShaderMaterial::new_gd();
+    let mut material = crate::rebuild_guard::new_shader_material();
     material.set_shader(&crate::assets::material::shared_shader(&shader_source));
     drop(span);
     material.set_render_priority(priority);

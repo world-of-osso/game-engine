@@ -46,7 +46,8 @@ fn player() -> InWorldUnitFramesState {
         current: 78,
         max: 100,
     });
-    player.player_auras = vec![aura()];
+    player.player_auras =
+        game_engine_ui_model::inworld_unit_frames_component::player_aura_icons(&[aura()]);
     InWorldUnitFramesState {
         show_player_frame: true,
         show_target_frame: false,

@@ -1,0 +1,11 @@
+[package]
+name = "bls-disasm"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[workspace]
+
+[dependencies]
+# MIT; offline SM4/SM5 decoding, never linked into the game runtime.
+dxbc = "=0.1.0"

@@ -1,12 +1,12 @@
 //! Shipped per-asset receipts select actual builds independently of metadata builds.
 use crate::asset_product::AssetProduct;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
     path::{Path, PathBuf},
 };
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct ModelAssetReceipt {
     pub product: AssetProduct,
     pub build_key: String,
@@ -19,6 +19,7 @@ pub struct ModelAssetReceipt {
     pub content_key: String,
 }
 
+#[derive(Default)]
 pub struct ModelAssetIndex {
     assets: HashMap<(AssetProduct, u32, String), ModelAssetReceipt>,
 }
@@ -62,15 +63,37 @@ impl ModelAssetIndex {
                 file.version
             ));
         }
-        let mut assets = HashMap::new();
+        let mut index = Self::default();
         for receipt in file.assets {
-            validate_receipt(&receipt)?;
-            let key = (receipt.product, receipt.fdid, receipt.kind.clone());
-            if assets.insert(key.clone(), receipt).is_some() {
-                return Err(format!("Duplicate model asset receipt for {key:?}"));
-            }
+            index.insert(receipt)?;
         }
-        Ok(Self { assets })
+        Ok(index)
+    }
+
+    /// Add a valid receipt for an asset this index has none for.
+    pub fn insert(&mut self, receipt: ModelAssetReceipt) -> Result<(), String> {
+        validate_receipt(&receipt)?;
+        let key = (receipt.product, receipt.fdid, receipt.kind.clone());
+        if self.assets.contains_key(&key) {
+            return Err(format!("Duplicate model asset receipt for {key:?}"));
+        }
+        self.assets.insert(key, receipt);
+        Ok(())
+    }
+
+    pub fn receipts(&self) -> impl Iterator<Item = &ModelAssetReceipt> {
+        self.assets.values()
+    }
+
+    /// The index file `from_json` reads, receipts in product, FDID and kind order.
+    pub fn to_json(&self) -> Result<String, String> {
+        let mut assets: Vec<_> = self.assets.iter().collect();
+        assets.sort_by(|(left, _), (right, _)| {
+            (left.0.as_str(), left.1, &left.2).cmp(&(right.0.as_str(), right.1, &right.2))
+        });
+        let assets: Vec<_> = assets.into_iter().map(|(_, receipt)| receipt).collect();
+        serde_json::to_string_pretty(&serde_json::json!({"version": 1, "assets": assets}))
+            .map_err(|error| format!("Encode asset receipts: {error}"))
     }
 
     pub fn receipt(
@@ -110,12 +133,17 @@ fn is_hex(value: &str, length: usize) -> bool {
     value.len() == length && value.bytes().all(|byte| byte.is_ascii_hexdigit())
 }
 
+/// The data directory files of `kind` live in: `textures` or `models`.
+pub fn asset_directory(kind: &str) -> Result<&'static str, String> {
+    match kind {
+        "blp" => Ok("textures"),
+        "m2" | "wmo" | "skin" | "skel" | "anim" | "bone" => Ok("models"),
+        kind => Err(format!("Unsupported model-chain asset kind {kind}")),
+    }
+}
+
 fn validate_receipt(receipt: &ModelAssetReceipt) -> Result<(), String> {
-    let directory = match receipt.kind.as_str() {
-        "blp" => "textures",
-        "m2" | "wmo" | "skin" | "skel" | "anim" | "bone" => "models",
-        kind => return Err(format!("Unsupported model-chain asset kind {kind}")),
-    };
+    let directory = asset_directory(&receipt.kind)?;
     let expected = format!(
         "products/{}/{}/{directory}/{}.{}",
         receipt.product.as_str(),

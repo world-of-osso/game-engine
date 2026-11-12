@@ -6,7 +6,9 @@ use std::{
 
 use game_engine_core::{
     adt, blp,
-    liquid_data::{LiquidShader, PBR_WATER_MATERIAL, TEXTURE_SLOTS, WaterColorSource},
+    liquid_data::{
+        LiquidShader, PBR_MASK_ROLES, PBR_WATER_MATERIAL, TEXTURE_SLOTS, WaterColorSource,
+    },
 };
 use godot::{
     classes::{
@@ -40,6 +42,10 @@ struct LiquidSurface {
     /// Frame each slot has bound. Every texture write rebuilds the material's uniform set
     /// and re-validates every instance drawing it, so only a changed frame is written.
     bound: [Option<usize>; TEXTURE_SLOTS],
+    /// E5 Retail70688: Fel calls the group lookup with frame period zero.
+    fixed_frames: bool,
+    /// Material130 owns the material clock instead of the shared liquid global.
+    pbr: bool,
 }
 
 impl WaterMaterials {
@@ -48,7 +54,7 @@ impl WaterMaterials {
     }
 
     /// A layer whose liquid material is unavailable is reported and left out, as an
-    /// unbuildable tile is.
+    /// unbuildable tile is. Layers of one liquid in one block draw as one instance.
     pub fn build(
         &mut self,
         root: &adt::Root,
@@ -57,36 +63,42 @@ impl WaterMaterials {
         let Some(water) = &root.water else {
             return Ok(None);
         };
-        let mut meshes = Vec::new();
+        let mut blocks = BTreeMap::new();
         for (index, chunk) in water.chunks.iter().enumerate() {
             let position = root
                 .chunk_positions
                 .get(index)
                 .ok_or("MH2O chunk has no authored position")?;
             for layer in &chunk.layers {
-                if let Some(surface) = self.layer_mesh(index, *position, layer, materials)? {
-                    meshes.push(surface);
-                }
+                let Some(surface) = self.layer_surface(index, *position, layer, materials)? else {
+                    continue;
+                };
+                let (geometry, _, _) = blocks
+                    .entry((surface.key, water_block(index)))
+                    .or_insert_with(|| (empty_geometry(), surface.material, surface.depth_curve));
+                append_geometry(geometry, surface.geometry);
             }
         }
-        if meshes.is_empty() {
+        if blocks.is_empty() {
             return Ok(None);
         }
         let mut node = Node3D::new_alloc();
         node.set_name("Water");
-        for (mesh, material) in meshes {
-            node.add_child(&water_instance(&mesh, &material));
+        for ((key, block), (geometry, material, depth_curve)) in blocks {
+            let mut instance = water_instance(&build_mesh(geometry, Some(depth_curve)), &material);
+            instance.set_name(&format!("Liquid{}_{}_Block{block}", key.0, key.1));
+            node.add_child(&instance);
         }
         Ok(Some(node))
     }
 
-    fn layer_mesh(
+    fn layer_surface(
         &mut self,
         chunk: usize,
         position: [f32; 3],
         layer: &adt::WaterLayer,
         materials: &Materials,
-    ) -> Result<Option<(Gd<ArrayMesh>, Gd<ShaderMaterial>)>, String> {
+    ) -> Result<Option<LayerSurface>, String> {
         let key = (layer.liquid_type, layer.liquid_object);
         let native = match materials.get(&key) {
             Some(Ok(native)) => native,
@@ -96,12 +108,32 @@ impl WaterMaterials {
             }
             None => return Err(format!("MH2O layer {key:?} has no resolved material")),
         };
-        let geometry = adt::build_water_geometry(position, layer);
+        // G7: the terrain MH2O draw skips a row whose LiquidMaterial column is Fog (10).
+        if !game_engine_core::liquid_data::terrain_draws_surface(native.params.material_id) {
+            return Ok(None);
+        }
+        let mut geometry = adt::build_water_geometry(position, layer);
         if geometry.indices.is_empty() {
             return Ok(None);
         }
-        let material = self.material(key, native)?;
-        Ok(Some((build_mesh(geometry), material)))
+        // G13: a layer whose format has no heights (the depth-only format 2 ocean) draws at
+        // world y = 0: the client's grid value is `0 - chunkBase` and its draw matrix adds
+        // the base height back, so the authored surface/minimum heights are not consulted.
+        // The parsed builder keeps `min_height` for such layers, which is the same 0.0 in
+        // every sampled ocean layer; place it explicitly so the rule does not depend on data.
+        if layer.vertex_heights.is_empty() {
+            for vertex in &mut geometry.positions {
+                vertex[1] = 0.0;
+            }
+        }
+        // G13: the depth curve is a CPU vertex-write step; no liquid pixel program re-curves
+        // the interpolated value. It is per LiquidType, so one merged mesh applies one curve.
+        Ok(Some(LayerSurface {
+            key,
+            geometry,
+            material: self.material(key, native)?,
+            depth_curve: native.params.depth_curve,
+        }))
     }
 
     pub fn sample_clock(&mut self, parent: &Gd<Node3D>) -> Result<(), String> {
@@ -155,7 +187,8 @@ impl WaterMaterials {
         let mut material = self.material((liquid_type, u16::from(interior)), native)?;
         material.set_shader_parameter("mesh_uv", &true.to_variant());
         material.set_shader_parameter("interior", &interior.to_variant());
-        Ok(water_instance(&build_mesh(geometry), &material))
+        // WMO liquids carry no parsed depth byte in this engine, so there is no curve input.
+        Ok(water_instance(&build_mesh(geometry, None), &material))
     }
 
     fn material(
@@ -175,7 +208,7 @@ impl WaterMaterials {
     fn create_surface(&mut self, native: &NativeLiquidMaterial) -> Result<LiquidSurface, String> {
         let shader = self.shader(native.params.shader)?;
         let span = crate::profile::span(|| "water.set_shader".to_owned());
-        let mut material = ShaderMaterial::new_gd();
+        let mut material = crate::rebuild_guard::new_shader_material();
         material.set_shader(&shader);
         drop(span);
         let _span = crate::profile::span(|| "water.textures".to_owned());
@@ -192,6 +225,19 @@ impl WaterMaterials {
         for &slot in native.params.shader.texture_slots() {
             slots[slot] = self.frames(&native.slots[slot])?;
         }
+        if native.params.shader == LiquidShader::PbrWater {
+            // RF3: bind the six authored masks under their row roles, with the rim/depth swap
+            // applied for the rows that store them reversed. The shipped rows are single-frame,
+            // so frame 0 is the authored art. The Material130 default falls back to the
+            // LiquidType5 water shader, which has no mask uniforms and must not bind these.
+            for (role, slot) in PBR_MASK_ROLES.iter().zip(native.params.pbr_mask_slots()) {
+                let frames = self.frames(&native.slots[slot])?;
+                let texture = frames
+                    .first()
+                    .ok_or_else(|| format!("Material130 has no {role} mask"))?;
+                material.set_shader_parameter(*role, &texture.to_variant());
+            }
+        }
         let crossfade = native
             .params
             .shader
@@ -202,6 +248,8 @@ impl WaterMaterials {
             slots,
             crossfade,
             bound: [None; TEXTURE_SLOTS],
+            fixed_frames: native.params.shader == LiquidShader::Fel,
+            pbr: native.params.material_id == PBR_WATER_MATERIAL,
         };
         surface.set_time(0.0);
         self.warn_borrowed_water(&native.params);
@@ -210,10 +258,11 @@ impl WaterMaterials {
 
     fn warn_borrowed_water(&mut self, params: &game_engine_core::liquid_data::LiquidMaterial) {
         if params.material_id == PBR_WATER_MATERIAL
+            && params.shader == LiquidShader::Water
             && self.borrowed_water_types.insert(params.liquid_type)
         {
             godot_warn!(
-                "Material130 PBR water rendered with legacy fallback, parity unsupported; LiquidType {} uses borrowed LiquidType 5 legacy inputs, not authored PBR data",
+                "Material130 PBR water uses the LiquidType5 fallback until the procedural depth texture and prepass land; set GAME_ENGINE_PBR_WATER=1 to opt in. LiquidType {}",
                 params.liquid_type
             );
         }
@@ -266,6 +315,7 @@ impl WaterMaterials {
 fn shader_path(kind: LiquidShader) -> &'static str {
     match kind {
         LiquidShader::Water => "res://shaders/water.gdshader",
+        LiquidShader::PbrWater => "res://shaders/liquid_pbr_water.gdshader",
         LiquidShader::Magma => "res://shaders/liquid_magma.gdshader",
         LiquidShader::Mercury => "res://shaders/liquid_mercury.gdshader",
         LiquidShader::Fog => "res://shaders/liquid_fog.gdshader",
@@ -290,6 +340,11 @@ impl LiquidSurface {
     /// frame per second; a crossfaded slot binds frame k and k+1 as `texture_next`
     /// (`resolveAnimatedTextures`), the shader blending by the fractional frame position.
     fn set_time(&mut self, milliseconds: f64) {
+        let milliseconds = if self.fixed_frames { 0.0 } else { milliseconds };
+        if self.pbr {
+            self.material
+                .set_shader_parameter("pbr_time_ms", &(milliseconds as f32).to_variant());
+        }
         let second = (milliseconds * 0.001) as usize;
         for (slot, frames) in self.slots.iter().enumerate() {
             if frames.is_empty() {
@@ -324,6 +379,28 @@ impl LiquidSurface {
 fn bind_liquid_material(material: &mut Gd<ShaderMaterial>, native: &NativeLiquidMaterial) {
     let params = &native.params;
     let f = &params.floats;
+    let pbr_water = params.material_id == PBR_WATER_MATERIAL;
+    material.set_shader_parameter("pbr_water", &pbr_water.to_variant());
+    if pbr_water {
+        // Forever EF2: all 38 floats are copied verbatim into one CPU-assembled block.
+        // The batch -> cb-register hop is unpublished, so the shader consumes the block
+        // by index and labels that hop ADAPTED.
+        for (vector, values) in params
+            .pbr_material_batch()
+            .chunks(4)
+            .map(|values| {
+                let mut vector = [0.0f32; 4];
+                vector[..values.len()].copy_from_slice(values);
+                vector
+            })
+            .enumerate()
+        {
+            material.set_shader_parameter(
+                &format!("pbr_batch_{vector}"),
+                &Vector4::from_array(values).to_variant(),
+            );
+        }
+    }
     for (name, start) in [
         ("floats_0", 0),
         ("floats_4", 4),
@@ -334,10 +411,6 @@ fn bind_liquid_material(material: &mut Gd<ShaderMaterial>, native: &NativeLiquid
         material.set_shader_parameter(name, &value.to_variant());
     }
     material.set_shader_parameter("floats_16", &Vector2::new(f[16], f[17]).to_variant());
-    material.set_shader_parameter(
-        "depth_coefficients",
-        &Vector4::from_array(params.depth_coefficients).to_variant(),
-    );
     for (index, color) in params.colors.iter().enumerate() {
         material.set_shader_parameter(
             &format!("liquid_color_{index}"),
@@ -346,6 +419,23 @@ fn bind_liquid_material(material: &mut Gd<ShaderMaterial>, native: &NativeLiquid
     }
     let [a, b, c, d] = params.ints;
     material.set_shader_parameter("liquid_ints", &Vector4i::new(a, b, c, d).to_variant());
+    if !pbr_water {
+        // G10 shore: Float[11] is the fade width in yards for the view-depth gap to the
+        // first opaque surface behind the fragment; the ProcFel path uses the same value.
+        // EF2: Forever PBRWater does not set it, so its uniform keeps the 1-yard default.
+        let float_11 = f.get(11).copied().unwrap_or(0.0);
+        material.set_shader_parameter(
+            "shore_scale",
+            &(if float_11 > 0.0 { 1.0 / float_11 } else { 1.0 }).to_variant(),
+        );
+    }
+    // G13 proves the water family's pixel program has no depth polynomial; the Fel, LeyLine
+    // and Swamp equations were derived from their own BLS payloads elsewhere and still read
+    // the row's coefficient cubic.
+    material.set_shader_parameter(
+        "depth_coefficients",
+        &Vector4::from_array(params.depth_coefficients).to_variant(),
+    );
     material.set_shader_parameter(
         "wave_periods",
         &Vector2::from_array(params.wave_periods).to_variant(),
@@ -372,6 +462,11 @@ fn bind_liquid_material(material: &mut Gd<ShaderMaterial>, native: &NativeLiquid
         "frame_counts_3",
         &Vector3::new(frame_counts[3], frame_counts[4], frame_counts[5]).to_variant(),
     );
+    // G8 ProcFel constant block. E5 fixes Fel frame selection at frame zero, so the
+    // frame-pair blend is zero; the remaining values come from the row via `fel_params`.
+    let (fel_0, fel_1) = params.fel_params(0.0);
+    material.set_shader_parameter("fel_params_0", &Vector4::from_array(fel_0).to_variant());
+    material.set_shader_parameter("fel_params_1", &Vector4::from_array(fel_1).to_variant());
 }
 
 fn mipmapped_texture(width: u32, height: u32, pixels: &[u8]) -> Result<Gd<ImageTexture>, String> {
@@ -390,6 +485,47 @@ fn mipmapped_texture(width: u32, height: u32, pixels: &[u8]) -> Result<Gd<ImageT
     ImageTexture::create_from_image(&image).ok_or_else(|| "Cannot upload water texture".into())
 }
 
+/// One drawable MH2O layer before it is merged into its block.
+struct LayerSurface {
+    key: LiquidKey,
+    geometry: adt::WaterGeometry,
+    material: Gd<ShaderMaterial>,
+    depth_curve: [f32; 4],
+}
+
+/// MH2O chunks per side of one merged water block (4 chunks, about 133 yards). One
+/// instance per chunk layer cost about 670 draws over the Stormwind canals. A block keeps
+/// frustum culling and the per-instance back-to-front sort of these transparent surfaces
+/// local, so water seen through water still sorts by block.
+const BLOCK_CHUNKS: usize = 4;
+
+/// Block of a row-major MH2O chunk index in the tile's 16x16 grid.
+fn water_block(chunk: usize) -> usize {
+    const BLOCKS_PER_ROW: usize = 16 / BLOCK_CHUNKS;
+    (chunk / 16 / BLOCK_CHUNKS) * BLOCKS_PER_ROW + (chunk % 16) / BLOCK_CHUNKS
+}
+
+fn empty_geometry() -> adt::WaterGeometry {
+    adt::WaterGeometry {
+        positions: Vec::new(),
+        normals: Vec::new(),
+        uvs: Vec::new(),
+        colors: Vec::new(),
+        indices: Vec::new(),
+    }
+}
+
+fn append_geometry(target: &mut adt::WaterGeometry, source: adt::WaterGeometry) {
+    let base = target.positions.len() as u32;
+    target.positions.extend(source.positions);
+    target.normals.extend(source.normals);
+    target.uvs.extend(source.uvs);
+    target.colors.extend(source.colors);
+    target
+        .indices
+        .extend(source.indices.into_iter().map(|index| index + base));
+}
+
 fn water_instance(mesh: &Gd<ArrayMesh>, material: &Gd<ShaderMaterial>) -> Gd<MeshInstance3D> {
     let mut surface = MeshInstance3D::new_alloc();
     surface.set_mesh(mesh);
@@ -399,7 +535,7 @@ fn water_instance(mesh: &Gd<ArrayMesh>, material: &Gd<ShaderMaterial>) -> Gd<Mes
     surface
 }
 
-fn build_mesh(geometry: adt::WaterGeometry) -> Gd<ArrayMesh> {
+fn build_mesh(geometry: adt::WaterGeometry, depth_curve: Option<[f32; 4]>) -> Gd<ArrayMesh> {
     let positions: Vec<_> = geometry
         .positions
         .into_iter()
@@ -411,11 +547,24 @@ fn build_mesh(geometry: adt::WaterGeometry) -> Gd<ArrayMesh> {
         .map(Vector3::from_array)
         .collect();
     let uvs: Vec<_> = geometry.uvs.into_iter().map(Vector2::from_array).collect();
-    let colors: Vec<_> = geometry
+    // I2 B.4 / G13: the liquid draw carries position plus two texture-coordinate pairs and
+    // no colour attribute. The authored depth byte rides the second pair's second component,
+    // which the vertex program forwards as the depth interpolant (TEXCOORD0.z), and the
+    // colour is a constant white. Retail applies the row's depth curve here, once, and the
+    // pixel program uses the interpolated curved value directly; WMO liquids have no parsed
+    // depth byte and stay at the authored 1.
+    let depths: Vec<_> = geometry
         .colors
-        .into_iter()
-        .map(|[r, g, b, a]| Color::from_rgba(r, g, b, a))
+        .iter()
+        .map(|color| {
+            let depth = match depth_curve {
+                Some(curve) => game_engine_core::liquid_data::curved_depth_channel(curve, color[3]),
+                None => color[3],
+            };
+            Vector2::new(0.0, depth)
+        })
         .collect();
+    let colors: Vec<_> = geometry.colors.iter().map(|_| Color::WHITE).collect();
     // Godot ArrayMesh front faces are clockwise; the geometry's indices are counterclockwise.
     let indices: Vec<_> = geometry
         .indices
@@ -438,6 +587,10 @@ fn build_mesh(geometry: adt::WaterGeometry) -> Gd<ArrayMesh> {
             PackedVector2Array::from(uvs.as_slice()).to_variant(),
         ),
         (
+            mesh::ArrayType::TEX_UV2,
+            PackedVector2Array::from(depths.as_slice()).to_variant(),
+        ),
+        (
             mesh::ArrayType::COLOR,
             PackedColorArray::from(colors.as_slice()).to_variant(),
         ),
@@ -448,7 +601,11 @@ fn build_mesh(geometry: adt::WaterGeometry) -> Gd<ArrayMesh> {
     ] {
         arrays.set(kind.ord() as usize, &value);
     }
-    let mut mesh = ArrayMesh::new_gd();
+    let mut mesh = crate::rebuild_guard::new_array_mesh();
     mesh.add_surface_from_arrays(mesh::PrimitiveType::TRIANGLES, &arrays);
     mesh
 }
+
+#[cfg(test)]
+#[path = "water_tests.rs"]
+mod tests;

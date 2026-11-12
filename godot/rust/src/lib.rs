@@ -2,6 +2,7 @@ mod account;
 mod animation;
 #[path = "rendering/character/appearance_options.rs"]
 pub mod appearance_options;
+mod area_trigger_visuals;
 pub use game_engine_core::{customization_data, outfit_data};
 mod achievements;
 mod adventure_guide;
@@ -28,6 +29,8 @@ mod damage_meter;
 mod death_flow;
 mod debug_character;
 mod display_options;
+mod drape_batch;
+mod drape_worker;
 mod encounter;
 mod entrance_bar;
 #[path = "game/equipment/equipment_appearance_data.rs"]
@@ -37,6 +40,7 @@ mod eula;
 mod faction_reaction;
 mod flight_map;
 mod follower_dungeons;
+mod foot_ik;
 mod frame_error;
 mod game_menu;
 mod game_objects;
@@ -45,6 +49,7 @@ mod ground;
 mod guild_charters;
 mod guild_ranks;
 mod guild_tabards;
+mod healer_ground_ring;
 mod housing;
 mod housing_decor;
 mod housing_editor;
@@ -91,6 +96,8 @@ mod pet_bar;
 mod pet_journal;
 mod pet_stable;
 mod player_spells;
+mod power_throttling;
+mod preview_world;
 #[path = "process_memory_status.rs"]
 mod process_memory_status;
 mod professions;
@@ -99,6 +106,8 @@ mod quests;
 mod raid_info;
 mod raid_targets;
 mod rainfire;
+mod rebuild_guard;
+mod render_surface;
 mod replicated;
 mod reputation_status_bar;
 mod ribbons;
@@ -108,6 +117,7 @@ mod selection_debug;
 mod shader_warmup;
 mod sky_model;
 mod skybox_debug;
+mod slow_pipeline;
 mod soft_interact;
 mod sound;
 mod sound_client;
@@ -123,6 +133,7 @@ mod startup;
 mod swim;
 mod targeting;
 mod terrain;
+mod thread_clock;
 mod tooltip_sources;
 mod tooltip_units;
 mod tooltips;
@@ -171,6 +182,35 @@ use game_engine_ui_model::{
 use godot::classes::{Engine as GodotEngine, INode3D, Node3D, ProjectSettings, Time};
 use godot::prelude::*;
 
+/// `DrawBatchProj` grows the model region's box by two yards on the vertical axis.
+const PROJECTED_BLOB_RISE: f32 = 2.0;
+
+/// `ShadowAddCallback`'s ramp, as a 64x8 white texture whose alpha follows the 64-texel axis.
+fn projected_blob_texture() -> Result<Gd<godot::classes::ImageTexture>, String> {
+    const WIDTH: u32 = 64;
+    const HEIGHT: u32 = 8;
+    let mut pixels = vec![0u8; (WIDTH * HEIGHT * 4) as usize];
+    for x in 0..WIDTH {
+        let t = x as f32 / (WIDTH - 1) as f32 * 12.0;
+        let alpha = if t < 2.0 {
+            t * 0.5
+        } else if t < 10.0 {
+            1.0
+        } else {
+            ((12.0 - t) * 0.5).max(0.0)
+        };
+        let alpha = (alpha * 255.0) as u8;
+        for y in 0..HEIGHT {
+            let index = ((y * WIDTH + x) * 4) as usize;
+            pixels[index] = 255;
+            pixels[index + 1] = 255;
+            pixels[index + 2] = 255;
+            pixels[index + 3] = alpha;
+        }
+    }
+    crate::assets::material::texture_from_rgba(&pixels, WIDTH, HEIGHT)
+}
+
 /// Observe projection removal; despawn has no surviving replica snapshot.
 fn log_replication_removal(server_id: u64, snapshot: Option<game_engine_network::replica::Unit>) {
     godot_print!(
@@ -196,6 +236,8 @@ struct GameEngineExtension;
 
 /// Main-thread time per frame for in-world ADT object loading.
 const WORLD_OBJECT_BUDGET: std::time::Duration = std::time::Duration::from_millis(8);
+/// Threads draping spell ground batches; a kit's batches drape in parallel.
+const DRAPE_WORKERS: usize = 2;
 
 // SAFETY: Godot owns extension initialization and all exposed objects use gdext's bindings.
 #[gdextension]
@@ -206,8 +248,15 @@ unsafe impl ExtensionLibrary for GameEngineExtension {
     }
 
     fn on_stage_init(stage: godot::init::InitStage) {
+        if stage == godot::init::InitStage::Core {
+            power_throttling::opt_out();
+        }
         if stage == godot::init::InitStage::Servers {
             display_options::initialize_ssao_prepass();
+        }
+        if stage == godot::init::InitStage::Scene {
+            let dir = ProjectSettings::singleton().globalize_path("user://model-asset-receipts");
+            assets::client_receipts::set_client_dir(std::path::PathBuf::from(dir.to_string()));
         }
     }
 
@@ -272,6 +321,7 @@ pub struct GameClient {
     xp_bar: xp_bar::XpBarHud,
     reputation_bar: Option<Gd<ui::RegistryUi>>,
     group_frames: party_frames::GroupFramesHud,
+    healer_rings: healer_ground_ring::HealerGroundRings,
     game_menu_options: Option<game_engine_ui_model::options_menu_data::OptionsModel>,
     /// The drawn Edit Mode layout; its skin is the one atlases resolve under.
     ui_layout: game_engine_core::ui_layout_data::ActiveLayout,
@@ -305,6 +355,15 @@ pub struct GameClient {
     /// Witness rays for casts over the LOS bake.
     line_of_sight: line_of_sight::LineOfSight,
     world_camera: camera::WorldCamera,
+    /// Pulse bookkeeping for replicated spell area triggers.
+    area_trigger_visuals: area_trigger_visuals::AreaTriggerVisuals,
+    /// Draped spell ground batches by their inputs, while the ground is unchanged.
+    drape_cache: combat_visuals::DrapeCache,
+    /// Vertex streams of spell batch meshes, read once per source mesh.
+    batch_arrays: drape_batch::BatchArraysCache,
+    /// Kits hidden while their ground batches drape off the main thread.
+    drape_flights: combat_visuals::DrapeFlights,
+    drape_workers: drape_worker::DrapeWorkers,
     physical_input: input::PhysicalInput,
     client_options: ClientOptionsFile,
     /// Ctrl+R (`TOGGLEFPS`) flips the saved FPS overlay preference for this session.
@@ -371,6 +430,18 @@ pub struct GameClient {
     auras: auras::Auras,
     ipc: Option<ipc::NativeIpc>,
     last_process_ms: f64,
+    /// Frame intervals that compiled pipelines (`slow_pipeline`).
+    slow_pipelines: slow_pipeline::SlowPipelines,
+    /// Monotonic frame id for per-frame caches (visible surface, foot IK, draping).
+    frame_id: u64,
+    /// Offline capture fixtures: player models and spell kits on a previewed map.
+    preview_characters: Vec<preview_world::PreviewCharacter>,
+    preview_kits: Vec<preview_world::PreviewKit>,
+    preview_foot_ik: bool,
+    /// Loading focus for offline previews (no local player exists to supply one).
+    preview_focus: Option<glam::Vec3>,
+    /// Area triggers the preview already started, so a fixture pulse does not re-cast them.
+    preview_area_triggers: std::collections::HashSet<u64>,
     frame_system_ms: Vec<(&'static str, f64)>,
     frame_node_ms: Vec<(&'static str, f64)>,
     attachment_gate_ms: f64,
@@ -397,6 +468,7 @@ impl INode3D for GameClient {
             data_root.clone(),
         );
         let graphics = &client_options.graphics;
+        let quality = graphics.graphics_quality.preset();
         let mut world = world::WorldUnits::new(data_root.clone());
         let mut game_objects = game_objects::GameObjects::new(data_root.clone());
         if graphics.particle_effects_enabled {
@@ -419,7 +491,10 @@ impl INode3D for GameClient {
             data_root: data_root.clone(),
             asset_startup,
             startup_events: Vec::new(),
-            character_preview: character_select::CharacterPreview::new(data_root.clone()),
+            character_preview: character_select::CharacterPreview::new(
+                data_root.clone(),
+                quality.shadow_cascades,
+            ),
             campsite: CampsiteState::default(),
             campsites: {
                 let data_root = data_root.clone();
@@ -448,6 +523,7 @@ impl INode3D for GameClient {
             xp_bar: xp_bar::XpBarHud::default(),
             reputation_bar: None,
             group_frames: party_frames::GroupFramesHud::default(),
+            healer_rings: healer_ground_ring::HealerGroundRings::default(),
             game_menu_options: None,
             ui_layout: Default::default(),
             hud_editor: Default::default(),
@@ -464,13 +540,18 @@ impl INode3D for GameClient {
             terrain_materials: terrain::material::TerrainMaterials::default(),
             world_objects,
             ground_detail: terrain::ground_detail::GroundDetail::new(data_root.clone()),
-            horizon: terrain::horizon::WorldHorizon::new(data_root.clone()),
+            horizon: terrain::horizon::WorldHorizon::new(data_root.clone(), quality.horizon_range),
             global_wmo: wmo::global::GlobalWmoScene::new(data_root.clone()),
             wmo_collision: wmo::collision::WmoCollisionBodies::default(),
-            world_lighting: lighting::WorldLighting::default(),
+            world_lighting: lighting::WorldLighting::new(quality.shadow_cascades),
             world_map_id: None,
             line_of_sight: line_of_sight::LineOfSight::new(&data_root),
-            world_camera: camera::WorldCamera::default(),
+            world_camera: camera::WorldCamera::new(quality.far_clip),
+            area_trigger_visuals: area_trigger_visuals::AreaTriggerVisuals::default(),
+            drape_cache: combat_visuals::DrapeCache::default(),
+            batch_arrays: drape_batch::BatchArraysCache::default(),
+            drape_flights: combat_visuals::DrapeFlights::default(),
+            drape_workers: drape_worker::DrapeWorkers::new(DRAPE_WORKERS),
             physical_input: input::PhysicalInput::default(),
             client_options,
             framerate_toggled: false,
@@ -528,6 +609,13 @@ impl INode3D for GameClient {
             auras: auras::Auras::default(),
             ipc: None,
             last_process_ms: 0.0,
+            slow_pipelines: slow_pipeline::SlowPipelines::default(),
+            frame_id: 0,
+            preview_characters: Vec::new(),
+            preview_kits: Vec::new(),
+            preview_foot_ik: true,
+            preview_focus: None,
+            preview_area_triggers: std::collections::HashSet::new(),
             frame_system_ms: Vec::new(),
             frame_node_ms: Vec::new(),
             attachment_gate_ms: 0.0,
@@ -777,6 +865,7 @@ impl INode3D for GameClient {
         self.frame_node_ms = profile::take_node_times();
         self.frame_system_ms.clear();
         self.attachment_gate_ms = animation::take_gate_time_ms();
+        self.observe_pipeline_compilations(delta);
         let _span = profile::span(|| "client.frame".to_owned());
         self.poll_native_ipc();
         self.run_frame(delta);
@@ -820,6 +909,28 @@ impl INode3D for GameClient {
 
 #[godot_api]
 impl GameClient {
+    /// Charges the last frame interval when the render compiled pipelines during it, and
+    /// logs it once at retail's slow-create threshold.
+    fn observe_pipeline_compilations(&mut self, delta: f64) {
+        let frame_ms = delta * 1000.0;
+        let Some(frame) = self
+            .slow_pipelines
+            .observe(slow_pipeline::Compilations::read(), frame_ms)
+        else {
+            return;
+        };
+        if frame.frame_ms >= slow_pipeline::SLOW_FRAME_MS {
+            godot_warn!(
+                "Slow pipeline frame: {:.0} ms, {} draw / {} specialization compilations (total {:.0} ms in {} compiling frames)",
+                frame.frame_ms,
+                frame.draw,
+                frame.specialization,
+                self.slow_pipelines.compiling_ms,
+                self.slow_pipelines.compiling_frames,
+            );
+        }
+    }
+
     #[signal]
     fn screen_requested(screen: GString);
 
@@ -878,6 +989,7 @@ impl GameClient {
         let result = (|| {
             let map_id = account::read_map_id(&self.data_root, &directory)?;
             self.reset_world()?;
+            self.preview_ensure_units_root();
             self.world_map_id = Some(map_id);
             let tile =
                 game_engine_core::terrain_height_data::bevy_to_tile_coords(position.x, position.z);
@@ -885,6 +997,474 @@ impl GameClient {
         })();
         match result {
             Ok(()) => GString::new(),
+            Err(error) => GString::from(error.as_str()),
+        }
+    }
+
+    /// Offline fixture: a bare player model on the previewed map.
+    #[func]
+    fn preview_character(
+        &mut self,
+        race: i64,
+        class: i64,
+        sex: i64,
+        position: Vector3,
+        yaw: f64,
+    ) -> GString {
+        let race = u8::try_from(race).unwrap_or(1);
+        let class = u8::try_from(class).unwrap_or(1);
+        let sex = u8::try_from(sex).unwrap_or(0);
+        match self.preview_add_character(race, class, sex, position, f64::from(yaw)) {
+            Ok(_) => GString::new(),
+            Err(error) => GString::from(error.as_str()),
+        }
+    }
+
+    /// Offline fixture: the clip a preview character holds, at a given time.
+    #[func]
+    fn preview_character_clip(&mut self, index: i64, clip: i64, time_ms: f64) -> GString {
+        let index = usize::try_from(index).unwrap_or(0);
+        let clip = u16::try_from(clip).unwrap_or(0);
+        match self.preview_play_clip(index, clip, time_ms) {
+            Ok(()) => GString::new(),
+            Err(error) => GString::from(error.as_str()),
+        }
+    }
+
+    /// Offline fixture: foot IK on or off for before/after captures.
+    #[func]
+    fn preview_foot_ik_enabled(&mut self, enabled: bool) {
+        self.preview_set_foot_ik(enabled);
+    }
+
+    /// Offline fixture: preview foot IK state.
+    #[func]
+    fn preview_foot_ik_state(&self) -> VarDictionary {
+        self.preview_foot_state()
+    }
+
+    /// Offline fixture: place a preview character where movement would put it.
+    #[func]
+    fn preview_move_character(&mut self, index: i64, position: Vector3, yaw: f64) -> GString {
+        let index = usize::try_from(index).unwrap_or(0);
+        match self.move_preview_character(index, position, yaw) {
+            Ok(()) => GString::new(),
+            Err(error) => GString::from(error.as_str()),
+        }
+    }
+
+    /// Offline fixture: ground-effect draping on or off for kits spawned afterwards.
+    #[func]
+    fn preview_set_drape(&mut self, enabled: bool) {
+        self.set_preview_drape(enabled);
+    }
+
+    /// Offline fixture: free the previewed spell kits.
+    #[func]
+    fn preview_clear_kits(&mut self) {
+        self.clear_preview_kits();
+    }
+
+    /// Diagnostic only: replace each area-trigger batch mesh with the client's projected blob, a
+    /// decal over the batch's box using the procedural ramp `ShadowAddCallback` builds (alpha rises
+    /// over t 0..2, flat to 10, falls to 0 by 12, sampled along the texture's 64-texel axis).
+    #[func]
+    fn preview_area_trigger_blob(&mut self, enable: bool) {
+        for anchor in self.spell_effects.area_trigger_nodes() {
+            for mesh in anchor
+                .find_children_ex("*")
+                .type_("MeshInstance3D")
+                .owned(false)
+                .recursive(true)
+                .done()
+                .iter_shared()
+            {
+                let Ok(mut mesh) = mesh.try_cast::<godot::classes::MeshInstance3D>() else {
+                    continue;
+                };
+                if !enable {
+                    mesh.set_visible(true);
+                    continue;
+                }
+                let Ok(blob) = projected_blob_texture() else {
+                    return;
+                };
+                let mut decal = godot::classes::Decal::new_alloc();
+                let local = mesh.get_aabb();
+                let aabb = godot::builtin::Aabb::new(
+                    local.position - Vector3::new(0.0, PROJECTED_BLOB_RISE, 0.0),
+                    local.size + Vector3::new(0.0, PROJECTED_BLOB_RISE * 2.0, 0.0),
+                );
+                let centre = mesh.get_global_transform() * aabb.center();
+                let scale = mesh.get_global_transform().basis.get_scale();
+                decal.set_name(&format!("{}Blob", mesh.get_name()));
+                decal.set_size(aabb.size * scale);
+                decal.set_global_position(centre);
+                decal.set_texture(godot::classes::decal::DecalTexture::EMISSION, &blob);
+                decal.set_emission_energy(1.0);
+                decal.set_upper_fade(0.0);
+                decal.set_lower_fade(0.0);
+                mesh.set_visible(false);
+                if let Some(mut parent) = mesh.get_parent() {
+                    parent.add_child(&decal);
+                }
+            }
+        }
+    }
+
+    /// Offline fixture: hide or show the mesh batches of the previewed spell kits whose name
+    /// starts with `prefix` (`Batch0`, `Batch1`, ...), to A/B which batch draws what.
+    #[func]
+    fn preview_hide_batches(&mut self, prefix: GString, hidden: bool) {
+        let prefix = prefix.to_string();
+        for anchor in self.preview_kit_anchors() {
+            for mesh in anchor
+                .find_children_ex("*")
+                .type_("MeshInstance3D")
+                .owned(false)
+                .recursive(true)
+                .done()
+                .iter_shared()
+            {
+                let Ok(mut mesh) = mesh.try_cast::<godot::classes::MeshInstance3D>() else {
+                    continue;
+                };
+                if mesh.get_name().to_string().starts_with(&prefix) {
+                    mesh.set_visible(!hidden);
+                }
+            }
+        }
+        // The area-trigger previews draw under their own anchors.
+        for anchor in self.spell_effects.area_trigger_nodes() {
+            for mesh in anchor
+                .find_children_ex("*")
+                .type_("MeshInstance3D")
+                .owned(false)
+                .recursive(true)
+                .done()
+                .iter_shared()
+            {
+                let Ok(mut mesh) = mesh.try_cast::<godot::classes::MeshInstance3D>() else {
+                    continue;
+                };
+                if mesh.get_name().to_string().starts_with(&prefix) {
+                    mesh.set_visible(!hidden);
+                }
+            }
+        }
+    }
+
+    /// Offline fixture: the material values applied to each previewed kit batch.
+    #[func]
+    fn preview_kit_materials(&mut self) -> VarArray {
+        let mut out = VarArray::new();
+        let mut anchors = self.preview_kit_anchors();
+        anchors.extend(self.spell_effects.area_trigger_nodes());
+        for anchor in anchors {
+            let meshes = anchor
+                .find_children_ex("*")
+                .type_("MeshInstance3D")
+                .owned(false)
+                .done();
+            for node in meshes.iter_shared() {
+                let Some(instance) = node.try_cast::<godot::classes::MeshInstance3D>().ok() else {
+                    continue;
+                };
+                let Some(material) = instance.get_material_override().and_then(|material| {
+                    material.try_cast::<godot::classes::ShaderMaterial>().ok()
+                }) else {
+                    continue;
+                };
+                let number = |name: &str| {
+                    material
+                        .get_shader_parameter(name)
+                        .try_to::<f32>()
+                        .unwrap_or(-1.0)
+                };
+                let basis = |name: &str| {
+                    material
+                        .get_shader_parameter(name)
+                        .try_to::<godot::builtin::Basis>()
+                        .map(|basis| {
+                            PackedFloat32Array::from(
+                                basis
+                                    .rows
+                                    .iter()
+                                    .flat_map(|row| [row.x, row.y, row.z])
+                                    .collect::<Vec<f32>>()
+                                    .as_slice(),
+                            )
+                        })
+                        .unwrap_or_default()
+                };
+                // The uploaded texture of a slot: its GPU size proves what the shader samples.
+                let size = |name: &str| {
+                    material
+                        .get_shader_parameter(name)
+                        .try_to::<Gd<godot::classes::Texture2D>>()
+                        .map(|texture| [texture.get_width(), texture.get_height()])
+                        .unwrap_or_default()
+                };
+                let mut entry = VarDictionary::new();
+                entry.set("node", instance.get_name().to_string());
+                entry.set(
+                    "pixel_shader",
+                    material
+                        .get_shader_parameter("pixel_shader")
+                        .try_to::<i64>()
+                        .unwrap_or(-1),
+                );
+                entry.set(
+                    "vertex_shader",
+                    material
+                        .get_shader_parameter("vertex_shader")
+                        .try_to::<i64>()
+                        .unwrap_or(-1),
+                );
+                entry.set(
+                    "texture_wrap",
+                    material
+                        .get_shader_parameter("texture_wrap")
+                        .try_to::<i64>()
+                        .unwrap_or(-1),
+                );
+                entry.set("base_size", size("base_texture").as_slice());
+                entry.set("second_size", size("second_texture").as_slice());
+                entry.set("third_size", size("third_texture").as_slice());
+                // The file each slot actually binds, so the slot -> FDID chain is proven.
+                let asset = |name: &str| {
+                    material
+                        .get_shader_parameter(name)
+                        .try_to::<Gd<godot::classes::Texture2D>>()
+                        .ok()
+                        .and_then(|texture| texture.get_meta("asset_path").try_to::<GString>().ok())
+                        .map(|path| path.to_string())
+                        .unwrap_or_default()
+                };
+                entry.set("base_asset", asset("base_texture"));
+                entry.set("second_asset", asset("second_texture"));
+                entry.set("third_asset", asset("third_texture"));
+                entry.set("transparency", number("transparency"));
+                let weights = material
+                    .get_shader_parameter("texture_weights")
+                    .try_to::<godot::builtin::Vector3>()
+                    .unwrap_or_default();
+                entry.set(
+                    "texture_weights",
+                    [weights.x, weights.y, weights.z].as_slice(),
+                );
+                let color = material
+                    .get_shader_parameter("mesh_color")
+                    .try_to::<godot::builtin::Vector3>()
+                    .unwrap_or_default();
+                entry.set("mesh_color", [color.x, color.y, color.z].as_slice());
+                entry.set("matrix_1", &basis("texture_matrix_1"));
+                entry.set("matrix_2", &basis("texture_matrix_2"));
+                out.push(&entry.to_variant());
+            }
+        }
+        out
+    }
+
+    /// Offline fixture: object queue and loader counters.
+    #[func]
+    fn preview_objects_debug(&self) -> GString {
+        self.preview_debug_objects()
+    }
+
+    /// Offline fixture: priority point for object spawning (no local player exists).
+    #[func]
+    fn preview_set_focus(&mut self, position: Vector3) {
+        self.preview_focus = Some(glam::Vec3::new(position.x, position.y, position.z));
+    }
+
+    /// Offline fixture: probe the collision floor and visible render surface at a column.
+    #[func]
+    fn preview_probe_surface(&mut self, x: f64, z: f64, near: f64) -> VarDictionary {
+        self.preview_surface_probe(x as f32, z as f32, near as f32)
+    }
+
+    /// Offline fixture: remove the preview characters only.
+    #[func]
+    fn preview_remove_characters(&mut self) {
+        self.preview_clear_characters();
+    }
+
+    /// Offline fixture: install a party, specialization and known spells for the healer
+    /// ground rings. Each member is `{name, health, position, debuff, dead, offline}`;
+    /// `debuff` is a `SpellDispelType` id or 0.
+    #[func]
+    fn preview_healer_ring_party(
+        &mut self,
+        spec: i64,
+        known: PackedInt64Array,
+        members: VarArray,
+    ) -> GString {
+        let mut preview = Vec::new();
+        for index in 0..members.len() {
+            let Some(member) = members
+                .get(index)
+                .and_then(|value| value.try_to::<VarDictionary>().ok())
+            else {
+                return GString::from(
+                    format!("healer ring member {index} is not a dictionary").as_str(),
+                );
+            };
+            let text = |key: &str| {
+                member
+                    .get(key)
+                    .and_then(|value| value.try_to::<GString>().ok())
+                    .map(|value| value.to_string())
+                    .unwrap_or_default()
+            };
+            let name = text("name");
+            if name.is_empty() {
+                return GString::from(format!("healer ring member {index} has no name").as_str());
+            }
+            let health_fraction = member
+                .get("health")
+                .and_then(|value| value.try_to::<f32>().ok())
+                .unwrap_or(0.0)
+                .clamp(0.0, 1.0);
+            let position = member
+                .get("position")
+                .and_then(|value| value.try_to::<Vector3>().ok())
+                .unwrap_or(Vector3::ZERO);
+            let debuff = member
+                .get("debuff")
+                .and_then(|value| value.try_to::<i64>().ok())
+                .unwrap_or(0);
+            let debuff = u8::try_from(debuff.max(0)).unwrap_or(0);
+            let entity = member
+                .get("entity")
+                .and_then(|value| value.try_to::<i64>().ok())
+                .and_then(|entity| u64::try_from(entity).ok());
+            preview.push(healer_ground_ring::PreviewRingMember {
+                name,
+                health_fraction,
+                position,
+                debuff_types: (debuff != 0).then_some(debuff).into_iter().collect(),
+                dead: member
+                    .get("dead")
+                    .and_then(|value| value.try_to::<bool>().ok())
+                    .unwrap_or(false),
+                offline: member
+                    .get("offline")
+                    .and_then(|value| value.try_to::<bool>().ok())
+                    .unwrap_or(false),
+                entity,
+            });
+        }
+        let known: Vec<u32> = known
+            .as_slice()
+            .iter()
+            .filter_map(|id| u32::try_from(*id).ok())
+            .collect();
+        self.install_preview_ring_party(u32::try_from(spec.max(0)).unwrap_or(0), known, preview);
+        GString::new()
+    }
+
+    /// Offline fixture: turn the healer rings off for the no-ring frame.
+    #[func]
+    fn preview_healer_ring_enabled(&mut self, enabled: bool) {
+        self.set_preview_ring_enabled(enabled);
+    }
+
+    /// Offline fixture: pause and resume the rings without freeing their nodes.
+    #[func]
+    fn preview_healer_ring_suspend(&mut self, suspended: bool) {
+        self.suspend_preview_rings(suspended);
+    }
+
+    /// Offline fixture: the ring target under a viewport point.
+    #[func]
+    fn preview_healer_ring_pick_at(&self, at: Vector2) -> i64 {
+        self.preview_ring_pick_at(at)
+            .map_or(-1, |target| target as i64)
+    }
+
+    /// Offline fixture: the rings, dispel rings and chevrons currently drawn.
+    #[func]
+    fn preview_healer_ring_state(&self) -> VarDictionary {
+        self.preview_ring_state()
+    }
+
+    /// Offline fixture: the unit shadow radius from `camera` applied to the preview
+    /// characters.
+    #[func]
+    fn preview_unit_shadow_radius(&mut self, camera: Vector3, radius: f64) {
+        self.preview_apply_unit_shadow_radius(camera, radius as f32);
+    }
+
+    /// Offline fixture: hold or resume a preview character's animation.
+    #[func]
+    fn preview_pause_character(&mut self, index: i64, paused: bool) -> GString {
+        let index = usize::try_from(index).unwrap_or(0);
+        match self.preview_hold_character(index, paused) {
+            Ok(()) => GString::new(),
+            Err(error) => GString::from(error.as_str()),
+        }
+    }
+
+    /// Anchors of the previewed kits, for fixture probes.
+    fn preview_kit_anchors(&self) -> Vec<godot::obj::Gd<godot::classes::Node3D>> {
+        let mut anchors = Vec::new();
+        for child in self.base().get_children().iter_shared() {
+            if str::starts_with(&child.get_name().to_string(), "PreviewKit") {
+                if let Ok(node) = child.try_cast::<godot::classes::Node3D>() {
+                    anchors.push(node);
+                }
+            }
+        }
+        anchors
+    }
+
+    /// Offline fixture: replay a spell area trigger's held kits at a point, as a trigger
+    /// update does. The replica path is covered by unit tests; the preview has no wire.
+    #[func]
+    fn preview_area_trigger(
+        &mut self,
+        spell: i64,
+        position: Vector3,
+        radius: f64,
+        duration: f64,
+        pulse: i64,
+    ) {
+        // A trigger starts its effect once and then holds it, so a fixture pulse is not a
+        // re-cast: only the first sight of this id replays. The set is the preview's own, so
+        // it never interferes with the replica's bookkeeping.
+        let _ = (duration, pulse);
+        let spell = u32::try_from(spell).unwrap_or(0);
+        let id = 900_000 + u64::from(spell);
+        if !self.preview_area_triggers.insert(id) {
+            return;
+        }
+        if let Err(error) = self.spell_effects.replay_area_trigger(
+            id,
+            spell,
+            [position.x, position.y, position.z],
+            radius.max(0.0) as f32,
+            &mut self.world,
+        ) {
+            godot_error!("Area trigger {id} visual: {error}");
+        }
+    }
+
+    /// Offline fixture: show a kit through the production spell-effect path.
+    #[func]
+    fn preview_spell_kit(
+        &mut self,
+        visual: i64,
+        kit: i64,
+        spell: i64,
+        position: Vector3,
+    ) -> GString {
+        let visual = u32::try_from(visual).unwrap_or(0);
+        let kit = u32::try_from(kit).unwrap_or(0);
+        let spell = u32::try_from(spell).unwrap_or(0);
+        match self.preview_show_kit(visual, kit, spell, position) {
+            Ok(true) => GString::new(),
+            Ok(false) => GString::from("preparing"),
             Err(error) => GString::from(error.as_str()),
         }
     }
@@ -948,6 +1528,20 @@ impl GameClient {
         self.game_objects.benchmark_live_queries(&space, feet)
     }
 
+    /// The calling thread's CPU time in milliseconds, or -1 where it cannot be read.
+    #[func]
+    fn thread_cpu_ms() -> f64 {
+        thread_clock::thread_cpu_ms().unwrap_or(-1.0)
+    }
+
+    /// CPU time in milliseconds of the one thread of this process named `name` (set
+    /// with `OS.set_thread_name` on that thread), or -1 when no single thread has that
+    /// name. Read from the main thread: the render thread may not call into the extension.
+    #[func]
+    fn named_thread_cpu_ms(name: GString) -> f64 {
+        thread_clock::named_thread_cpu_ms(&name.to_string()).unwrap_or(-1.0)
+    }
+
     /// Main-thread time of the last `process`, in milliseconds.
     #[func]
     fn process_ms(&self) -> f64 {
@@ -970,12 +1564,55 @@ impl GameClient {
         state.set("systems_ms", &systems);
         state.set("nodes_ms", &nodes);
         state.set("attachment_gates_ms", self.attachment_gate_ms);
+        let mut pipelines = VarDictionary::new();
+        pipelines.set(
+            "compiling_frames",
+            self.slow_pipelines.compiling_frames as i64,
+        );
+        pipelines.set("compiling_ms", self.slow_pipelines.compiling_ms);
+        pipelines.set("slow_frames", self.slow_pipelines.slow_frames as i64);
+        state.set("pipeline_compilation_frames", &pipelines);
         state
     }
 
     #[func]
     fn fps_overlay_enabled(&self) -> bool {
         self.client_options.hud.show_fps_overlay != self.framerate_toggled
+    }
+
+    /// Offline fixture: float one scripted world text over `at` for pseudo-unit `unit`;
+    /// `index` selects the event. Returns the live world-text count.
+    #[func]
+    fn preview_combat_text(&mut self, index: i64, unit: i64, at: Vector3) -> i64 {
+        self.preview_float_text(
+            index.clamp(0, i64::from(u32::MAX)) as u32,
+            unit.max(0) as u64,
+            at,
+        )
+    }
+
+    /// Offline fixture: add one Retail self combat-text message by style index.
+    #[func]
+    fn preview_incoming_combat_text(&mut self, index: i64) -> i64 {
+        self.preview_incoming_float_text(index.clamp(0, i64::from(u32::MAX)) as u32)
+    }
+
+    /// Offline fixture: hold every live world and self text at its current age.
+    #[func]
+    fn preview_combat_text_hold(&mut self, hold: bool) {
+        self.preview_float_text_hold(hold);
+    }
+
+    /// Offline fixture: advance every live world text by `seconds`, as a frame would.
+    #[func]
+    fn preview_combat_text_advance(&mut self, seconds: f64) -> i64 {
+        self.preview_float_text_advance(seconds.clamp(0.0, 10.0) as f32)
+    }
+
+    /// Offline fixture: microseconds one frame spends advancing all live world texts.
+    #[func]
+    fn preview_combat_text_cost(&mut self, iterations: i64) -> f64 {
+        self.preview_float_text_cost(iterations.clamp(1, 100_000) as u32)
     }
 
     #[func]
@@ -1123,6 +1760,10 @@ impl GameClient {
         state.set(
             "unit_visuals_pending",
             &(self.world.visuals_pending() as i64).to_variant(),
+        );
+        state.set(
+            "game_object_visuals_pending",
+            &(self.game_objects.visuals_pending() as i64).to_variant(),
         );
         state.set(
             "local_player_position",
@@ -2178,10 +2819,20 @@ impl GameClient {
         }
     }
 
+    /// Transform of the viewport's current camera: the offline preview's own Camera3D when
+    /// no world camera exists.
+    fn viewport_camera_transform(&self) -> Option<Transform3D> {
+        self.base()
+            .get_viewport()?
+            .get_camera_3d()
+            .map(|camera| camera.get_global_transform())
+    }
+
     /// A failure handling one event is reported and the next event still applies;
     /// only a transport or protocol failure ends the poll.
     /// One frame of client steps (`process`, which times it).
     fn run_frame(&mut self, delta: f64) {
+        self.frame_id = self.frame_id.wrapping_add(1);
         if !self.poll_asset_startup() {
             if let Err(error) = shader_warmup::compile_next() {
                 self.handle_frame_error("Shader compilation", error.into());
@@ -2201,6 +2852,10 @@ impl GameClient {
                 Ok(c.update_skybox_debug_options()?)
             }),
             ("Account", |c, _| c.poll_account()),
+            ("Control", |c, _| {
+                c.world.set_controlled_unit(c.account.controlled_unit);
+                Ok(())
+            }),
             ("Shader compilation", |c, _| Ok(c.compile_used_shaders()?)),
             ("Item data", |c, _| {
                 c.receive_item_catalog();
@@ -2210,6 +2865,15 @@ impl GameClient {
             ("Unit visuals", |c, _| {
                 c.world.attach_loaded_visuals(&c.replica);
                 Ok(())
+            }),
+            ("Game object visuals", |c, _| {
+                let mut parent = c.to_gd().upcast::<Node3D>();
+                let errors = c.game_objects.attach_loaded_visuals(&mut parent);
+                if errors.is_empty() {
+                    Ok(())
+                } else {
+                    Err(errors.join("; ").into())
+                }
             }),
             ("Logout", |c, d| Ok(c.update_logout(f64::from(d))?)),
             ("Character preview", |c, d| {
@@ -2274,6 +2938,10 @@ impl GameClient {
             ("XP bar", |c, _| c.update_xp_bar()),
             ("Reputation bar", |c, _| c.update_reputation_bar()),
             ("Group frames", |c, d| c.update_group_frames(d)),
+            ("Healer ground rings", |c, d| {
+                c.update_healer_ground_rings(d);
+                Ok(())
+            }),
             ("World units", |c, d| {
                 let previous_epoch = c.world.local_player_epoch();
                 c.world.advance(d);
@@ -2286,6 +2954,11 @@ impl GameClient {
             ("Footsteps", |c, _| Ok(c.update_footsteps()?)),
             ("Remote player animation", |c, _| {
                 Ok(c.world.update_remote_locomotion()?)
+            }),
+            ("Foot IK", |c, d| Ok(c.update_foot_ik(d)?)),
+            ("Preview characters", |c, d| {
+                c.update_preview_characters(d);
+                Ok(())
             }),
             ("Spell visuals", |c, d| Ok(c.update_spell_visuals(d)?)),
             ("Player movement", |c, _| c.send_player_input()),
@@ -2713,6 +3386,7 @@ impl GameClient {
             self.horizon.reset();
             self.global_wmo.reset();
             self.wmo_collision.reset();
+            self.release_map_resource_caches();
             drop(span);
             self.account.session.screen = SessionScreen::Loading;
             let _screen = profile::span(|| "terrain.enter_loading.show_screen".to_owned());
@@ -2735,6 +3409,7 @@ impl GameClient {
         self.world.update_lighting(None);
         self.game_objects.reset();
         self.mailbox.close();
+        self.release_map_resource_caches();
         let [x, y, z] = destination.position;
         let tile = game_engine_core::terrain_height_data::bevy_to_tile_coords(x, z);
         self.terrain.request_map(destination.map_directory, tile)?;
@@ -2866,17 +3541,29 @@ impl GameClient {
 
     fn attach_world_objects(&mut self) {
         let mut parent = self.to_gd().upcast::<Node3D>();
-        let focus = if self.account.session.screen == SessionScreen::Loading {
-            self.world.local_player_transform().map(|transform| {
-                let origin = transform.origin;
-                glam::Vec3::new(origin.x, origin.y, origin.z)
-            })
-        } else {
-            None
-        };
+        let player = self.world.local_player_transform().map(|transform| {
+            let origin = transform.origin;
+            glam::Vec3::new(origin.x, origin.y, origin.z)
+        });
+        let focus = loading::object_loading_focus(
+            self.account.session.screen == SessionScreen::Loading,
+            player,
+            self.preview_focus,
+        );
         self.world_objects.set_loading_focus(focus);
-        self.world_objects
-            .sync(&mut parent, &self.terrain, &terrain::objects::AllObjects);
+        if let Some(center) = self.preview_focus.filter(|_| focus.is_some()) {
+            self.world_objects.sync(
+                &mut parent,
+                &self.terrain,
+                &terrain::objects::PreviewObjects {
+                    center,
+                    radius: 90.0,
+                },
+            );
+        } else {
+            self.world_objects
+                .sync(&mut parent, &self.terrain, &terrain::objects::AllObjects);
+        }
         if let Some(player) = self.world.local_player_transform() {
             let origin = player.origin;
             self.wmo_collision.sync(
@@ -2897,11 +3584,26 @@ impl GameClient {
             self.world_objects.cull_wmos(camera, &frustum);
             drop(span);
             let (windows, interiors) = self.world_objects.outdoor_visibility();
+            let span = profile::span(|| "cull.terrain_outdoor".to_owned());
             self.terrain_materials.cull_outdoor(windows, interiors);
-            self.world.cull_outdoor(windows, interiors);
+            drop(span);
+            let span = profile::span(|| "cull.units_outdoor".to_owned());
+            let preset = self.client_options.graphics.graphics_quality.preset();
+            self.world.cull_outdoor(
+                windows,
+                interiors,
+                glam::Vec3::new(camera.x, camera.y, camera.z),
+                preset.unit_shadow_radius,
+            );
+            drop(span);
             let span = profile::span(|| "cull.doodads".to_owned());
-            self.world_objects
-                .cull_doodads(camera, &frustum, delta_ms, frame);
+            self.world_objects.cull_doodads(
+                camera,
+                &frustum,
+                delta_ms,
+                frame,
+                preset.scenery_shadow_radius,
+            );
             drop(span);
             if let Some(transform) = self.world_camera.transform() {
                 let _span = profile::span(|| "cull.particles".to_owned());
@@ -3011,18 +3713,20 @@ impl GameClient {
         if self.terrain.parsed_tiles.is_empty() && !self.terrain.state().global_wmo_present {
             return Ok(());
         }
-        let Some(player) = self.world.local_player_node() else {
+        let Some(player) = self.world.controlled_unit_node() else {
             return Ok(());
         };
         let mut parent = self.to_gd().upcast::<Node3D>();
         self.world_camera.configure(&self.client_options.camera);
-        self.world_camera.sync(
-            &mut parent,
-            &player,
-            &self.terrain,
-            delta,
-            self.world.local_player_epoch(),
-        )
+        self.world_camera
+            .sync(&mut parent, &player, delta, self.world.local_player_epoch())
+    }
+
+    /// Release the process-wide resources a map built. The stream and object caches are
+    /// per-map, but meshes, textures, scenery materials and parsed models are shared for the
+    /// whole session, so a map change must clear them or the session keeps every map alive.
+    fn release_map_resource_caches(&mut self) {
+        assets::release_map_resource_caches(Some(self.world.models_mut()));
     }
 
     fn reset_world(&mut self) -> Result<(), String> {
@@ -3047,6 +3751,7 @@ impl GameClient {
         self.rest = None;
         self.reputation = None;
         self.character_preview.reset();
+        self.clear_previews();
         self.creation_scene.reset();
         self.physical_input.clear();
         self.player_movement = gameplay::PlayerMovement::default();
@@ -3074,7 +3779,9 @@ impl GameClient {
         self.replica.drain_changes();
         self.auras.reset();
         self.tooltips.reset();
-        self.terrain.reset()
+        let terrain = self.terrain.reset();
+        self.release_map_resource_caches();
+        terrain
     }
 
     fn update_character_preview(&mut self, delta: f32) -> Result<(), String> {

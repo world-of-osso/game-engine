@@ -59,6 +59,82 @@ fn credentials_never_send_cached_token_and_token_only_requires_both_fields_empty
 }
 
 #[test]
+fn launcher_handoff_authenticates_without_credentials_and_opens_character_select() {
+    let mut session = Session::default();
+    session.token = Some("other-account-cache".into());
+    session.set_launcher_token(" launcher-account-token \n");
+    let AuthRequest::Login(request) = session.auth_request("", "", false) else {
+        panic!("expected token login");
+    };
+    assert!(request.token.as_deref() == Some("launcher-account-token"));
+    assert!(request.username.is_empty() && request.password.is_empty());
+    let effects = session.receive_login(
+        success(vec![character(42, "Launcherhero")]),
+        SessionOptions::default(),
+    );
+    assert_eq!(session.screen, SessionScreen::CharacterSelect);
+    assert_eq!(session.characters[0].name, "Launcherhero");
+    assert!(effects.iter().any(|effect| matches!(
+        effect,
+        SessionEffect::Transition(SessionScreen::CharacterSelect)
+    )));
+    assert!(
+        !effects
+            .iter()
+            .any(|effect| matches!(effect, SessionEffect::SelectCharacter(_)))
+    );
+}
+
+#[test]
+fn launcher_handoff_rejection_shows_login_feedback_without_password_retry() {
+    let mut session = Session::default();
+    session.set_launcher_token("expired-launcher-token");
+    let effects = session.receive_login(
+        LoginResponse {
+            success: false,
+            token: String::new(),
+            characters: vec![],
+            error: Some("Saved session expired. Please log in again.".into()),
+        },
+        SessionOptions::default(),
+    );
+    assert_eq!(session.screen, SessionScreen::Login);
+    assert!(
+        session.token.is_none(),
+        "stale launcher token must be cleared"
+    );
+    assert!(
+        effects
+            .iter()
+            .any(|effect| matches!(effect, SessionEffect::RemoveSavedToken))
+    );
+    assert!(
+        session
+            .feedback
+            .as_deref()
+            .is_some_and(|message| !message.is_empty())
+    );
+    assert!(
+        effects
+            .iter()
+            .any(|effect| matches!(effect, SessionEffect::Transition(SessionScreen::Login)))
+    );
+    assert!(
+        !effects
+            .iter()
+            .any(|effect| matches!(effect, SessionEffect::SelectCharacter(_)))
+    );
+}
+
+#[test]
+fn empty_launcher_handoff_does_not_reuse_another_account_cache() {
+    let mut session = Session::default();
+    session.token = Some("other-account-cache".into());
+    session.set_launcher_token(" \n");
+    assert!(session.token.is_none());
+}
+
+#[test]
 fn registration_request_does_not_include_a_token() {
     let mut session = Session::default();
     session.token = Some("cached".into());
@@ -193,6 +269,43 @@ fn login_failure_preserves_roster_and_token_but_requests_reset_and_login() {
         !effects
             .iter()
             .any(|effect| matches!(effect, SessionEffect::PersistToken(_)))
+    );
+}
+
+#[test]
+fn expired_saved_token_clears_session_and_returns_login_feedback() {
+    let mut session = Session::default();
+    session.token = Some("token-from-recreated-db".into());
+
+    let effects = session.receive_login(
+        LoginResponse {
+            success: false,
+            token: String::new(),
+            characters: vec![],
+            error: Some("Saved session expired. Please log in again.".into()),
+        },
+        SessionOptions::default(),
+    );
+
+    assert_eq!(session.screen, SessionScreen::Login);
+    assert_eq!(
+        session.feedback.as_deref(),
+        Some("Saved session expired. Please log in again.")
+    );
+    assert!(session.token.is_none());
+    assert!(matches!(
+        effects.first(),
+        Some(SessionEffect::RemoveSavedToken)
+    ));
+    assert!(
+        effects
+            .iter()
+            .any(|effect| matches!(effect, SessionEffect::ResetNetworkWorld))
+    );
+    assert!(
+        effects
+            .iter()
+            .any(|effect| matches!(effect, SessionEffect::Transition(SessionScreen::Login)))
     );
 }
 

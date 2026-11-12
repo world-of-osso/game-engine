@@ -83,6 +83,11 @@ impl SceneryDistance {
         }
     }
 
+    /// Whether the placement centre is within `radius` of `camera`.
+    pub fn within(&self, camera: Vec3, radius: f32) -> bool {
+        self.center.distance_squared(camera) < radius * radius
+    }
+
     pub fn visible_from(&self, camera: Vec3) -> bool {
         self.opacity(camera) > 0.0
     }
@@ -174,6 +179,17 @@ mod tests {
     }
 
     #[test]
+    fn shadow_radius_is_independent_of_the_fade_band() {
+        // A 50-yard building prop draws opaque to 730 yards, far past a 50-yard shadow radius.
+        let (min, max) = cube(50.0);
+        let scenery = SceneryDistance::new(min, max, Affine3A::IDENTITY);
+        let at = |distance: f32| Vec3::new(distance, 0.0, 0.0);
+        assert_eq!(scenery.opacity(at(100.0)), 1.0);
+        assert!(scenery.within(at(49.0), 50.0));
+        assert!(!scenery.within(at(100.0), 50.0));
+    }
+
+    #[test]
     fn world_box_overlap_is_conservative_at_room_boundaries() {
         let scenery = SceneryDistance::new(Vec3::splat(-1.0), Vec3::splat(1.0), Affine3A::IDENTITY);
         assert!(scenery.overlaps_box(Vec3::new(1.0, -2.0, -2.0), Vec3::new(3.0, 2.0, 2.0)));
@@ -258,11 +274,13 @@ mod tests {
 
     #[test]
     fn drawn_doodads_animate_at_the_shared_lod_rate() {
-        use crate::animation::lod::AnimationLod::{Frozen, Full, Half};
+        use crate::animation::lod::AnimationLod::{Frozen, Full, Strided};
         let lod = |center: Vec3| tree_at(center).animation_lod(Vec3::ZERO, &view());
         assert_eq!(lod(Vec3::new(0.0, 0.0, -30.0)), Full);
-        assert_eq!(lod(Vec3::new(0.0, 0.0, -30.5)), Half);
-        assert_eq!(lod(Vec3::new(0.0, 0.0, -60.0)), Half);
+        assert_eq!(lod(Vec3::new(0.0, 0.0, -30.5)), Strided(2));
+        assert_eq!(lod(Vec3::new(0.0, 0.0, -40.0)), Strided(3));
+        assert_eq!(lod(Vec3::new(0.0, 0.0, -48.0)), Strided(4));
+        assert_eq!(lod(Vec3::new(0.0, 0.0, -60.0)), Strided(6));
         assert_eq!(lod(Vec3::new(0.0, 0.0, -60.5)), Frozen);
         // Behind the camera, and beside it outside the field of view: off screen.
         assert_eq!(lod(Vec3::new(0.0, 0.0, 10.0)), Frozen);

@@ -31,17 +31,22 @@ fn shader_ids_resolve_like_get_pixel_and_vertex_shader_id() {
         (2, 0x8000, 12, 3),  // table 0: Opaque_Mod2xNA_Alpha, Diffuse_T1_Env
         (2, 0x8001, 13, 3),  // table 1: Opaque_AddAlpha
         (2, 0x8002, 14, 3),  // table 2: Opaque_AddAlpha_Alpha
-        (2, 0x8015, 6, 12),  // table 21: Mod_Mod, Diffuse_EdgeFade_T1_T2
-        (6, 0x801c, 32, 14), // table 28: Guild_Opaque, Diffuse_T1_T2_T1
-        (1, 0x8022, 1, 9),   // table 34: Combiners_Mod, Diffuse_EdgeFade_T1
-        (2, 0x8023, 36, 12), // table 35: Mod_Mod_Depth
+        (2, 0x8015, 6, 11),  // retail explicit table 21 (decompilation, not WMV)
+        (6, 0x801c, 32, 13), // retail table 28
+        (1, 0x8022, 1, 8),   // retail table 34
+        (2, 0x8023, 36, 11), // retail table 35
     ];
+    // Retail's own cross-check (`M2-SHADERID-TABLES.md` section 0): table index -> ids.
     for (count, id, pixel, vertex) in cases {
         assert_eq!(pixel_shader_id(count, id), Ok(pixel), "pixel of {id:#x}");
         assert_eq!(vertex_shader_id(count, id), Ok(vertex), "vertex of {id:#x}");
     }
-    assert!(pixel_shader_id(2, 0x8024).is_err());
-    assert!(vertex_shader_id(2, 0x8024).is_err());
+    // Retail's table has 37 entries; index 36 is the trailing (0, 0).
+    assert_eq!(pixel_shader_id(2, 0x8024), Ok(0));
+    assert_eq!(vertex_shader_id(2, 0x8024), Ok(0));
+    // Retail has no bounds check and would read past the array; we refuse instead.
+    assert!(pixel_shader_id(2, 0x8025).is_err());
+    assert!(vertex_shader_id(2, 0x8025).is_err());
     assert_eq!(
         (0..8)
             .map(|mode| gx_blend(mode).unwrap())

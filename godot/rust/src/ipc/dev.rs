@@ -165,8 +165,10 @@ impl crate::GameClient {
             .primary_tile()
             .map_or_else(|| "-".into(), |(y, x)| format!("{y},{x}"));
         let (terrain_materials, water_materials) = self.terrain_materials.material_counts();
+        let performance = godot::classes::Performance::singleton();
+        let monitor = |value: godot::classes::performance::Monitor| performance.get_monitor(value);
         format!(
-            "map_name: {}\ninitial_tile: {primary}\nload_radius: {}\ninitial_tiles: {}\nloaded_tiles: {}\npending_tiles: {}\nfailed_tiles: {}\nserver_requested_tiles: {}\nheightmap_tiles: {}\nprocess_rss_kb: {}\nprocess_anon_kb: {}\nprocess_data_kb: {}\nm2_model_cache_entries: {}\nterrain_material_assets: {terrain_materials}\nwater_material_assets: {water_materials}",
+            "map_name: {}\ninitial_tile: {primary}\nload_radius: {}\ninitial_tiles: {}\nloaded_tiles: {}\npending_tiles: {}\nfailed_tiles: {}\nserver_requested_tiles: {}\nheightmap_tiles: {}\nprocess_rss_kb: {}\nprocess_anon_kb: {}\nprocess_data_kb: {}\nprocess_swap_kb: {}\nm2_model_cache_entries: {}\nterrain_material_assets: {terrain_materials}\nwater_material_assets: {water_materials}\nworld_objects_spawned: {}\nworld_objects_pending: {}\nworld_model_cache_entries: {}\nworld_wmo_cache_entries: {}\nworld_surface_cells: {}\nworld_surface_wmo_cells: {}\nassets_batch_mesh_entries: {}\nassets_merged_mesh_entries: {}\nassets_texture_entries: {}\nassets_scenery_material_entries: {}\nassets_fade_material_entries: {}\nassets_shader_entries: {}\ngodot_memory_static_kb: {:.0}\ngodot_object_count: {:.0}\ngodot_resource_count: {:.0}\ngodot_node_count: {:.0}\ngodot_orphan_node_count: {:.0}\nrender_objects_in_frame: {:.0}\nrender_primitives_in_frame: {:.0}\nrender_draw_calls_in_frame: {:.0}\nrender_texture_mem_kb: {:.0}",
             state.map.as_deref().unwrap_or("-"),
             crate::terrain::streaming::LOAD_RADIUS,
             self.terrain.initial_tiles().len(),
@@ -178,7 +180,29 @@ impl crate::GameClient {
             memory.rss_kb,
             memory.anon_kb,
             memory.data_kb,
+            memory.swap_kb,
             crate::assets::creature::model_cache_entries(),
+            self.world_objects.spawned_count(),
+            self.world_objects.pending_count(),
+            self.world_objects.cache_counts().0,
+            self.world_objects.cache_counts().1,
+            self.world_objects.cache_counts().2,
+            self.world_objects.cache_counts().3,
+            crate::assets::mesh_cache_counts().0,
+            crate::assets::mesh_cache_counts().1,
+            crate::assets::material::cache_counts().0,
+            crate::assets::material::cache_counts().1,
+            crate::assets::material::cache_counts().2,
+            crate::assets::material::cache_counts().3,
+            monitor(godot::classes::performance::Monitor::MEMORY_STATIC) / 1024.0,
+            monitor(godot::classes::performance::Monitor::OBJECT_COUNT),
+            monitor(godot::classes::performance::Monitor::OBJECT_RESOURCE_COUNT),
+            monitor(godot::classes::performance::Monitor::OBJECT_NODE_COUNT),
+            monitor(godot::classes::performance::Monitor::OBJECT_ORPHAN_NODE_COUNT),
+            monitor(godot::classes::performance::Monitor::RENDER_TOTAL_OBJECTS_IN_FRAME),
+            monitor(godot::classes::performance::Monitor::RENDER_TOTAL_PRIMITIVES_IN_FRAME),
+            monitor(godot::classes::performance::Monitor::RENDER_TOTAL_DRAW_CALLS_IN_FRAME),
+            monitor(godot::classes::performance::Monitor::RENDER_TEXTURE_MEM_USED) / 1024.0,
         )
     }
 

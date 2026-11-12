@@ -66,6 +66,7 @@ fn model() -> GameMenuViewModel {
                 show_action_bars: true,
                 cooldown_assist: Default::default(),
                 extra_action_bars: Default::default(),
+                healer_ground_rings: Default::default(),
                 show_nameplates: true,
                 nameplate_distance: 40.0,
                 nameplate_style: NameplateStyle::default(),

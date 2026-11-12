@@ -14,6 +14,7 @@ use game_engine_core::{
     retail_fog::{FogResult, FogUniforms, blend_wmo_fog, fog_uniforms, wmo_fog},
     retail_light_data::RetailLightData,
     sky_cubemap_data::{self, sky_dome_profile},
+    world_time,
 };
 use godot::{
     classes::{
@@ -42,7 +43,9 @@ type LightValues = (
 
 static MATERIAL_LIGHT_WRITES: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 
+#[track_caller]
 fn count_material_light_writes(count: u64) {
+    crate::rebuild_guard::count(crate::rebuild_guard::Rebuild::MaterialRebind, count);
     MATERIAL_LIGHT_WRITES.fetch_add(count, std::sync::atomic::Ordering::Relaxed);
 }
 
@@ -75,6 +78,7 @@ impl TerrainLight {
         })
     }
 
+    #[track_caller]
     pub fn bind(&self, material: &mut Gd<ShaderMaterial>) {
         self.bind_model(material);
         material.set_shader_parameter("environment_map", &self.cube.to_variant());
@@ -94,7 +98,11 @@ impl TerrainLight {
             ("scene_direct", self.retail.direct),
             ("scene_sun_direction", self.retail.sun_direction),
         ] {
-            server.global_shader_parameter_set(name, &Vector3::from_array(value).to_variant());
+            crate::rebuild_guard::set_global_shader_parameter(
+                &mut server,
+                name,
+                &Vector3::from_array(value).to_variant(),
+            );
         }
         bind_fog(&mut server, &self.fog);
         for (name, value) in [
@@ -103,7 +111,11 @@ impl TerrainLight {
             ("ocean_close", self.water.ocean_close),
             ("ocean_far", self.water.ocean_far),
         ] {
-            server.global_shader_parameter_set(name, &Vector4::from_array(value).to_variant());
+            crate::rebuild_guard::set_global_shader_parameter(
+                &mut server,
+                name,
+                &Vector4::from_array(value).to_variant(),
+            );
         }
         for (name, value) in [
             ("specular_color", self.water.specular),
@@ -117,7 +129,11 @@ impl TerrainLight {
                 ],
             ),
         ] {
-            server.global_shader_parameter_set(name, &Vector3::from_array(value).to_variant());
+            crate::rebuild_guard::set_global_shader_parameter(
+                &mut server,
+                name,
+                &Vector3::from_array(value).to_variant(),
+            );
         }
     }
 
@@ -162,6 +178,7 @@ impl TerrainLight {
     }
 
     /// Lights `material` with the scene light and fog of `bind_scene`.
+    #[track_caller]
     pub fn bind_model(&self, material: &mut Gd<ShaderMaterial>) {
         material.set_shader_parameter("scene_light", &true.to_variant());
         count_material_light_writes(1);
@@ -169,6 +186,7 @@ impl TerrainLight {
     }
 
     /// Only the scene fog (`retail_fog.gdshaderinc`), for unlit materials such as particles.
+    #[track_caller]
     pub fn bind_scene_fog(&self, material: &mut Gd<ShaderMaterial>) {
         material.set_shader_parameter("fog_mode", &1i32.to_variant());
         material.set_shader_parameter("fog_opacity", &1.0f32.to_variant());
@@ -176,11 +194,13 @@ impl TerrainLight {
     }
 
     /// The model light plus the retail water scene inputs of `water.gdshader`.
+    #[track_caller]
     pub fn bind_water(&self, material: &mut Gd<ShaderMaterial>) {
         self.bind_model(material);
     }
 
     /// Back to the material's own light, without fog.
+    #[track_caller]
     pub fn clear_model(material: &mut Gd<ShaderMaterial>) {
         for name in ["scene_light", "fog_mode", "fog_opacity"] {
             material.set_shader_parameter(name, &Variant::nil());
@@ -191,6 +211,8 @@ impl TerrainLight {
 
 #[derive(Default)]
 pub(crate) struct WorldLighting {
+    /// The graphics quality preset's sun shadow splits: 0 (no shadows), 1, 2 or 4.
+    shadow_cascades: u8,
     root: Option<Gd<Node3D>>,
     sun: Option<Gd<DirectionalLight3D>>,
     environment: Option<Gd<Environment>>,
@@ -201,7 +223,10 @@ pub(crate) struct WorldLighting {
     planets: Option<planets::Planets>,
     fog_cone: Option<fog_cone::FogCone>,
     previous: Option<LightValues>,
-    cube: Option<Gd<Cubemap>>,
+    /// The map, position, lit time and WMO fog `previous` was sampled for.
+    sampled: Option<(u32, Vector3, f32, Option<WmoFogBlend>)>,
+    /// The sky cubemap and the dome stops it was built from.
+    cube: Option<(Gd<Cubemap>, SkyStops)>,
 }
 
 /// Render priorities of the sky models, in WebWowViewerCpp's sky-view draw order (dome,
@@ -217,6 +242,13 @@ pub(super) const FOG_CONE_PRIORITY: i32 = -1;
 const SKY_DOME_SHADER: &str = "res://shaders/sky_dome.gdshader";
 
 impl WorldLighting {
+    pub fn new(shadow_cascades: u8) -> Self {
+        Self {
+            shadow_cascades,
+            ..Self::default()
+        }
+    }
+
     /// Samples the authored light at `position`; `wmo_fog` is the MFOG fog of the WMO
     /// interior the camera is in.
     pub fn sync(
@@ -228,6 +260,11 @@ impl WorldLighting {
         minutes: f32,
         wmo_fog: Option<&WmoFogBlend>,
     ) -> Result<Option<TerrainLight>, String> {
+        let minutes = world_time::light_half_minutes(minutes);
+        let inputs = Some((map_id, position, minutes, wmo_fog.copied()));
+        if self.previous.is_some() && self.sampled == inputs {
+            return Ok(None);
+        }
         let sample = catalog.sample(map_id, [position.x, -position.z, position.y], minutes)?;
         let sky = &sample.sky;
         let stops = [
@@ -251,17 +288,22 @@ impl WorldLighting {
             sample.planets.clone(),
         );
         if self.previous.as_ref() == Some(&values) {
+            self.sampled = inputs;
             return Ok(None);
         }
+        crate::rebuild_guard::count(crate::rebuild_guard::Rebuild::Environment, 1);
         let direction = Vector3::from_array(sample.retail.sun_direction);
+        // Moving through WMO fog changes the light every frame but not the sky colours.
         let cube = match self.cube.as_mut() {
-            Some(cube) => {
+            Some((cube, built)) if *built == stops => cube.clone(),
+            Some((cube, built)) => {
                 update_cubemap(cube, stops)?;
+                *built = stops;
                 cube.clone()
             }
             None => {
                 let cube = create_cubemap(stops)?;
-                self.cube = Some(cube.clone());
+                self.cube = Some((cube.clone(), stops));
                 cube
             }
         };
@@ -287,6 +329,7 @@ impl WorldLighting {
             .expect("attached sun")
             .look_at_from_position(Vector3::ZERO, direction);
         self.previous = Some(values);
+        self.sampled = inputs;
         Ok(Some(light))
     }
 
@@ -449,10 +492,12 @@ impl WorldLighting {
         root.add_child(&environment_node);
         let mut sun = DirectionalLight3D::new_alloc();
         sun.set_name("Sun");
-        sun.set_shadow(true);
-        // Two cascades, as the retail client writes `shadowNumCascades 2` for shadow
-        // quality Medium (`graphicsShadowQuality 2`, `_retail_/WTF/Config.wtf`).
-        sun.set_shadow_mode(directional_light_3d::ShadowMode::PARALLEL_2_SPLITS);
+        sun.set_shadow(self.shadow_cascades > 0);
+        sun.set_shadow_mode(match self.shadow_cascades {
+            0 | 1 => directional_light_3d::ShadowMode::ORTHOGONAL,
+            2 => directional_light_3d::ShadowMode::PARALLEL_2_SPLITS,
+            _ => directional_light_3d::ShadowMode::PARALLEL_4_SPLITS,
+        });
         root.add_child(&sun);
         self.sun = Some(sun);
         self.environment = Some(environment);
@@ -485,6 +530,7 @@ impl WorldLighting {
             root.free();
         }
         self.previous = None;
+        self.sampled = None;
     }
 }
 
@@ -493,7 +539,7 @@ fn sky_dome_material() -> Result<Gd<ShaderMaterial>, String> {
         .load(SKY_DOME_SHADER)
         .and_then(|resource| resource.try_cast::<Shader>().ok())
         .ok_or_else(|| format!("Sky dome shader {SKY_DOME_SHADER} failed to load"))?;
-    let mut material = ShaderMaterial::new_gd();
+    let mut material = crate::rebuild_guard::new_shader_material();
     material.set_shader(&shader);
     let points: PackedVector2Array = sky_dome_profile()
         .iter()
@@ -557,7 +603,7 @@ pub(crate) fn apply_wmo_fog(fog: &FogResult, wmo: Option<&WmoFogBlend>) -> FogRe
 /// Sets one `retail_fog.gdshaderinc` global uniform and hands it to the particle
 /// compositor, which cannot read global uniforms at runtime.
 pub(crate) fn set_scene_fog(server: &mut Gd<RenderingServer>, name: &str, value: &Variant) {
-    server.global_shader_parameter_set(name, value);
+    crate::rebuild_guard::set_global_shader_parameter(server, name, value);
     crate::particle_composite::record_fog(name, value);
 }
 
@@ -605,6 +651,7 @@ fn bind_fog(server: &mut Gd<RenderingServer>, fog: &FogUniforms) {
 }
 
 fn update_cubemap(cube: &mut Gd<Cubemap>, stops: SkyStops) -> Result<(), String> {
+    crate::rebuild_guard::count(crate::rebuild_guard::Rebuild::SkyCubemap, 1);
     let pixels = sky_cubemap_data::build_sky_cubemap(&stops);
     let size = sky_cubemap_data::ENV_MAP_SIZE as i32;
     let face_bytes = size as usize * size as usize * 8;
@@ -623,6 +670,7 @@ fn update_cubemap(cube: &mut Gd<Cubemap>, stops: SkyStops) -> Result<(), String>
 }
 
 fn create_cubemap(stops: SkyStops) -> Result<Gd<Cubemap>, String> {
+    crate::rebuild_guard::count(crate::rebuild_guard::Rebuild::SkyCubemap, 1);
     let pixels = sky_cubemap_data::build_sky_cubemap(&stops);
     let size = sky_cubemap_data::ENV_MAP_SIZE as i32;
     let face_bytes = size as usize * size as usize * 8;
@@ -668,6 +716,63 @@ mod tests {
             fog: CAVE,
             underwater: CAVE,
             dist_to_exit,
+        }
+    }
+
+    /// The 2959 hillside pond drew black because every zone slot of the Forever `LightData`
+    /// rows leaves the four water columns at zero. The map's fixed record slot authors
+    /// `0x001E303E` (close) and `0x00001317` (far), so the uniforms must no longer bind zero.
+    #[test]
+    fn forever_water_colours_come_from_the_authored_fixed_row() {
+        let data_root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
+        let catalog = LightingCatalog::read(&data_root).unwrap();
+        let sample = catalog
+            .sample(2959, [-800.0, 100.0, 266.7], 1440.0)
+            .unwrap();
+        let water = sample.water;
+        for (colour, shallow_alpha) in [(water.river_close, 0.5), (water.ocean_close, 0.75)] {
+            assert_eq!(colour[3], shallow_alpha, "shallow alpha: {colour:?}");
+            let [red, green, blue] = [colour[0], colour[1], colour[2]];
+            assert!(
+                (red - 30.0 / 255.0).abs() < 1e-3
+                    && (green - 48.0 / 255.0).abs() < 1e-3
+                    && (blue - 62.0 / 255.0).abs() < 1e-3,
+                "authored 0x001E303E, bound {colour:?}"
+            );
+        }
+        for colour in [water.river_far, water.ocean_far] {
+            assert_eq!(colour[3], 1.0, "deep alpha: {colour:?}");
+            assert_eq!(colour[0], 0.0, "authored 0x00001317: {colour:?}");
+            assert!(
+                (colour[1] - 19.0 / 255.0).abs() < 1e-3 && (colour[2] - 23.0 / 255.0).abs() < 1e-3,
+                "authored 0x00001317, bound {colour:?}"
+            );
+        }
+    }
+
+    /// Retail authors water colour on the zone rows, so the fixed row must not repaint it:
+    /// every channel stays what the zone sample chose.
+    #[test]
+    fn retail_water_keeps_the_zone_colour() {
+        let data_root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
+        let catalog = LightingCatalog::read(&data_root).unwrap();
+        let sample = catalog.sample(0, [-8830.0, 500.0, 630.0], 1440.0).unwrap();
+        let sky = sample.sky;
+        let water = sample.water;
+        for (bound, zone) in [
+            (water.river_close, sky.river_close_color),
+            (water.river_far, sky.river_far_color),
+            (water.ocean_close, sky.ocean_close_color),
+            (water.ocean_far, sky.ocean_far_color),
+        ] {
+            let authored = linear_to_authored_rgb(zone);
+            assert!(
+                bound[..3]
+                    .iter()
+                    .zip(authored)
+                    .all(|(got, want)| (got - want).abs() < 1e-3),
+                "zone {authored:?} bound {bound:?}"
+            );
         }
     }
 

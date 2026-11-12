@@ -21,6 +21,7 @@ World entry and transfers use the same directory-based terrain reader. Retail an
 - Loading displays `Loading objects done/total...` for the nearby subset. `world_objects.pending` remains the full streaming queue; `nearby_done`, `nearby_total`, and `nearby_collision_pending` expose the actual gate subset.
 - Distant placements and collision groups keep building after InWorld. Their completion cannot re-enter loading.
 - While loading, terrain and object resource construction use larger bounded slices to amortize slow rendered frames. Restore interactive streaming budgets on InWorld; preserve the same local prerequisites and required WMO batches.
+- Replicated game objects do not load models inside the replication event: their node is placed when it arrives; workers extract, parse and decode the model, and the visual attaches within an 8 ms per-frame budget (`game_objects.rs` `attach_loaded_visuals`). WMO transports still build at once. `game_object_visuals_pending` counts the waiting visuals and is part of fixture readiness.
 - A WMO-only map preserves the global-WMO gate; it does not require nonexistent ADT tiles.
 - The 100-yard bubble is client policy, not a reverse-engineered Retail constant. It covers the default 15-yard camera and roughly fourteen seconds of ordinary 7-yard/s movement. M2 membership uses authored origins; WMO/collision membership uses bounds to avoid losing nearby city geometry with a remote root origin. Visual draw distances remain unchanged.
 

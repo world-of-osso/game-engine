@@ -5,6 +5,170 @@
 #[path = "object_product_tests.rs"]
 mod product_tests;
 
+#[cfg(test)]
+mod surface_cell_tests {
+    use super::{SURFACE_CELL_YARDS, surface_cell};
+
+    /// A placement is indexed in every cell its bounds cover, so the cell of any point
+    /// inside those bounds is one of them: the column query finds the placement again.
+    #[test]
+    fn a_point_inside_a_box_reads_one_of_the_cells_the_box_covers() {
+        let boxes = [
+            (-1.0, 1.0),
+            (-8.0, 8.0),
+            (-8.1, 8.1),
+            (-100.0, -99.5),
+            (16.0, 16.5),
+            (-4.0, 12.0),
+        ];
+        let points = [
+            -8.0, -4.0, -0.5, 0.0, 0.4, 7.99, 8.0, 8.01, 12.0, 15.99, 16.0, -99.75, -100.0,
+        ];
+        for (min, max) in boxes {
+            let cells = surface_cell(min)..=surface_cell(max);
+            for point in points {
+                if point < min || point > max {
+                    continue;
+                }
+                assert!(
+                    cells.contains(&surface_cell(point)),
+                    "{point} in {min}..{max} is outside {cells:?}"
+                );
+            }
+        }
+        assert_eq!(surface_cell(0.0), 0);
+        assert_eq!(surface_cell(SURFACE_CELL_YARDS), 1);
+        assert_eq!(surface_cell(-0.001), -1);
+        assert_eq!(surface_cell(-SURFACE_CELL_YARDS), -1);
+        assert_eq!(surface_cell(-SURFACE_CELL_YARDS - 0.001), -2);
+    }
+}
+
+#[cfg(test)]
+mod emitter_frustum_tests {
+    use super::*;
+
+    const Y_HALF_EXTENT: f32 = 4.0;
+
+    fn box_frustum(x_min: f32, x_max: f32, z_min: f32, z_max: f32) -> Vec<HalfSpace> {
+        vec![
+            HalfSpace {
+                normal: Vec3::X,
+                d: -x_min,
+            },
+            HalfSpace {
+                normal: Vec3::NEG_X,
+                d: x_max,
+            },
+            HalfSpace {
+                normal: Vec3::Y,
+                d: Y_HALF_EXTENT,
+            },
+            HalfSpace {
+                normal: Vec3::NEG_Y,
+                d: Y_HALF_EXTENT,
+            },
+            HalfSpace {
+                normal: Vec3::Z,
+                d: -z_min,
+            },
+            HalfSpace {
+                normal: Vec3::NEG_Z,
+                d: z_max,
+            },
+        ]
+    }
+
+    fn placements() -> Vec<SceneryDistance> {
+        (0..25)
+            .map(|index| {
+                let x = (index % 5) as f32 * 6.0 - 12.0;
+                let z = (index / 5) as f32 * 7.0 - 30.0;
+                let half_extent = 0.5 + (index % 3) as f32 * 0.25;
+                let half = Vec3::splat(half_extent);
+                SceneryDistance::new(
+                    -half,
+                    half,
+                    Affine3A::from_translation(Vec3::new(x, 0.0, z)),
+                )
+            })
+            .collect()
+    }
+
+    #[test]
+    fn cached_emitter_frustum_field_dump_matches_fresh_checks() {
+        let scenery = placements();
+        let frustums = [
+            box_frustum(-15.0, 0.0, -32.0, -4.0),
+            box_frustum(0.0, 15.0, -32.0, -4.0),
+            box_frustum(-8.0, 8.0, -12.0, 10.0),
+        ];
+        let mut frustum_cache = ParticleFrustumCache::default();
+        let mut visibility_cache = vec![None; scenery.len()];
+
+        for (view_index, frustum) in frustums.iter().enumerate() {
+            for frame_index in 0..2 {
+                let frustum_changed = frustum_cache.update_frustum(frustum);
+                assert_eq!(frustum_changed, frame_index == 0);
+                let opacity_phase = view_index * 2 + frame_index;
+                let cached_field_dump: Vec<u8> = scenery
+                    .iter()
+                    .zip(&mut visibility_cache)
+                    .enumerate()
+                    .map(|(index, (placement, cached))| {
+                        let frustum_visible = cached_emitter_frustum_visibility(
+                            placement,
+                            frustum,
+                            frustum_changed,
+                            cached,
+                        );
+                        let opacity = if (index + opacity_phase) % 4 == 0 {
+                            0.0
+                        } else {
+                            0.5
+                        };
+                        u8::from(opacity > 0.0 && frustum_visible)
+                    })
+                    .collect();
+                let fresh_field_dump: Vec<u8> = scenery
+                    .iter()
+                    .enumerate()
+                    .map(|(index, placement)| {
+                        let opacity = if (index + opacity_phase) % 4 == 0 {
+                            0.0
+                        } else {
+                            0.5
+                        };
+                        u8::from(opacity > 0.0 && placement.box_in_frustum(frustum))
+                    })
+                    .collect();
+
+                assert_eq!(
+                    cached_field_dump, fresh_field_dump,
+                    "view {view_index}, frame {frame_index}"
+                );
+            }
+        }
+
+        let new_placement = SceneryDistance::new(
+            Vec3::splat(-1.0),
+            Vec3::splat(1.0),
+            Affine3A::from_translation(Vec3::new(3.0, 0.0, -15.0)),
+        );
+        let current_frustum = frustums.last().expect("test frustum");
+        let frustum_changed = frustum_cache.update_frustum(current_frustum);
+        assert!(!frustum_changed);
+        let mut new_visibility = None;
+        let cached = cached_emitter_frustum_visibility(
+            &new_placement,
+            current_frustum,
+            frustum_changed,
+            &mut new_visibility,
+        );
+        assert_eq!(cached, new_placement.box_in_frustum(current_frustum));
+    }
+}
+
 use std::{
     collections::{BTreeSet, HashMap, VecDeque},
     path::{Path, PathBuf},
@@ -52,7 +216,7 @@ use crate::{
         assets::{LitDoodad, NativeWmoAsset, ShadowGroups, wmo_fog_volume},
         doodad_light::bind_doodad_light,
         portals::{HalfSpace, WmoPortals},
-        scene::WmoBuild,
+        scene::{MERGED_GROUPS_META, WmoBuild},
     },
     world_models::bind_visual_light,
 };
@@ -63,7 +227,14 @@ type Tile = (u32, u32);
 pub(crate) trait ObjectSelection {
     /// Parsed tiles to spawn from, in order; empty while prerequisites load.
     fn tiles(&self, terrain: &StreamedTerrain) -> Vec<Tile>;
-    fn doodad(&self, doodad: &DoodadPlacement, model: Option<&str>, tile: Tile) -> bool;
+    /// `model` resolves the doodad's model path, which can query the listfile cache:
+    /// call it only when the decision needs the path.
+    fn doodad(
+        &self,
+        doodad: &DoodadPlacement,
+        model: impl FnOnce() -> Option<String>,
+        tile: Tile,
+    ) -> bool;
     fn wmo(&self, wmo: &WmoPlacement, tile: Tile) -> bool;
 }
 
@@ -75,7 +246,7 @@ impl ObjectSelection for AllObjects {
         terrain.parsed_tiles.keys().copied().collect()
     }
 
-    fn doodad(&self, _: &DoodadPlacement, _: Option<&str>, _: Tile) -> bool {
+    fn doodad(&self, _: &DoodadPlacement, _: impl FnOnce() -> Option<String>, _: Tile) -> bool {
         true
     }
 
@@ -115,6 +286,25 @@ enum LoadedAsset {
 
 /// Two workers: one cold extraction does not hold up the next model.
 const WORKERS: usize = 2;
+
+/// Cell size of the doodad index that answers visible-surface column queries: one cell
+/// holds a handful of placements, so a query tests those instead of every doodad.
+const SURFACE_CELL_YARDS: f32 = 8.0;
+
+/// Model roots are Node3D; only rendered mesh children have a visible surface to index.
+fn has_render_geometry(root: &Gd<Node3D>) -> bool {
+    root.find_children_ex("*")
+        .type_("MeshInstance3D")
+        .owned(false)
+        .recursive(true)
+        .done()
+        .iter_shared()
+        .filter_map(|node| node.try_cast::<MeshInstance3D>().ok())
+        .any(|mesh| {
+            mesh.get_mesh()
+                .is_some_and(|resource| resource.get_surface_count() > 0)
+        })
+}
 
 /// Worker: extract and parse `asset` and decode the textures it draws with.
 fn load_asset(data_root: &Path, asset: ObjectAsset) -> Result<LoadedAsset, String> {
@@ -166,10 +356,16 @@ struct WmoSpawn {
     /// The placement's index in the tile's MODF.
     index: usize,
     asset: Arc<NativeWmoAsset>,
-    resolver: CascListfileResolver,
+    resolver: Arc<CascListfileResolver>,
     product: AssetProduct,
     doodad_sets: Vec<u16>,
     build: WmoBuild,
+    /// Every batch is built.
+    built: bool,
+    /// The build ran out of budget at least once: a WMO this large is placed (liquids,
+    /// culling, attach; up to ~10 ms) at the start of the next frame's budget instead of
+    /// past this one's. Smaller WMOs place in the same frame.
+    spans_frames: bool,
     /// `WMO_MODEL_META` for the placed root.
     model: String,
 }
@@ -206,6 +402,37 @@ struct CulledDoodad {
     /// Particle emitters, when the model has any and particle effects are on.
     particles: Option<PlacedParticles>,
     ribbons: Option<crate::ribbons::PlacedRibbons>,
+    /// Frustum visibility of the fixed world box used by particle and ribbon updates.
+    emitter_frustum_visible: Option<bool>,
+}
+
+#[derive(Default)]
+struct ParticleFrustumCache {
+    planes: Option<Vec<HalfSpace>>,
+}
+
+impl ParticleFrustumCache {
+    fn update_frustum(&mut self, frustum: &[HalfSpace]) -> bool {
+        if self.planes.as_deref() == Some(frustum) {
+            return false;
+        }
+        self.planes = Some(frustum.to_vec());
+        true
+    }
+}
+
+fn cached_emitter_frustum_visibility(
+    scenery: &SceneryDistance,
+    frustum: &[HalfSpace],
+    frustum_changed: bool,
+    cached_visibility: &mut Option<bool>,
+) -> bool {
+    if !frustum_changed && let Some(visible) = *cached_visibility {
+        return visible;
+    }
+    let visible = scenery.box_in_frustum(frustum);
+    *cached_visibility = Some(visible);
+    visible
 }
 
 impl CulledDoodad {
@@ -219,13 +446,11 @@ impl CulledDoodad {
     ) -> Self {
         Self {
             // A model whose tracks are all constant keeps its first sample and is never
-            // advanced.
+            // advanced; it has no material animation (`WowMaterialAnimation::from_batches`).
             bones: node
                 .try_get_node_as::<WowAnimationPlayer>("M2Animation")
                 .filter(|bones| bones.bind().animates()),
-            materials: node
-                .try_get_node_as::<WowMaterialAnimation>("M2MaterialAnimation")
-                .filter(|materials| materials.bind().animates()),
+            materials: node.try_get_node_as::<WowMaterialAnimation>("M2MaterialAnimation"),
             fade: crate::assets::material::SceneryFade::from_model(&node, light_bound),
             node,
             scenery,
@@ -237,6 +462,7 @@ impl CulledDoodad {
             portal_cull_safe,
             particles: None,
             ribbons: None,
+            emitter_frustum_visible: None,
         }
     }
 
@@ -261,8 +487,11 @@ impl CulledDoodad {
     }
 
     /// Retail distance fade: hidden at opacity 0, blended while fading. A WMO
-    /// doodad whose groups are all portal-culled is not drawn.
-    fn fade(&mut self, camera: Vec3, group_drawn: bool) {
+    /// doodad whose groups are all portal-culled is not drawn. Shadows are cast only
+    /// within `shadow_radius` of `camera`.
+    fn fade(&mut self, camera: Vec3, group_drawn: bool, shadow_radius: f32) {
+        self.fade
+            .set_shadow_admitted(self.scenery.within(camera, shadow_radius));
         let opacity = if group_drawn {
             self.scenery.opacity(camera)
         } else {
@@ -322,7 +551,15 @@ pub(crate) struct CulledWmo {
     portals: WmoPortals,
     fog: WmoFogVolume,
     world_from_local: Affine3A,
+    /// Per group, the meshes holding its geometry: its own batches and the merged
+    /// exterior batches it is part of.
     groups: HashMap<u16, Vec<Gd<Node3D>>>,
+    /// Per group, the batches only it draws; the cull shows them with the group.
+    own: HashMap<u16, Vec<Gd<Node3D>>>,
+    /// Merged exterior batches and their groups; the cull shows one while any is drawn.
+    merged: Vec<(Gd<Node3D>, Vec<u16>)>,
+    /// Each drawn group's world bounds, from the batch meshes placed by the caller.
+    group_boxes: HashMap<u16, (Vec3, Vec3)>,
     shadow_groups: ShadowGroups,
     /// Per group index, whether the last cull drew it; `None` before the first.
     drawn: Option<Vec<bool>>,
@@ -335,11 +572,33 @@ impl CulledWmo {
         world_from_local: Affine3A,
         node: &Gd<Node3D>,
     ) -> Self {
+        let (own, merged) = group_batches(node);
+        let mut groups = own.clone();
+        for (batch, members) in &merged {
+            for group in members {
+                groups.entry(*group).or_default().push(batch.clone());
+            }
+        }
+        let group_boxes = groups
+            .iter()
+            .filter_map(|(group, batches)| {
+                let bounds = batches.iter().fold(None, |bounds, batch| {
+                    let (min, max) = mesh_world_box(batch, world_from_local)?;
+                    Some(bounds.map_or((min, max), |(low, high): (Vec3, Vec3)| {
+                        (low.min(min), high.max(max))
+                    }))
+                })?;
+                Some((*group, bounds))
+            })
+            .collect();
         Self {
             portals: WmoPortals::new(asset),
             fog: wmo_fog_volume(asset),
             world_from_local,
-            groups: group_batches(node),
+            groups,
+            own,
+            merged,
+            group_boxes,
             shadow_groups: asset.shadow_groups(),
             drawn: None,
         }
@@ -390,6 +649,57 @@ fn wmo_model_label(resolver: &CascListfileResolver, root_fdid: u32, name_set: u1
     }
 }
 
+/// The object selection of an offline preview: only placements within `radius` of its
+/// focus, not every doodad of the nine streamed tiles.
+pub(crate) struct PreviewObjects {
+    pub center: Vec3,
+    pub radius: f32,
+}
+
+impl ObjectSelection for PreviewObjects {
+    fn tiles(&self, terrain: &StreamedTerrain) -> Vec<Tile> {
+        terrain
+            .parsed_tiles
+            .keys()
+            .copied()
+            .filter(|tile| {
+                let (min, max) = tile_world_bounds(*tile);
+                let nearest = self.center.clamp(min, max);
+                self.center.distance_squared(nearest) <= self.radius * self.radius
+            })
+            .collect()
+    }
+
+    fn doodad(
+        &self,
+        doodad: &DoodadPlacement,
+        _: impl FnOnce() -> Option<String>,
+        tile: Tile,
+    ) -> bool {
+        let position = doodad_position(doodad, tile.0, tile.1);
+        position.distance_squared(self.center) <= self.radius * self.radius
+    }
+
+    fn wmo(&self, wmo: &WmoPlacement, tile: Tile) -> bool {
+        let (min, max) = wmo_bounds(wmo, tile.0, tile.1);
+        let nearest = self.center.clamp(min, max);
+        self.center.distance_squared(nearest) <= self.radius * self.radius
+    }
+}
+
+/// Terrain-space bounds of one ADT tile, in engine axes.
+fn tile_world_bounds(tile: Tile) -> (Vec3, Vec3) {
+    // ADT tile edge: 16 chunks of 33.333 yd (same value bevy_to_tile_coords uses).
+    let size = 533.333_3;
+    let center = 32.0 * size;
+    let min = Vec3::new(
+        center - (tile.1 as f32 + 1.0) * size,
+        -10_000.0,
+        tile.0 as f32 * size - center,
+    );
+    (min, min + Vec3::new(size, 20_000.0, size))
+}
+
 pub(crate) struct TerrainObjects {
     name: &'static str,
     budget: Duration,
@@ -416,7 +726,15 @@ pub(crate) struct TerrainObjects {
     spawned_wmos: BTreeSet<u32>,
     wmo_doodads: HashMap<u32, WmoDoodads>,
     doodads: Vec<CulledDoodad>,
+    /// Indices of the doodads with particle emitters or ribbons, in `doodads` order.
+    emitting_doodads: Vec<usize>,
+    particle_frustum_cache: ParticleFrustumCache,
     scenery_index: SceneryIndex,
+    /// Whether the last portal cull drew a different set of WMO groups than the one
+    /// before it.
+    wmo_drawn_changed: bool,
+    /// The camera and frustum of the last portal cull, until a WMO is added.
+    wmo_cull_view: Option<(Vec3, Vec<HalfSpace>)>,
     wmos: Vec<CulledWmo>,
     outdoor_windows: Option<Vec<Vec<HalfSpace>>>,
     interior_bounds: Vec<(Vec3, Vec3)>,
@@ -435,6 +753,29 @@ pub(crate) struct TerrainObjects {
     failures: usize,
     /// `None` while the particle-effects graphics setting is off.
     particles: Option<ParticlePools>,
+    /// Drawn triangles of spawned doodads and WMO batches, for visible-surface queries.
+    render_surface: crate::render_surface::RenderSurfaceCache,
+    surface_frame: u64,
+    surface_columns: HashMap<(u32, u32, u32), Option<f32>>,
+    /// Doodad indices by the `(x, z)` cells their world bounds cover, so a column query
+    /// tests the doodads over the column instead of all of them.
+    surface_cells: HashMap<(i32, i32), Vec<u32>>,
+    /// Doodads already in `surface_cells`; the vector only grows between resets.
+    surface_cells_len: usize,
+    /// Per doodad index, its render surface once a column query first reached it.
+    doodad_surfaces: Vec<Option<Option<Arc<game_engine_core::render_surface::RenderSurface>>>>,
+    /// Per WMO placement (same index as `wmos`), its batches' render surfaces.
+    wmo_surface_batches: Vec<WmoSurfaceBatches>,
+    /// Counts column queries, so a batch shared by several groups is tested once per query.
+    surface_query: u64,
+    /// Drawn WMO `(placement, group)` pairs by the `(x, z)` cells their world bounds cover,
+    /// so a column query tests the groups over the column instead of every spawned group.
+    surface_wmo_cells: HashMap<(i32, i32), Vec<(u32, u16)>>,
+    /// WMO placements already in `surface_wmo_cells`; the vector only grows between resets.
+    surface_wmo_len: usize,
+    /// Bumped whenever a drawn doodad or WMO is added or the world is reset: a visible
+    /// surface sampled before a bump can be out of date after it.
+    surface_epoch: u64,
 }
 
 impl TerrainObjects {
@@ -466,7 +807,11 @@ impl TerrainObjects {
             spawned_wmos: BTreeSet::new(),
             wmo_doodads: HashMap::new(),
             doodads: Vec::new(),
+            emitting_doodads: Vec::new(),
+            particle_frustum_cache: ParticleFrustumCache::default(),
             scenery_index: SceneryIndex::default(),
+            wmo_drawn_changed: true,
+            wmo_cull_view: None,
             wmos: Vec::new(),
             outdoor_windows: None,
             interior_bounds: Vec::new(),
@@ -480,6 +825,17 @@ impl TerrainObjects {
             liquids: WmoLiquids::default(),
             failures: 0,
             particles: None,
+            render_surface: crate::render_surface::RenderSurfaceCache::default(),
+            surface_frame: 0,
+            surface_columns: HashMap::new(),
+            surface_cells: HashMap::new(),
+            surface_cells_len: 0,
+            doodad_surfaces: Vec::new(),
+            wmo_surface_batches: Vec::new(),
+            surface_query: 0,
+            surface_wmo_cells: HashMap::new(),
+            surface_wmo_len: 0,
+            surface_epoch: 0,
         }
     }
 
@@ -517,8 +873,307 @@ impl TerrainObjects {
             .collect()
     }
 
+    /// Changes whenever a drawn doodad or WMO, or the whole world, can have changed the
+    /// visible surface over a column.
+    pub fn surface_epoch(&self) -> u64 {
+        self.surface_epoch
+    }
+
+    /// Highest visible render surface on the column through `(x, z)` inside
+    /// `[floor, floor + window]`: terrain, WMO render batches and M2 doodad geometry as
+    /// they are drawn. `frame` scopes the per-frame column cache; the result does not
+    /// feed movement, the server or the navmesh.
+    pub fn visible_surface(
+        &mut self,
+        terrain_height: Option<f32>,
+        x: f32,
+        z: f32,
+        floor: f32,
+        window: f32,
+        frame: u64,
+    ) -> Option<f32> {
+        if frame != self.surface_frame {
+            self.surface_frame = frame;
+            self.surface_columns.clear();
+        }
+        let key = (x.to_bits(), z.to_bits(), floor.to_bits());
+        if let Some(cached) = self.surface_columns.get(&key) {
+            return *cached;
+        }
+        let ceiling = floor + window;
+        let mut found: Option<f32> = None;
+        let mut consider = |height: f32| {
+            if (floor..=ceiling).contains(&height) {
+                found = Some(found.map_or(height, |high: f32| high.max(height)));
+            }
+        };
+        if let Some(height) = terrain_height {
+            consider(height);
+        }
+        self.index_surface_cells();
+        self.index_surface_wmo_cells();
+        let cell = (surface_cell(x), surface_cell(z));
+        let Self {
+            doodads,
+            wmos,
+            render_surface,
+            surface_cells,
+            doodad_surfaces,
+            surface_wmo_cells,
+            wmo_surface_batches,
+            surface_query,
+            ..
+        } = self;
+        *surface_query += 1;
+        let query = *surface_query;
+        for &index in surface_cells.get(&cell).into_iter().flatten() {
+            let doodad = &doodads[index as usize];
+            let (min, max) = doodad.scenery.world_bounds();
+            if !column_meets(x, z, floor, ceiling, min, max) {
+                continue;
+            }
+            let surface = doodad_surfaces[index as usize]
+                .get_or_insert_with(|| render_surface.root_surface(&doodad.node));
+            if let Some(height) = surface
+                .as_ref()
+                .and_then(|surface| surface.highest_upward_below(x, z, ceiling, floor))
+            {
+                consider(height);
+            }
+        }
+        for &(placement, group) in surface_wmo_cells.get(&cell).into_iter().flatten() {
+            let wmo = &wmos[placement as usize];
+            let Some((min, max)) = wmo.group_boxes.get(&group) else {
+                continue;
+            };
+            if !column_meets(x, z, floor, ceiling, *min, *max) {
+                continue;
+            }
+            let WmoSurfaceBatches {
+                by_group,
+                nodes,
+                surfaces,
+                tested,
+            } = &mut wmo_surface_batches[placement as usize];
+            for &batch in by_group.get(&group).into_iter().flatten() {
+                let batch = batch as usize;
+                // A merged exterior batch belongs to many groups; one test answers them all.
+                if tested[batch] == query {
+                    continue;
+                }
+                tested[batch] = query;
+                let surface = surfaces[batch]
+                    .get_or_insert_with(|| render_surface.root_surface(&nodes[batch]));
+                if let Some(height) = surface
+                    .as_ref()
+                    .and_then(|surface| surface.highest_upward_below(x, z, ceiling, floor))
+                {
+                    consider(height);
+                }
+            }
+        }
+        self.surface_columns.insert(key, found);
+        found
+    }
+
+    /// The render surfaces a column inside the XZ rectangle `[min, max]` can reach, so
+    /// [`SurfaceSnapshot::visible_surface`] answers off the main thread exactly as
+    /// [`Self::visible_surface`] would. A surface not built yet carries its meshes, read now,
+    /// and is built where a column first reaches it; [`Self::adopt_surfaces`] keeps it.
+    pub fn surface_snapshot(&mut self, min: glam::Vec2, max: glam::Vec2) -> SurfaceSnapshot {
+        self.index_surface_cells();
+        self.index_surface_wmo_cells();
+        let overlaps = |low: Vec3, high: Vec3| {
+            low.x <= max.x && high.x >= min.x && low.z <= max.y && high.z >= min.y
+        };
+        let cells: Vec<(i32, i32)> = (surface_cell(min.x)..=surface_cell(max.x))
+            .flat_map(|x| (surface_cell(min.y)..=surface_cell(max.y)).map(move |z| (x, z)))
+            .collect();
+        let doodad_indices: BTreeSet<u32> = cells
+            .iter()
+            .flat_map(|cell| self.surface_cells.get(cell).into_iter().flatten().copied())
+            .collect();
+        let mut doodads = Vec::new();
+        for index in doodad_indices {
+            let doodad = &self.doodads[index as usize];
+            let (low, high) = doodad.scenery.world_bounds();
+            if !overlaps(low, high) {
+                continue;
+            }
+            let surface = match &self.doodad_surfaces[index as usize] {
+                Some(None) => continue,
+                Some(Some(surface)) => LazySurface::built(surface.clone()),
+                None => LazySurface::pending(
+                    SurfaceSlot::Doodad(index),
+                    &doodad.node,
+                    &mut self.render_surface,
+                ),
+            };
+            doodads.push(((low, high), surface));
+        }
+        let group_keys: BTreeSet<(u32, u16)> = cells
+            .iter()
+            .flat_map(|cell| {
+                self.surface_wmo_cells
+                    .get(cell)
+                    .into_iter()
+                    .flatten()
+                    .copied()
+            })
+            .collect();
+        let mut groups = Vec::new();
+        let mut batches = Vec::new();
+        let mut batch_ids: HashMap<(u32, u32), u32> = HashMap::new();
+        for (placement, group) in group_keys {
+            let Some(&(low, high)) = self.wmos[placement as usize].group_boxes.get(&group) else {
+                continue;
+            };
+            if !overlaps(low, high) {
+                continue;
+            }
+            let WmoSurfaceBatches {
+                by_group,
+                nodes,
+                surfaces,
+                ..
+            } = &mut self.wmo_surface_batches[placement as usize];
+            let mut ids = Vec::new();
+            for &batch in by_group.get(&group).into_iter().flatten() {
+                let surface = match &surfaces[batch as usize] {
+                    Some(None) => continue,
+                    Some(Some(surface)) => LazySurface::built(surface.clone()),
+                    None => LazySurface::pending(
+                        SurfaceSlot::WmoBatch(placement, batch),
+                        &nodes[batch as usize],
+                        &mut self.render_surface,
+                    ),
+                };
+                let id = *batch_ids.entry((placement, batch)).or_insert_with(|| {
+                    batches.push(surface);
+                    batches.len() as u32 - 1
+                });
+                ids.push(id);
+            }
+            groups.push(((low, high), ids));
+        }
+        SurfaceSnapshot {
+            doodads,
+            groups,
+            batches,
+        }
+    }
+
+    /// Keeps the surfaces `snapshot` built, unless their node was replaced meanwhile.
+    pub fn adopt_surfaces(&mut self, snapshot: &SurfaceSnapshot) {
+        let lazies = snapshot
+            .doodads
+            .iter()
+            .map(|(_, lazy)| lazy)
+            .chain(&snapshot.batches);
+        for lazy in lazies {
+            let (Some((slot, root)), Some(surface)) = (lazy.slot, lazy.surface.get()) else {
+                continue;
+            };
+            let node = match slot {
+                SurfaceSlot::Doodad(index) => {
+                    self.doodads.get(index as usize).map(|doodad| &doodad.node)
+                }
+                SurfaceSlot::WmoBatch(placement, batch) => self
+                    .wmo_surface_batches
+                    .get(placement as usize)
+                    .and_then(|batches| batches.nodes.get(batch as usize)),
+            };
+            if node.is_none_or(|node| node.instance_id() != root) {
+                continue;
+            }
+            let cached = match slot {
+                SurfaceSlot::Doodad(index) => &mut self.doodad_surfaces[index as usize],
+                SurfaceSlot::WmoBatch(placement, batch) => {
+                    &mut self.wmo_surface_batches[placement as usize].surfaces[batch as usize]
+                }
+            };
+            cached.get_or_insert_with(|| surface.clone());
+            self.render_surface.adopt_root(root, surface.clone());
+        }
+    }
+
+    /// Buckets the doodads spawned since the last call by the `(x, z)` cells their world
+    /// bounds cover. Placements are appended and only cleared by `reset`, and their bounds
+    /// are fixed at spawn, so each one is indexed once.
+    fn index_surface_cells(&mut self) {
+        for index in self.surface_cells_len..self.doodads.len() {
+            let node = &self.doodads[index].node;
+            if !has_render_geometry(node) {
+                continue;
+            }
+            let (min, max) = self.doodads[index].scenery.world_bounds();
+            for x in surface_cell(min.x)..=surface_cell(max.x) {
+                for z in surface_cell(min.z)..=surface_cell(max.z) {
+                    self.surface_cells
+                        .entry((x, z))
+                        .or_default()
+                        .push(index as u32);
+                }
+            }
+        }
+        self.surface_cells_len = self.doodads.len();
+        self.doodad_surfaces.resize(self.doodads.len(), None);
+    }
+
+    /// Buckets the WMO groups of placements adopted since the last call by the `(x, z)`
+    /// cells their world bounds cover, so a column query tests only the groups over the
+    /// column. Placements are appended and only cleared by `reset`, and their batch bounds
+    /// are fixed once their nodes are placed, so each group is indexed once.
+    fn index_surface_wmo_cells(&mut self) {
+        for index in self.surface_wmo_len..self.wmos.len() {
+            self.wmo_surface_batches
+                .push(WmoSurfaceBatches::new(&self.wmos[index].groups));
+            for (group, (min, max)) in &self.wmos[index].group_boxes {
+                let (min, max, group) = (*min, *max, *group);
+                for x in surface_cell(min.x)..=surface_cell(max.x) {
+                    for z in surface_cell(min.z)..=surface_cell(max.z) {
+                        self.surface_wmo_cells
+                            .entry((x, z))
+                            .or_default()
+                            .push((index as u32, group));
+                    }
+                }
+            }
+        }
+        self.surface_wmo_len = self.wmos.len();
+    }
+
+    /// Internal queue and loader counters, for offline fixture diagnostics.
+    pub fn debug_state(&self) -> serde_json::Value {
+        serde_json::json!({
+            "pending": self.pending.len(),
+            "first": self.first.len(),
+            "ready": self.ready.len(),
+            "waiting": self.waiting_count,
+            "waiting_assets": self.waiting.len(),
+            "arrived": self.arrived.len(),
+            "loading": self.loader.loading(),
+            "models": self.models.len(),
+            "wmos": self.wmo_assets.len(),
+            "spawned_doodads": self.spawned_doodads.len(),
+            "spawned_wmos": self.spawned_wmos.len(),
+            "failures": self.failures,
+            "queued_tiles": self.queued_tiles.len(),
+        })
+    }
+
     pub fn spawned_count(&self) -> usize {
         self.spawned_doodads.len() + self.spawned_wmos.len()
+    }
+
+    /// Cached parsed models, WMO assets and surface lookup cells, for memory diagnostics.
+    pub fn cache_counts(&self) -> (usize, usize, usize, usize) {
+        (
+            self.models.len(),
+            self.wmo_assets.len(),
+            self.surface_cells.len(),
+            self.surface_wmo_cells.len(),
+        )
     }
 
     /// Placements not yet spawned or failed, loading or not.
@@ -778,8 +1433,7 @@ impl TerrainObjects {
             };
             let queued = self.pending.len();
             for (index, doodad) in objects.doodads.iter().enumerate() {
-                let model = self.doodad_model_path(doodad);
-                if selection.doodad(doodad, model.as_deref(), tile) {
+                if selection.doodad(doodad, || self.doodad_model_path(doodad), tile) {
                     let pending = Pending::Doodad(tile, index);
                     let position = doodad_position(doodad, tile.0, tile.1);
                     self.nearby.add(pending, position, position);
@@ -878,6 +1532,8 @@ impl TerrainObjects {
                     product,
                     doodad_sets,
                     build,
+                    built: false,
+                    spans_frames: false,
                     model: wmo_model_label(&self.resolver, root_fdid, wmo.name_set),
                 });
                 Ok(())
@@ -899,17 +1555,20 @@ impl TerrainObjects {
         let (tile, index) = (spawn.tile, spawn.index);
         let _span =
             crate::profile::span(|| format!("objects.wmo_step tile={tile:?} index={index}"));
-        let done = spawn.build.step(
-            &spawn.asset,
-            &spawn.resolver,
-            &self.data_root,
-            Some(spawn.product),
-            self.light.as_ref(),
-            || Instant::now() >= deadline,
-        );
-        if !done {
-            self.building = Some(spawn);
-            return false;
+        if !spawn.built {
+            spawn.built = spawn.build.step(
+                &spawn.asset,
+                &spawn.resolver,
+                &self.data_root,
+                Some(spawn.product),
+                self.light.as_ref(),
+                || Instant::now() >= deadline,
+            );
+            if !spawn.built || spawn.spans_frames {
+                spawn.spans_frames = true;
+                self.building = Some(spawn);
+                return false;
+            }
         }
         let pending = Pending::Wmo(spawn.tile, spawn.index);
         let Some(objects) = terrain
@@ -924,6 +1583,13 @@ impl TerrainObjects {
         let placement = &objects.wmos[spawn.index];
         let tile = spawn.tile;
         let mut wmo_node = spawn.build.finish();
+        let position = placement_position(placement.position, tile.0, tile.1);
+        let rotation = shared::ground::placement_rotation(placement.rotation);
+        let world_from_local = Affine3A::from_scale_rotation_translation(
+            Vec3::splat(placement.scale),
+            rotation,
+            position,
+        );
         let liquid_errors = self.liquids.add(
             &spawn.asset,
             terrain
@@ -937,8 +1603,6 @@ impl TerrainObjects {
         );
         wmo_node.batch_errors.extend(liquid_errors);
         let model = &mut wmo_node.node;
-        let position = placement_position(placement.position, tile.0, tile.1);
-        let rotation = shared::ground::placement_rotation(placement.rotation);
         model.set_name(&format!("Wmo{}", placement.unique_id));
         model.set_meta(WMO_MODEL_META, &spawn.model.to_variant());
         model.set_position(Vector3::from_array(position.to_array()));
@@ -946,11 +1610,6 @@ impl TerrainObjects {
             rotation.x, rotation.y, rotation.z, rotation.w,
         ));
         model.set_scale(Vector3::ONE * placement.scale);
-        let world_from_local = Affine3A::from_scale_rotation_translation(
-            Vec3::splat(placement.scale),
-            rotation,
-            position,
-        );
         let culled = CulledWmo::new(&spawn.asset, world_from_local, model);
         // Batches that cannot be drawn are failures; the rest of the WMO stays.
         for error in wmo_node.batch_errors {
@@ -1039,11 +1698,12 @@ impl TerrainObjects {
             built.rigid_without_attachments && built.particles.is_none() && built.ribbons.is_none(),
         );
         if let (Some(pools), Some(particles)) = (&mut self.particles, &built.particles) {
-            let (placed, errors) = pools.place(particles, &doodad.node, unique_id);
+            let (mut placed, errors) = pools.place(particles, &doodad.node, unique_id);
             for error in errors {
                 self.failures += 1;
                 godot_error!("{}: {error}", self.name);
             }
+            placed.hold_pose();
             doodad.particles = Some(placed);
         }
         if self.particles.is_some()
@@ -1059,7 +1719,11 @@ impl TerrainObjects {
         }
         let animated = doodad.bones.is_some() || doodad.materials.is_some();
         self.scenery_index.push(doodad.scenery, animated);
+        if doodad.particles.is_some() || doodad.ribbons.is_some() {
+            self.emitting_doodads.push(self.doodads.len());
+        }
         self.doodads.push(doodad);
+        self.surface_epoch = self.surface_epoch.wrapping_add(1);
     }
 
     fn load_placed_doodad(
@@ -1139,6 +1803,8 @@ impl TerrainObjects {
         culled: CulledWmo,
     ) {
         self.wmos.push(culled);
+        self.surface_epoch = self.surface_epoch.wrapping_add(1);
+        self.wmo_cull_view = None;
         self.queue_wmo_doodads(wmo, node, doodads, self.wmos.len() - 1);
     }
 
@@ -1238,8 +1904,20 @@ impl TerrainObjects {
     /// whose groups this frame culled.
     pub fn cull_wmos(&mut self, camera: Vector3, frustum: &[HalfSpace]) {
         let camera = Vec3::new(camera.x, camera.y, camera.z);
+        // Portal visibility depends only on the view and the WMOs: an unchanged view
+        // keeps the groups, windows and interiors of the last cull.
+        if self
+            .wmo_cull_view
+            .as_ref()
+            .is_some_and(|(seen, planes)| *seen == camera && planes.as_slice() == frustum)
+        {
+            self.wmo_drawn_changed = false;
+            return;
+        }
+        self.wmo_cull_view = Some((camera, frustum.to_vec()));
         self.outdoor_windows = None;
         self.interior_bounds.clear();
+        self.wmo_drawn_changed = false;
         for wmo in &mut self.wmos {
             let visibility = wmo
                 .portals
@@ -1254,15 +1932,25 @@ impl TerrainObjects {
             let drawn = visibility.groups;
             // Only groups whose state changed touch their batch nodes.
             let previous = wmo.drawn.take();
-            for (&group, batches) in &mut wmo.groups {
-                let shown = drawn.get(group as usize).copied().unwrap_or(false);
+            self.wmo_drawn_changed |= previous.as_ref() != Some(&drawn);
+            let shown_in =
+                |drawn: &[bool], group: u16| drawn.get(group as usize).copied().unwrap_or(false);
+            for (&group, batches) in &mut wmo.own {
+                let shown = shown_in(&drawn, group);
                 let was = previous
-                    .as_ref()
-                    .map(|previous| previous.get(group as usize).copied().unwrap_or(false));
+                    .as_deref()
+                    .map(|previous| shown_in(previous, group));
                 if was != Some(shown) {
                     for batch in batches {
                         batch.set_visible(shown);
                     }
+                }
+            }
+            for (batch, members) in &mut wmo.merged {
+                let any = |drawn: &[bool]| members.iter().any(|&group| shown_in(drawn, group));
+                let shown = any(&drawn);
+                if previous.as_deref().map(any) != Some(shown) {
+                    batch.set_visible(shown);
                 }
             }
             wmo.drawn = Some(drawn);
@@ -1276,18 +1964,21 @@ impl TerrainObjects {
     /// Fades each doodad by its retail scenery distance from `camera`, and
     /// advances its animation `delta_ms` at its animation LOD rate through `frustum`
     /// (world space); an undrawn doodad does not animate. A WMO doodad is drawn only
-    /// while a group referencing it is.
+    /// while a group referencing it is. Doodads cast shadows within `shadow_radius`.
     pub fn cull_doodads(
         &mut self,
         camera: Vector3,
         frustum: &[HalfSpace],
         delta_ms: f64,
         frame: u64,
+        shadow_radius: f32,
     ) {
         let camera = Vec3::new(camera.x, camera.y, camera.z);
         self.scenery_index
             .update_admission(self.outdoor_windows.as_deref(), &self.interior_bounds);
-        let (work, admission) = self.scenery_index.update_with_admission(camera);
+        let (work, admission) = self
+            .scenery_index
+            .update_with_admission(camera, self.wmo_drawn_changed);
         for &index in work {
             let doodad = &mut self.doodads[index];
             let group_drawn = doodad.group_drawn(&self.wmos);
@@ -1305,7 +1996,7 @@ impl TerrainObjects {
                                 .any(|window| doodad.scenery.box_in_frustum(window))
                     })
                 });
-            doodad.fade(camera, group_drawn);
+            doodad.fade(camera, group_drawn, shadow_radius);
             doodad.fade.set_camera_admitted(camera_admitted);
             doodad.animate(camera, frustum, delta_ms, frame, group_drawn);
         }
@@ -1318,15 +2009,20 @@ impl TerrainObjects {
         let Some(pools) = &mut self.particles else {
             return;
         };
+        let frustum_changed = self.particle_frustum_cache.update_frustum(frustum);
         let view = view_basis(camera);
         let started = Instant::now();
         pools.begin_frame();
         let mut updated = 0;
-        for doodad in &mut self.doodads {
-            if doodad.particles.is_none() && doodad.ribbons.is_none() {
-                continue;
-            }
-            let visible = doodad.opacity > 0.0 && doodad.scenery.box_in_frustum(frustum);
+        for &index in &self.emitting_doodads {
+            let doodad = &mut self.doodads[index];
+            let frustum_visible = cached_emitter_frustum_visibility(
+                &doodad.scenery,
+                frustum,
+                frustum_changed,
+                &mut doodad.emitter_frustum_visible,
+            );
+            let visible = doodad.opacity > 0.0 && frustum_visible;
             if let Some(placed) = &mut doodad.particles {
                 if visible {
                     placed.update_and_draw(&doodad.node, delta, doodad.opacity, &view, pools);
@@ -1408,8 +2104,11 @@ impl TerrainObjects {
         self.spawned_wmos.clear();
         self.wmo_doodads.clear();
         self.doodads.clear();
+        self.emitting_doodads.clear();
+        self.particle_frustum_cache = ParticleFrustumCache::default();
         self.scenery_index = SceneryIndex::default();
         self.wmos.clear();
+        self.wmo_cull_view = None;
         self.progress = TileProgress::default();
         self.nearby = super::object_progress::NearbyProgress::default();
         self.priority_focus = None;
@@ -1418,7 +2117,21 @@ impl TerrainObjects {
         self.interior_bounds.clear();
         self.light = None;
         self.liquids = WmoLiquids::default();
+        self.render_surface.clear();
+        self.surface_columns.clear();
+        self.surface_cells.clear();
+        self.surface_cells_len = 0;
+        self.doodad_surfaces.clear();
+        self.wmo_surface_batches.clear();
+        self.surface_wmo_cells.clear();
+        self.surface_wmo_len = 0;
+        self.surface_epoch = self.surface_epoch.wrapping_add(1);
         self.failures = 0;
+        // The loader lives for the process; forget finished keys together with the parsed
+        // models so a later map loads them again instead of stalling on a Done entry.
+        self.models.clear();
+        self.wmo_assets.clear();
+        self.loader.forget_loaded();
         if let Some(pools) = &mut self.particles {
             pools.reset();
         }
@@ -1437,9 +2150,194 @@ fn disable_shadows(model: &Gd<Node3D>) {
 
 /// Batch and liquid meshes by group index, from their `Group{g}_Batch{i}` and
 /// `Group{g}_Liquid` names.
-fn group_batches(wmo: &Gd<Node3D>) -> HashMap<u16, Vec<Gd<Node3D>>> {
+/// The WMO's batch meshes by group (`Group{g}_Batch{i}`), and its merged exterior
+/// batches with the groups they draw.
+/// The visible render surfaces over one XZ rectangle: the doodads and WMO groups whose
+/// bounds overlap it, with their surfaces. Shared with a drape worker.
+pub(crate) struct SurfaceSnapshot {
+    doodads: Vec<((Vec3, Vec3), LazySurface)>,
+    /// Each WMO group's box and its batches (indices into `batches`).
+    groups: Vec<((Vec3, Vec3), Vec<u32>)>,
+    batches: Vec<LazySurface>,
+}
+
+/// Where a snapshot surface is cached in [`TerrainObjects`].
+#[derive(Clone, Copy)]
+enum SurfaceSlot {
+    Doodad(u32),
+    WmoBatch(u32, u32),
+}
+
+type SharedSurface = Option<Arc<game_engine_core::render_surface::RenderSurface>>;
+
+/// A snapshot's render surface, built on first use when it was not built yet.
+struct LazySurface {
+    surface: std::sync::OnceLock<SharedSurface>,
+    /// For a surface not built when the snapshot was taken: its cache slot and root node.
+    slot: Option<(SurfaceSlot, godot::obj::InstanceId)>,
+    inputs: Option<crate::render_surface::RootInputs>,
+}
+
+impl LazySurface {
+    fn built(surface: Arc<game_engine_core::render_surface::RenderSurface>) -> Self {
+        Self {
+            surface: std::sync::OnceLock::from(Some(surface)),
+            slot: None,
+            inputs: None,
+        }
+    }
+
+    fn pending(
+        slot: SurfaceSlot,
+        node: &Gd<Node3D>,
+        cache: &mut crate::render_surface::RenderSurfaceCache,
+    ) -> Self {
+        // A node another query built already only needs its cached surface.
+        let (surface, inputs) = match cache.built_root(node) {
+            Some(surface) => (std::sync::OnceLock::from(surface), None),
+            None => (std::sync::OnceLock::new(), Some(cache.root_inputs(node))),
+        };
+        Self {
+            surface,
+            slot: Some((slot, node.instance_id())),
+            inputs,
+        }
+    }
+
+    fn get(&self) -> Option<&Arc<game_engine_core::render_surface::RenderSurface>> {
+        self.surface
+            .get_or_init(|| {
+                self.inputs
+                    .as_ref()
+                    .and_then(|inputs| inputs.build())
+                    .map(Arc::new)
+            })
+            .as_ref()
+    }
+}
+
+impl SurfaceSnapshot {
+    /// [`TerrainObjects::visible_surface`] for a column inside the snapshot's rectangle;
+    /// `scratch` marks the batches each query tested.
+    pub fn visible_surface(
+        &self,
+        scratch: &mut SurfaceScratch,
+        terrain_height: Option<f32>,
+        x: f32,
+        z: f32,
+        floor: f32,
+        window: f32,
+    ) -> Option<f32> {
+        let ceiling = floor + window;
+        let mut found: Option<f32> = None;
+        let mut consider = |height: f32| {
+            if (floor..=ceiling).contains(&height) {
+                found = Some(found.map_or(height, |high: f32| high.max(height)));
+            }
+        };
+        if let Some(height) = terrain_height {
+            consider(height);
+        }
+        for ((min, max), surface) in &self.doodads {
+            if !column_meets(x, z, floor, ceiling, *min, *max) {
+                continue;
+            }
+            if let Some(height) = surface
+                .get()
+                .and_then(|surface| surface.highest_upward_below(x, z, ceiling, floor))
+            {
+                consider(height);
+            }
+        }
+        scratch.query += 1;
+        scratch.tested.resize(self.batches.len(), 0);
+        for ((min, max), ids) in &self.groups {
+            if !column_meets(x, z, floor, ceiling, *min, *max) {
+                continue;
+            }
+            for &id in ids {
+                let id = id as usize;
+                if std::mem::replace(&mut scratch.tested[id], scratch.query) == scratch.query {
+                    continue;
+                }
+                if let Some(height) = self.batches[id]
+                    .get()
+                    .and_then(|surface| surface.highest_upward_below(x, z, ceiling, floor))
+                {
+                    consider(height);
+                }
+            }
+        }
+        found
+    }
+}
+
+/// Per-caller state of [`SurfaceSnapshot::visible_surface`] queries.
+#[derive(Default)]
+pub(crate) struct SurfaceScratch {
+    query: u32,
+    /// Per snapshot batch, the last query that tested it.
+    tested: Vec<u32>,
+}
+
+/// One WMO placement's batch render surfaces, each built and tested once per column query
+/// however many of the placement's groups draw it.
+struct WmoSurfaceBatches {
+    /// Per group, indices into `nodes` of the batches holding its geometry.
+    by_group: HashMap<u16, Vec<u32>>,
+    nodes: Vec<Gd<Node3D>>,
+    /// Per batch, its render surface once a column query first reached it.
+    surfaces: Vec<Option<Option<Arc<game_engine_core::render_surface::RenderSurface>>>>,
+    /// Per batch, the last column query that tested it.
+    tested: Vec<u64>,
+}
+
+impl WmoSurfaceBatches {
+    fn new(groups: &HashMap<u16, Vec<Gd<Node3D>>>) -> Self {
+        let mut ids: HashMap<godot::obj::InstanceId, u32> = HashMap::new();
+        let mut nodes = Vec::new();
+        let by_group = groups
+            .iter()
+            .map(|(&group, batches)| {
+                let indices = batches
+                    .iter()
+                    .map(|batch| {
+                        *ids.entry(batch.instance_id()).or_insert_with(|| {
+                            nodes.push(batch.clone());
+                            nodes.len() as u32 - 1
+                        })
+                    })
+                    .collect();
+                (group, indices)
+            })
+            .collect();
+        let count = nodes.len();
+        Self {
+            by_group,
+            nodes,
+            surfaces: vec![None; count],
+            tested: vec![0; count],
+        }
+    }
+}
+
+fn group_batches(wmo: &Gd<Node3D>) -> GroupBatches {
     let mut groups: HashMap<u16, Vec<Gd<Node3D>>> = HashMap::new();
+    let mut merged = Vec::new();
     for child in wmo.get_children().iter_shared() {
+        if child.has_meta(MERGED_GROUPS_META)
+            && let Ok(batch) = child.clone().try_cast::<Node3D>()
+        {
+            let members = child
+                .get_meta(MERGED_GROUPS_META)
+                .to::<PackedInt32Array>()
+                .as_slice()
+                .iter()
+                .filter_map(|&group| u16::try_from(group).ok())
+                .collect();
+            merged.push((batch, members));
+            continue;
+        }
         let name = child.get_name().to_string();
         let group = name
             .strip_prefix("Group")
@@ -1449,7 +2347,44 @@ fn group_batches(wmo: &Gd<Node3D>) -> HashMap<u16, Vec<Gd<Node3D>>> {
             groups.entry(group).or_default().push(batch);
         }
     }
-    groups
+    (groups, merged)
+}
+
+type GroupBatches = (HashMap<u16, Vec<Gd<Node3D>>>, Vec<(Gd<Node3D>, Vec<u16>)>);
+
+/// Index of the column cell that holds `position`; a column query visits the cell it
+/// falls in.
+fn surface_cell(position: f32) -> i32 {
+    (position / SURFACE_CELL_YARDS).floor() as i32
+}
+
+/// Whether a vertical column at `(x, z)` between `floor` and `ceiling` meets `min..max`.
+fn column_meets(x: f32, z: f32, floor: f32, ceiling: f32, min: Vec3, max: Vec3) -> bool {
+    x >= min.x && x <= max.x && z >= min.z && z <= max.z && max.y >= floor && min.y <= ceiling
+}
+
+/// A node's mesh bounds placed by `world_from_local`; `None` when it has no mesh.
+fn mesh_world_box(node: &Gd<Node3D>, world_from_local: Affine3A) -> Option<(Vec3, Vec3)> {
+    let mesh = node.clone().try_cast::<MeshInstance3D>().ok()?.get_mesh()?;
+    let aabb = mesh.get_aabb();
+    let corners = [
+        aabb.position,
+        aabb.position + Vector3::new(aabb.size.x, 0.0, 0.0),
+        aabb.position + Vector3::new(0.0, aabb.size.y, 0.0),
+        aabb.position + Vector3::new(0.0, 0.0, aabb.size.z),
+        aabb.position + Vector3::new(aabb.size.x, aabb.size.y, 0.0),
+        aabb.position + Vector3::new(aabb.size.x, 0.0, aabb.size.z),
+        aabb.position + Vector3::new(0.0, aabb.size.y, aabb.size.z),
+        aabb.position + aabb.size,
+    ];
+    let mut min = Vec3::splat(f32::INFINITY);
+    let mut max = Vec3::splat(f32::NEG_INFINITY);
+    for corner in corners {
+        let world = world_from_local.transform_point3(Vec3::new(corner.x, corner.y, corner.z));
+        min = min.min(world);
+        max = max.max(world);
+    }
+    Some((min, max))
 }
 
 pub(crate) fn affine(transform: Transform3D) -> Affine3A {

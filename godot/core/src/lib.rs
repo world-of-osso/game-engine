@@ -37,6 +37,7 @@ pub mod character_model_data;
 pub mod client_options_data;
 #[cfg(test)]
 mod client_options_data_tests;
+pub mod combat_text_options;
 #[path = "game/equipment/component_file_data.rs"]
 mod component_file_data;
 pub mod cooldown_assist;
@@ -66,6 +67,8 @@ pub mod db2_cache;
 pub mod db2_source;
 #[cfg(test)]
 mod db2_test_support;
+#[path = "dispel_data.rs"]
+pub mod dispel_data;
 pub mod elastic_tree;
 #[path = "sound/footstep_data.rs"]
 pub mod footstep_data;
@@ -73,6 +76,7 @@ pub mod footstep_data;
 mod footstep_data_tests;
 #[path = "geoset_visibility_data.rs"]
 pub mod geoset_visibility_data;
+pub mod graphics_quality_data;
 pub mod ground_detail;
 #[path = "sound/ground_effect_data.rs"]
 pub mod ground_effect_data;
@@ -90,6 +94,7 @@ pub mod light_lookup_data;
 pub mod light_lookup_types;
 pub mod lighting_assets;
 pub mod liquid_data;
+pub mod liquid_lod_data;
 #[path = "game/state/loading_readiness.rs"]
 pub mod loading_readiness;
 pub mod m2;
@@ -150,6 +155,8 @@ pub use asset::m2_batch_data;
 mod cache_source_mtime;
 #[path = "cache_sqlite.rs"]
 mod cache_sqlite;
+pub mod foot_ik;
+pub mod ground_drape;
 #[path = "game/equipment/helmet_geoset_data.rs"]
 mod helmet_geoset_data;
 #[cfg(test)]
@@ -182,6 +189,7 @@ pub mod pet_autocast_shine_data;
 pub mod player_model_data;
 #[path = "player_physics_data.rs"]
 pub mod player_physics_data;
+pub mod render_surface;
 pub mod retail_fog;
 #[path = "rendering/lighting/retail_light_data.rs"]
 pub mod retail_light_data;

@@ -61,7 +61,7 @@ pub(crate) fn cpu_node_span(name: &'static str) -> Option<CpuNodeSpan> {
 }
 
 #[cfg(target_os = "linux")]
-fn thread_cpu_time() -> Option<Duration> {
+pub(crate) fn thread_cpu_time() -> Option<Duration> {
     let mut time = libc::timespec {
         tv_sec: 0,
         tv_nsec: 0,

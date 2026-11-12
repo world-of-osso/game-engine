@@ -8,22 +8,31 @@ extends SceneTree
 ##   walk   real key input: W runs forward for BENCH_WALK_S seconds (default 2), S backpedals
 ##          the same distance back (run 7 yd/s, backpedal 4.5 yd/s), repeatedly
 ## Environment: GODOT_TEST_SERVER, BENCH_ACCOUNT (password fbtest), BENCH_CHARACTER;
-## BENCH_SCREENSHOT=<png> saves the settled idle view before measuring.
+## BENCH_SCREENSHOT=<png> saves the idle view after its measured segment.
 ## BENCH_SCENERY_RECEIPT=<path> records real Stormwind visibility for comparison.
 ## Place the character with `game-server-admin set-position|teleport` while it is offline.
+## BENCH_SYSTEMS_S=<seconds> adds an `idle_systems` segment of that length that reads
+## `GameClient.frame_stats()` every frame and reports each client step's median and p95,
+## the same breakdown the Windows 120 FPS receipt reports as `top_systems_ms`, and its ten
+## longest frames (`worst_frames`). This script's `_process` runs before the nodes', so
+## each interval pairs with the client steps of the frame it timed.
 ## Each segment prints `BENCH_MARK <segment> start|end` (for an external profiler) and
 ## `BENCH_SEGMENT {json}`: wall-clock frame interval percentiles, per-frame means of the
-## client's own process time and the viewport's render CPU time, and the means of Godot's
-## TIME_PROCESS/TIME_PHYSICS_PROCESS monitors (each the longest step of the last second),
-## the viewport's GPU render time, and the main thread's on-CPU time per frame
-## (/proc/thread-self/schedstat), so a frame splits into main-thread work and waiting.
-## Run with Godot's --gpu-profile and `render_areas` adds the mean CPU ms per frame of each
-## renderer timestamp area (the time until the next timestamp), the 15 largest.
+## client's own process time, Godot's TIME_PROCESS/TIME_PHYSICS_PROCESS monitors (each the
+## longest step of the last second) and the main thread's on-CPU time
+## (/proc/thread-self/schedstat), so a frame splits into main-thread work and waiting; the
+## viewport's render CPU/GPU time and draw calls are read once, for the segment's last frame;
+## `threads` is the main and render threads' CPU and wait per frame (thread_cpu_split.gd);
+## `rebuilds_per_frame`, `rebuild_sites` and `godot_per_frame` are the segment's expensive
+## rebuilds and Godot allocation counts (rebuild_guard.gd).
 ## Reports only; frame-time budgets are not asserted (they depend on host load).
 
 const PASSWORD := "fbtest"
 const Readiness = preload("res://tests/world_entry_readiness.gd")
+const CharacterSelectReveal = preload("res://tests/character_select_reveal.gd")
 const SceneryReceipt = preload("res://tests/scenery_visibility_receipt.gd")
+const ThreadCpuSplit = preload("res://tests/thread_cpu_split.gd")
+const RebuildGuard = preload("res://tests/rebuild_guard.gd")
 const PITCH := -0.35
 const DISTANCE := 15.0
 ## Noon in the half-minutes the world light samples.
@@ -39,13 +48,17 @@ var intervals: Array[float] = []
 var client_ms: Array[float] = []
 var process_ms: Array[float] = []
 var physics_ms: Array[float] = []
-var render_ms: Array[float] = []
-var draw_calls: Array[float] = []
-var shadow_draw_calls: Array[float] = []
-var gpu_ms: Array[float] = []
 var main_cpu_ms: Array[float] = []
 var last_cpu_ns := 0
-var area_ms := {}
+var systems_ms := {}
+## Node callbacks (`nodes_ms`), which run outside the client steps: animation players,
+## material animation and M2 lights. The Windows receipt reports the same rows.
+var nodes_ms := {}
+## Per frame of a systems segment: [interval ms, client ms, main-thread CPU ms, steps].
+var system_frames: Array = []
+var recording_systems := false
+var thread_split := ThreadCpuSplit.new()
+var rebuild_guard := RebuildGuard.new()
 
 func _initialize() -> void:
 	call_deferred("run_test")
@@ -59,20 +72,24 @@ func _process(_delta: float) -> bool:
 		client_ms.append(client.process_ms())
 		process_ms.append(Performance.get_monitor(Performance.TIME_PROCESS) * 1000.0)
 		physics_ms.append(Performance.get_monitor(Performance.TIME_PHYSICS_PROCESS) * 1000.0)
-		render_ms.append(RenderingServer.viewport_get_measured_render_time_cpu(root.get_viewport_rid())
-			+ RenderingServer.get_frame_setup_time_cpu())
-		draw_calls.append(Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME))
-		shadow_draw_calls.append(root.get_render_info(Viewport.RENDER_INFO_TYPE_SHADOW,
-			Viewport.RENDER_INFO_DRAW_CALLS_IN_FRAME))
-		gpu_ms.append(RenderingServer.viewport_get_measured_render_time_gpu(root.get_viewport_rid()))
 		main_cpu_ms.append((cpu_ns - last_cpu_ns) / 1e6)
-		add_render_areas()
+		if recording_systems:
+			var stats: Dictionary = client.frame_stats()
+			for name in stats.systems_ms:
+				if not systems_ms.has(name):
+					systems_ms[name] = [] as Array[float]
+				systems_ms[name].append(stats.systems_ms[name])
+			for name in stats.nodes_ms:
+				if not nodes_ms.has(name):
+					nodes_ms[name] = [] as Array[float]
+				nodes_ms[name].append(stats.nodes_ms[name])
+			system_frames.append([intervals.back(), client_ms.back(), main_cpu_ms.back(), stats.systems_ms])
 	last_usec = now
 	last_cpu_ns = cpu_ns
 	return false
 
 func run_test() -> void:
-	root.size = Vector2i(1280, 720)
+	root.size = parse_resolution(OS.get_environment("BENCH_RESOLUTION"))
 	var server := OS.get_environment("GODOT_TEST_SERVER")
 	var account := OS.get_environment("BENCH_ACCOUNT")
 	var character := OS.get_environment("BENCH_CHARACTER")
@@ -118,16 +135,22 @@ func run_test() -> void:
 	var spawn := Vector2(player.position.x, player.position.z)
 	print("BENCH_SCENE ", JSON.stringify({"character": character, "spawn": [spawn.x, spawn.y],
 		"objects": client.account_state().world_objects, "load": load_average()}))
-	if OS.get_environment("BENCH_SCREENSHOT") != "":
-		await RenderingServer.frame_post_draw
-		root.get_texture().get_image().save_png(OS.get_environment("BENCH_SCREENSHOT"))
 	if OS.get_environment("BENCH_NODES") == "1":
 		print("BENCH_NODES ", JSON.stringify(node_census(root)))
 	await measure("idle", segment_s, func(_t: float): pass)
+	# After a measured segment, not on the first settled frame: the loading fade and the
+	# world light both finish within those seconds, and their overlay would otherwise be
+	# the captured frame.
+	if OS.get_environment("BENCH_SCREENSHOT") != "":
+		await RenderingServer.frame_post_draw
+		root.get_texture().get_image().save_png(OS.get_environment("BENCH_SCREENSHOT"))
+	var systems_s := OS.get_environment("BENCH_SYSTEMS_S")
+	if systems_s != "":
+		await measure("idle_systems", float(systems_s), func(_t: float): pass, true)
 	await measure("orbit", segment_s, func(t: float):
 		client.set_camera_orbit(yaw + TAU * t / segment_s, PITCH, DISTANCE))
 	client.set_camera_orbit(yaw, PITCH, DISTANCE)
-	begin("walk")
+	await begin("walk")
 	var started := Time.get_ticks_msec()
 	var legs := 0
 	var travelled := 0.0
@@ -140,7 +163,7 @@ func run_test() -> void:
 		push_key(key, false)
 		travelled += from.distance_to(Vector2(player.position.x, player.position.z))
 		legs += 1
-	finish("walk", {"legs": legs, "travelled_yd": travelled})
+	await finish("walk", {"legs": legs, "travelled_yd": travelled})
 	if travelled < legs * walk_s * RUN_SPEED * 0.5:
 		fail("Walk covered %.1f yd in %d legs; the character is blocked" % [travelled, legs])
 		return
@@ -148,25 +171,32 @@ func run_test() -> void:
 	client.free()
 	quit(0)
 
-func measure(segment: String, seconds: float, step: Callable) -> void:
-	begin(segment)
+func measure(segment: String, seconds: float, step: Callable, with_systems := false) -> void:
+	await begin(segment, with_systems)
 	var started := Time.get_ticks_msec()
 	while Time.get_ticks_msec() - started < seconds * 1000.0:
 		step.call((Time.get_ticks_msec() - started) / 1000.0)
 		await process_frame
-	finish(segment, {})
+	await finish(segment, {})
 
-func begin(segment: String) -> void:
-	for samples in [intervals, client_ms, process_ms, physics_ms, render_ms, draw_calls, shadow_draw_calls, gpu_ms, main_cpu_ms]:
+func begin(segment: String, with_systems := false) -> void:
+	for samples in [intervals, client_ms, process_ms, physics_ms, main_cpu_ms]:
 		samples.clear()
-	area_ms.clear()
+	systems_ms.clear()
+	nodes_ms.clear()
+	system_frames.clear()
+	recording_systems = with_systems
+	await thread_split.start(self)
+	rebuild_guard.start(self)
 	print("BENCH_MARK %s start" % segment)
 	recording = true
 	last_usec = 0
 
 func finish(segment: String, extra: Dictionary) -> void:
 	recording = false
+	var rebuilds := rebuild_guard.finish()
 	print("BENCH_MARK %s end" % segment)
+	var threads := await thread_split.finish(self)
 	var sorted := intervals.duplicate()
 	sorted.sort()
 	var report := {
@@ -175,30 +205,66 @@ func finish(segment: String, extra: Dictionary) -> void:
 		"p99_ms": percentile(sorted, 0.99), "max_ms": sorted.back() if not sorted.is_empty() else 0.0,
 		"mean_ms": mean(intervals), "client_process_ms": mean(client_ms),
 		"godot_process_max_1s_ms": mean(process_ms), "physics_max_1s_ms": mean(physics_ms),
-		"render_cpu_ms": mean(render_ms), "draw_calls": mean(draw_calls),
-		"shadow_draw_calls": mean(shadow_draw_calls), "load": load_average(),
-		"render_gpu_ms": mean(gpu_ms), "main_thread_cpu_ms": mean(main_cpu_ms),
+		"load": load_average(), "main_thread_cpu_ms": mean(main_cpu_ms),
 	}
-	if not area_ms.is_empty():
-		var names := area_ms.keys()
-		names.sort_custom(func(a, b): return area_ms[a] > area_ms[b])
-		var areas := {}
-		for name in names.slice(0, 15):
-			areas[name] = area_ms[name] / sorted.size()
-		report["render_areas"] = areas
+	# Render-server reads synchronize with the render thread; one read of the last
+	# frame per segment keeps them out of the measured frames.
+	var viewport := root.get_viewport_rid()
+	report["render_cpu_ms"] = RenderingServer.viewport_get_measured_render_time_cpu(viewport) \
+		+ RenderingServer.get_frame_setup_time_cpu()
+	report["render_gpu_ms"] = RenderingServer.viewport_get_measured_render_time_gpu(viewport)
+	report["draw_calls"] = Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME)
+	report["shadow_draw_calls"] = root.get_render_info(Viewport.RENDER_INFO_TYPE_SHADOW,
+		Viewport.RENDER_INFO_DRAW_CALLS_IN_FRAME)
+	if recording_systems:
+		report["systems_ms_median"] = per_system(systems_ms, 0.5)
+		report["systems_ms_p95"] = per_system(systems_ms, 0.95)
+		report["nodes_ms_median"] = per_system(nodes_ms, 0.5)
+		report["nodes_ms_p95"] = per_system(nodes_ms, 0.95)
+		report["worst_frames"] = worst_frames(10, 5)
+	report["threads"] = threads
+	report.merge(rebuilds)
 	report.merge(extra)
 	print("BENCH_SEGMENT ", JSON.stringify(report))
 
-## CPU ms between consecutive renderer timestamps of the last captured frame, per area.
-func add_render_areas() -> void:
-	var device := RenderingServer.get_rendering_device()
-	var count := device.get_captured_timestamps_count() if device != null else 0
-	for i in range(count - 1):
-		var name := device.get_captured_timestamp_name(i)
-		if name.begins_with("<") or name.begins_with(">"):
-			continue
-		var ms := (device.get_captured_timestamp_cpu_time(i + 1) - device.get_captured_timestamp_cpu_time(i)) / 1000.0
-		area_ms[name] = area_ms.get(name, 0.0) + ms
+## Median (or nearest-rank percentile) of each client step, largest first.
+func per_system(samples: Dictionary, fraction: float) -> Dictionary:
+	var values := {}
+	for name in samples:
+		var sorted: Array[float] = samples[name].duplicate()
+		sorted.sort()
+		values[name] = percentile(sorted, fraction)
+	var names := values.keys()
+	names.sort_custom(func(a, b): return values[a] > values[b])
+	var ordered := {}
+	for name in names:
+		ordered[name] = values[name]
+	return ordered
+
+## The `count` longest frames of a systems segment, each with its client and main-thread
+## CPU ms and its `steps` largest client steps: a long frame whose client steps are small
+## spent its time outside the client (render sync, engine work, preemption).
+func worst_frames(count: int, steps: int) -> Array:
+	var frames := system_frames.duplicate()
+	frames.sort_custom(func(a, b): return a[0] > b[0])
+	var worst := []
+	for frame in frames.slice(0, count):
+		var times: Dictionary = frame[3]
+		var names := times.keys()
+		names.sort_custom(func(a, b): return times[a] > times[b])
+		var top := {}
+		for name in names.slice(0, steps):
+			top[name] = times[name]
+		worst.append({"interval_ms": frame[0], "client_ms": frame[1],
+			"main_thread_cpu_ms": frame[2], "top_steps_ms": top})
+	return worst
+
+## `WIDTHxHEIGHT`; the receipt poses use 1920x1080.
+func parse_resolution(text: String) -> Vector2i:
+	var parts := text.split("x")
+	if parts.size() != 2:
+		return Vector2i(1280, 720)
+	return Vector2i(int(parts[0]), int(parts[1]))
 
 ## Per class: nodes, nodes with process/physics process enabled, visible 3D nodes.
 func node_census(top: Node) -> Dictionary:
@@ -249,7 +315,13 @@ func enter_world(character: String) -> bool:
 	if ui == null:
 		fail("No character select: " + str(client.account_state()))
 		return false
+	if not await CharacterSelectReveal.wait_for_reveal(self, client, "CharCard_0", character):
+		fail("Character select did not reveal")
+		return false
 	await click(ui.find_child("CharCard_0", true, false))
+	if not await CharacterSelectReveal.wait_for_reveal(self, client, "CharCard_0", character):
+		fail("Character select did not reveal after selection")
+		return false
 	var selected = ui.find_child("CharSelectCharacterName", true, false)
 	if selected.text != character:
 		fail("Card 0 is %s, not %s" % [selected.text, character])

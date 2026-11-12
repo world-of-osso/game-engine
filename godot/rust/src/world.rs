@@ -9,11 +9,11 @@ use std::{
 
 use crate::{
     animation::{ActionPriority, WowAnimationPlayer, lod::AnimationLod},
-    assets::uv_animation::WowMaterialAnimation,
+    assets::{creature::CreatureBuild, uv_animation::WowMaterialAnimation},
     lighting::TerrainLight,
     particles::{ParticlePools, PlacedParticles, view_basis},
     world_models::{
-        UnitAppearance, VisualParts, WorldModels, bind_visual_light, place_items,
+        BuildStep, UnitAppearance, VisualParts, WorldModels, bind_visual_light, place_items,
         place_virtual_items,
     },
 };
@@ -60,8 +60,10 @@ mod unit_transform_fixture;
 mod vehicle_fixture;
 use combat::MeleeWeapon;
 
-/// Main-thread time per frame for attaching loaded unit visuals.
-const VISUAL_BUDGET: Duration = Duration::from_millis(8);
+/// Main-thread time per frame for attaching loaded unit visuals: the headroom of a 120 FPS
+/// frame (8.33 ms) over the outdoor Stormwind frame of the Windows receipt (about 5 ms,
+/// receipt 8dbd048df), less a margin, so a frame that attaches stays under it.
+const VISUAL_BUDGET: Duration = Duration::from_millis(2);
 
 /// Unit node metadata: the replicated name (Godot renames duplicate siblings `@Node3D@N`).
 const UNIT_NAME_META: &str = "unit_name";
@@ -76,9 +78,13 @@ struct UnitNode {
     visual: Option<Gd<Node3D>>,
     /// The parts of `visual` its animation LOD reads every frame.
     lod_target: Option<LodTarget>,
-    /// Whether portal visibility admitted the unit to the camera when its subtree was
-    /// last refreshed; `None` once new geometry needs it applied.
-    camera_admitted: Option<bool>,
+    /// `visual`'s model and its merged mesh bounds, read when the visual is attached:
+    /// walking the model's mesh children costs more than the whole cull that reads it.
+    model_bounds: Option<ModelBounds>,
+    /// Whether portal visibility admitted the unit to the camera, and whether it stood
+    /// within the unit shadow radius, when its subtree was last refreshed; `None` once
+    /// new geometry needs them applied.
+    admission: Option<(bool, bool)>,
     /// Visual request still loading and the sheath state its virtual items are placed
     /// for; `visual` shows the previous appearance until it arrives.
     loading: Option<(u64, SheathState)>,
@@ -118,9 +124,40 @@ struct UnitNode {
     /// The pose clip `stand_state` holds while the player stands still; cleared when it
     /// moves (the server stands it up).
     stand_anim: Option<u16>,
+    /// Client-side foot IK blend and smoothed ground targets.
+    foot_ik: crate::foot_ik::FootIkState,
     /// A player's mount (replicated `Mounted`), which its visual rides.
     mount: Option<mount::UnitMount>,
     passenger: Option<mount::UnitPassenger>,
+    driver_movement: Option<shared::components::VehicleDriverMovement>,
+}
+
+/// A unit visual's model node with the merged bounds of its mesh children, in model
+/// space. `mesh_bounds` walks every child through the Godot API, so it is read when the
+/// visual (or its equipment placement) changes, not on every frame that culls the unit.
+struct ModelBounds {
+    model: Gd<Node3D>,
+    bounds: Aabb,
+}
+
+/// The model node of `visual` and the merged mesh bounds of its children.
+fn model_bounds_of(visual: &Gd<Node3D>) -> Option<ModelBounds> {
+    let model = visual
+        .try_get_node_as::<Node3D>("NpcModel")
+        .or_else(|| visual.try_get_node_as::<Node3D>("PlayerModel"))?;
+    let bounds = crate::world_models::mesh_bounds(&model);
+    Some(ModelBounds { model, bounds })
+}
+
+/// The world box of `bounds` placed by its model's current transform.
+fn model_world_box(bounds: &ModelBounds) -> (Vec3, Vec3) {
+    let to_glam = |v: Vector3| Vec3::new(v.x, v.y, v.z);
+    SceneryDistance::new(
+        to_glam(bounds.bounds.position),
+        to_glam(bounds.bounds.end()),
+        crate::terrain::objects::affine(bounds.model.get_global_transform()),
+    )
+    .world_bounds()
 }
 
 /// An NPC visual's model, animations and merged mesh bounds, looked up on attachment.
@@ -132,8 +169,7 @@ struct LodTarget {
 }
 
 impl LodTarget {
-    fn of(visual: &Gd<Node3D>) -> Option<Self> {
-        let model = visual.try_get_node_as::<Node3D>("NpcModel")?;
+    fn of(model: Gd<Node3D>, bounds: Aabb) -> Option<Self> {
         let animation = model.try_get_node_as::<WowAnimationPlayer>("M2Animation");
         let materials = model.try_get_node_as::<WowMaterialAnimation>("M2MaterialAnimation");
         if animation.is_none() && materials.is_none() {
@@ -142,26 +178,42 @@ impl LodTarget {
         Some(Self {
             animation,
             materials,
-            bounds: crate::world_models::mesh_bounds(&model),
+            bounds,
             model,
         })
     }
 }
 
 impl UnitNode {
+    /// New geometry under the unit: admission and the shadow fade must be applied again.
+    fn geometry_changed(&mut self) {
+        self.admission = None;
+    }
+
     /// Frees the current visual and shows `visual` (already in the tree) instead.
     fn replace_visual(&mut self, visual: Option<Gd<Node3D>>) {
         if let Some(previous) = self.visual.take() {
             previous.free();
         }
+        self.foot_ik = Default::default();
         // The emitters were placed on the previous visual's model and item nodes.
         self.particles = None;
         self.item_particles.clear();
         self.ribbons = None;
         self.item_ribbons.clear();
-        self.lod_target = visual.as_ref().and_then(LodTarget::of);
+        let npc_model = visual
+            .as_ref()
+            .and_then(|visual| visual.try_get_node_as::<Node3D>("NpcModel"));
+        self.model_bounds = visual.as_ref().and_then(model_bounds_of);
+        self.lod_target = npc_model.and_then(|model| {
+            let bounds = self
+                .model_bounds
+                .as_ref()
+                .filter(|bounds| bounds.model == model)?;
+            LodTarget::of(model, bounds.bounds)
+        });
         self.visual = visual;
-        self.camera_admitted = None;
+        self.geometry_changed();
     }
 }
 
@@ -349,7 +401,8 @@ fn spawn_unit(
         appearance: None,
         visual: None,
         lod_target: None,
-        camera_admitted: None,
+        model_bounds: None,
+        admission: None,
         loading: None,
         visual_player_model: None,
         death_applied: false,
@@ -370,8 +423,10 @@ fn spawn_unit(
         emote: None,
         stand_state: None,
         stand_anim: None,
+        foot_ik: Default::default(),
         mount: None,
         passenger: None,
+        driver_movement: None,
     }
 }
 
@@ -588,11 +643,13 @@ fn attach_unit_visual(
     unit: &mut UnitNode,
     server_id: u64,
     loaded: Result<VisualParts, String>,
+    built: Option<Gd<Node3D>>,
     sheath: SheathState,
     models: &WorldModels,
     light: Option<&TerrainLight>,
     particles: Option<&mut ParticlePools>,
 ) {
+    crate::rebuild_guard::world_event();
     let ribbon_models = loaded
         .as_ref()
         .ok()
@@ -609,9 +666,15 @@ fn attach_unit_visual(
     let preserve_playback = unit.visual.is_some()
         && unit.visual_player_model.is_some()
         && unit.visual_player_model == appearance.player_model();
+    let span = crate::profile::span(|| "unit.build_visual".to_owned());
     let replacement = loaded.and_then(|parts| {
-        models.build_visual(parts, unit.visual.as_ref().filter(|_| preserve_playback))
+        models.build_world_visual(
+            parts,
+            unit.visual.as_ref().filter(|_| preserve_playback),
+            built,
+        )
     });
+    drop(span);
     unit.animation = None;
     // A creature's load places its virtual items for `sheath`; a player's weapons are
     // placed by the sheath sync that follows the attach.
@@ -619,12 +682,19 @@ fn attach_unit_visual(
     unit.replace_visual(None);
     match replacement {
         Ok(visual) => {
+            let span = crate::profile::span(|| "unit.pick_area".to_owned());
             if let Err(error) = crate::targeting::attach_pick_area(&visual, server_id) {
                 godot_error!("{error}");
             }
+            drop(span);
+            let span = crate::profile::span(|| "unit.bind_light".to_owned());
             bind_visual_light(&visual, light);
+            drop(span);
+            let span = crate::profile::span(|| "unit.add_child".to_owned());
             unit.node.add_child(&visual);
             unit.replace_visual(Some(visual.clone()));
+            drop(span);
+            let _span = crate::profile::span(|| "unit.effects".to_owned());
             if let Some(pools) = particles {
                 if let Some((creature, items)) = ribbon_models {
                     if let (Some(source), Some(model)) =
@@ -1009,6 +1079,8 @@ fn sync_unit_sheath(unit: &mut UnitNode, snapshot: Unit, models: &mut WorldModel
     if let Err(error) = placed {
         godot_error!("Unit {} {sheath:?}: {error}", snapshot.server_id);
     }
+    // Placing items reparents the model's equipment meshes, so its merged bounds move.
+    unit.model_bounds = unit.visual.as_ref().and_then(model_bounds_of);
 }
 
 fn sync_unit_animation(unit: &mut UnitNode, snapshot: Unit, fallbacks: &HashMap<u16, u16>) {
@@ -1110,6 +1182,8 @@ impl LocalVisualMonitor {
 
 pub struct WorldUnits {
     root: Option<Gd<Node3D>>,
+    /// The camera and radius last set for the M2 shader's unit shadow fade.
+    shadow_view: Option<(Vec3, f32)>,
     /// `AnimationData.Fallback`, loaded on first use.
     anim_fallbacks: Option<HashMap<u16, u16>>,
     mount_special_catalog: Option<game_engine_core::mount_special::MountSpecialCatalog>,
@@ -1119,10 +1193,15 @@ pub struct WorldUnits {
     units: HashMap<u64, UnitNode>,
     selected_name: Option<String>,
     local_player_id: Option<u64>,
+    /// `ControlUpdate`: the unit this client controls instead of its player body.
+    controlled_unit: Option<u64>,
     local_visual_monitor: LocalVisualMonitor,
     models: WorldModels,
     /// Loaded visuals waiting for main-thread time, oldest first.
     arrived: VecDeque<(u64, Result<VisualParts, String>)>,
+    /// Creature visuals built in parts, or waiting for the template such a visual makes,
+    /// in arrival order (`attach_loaded_visuals`).
+    staged: VecDeque<Staged>,
     light: Option<TerrainLight>,
     /// Units whose death clip started since `take_deaths`.
     deaths: Vec<u64>,
@@ -1132,6 +1211,19 @@ pub struct WorldUnits {
     /// Creature model particle emitters, when particle effects are enabled.
     particles: Option<ParticlePools>,
 }
+
+/// Inside this camera distance a unit's feet sample the ground every frame.
+///
+/// INFERRED, not retail-verified: the retail client does not name foot IK anywhere in the
+/// surveyed images, while it does have a per-instance animation LOD and the
+/// `animFrameSkipLOD` ("animations will skip frames at distance") distance rule, so a
+/// distance-cadenced solve is retail-consistent rather than retail-proven. Retune from
+/// measurement: at 1080p a 1.9 yd body is ~180 px at 12 yd and ~47 px at 45 yd, so the
+/// stride below costs a distant foot well under a pixel of ground lag. Retire these two
+/// values once the retail foot IK LOD distances are located in the decomp.
+const FOOT_IK_NEAR_QUERY_RANGE: f32 = 12.0;
+/// Inside this camera distance they sample every other frame; farther, every third.
+const FOOT_IK_MID_QUERY_RANGE: f32 = 25.0;
 
 impl WorldUnits {
     pub fn new(data_root: PathBuf) -> Self {
@@ -1144,9 +1236,12 @@ impl WorldUnits {
             units: HashMap::new(),
             selected_name: None,
             local_player_id: None,
+            controlled_unit: None,
+            shadow_view: None,
             local_visual_monitor: LocalVisualMonitor::default(),
             models: WorldModels::new(data_root),
             arrived: VecDeque::new(),
+            staged: VecDeque::new(),
             light: None,
             deaths: Vec::new(),
             detached: Vec::new(),
@@ -1220,22 +1315,14 @@ impl WorldUnits {
             {
                 continue;
             }
-            let Some(model) = unit.visual.as_ref().and_then(|visual| {
-                visual
-                    .try_get_node_as::<Node3D>("NpcModel")
-                    .or_else(|| visual.try_get_node_as::<Node3D>("PlayerModel"))
-            }) else {
+            let Some(bounds) = unit.model_bounds.as_ref() else {
                 continue;
             };
-            let bounds = crate::world_models::mesh_bounds(&model);
-            let to_glam = |v: Vector3| Vec3::new(v.x, v.y, v.z);
-            let in_frustum = unit.node.is_visible_in_tree()
-                && SceneryDistance::new(
-                    to_glam(bounds.position),
-                    to_glam(bounds.end()),
-                    crate::terrain::objects::affine(model.get_global_transform()),
-                )
-                .box_in_frustum(frustum);
+            let model = bounds.model.clone();
+            let in_frustum = unit.node.is_visible_in_tree() && {
+                let (min, max) = model_world_box(bounds);
+                crate::terrain::scenery::box_in_frustum(min, max, frustum)
+            };
             if let Some(placed) = unit.particles.as_mut() {
                 if in_frustum {
                     placed.update_and_draw(&model, delta, 1.0, &view, pools);
@@ -1368,6 +1455,9 @@ impl WorldUnits {
         unit.node.set_scale(Vector3::ONE * scale);
         unit.is_player = snapshot.has::<Player>();
         unit.player_motion = snapshot.get::<PlayerMotion>().copied();
+        unit.driver_movement = snapshot
+            .get::<shared::components::VehicleDriverMovement>()
+            .copied();
         unit.life_state = snapshot.get::<DeathState>().copied();
         unit.in_combat = snapshot
             .get::<CombatStatus>()
@@ -1416,86 +1506,194 @@ impl WorldUnits {
         );
     }
 
-    /// Attach arrived visuals within `VISUAL_BUDGET` of main-thread time (at least one
-    /// per frame), each brought up to its unit's snapshot.
+    /// Attach arrived visuals within `VISUAL_BUDGET` of main-thread time (at least one step
+    /// per frame), each brought up to its unit's snapshot. A creature visual no template
+    /// makes yet is built in parts, one per frame (`Stage`), and becomes its template
+    /// before it attaches; arrivals sharing its template wait for it.
     pub fn attach_loaded_visuals(&mut self, replica: &Replica) {
         self.arrived.extend(self.models.poll());
         let started = Instant::now();
-        while let Some((request, loaded)) = self.arrived.pop_front() {
-            if let Some(index) = self.detached.iter().position(|id| *id == request) {
-                self.detached.swap_remove(index);
-                self.detached_arrived.push((request, loaded));
-                continue;
-            }
-            if let Some(unit) = self.units.values_mut().find(|unit| {
-                unit.mount
-                    .as_ref()
-                    .is_some_and(|mount| mount.request == Some(request))
-            }) {
-                let mount = unit.mount.as_mut().expect("matched a mounted unit");
-                mount.request = None;
-                match loaded.and_then(|parts| self.models.build_visual(parts, None)) {
-                    Ok(model) => {
-                        bind_visual_light(&model, self.light.as_ref());
-                        unit.node.add_child(&model);
-                        mount.node = Some(model);
-                        unit.camera_admitted = None;
-                        mount::seat_rider(unit);
+        let mut queued = std::mem::take(&mut self.staged);
+        let mut advanced = VecDeque::new();
+        while started.elapsed() < VISUAL_BUDGET {
+            if let Some(staged) = queued.pop_front() {
+                let waits = matches!(staged.stage, Stage::Waiting)
+                    && advanced.iter().chain(&queued).any(|other: &Staged| {
+                        !matches!(other.stage, Stage::Waiting) && other.shares_template(&staged)
+                    });
+                if waits {
+                    advanced.push_back(staged);
+                } else {
+                    advanced.extend(self.advance_staged(staged, replica));
+                }
+            } else if let Some((request, loaded)) = self.arrived.pop_front() {
+                match loaded {
+                    Ok(parts) if self.unit_loading(request) && self.models.needs_build(&parts) => {
+                        let staged = Staged {
+                            request,
+                            parts,
+                            stage: Stage::Queued,
+                        };
+                        let waits = advanced.iter().any(|other| other.shares_template(&staged));
+                        advanced.push_back(Staged {
+                            stage: if waits { Stage::Waiting } else { Stage::Queued },
+                            ..staged
+                        });
                     }
-                    Err(error) => {
-                        godot_error!("Mount of {}: {error}", unit.name);
-                    }
+                    loaded => self.attach_arrived(request, loaded, None, replica),
                 }
-                continue;
-            }
-            let loading = self
-                .units
-                .iter_mut()
-                .find(|(_, unit)| unit.loading.is_some_and(|(pending, _)| pending == request));
-            let Some((&id, unit)) = loading else {
-                // A superseded request, or its unit is gone.
-                if let Ok(parts) = loaded {
-                    self.models.discard(parts);
-                }
-                continue;
-            };
-            let (_, sheath) = unit.loading.take().expect("matched a loading unit");
-            let prepared_result_ok = loaded.is_ok();
-            let existing_visual = unit.visual.is_some();
-            let pools = self.particles.as_mut().map(|pools| {
-                if let Some(root) = self.root.as_mut() {
-                    pools.attach(root);
-                }
-                pools
-            });
-            attach_unit_visual(
-                unit,
-                id,
-                loaded,
-                sheath,
-                &self.models,
-                self.light.as_ref(),
-                pools,
-            );
-            log_visual_result(unit, id, request, existing_visual, prepared_result_ok);
-            if let Some(snapshot) = replica.unit(id) {
-                sync_unit_pick_selectability(unit, snapshot);
-                // Every visual load read the gear rows, so the weapon and pose resolve now.
-                if let Some(class) = combat::unit_weapon_class(unit, &self.models) {
-                    (unit.weapon, unit.main_hand_subclass) = class;
-                }
-                sync_unit_pose(unit, snapshot, &mut self.models);
-                sync_player_stand_state(unit, snapshot, &mut self.models);
-                sync_unit_sheath(unit, snapshot, &mut self.models);
-                if sync_unit_death(unit, snapshot) {
-                    self.deaths.push(id);
-                }
-                let fallbacks = combat::load_fallbacks(&mut self.anim_fallbacks, &self.data_root);
-                sync_unit_animation(unit, snapshot, fallbacks);
-            }
-            if started.elapsed() >= VISUAL_BUDGET {
+            } else {
                 break;
             }
+        }
+        advanced.extend(queued);
+        self.staged = advanced;
+    }
+
+    fn unit_loading(&self, request: u64) -> bool {
+        self.units
+            .values()
+            .any(|unit| unit.loading.is_some_and(|(pending, _)| pending == request))
+    }
+
+    /// One step of `staged`, which returns unless it attached, failed or its unit no
+    /// longer waits for it.
+    fn advance_staged(&mut self, staged: Staged, replica: &Replica) -> Option<Staged> {
+        let Staged {
+            request,
+            mut parts,
+            stage,
+        } = staged;
+        if !self.unit_loading(request) {
+            stage.free();
+            self.attach_arrived(request, Ok(parts), None, replica);
+            return None;
+        }
+        let next = match stage {
+            Stage::Waiting if self.models.needs_build(&parts) => Ok(Stage::Queued),
+            Stage::Waiting => {
+                self.attach_arrived(request, Ok(parts), None, replica);
+                return None;
+            }
+            Stage::Queued => self.models.start_build(&mut parts).map(Stage::Building),
+            Stage::Building(build) => {
+                self.models
+                    .continue_build(&parts, build)
+                    .map(|step| match step {
+                        BuildStep::Building(build) => Stage::Building(build),
+                        BuildStep::Built(visual) => Stage::Built(visual),
+                    })
+            }
+            Stage::Built(visual) => match self.models.make_template(&parts, &visual) {
+                Ok(()) => Ok(Stage::Templated(visual)),
+                Err(error) => {
+                    visual.free();
+                    Err(error)
+                }
+            },
+            Stage::Templated(visual) => {
+                self.attach_arrived(request, Ok(parts), Some(visual), replica);
+                return None;
+            }
+        };
+        match next {
+            Ok(stage) => Some(Staged {
+                request,
+                parts,
+                stage,
+            }),
+            Err(error) => {
+                self.models.discard(parts);
+                self.attach_arrived(request, Err(error), None, replica);
+                None
+            }
+        }
+    }
+
+    /// Attaches the arrived visual of `request` to its mount, its detached request or its
+    /// unit, and brings the unit up to its snapshot.
+    fn attach_arrived(
+        &mut self,
+        request: u64,
+        loaded: Result<VisualParts, String>,
+        built: Option<Gd<Node3D>>,
+        replica: &Replica,
+    ) {
+        if let Some(index) = self.detached.iter().position(|id| *id == request) {
+            self.detached.swap_remove(index);
+            self.detached_arrived.push((request, loaded));
+            return;
+        }
+        if let Some(unit) = self.units.values_mut().find(|unit| {
+            unit.mount
+                .as_ref()
+                .is_some_and(|mount| mount.request == Some(request))
+        }) {
+            let mount = unit.mount.as_mut().expect("matched a mounted unit");
+            mount.request = None;
+            match loaded.and_then(|parts| self.models.build_world_visual(parts, None, None)) {
+                Ok(model) => {
+                    bind_visual_light(&model, self.light.as_ref());
+                    unit.node.add_child(&model);
+                    mount.bounds = model_bounds_of(&model);
+                    mount.node = Some(model);
+                    unit.geometry_changed();
+                    mount::seat_rider(unit);
+                }
+                Err(error) => {
+                    godot_error!("Mount of {}: {error}", unit.name);
+                }
+            }
+            return;
+        }
+        let loading = self
+            .units
+            .iter_mut()
+            .find(|(_, unit)| unit.loading.is_some_and(|(pending, _)| pending == request));
+        let Some((&id, unit)) = loading else {
+            // A superseded request, or its unit is gone.
+            if let Ok(parts) = loaded {
+                self.models.discard(parts);
+            }
+            if let Some(visual) = built {
+                visual.free();
+            }
+            return;
+        };
+        let (_, sheath) = unit.loading.take().expect("matched a loading unit");
+        let prepared_result_ok = loaded.is_ok();
+        let existing_visual = unit.visual.is_some();
+        let pools = self.particles.as_mut().map(|pools| {
+            if let Some(root) = self.root.as_mut() {
+                pools.attach(root);
+            }
+            pools
+        });
+        attach_unit_visual(
+            unit,
+            id,
+            loaded,
+            built,
+            sheath,
+            &self.models,
+            self.light.as_ref(),
+            pools,
+        );
+        log_visual_result(unit, id, request, existing_visual, prepared_result_ok);
+        if let Some(snapshot) = replica.unit(id) {
+            sync_unit_pick_selectability(unit, snapshot);
+            // Every visual load read the gear rows, so the weapon and pose resolve now.
+            if let Some(class) = combat::unit_weapon_class(unit, &self.models) {
+                (unit.weapon, unit.main_hand_subclass) = class;
+            }
+            sync_unit_pose(unit, snapshot, &mut self.models);
+            sync_player_stand_state(unit, snapshot, &mut self.models);
+            sync_unit_sheath(unit, snapshot, &mut self.models);
+            if sync_unit_death(unit, snapshot) {
+                self.deaths.push(id);
+            }
+            let fallbacks = combat::load_fallbacks(&mut self.anim_fallbacks, &self.data_root);
+            sync_unit_animation(unit, snapshot, fallbacks);
         }
     }
 
@@ -1555,9 +1753,27 @@ impl WorldUnits {
     }
 
     pub fn advance(&mut self, delta: f32) {
+        self.adopt_local_mover();
+        let mover = self.local_mover_id();
+        let driver_control = self
+            .local_player_id
+            .and_then(|id| self.units.get(&id))
+            .and_then(|unit| unit.motion.control);
         for (id, unit) in &mut self.units {
-            advance_unit_transform(unit, self.local_player_id == Some(*id), delta);
+            if mover == Some(*id) && self.local_player_id != mover {
+                // The NPC predicts input under its rider's epoch. The seated body
+                // still follows the server and its visual follows the M2 attachment.
+                unit.motion.control = driver_control.map(|control| MovementControl {
+                    controlled: false,
+                    ..control
+                });
+            }
+            let local = self.local_player_id == Some(*id) || mover == Some(*id);
+            advance_unit_transform(unit, local, delta);
             mount::seat_rider(unit);
+        }
+        if self.units.values().all(|unit| unit.passenger.is_none()) {
+            return;
         }
         let vehicles: HashMap<_, _> = self
             .units
@@ -1582,6 +1798,118 @@ impl WorldUnits {
     /// frame after animation time advances, so the jump start, loop and landing play out
     /// as the local player's do; unchanged flags neither restart a clip nor its crossfade.
     /// A model missing a clip is a client failure; the other players still animate.
+    /// Frames between foot IK ground queries at camera distance `distance`.
+    ///
+    /// Near units ask every frame. A foot 20 yd away covers a couple of pixels, so its
+    /// ground is resampled every other frame and a far one every third; the solve and the
+    /// blend still run every frame, so the pose never pops.
+    fn foot_ik_query_stride(distance: f32) -> u64 {
+        if distance <= FOOT_IK_NEAR_QUERY_RANGE {
+            1
+        } else if distance <= FOOT_IK_MID_QUERY_RANGE {
+            2
+        } else {
+            3
+        }
+    }
+
+    /// Applies client-side foot IK to every displayed unit in `range` of the camera.
+    ///
+    /// Only bone poses change; the unit node, its collision capsule and the server position
+    /// stay where they are. Airborne, swimming and flying units fade the solve out, and a
+    /// creature whose model has no foot attachment rig is skipped.
+    pub(crate) fn update_foot_ik(
+        &mut self,
+        frame: u64,
+        delta: f32,
+        camera: Vec3,
+        local_enabled: bool,
+        range: f32,
+        ground_epoch: u64,
+        terrain: &crate::terrain::streaming::StreamedTerrain,
+        surfaces: &mut crate::terrain::objects::TerrainObjects,
+        collision_floor: &dyn Fn(Vec3) -> Option<f32>,
+    ) {
+        for (id, unit) in &mut self.units {
+            let position = unit.node.get_global_position();
+            let distance = Vec3::new(position.x, position.y, position.z).distance(camera);
+            if distance > range {
+                continue;
+            }
+            // Ground queries are the whole cost of the step, and a distant foot is a few
+            // pixels wide: it reuses the surface it last found for a frame or two while
+            // near units still ask every frame. The stride is per unit, so distant units
+            // do not all query on the same frame.
+            let stride = Self::foot_ik_query_stride(distance);
+            let query_ground = stride == 1 || (frame + *id) % stride == 0;
+            let Some(mut animation) = unit.animation_player() else {
+                continue;
+            };
+            let (rig, skeleton) = {
+                let mut player = animation.bind_mut();
+                // A pose the animation did not sample this frame is the one the last solve
+                // left: the feet are already planted, and rewriting the sampled pose to
+                // solve it again would only repeat last frame's work.
+                if !player.samples_poses() {
+                    continue;
+                }
+                // Last frame's solve must not become this frame's authored pose.
+                if player.pose_stale() {
+                    player.restore_sampled_pose();
+                }
+                let (Some(rig), Some(skeleton)) = (player.leg_rig(), player.skeleton()) else {
+                    continue;
+                };
+                (rig, skeleton)
+            };
+            let enabled = if self.local_player_id == Some(*id) {
+                local_enabled
+            } else if unit.death_applied {
+                false
+            } else {
+                unit.player_motion.is_none_or(|motion| {
+                    !motion.contains(
+                        shared::components::PlayerMotion::FALLING
+                            | shared::components::PlayerMotion::SWIMMING
+                            | shared::components::PlayerMotion::FLYING
+                            | shared::components::PlayerMotion::ADV_FLYING,
+                    )
+                })
+            };
+            let anchor = position.y;
+            let floor_at = |x: f32, z: f32| {
+                terrain
+                    .height_at(x, z)
+                    .into_iter()
+                    .chain(collision_floor(Vec3::new(x, anchor, z)))
+                    .max_by(f32::total_cmp)
+            };
+            let mut surface_at = |x: f32, z: f32, ceiling: f32, floor: f32| {
+                surfaces.visible_surface(
+                    terrain.height_at(x, z),
+                    x,
+                    z,
+                    floor,
+                    ceiling - floor,
+                    frame,
+                )
+            };
+            let mut skeleton = skeleton;
+            let scale = skeleton.get_global_transform().basis.get_scale().y;
+            unit.foot_ik.apply(
+                &mut skeleton,
+                rig,
+                scale,
+                enabled,
+                delta,
+                query_ground,
+                ground_epoch,
+                &floor_at,
+                &mut surface_at,
+            );
+        }
+    }
+
     pub fn update_remote_locomotion(&mut self) -> Result<(), String> {
         let local = self.local_player_id;
         let mut errors = Vec::new();
@@ -1668,21 +1996,71 @@ impl WorldUnits {
 
     /// Rejects remote units outside portal visibility from the camera while keeping
     /// their shadows: the outdoor admission of terrain and doodads applied to each
-    /// unit's model and mount boxes. The local player is always admitted.
-    pub fn cull_outdoor(&mut self, windows: Option<&[Vec<HalfSpace>]>, interiors: &[(Vec3, Vec3)]) {
+    /// unit's model and mount boxes. A remote unit's shadow fades out over the last tenth
+    /// of `shadow_radius` from `camera` (retail `entityShadowFadeScale`; the M2 shader
+    /// dithers it), and a drawn one beyond it casts none. The local player is always
+    /// admitted and casts.
+    pub fn cull_outdoor(
+        &mut self,
+        windows: Option<&[Vec<HalfSpace>]>,
+        interiors: &[(Vec3, Vec3)],
+        camera: Vec3,
+        shadow_radius: f32,
+    ) {
         for (id, unit) in &mut self.units {
-            let admitted = Some(*id) == self.local_player_id
-                || unit_world_box(unit).is_none_or(|(min, max)| {
+            let local = Some(*id) == self.local_player_id;
+            let world_box = unit_world_box(unit);
+            let admitted = local
+                || world_box.is_none_or(|(min, max)| {
                     crate::terrain::scenery::outdoor_box_admitted(min, max, windows, interiors)
                 });
-            if unit.camera_admitted == Some(admitted) {
+            // The shader fades by the batch node's origin: the unit's.
+            let origin = unit.node.get_global_position();
+            let in_shadow_range =
+                local || Vec3::new(origin.x, origin.y, origin.z).distance(camera) < shadow_radius;
+            if unit.admission == Some((admitted, in_shadow_range)) {
                 continue;
             }
-            let mut node = unit.node.clone().upcast::<godot::classes::Node>();
-            crate::animation::set_camera_admitted(&mut node, admitted);
-            crate::animation::refresh_unit_shadows(&node);
-            unit.camera_admitted = Some(admitted);
+            apply_unit_admission(
+                &unit.node.clone().upcast(),
+                (admitted, in_shadow_range),
+                unit.admission,
+            );
+            unit.admission = Some((admitted, in_shadow_range));
         }
+        self.set_shadow_view(camera, shadow_radius);
+    }
+
+    /// Sets the camera and radius the M2 shader fades unit shadows by, when they change.
+    pub(crate) fn set_shadow_view(&mut self, camera: Vec3, radius: f32) {
+        // A finite radius keeps the shader's fade band finite; zero would divide by zero.
+        let radius = radius.clamp(0.001, 1.0e30);
+        if self.shadow_view == Some((camera, radius)) {
+            return;
+        }
+        let mut server = godot::classes::RenderingServer::singleton();
+        let position = Vector3::new(camera.x, camera.y, camera.z);
+        if self
+            .shadow_view
+            .is_none_or(|(applied, _)| applied != camera)
+        {
+            crate::rebuild_guard::set_global_shader_parameter(
+                &mut server,
+                "unit_shadow_camera",
+                &position.to_variant(),
+            );
+        }
+        if self
+            .shadow_view
+            .is_none_or(|(_, applied)| applied != radius)
+        {
+            crate::rebuild_guard::set_global_shader_parameter(
+                &mut server,
+                "unit_shadow_radius",
+                &radius.to_variant(),
+            );
+        }
+        self.shadow_view = Some((camera, radius));
     }
 
     pub fn remove(&mut self, id: u64) {
@@ -1692,10 +2070,17 @@ impl WorldUnits {
         }
         if self.local_player_id == Some(id) {
             self.local_player_id = None;
+            self.controlled_unit = None;
         }
     }
 
+    /// The unit visual models, whose templates a map release drops.
+    pub(crate) fn models_mut(&mut self) -> &mut WorldModels {
+        &mut self.models
+    }
+
     pub fn reset(&mut self) {
+        self.discard_staged();
         self.light = None;
         for (id, unit) in &self.units {
             log_unit_removal("WORLD_UNIT_RESET", *id, unit);
@@ -1706,6 +2091,7 @@ impl WorldUnits {
         self.units.clear();
         self.deaths.clear();
         self.local_player_id = None;
+        self.controlled_unit = None;
         self.local_visual_monitor = LocalVisualMonitor::default();
         self.selected_name = None;
         if let Some(root) = self.root.take() {
@@ -1713,8 +2099,16 @@ impl WorldUnits {
         }
     }
 
-    #[cfg(debug_assertions)]
-    pub(crate) fn set_census_root(&mut self, root: Gd<Node3D>) {
+    /// Frees the staged visuals' nodes, which are in no tree.
+    fn discard_staged(&mut self) {
+        for staged in std::mem::take(&mut self.staged) {
+            self.models.discard(staged.parts);
+            staged.stage.free();
+        }
+    }
+
+    /// Binds the node units and spell effects hang under (offline fixtures and census).
+    pub(crate) fn set_root(&mut self, root: Gd<Node3D>) {
         self.root = Some(root);
     }
 
@@ -1778,6 +2172,19 @@ impl WorldUnits {
 
     pub fn local_player_node(&self) -> Option<Gd<Node3D>> {
         Some(self.units.get(&self.local_player_id?)?.node.clone())
+    }
+
+    /// Camera/movement target: the possessed unit while its body is controlled, else the
+    /// local player. A controlled GUID that is not replicated yet falls back to the player.
+    pub fn controlled_unit_node(&self) -> Option<Gd<Node3D>> {
+        self.controlled_unit
+            .and_then(|id| self.units.get(&id))
+            .or_else(|| self.units.get(&self.local_player_id?))
+            .map(|unit| unit.node.clone())
+    }
+
+    pub fn set_controlled_unit(&mut self, id: Option<u64>) {
+        self.controlled_unit = id;
     }
 
     pub fn local_footstep_phase(&self) -> Option<(u64, Vector3, (usize, u16, f32, f32))> {
@@ -1901,6 +2308,78 @@ impl WorldUnits {
         }
     }
 
+    /// The input mover is the source NPC only while its controlling seat is owned.
+    pub fn local_mover_id(&self) -> Option<u64> {
+        self.local_vehicle_id()
+            .or_else(|| {
+                self.controlled_unit
+                    .filter(|id| self.units.contains_key(id))
+            })
+            .or(self.local_player_id)
+    }
+
+    fn local_vehicle_id(&self) -> Option<u64> {
+        let rider = self.units.get(&self.local_player_id?)?;
+        rider.driver_movement?;
+        let control = rider.motion.control?;
+        if !control.controlled {
+            return None;
+        }
+        let passenger = rider.passenger.as_ref()?;
+        let host = self.units.get(&passenger.state.driver)?;
+        host.motion.target.yaw?;
+        (!host.is_player).then_some(passenger.state.driver)
+    }
+
+    /// Take over the newest authoritative NPC pose once per rider control epoch.
+    pub fn adopt_local_mover(&mut self) {
+        let Some(epoch) = self.local_player_server_epoch() else {
+            return;
+        };
+        let Some(id) = self.local_vehicle_id() else {
+            return;
+        };
+        let unit = self.units.get_mut(&id).expect("Validated local NPC mover");
+        if unit.motion.adopted_epoch == Some(epoch) {
+            return;
+        }
+        let target = unit.motion.target;
+        let yaw = target
+            .yaw
+            .expect("Local NPC mover requires source Rotation");
+        unit.node.set_position(Vector3::new(
+            target.position.x,
+            target.position.y,
+            target.position.z,
+        ));
+        unit.node.set_rotation(Vector3::new(0.0, yaw, 0.0));
+        unit.motion.facing_yaw = yaw;
+        unit.motion.adopted_epoch = Some(epoch);
+    }
+
+    pub fn local_mover_node(&self) -> Option<Gd<Node3D>> {
+        Some(self.units.get(&self.local_mover_id()?)?.node.clone())
+    }
+
+    pub fn local_mover_facing(&self) -> Option<f32> {
+        Some(self.units.get(&self.local_mover_id()?)?.motion.facing_yaw)
+    }
+
+    pub fn set_local_mover_facing(&mut self, yaw: f32) {
+        if let Some(unit) = self.local_mover_id().and_then(|id| self.units.get_mut(&id)) {
+            unit.motion.facing_yaw = yaw;
+        }
+    }
+
+    pub fn local_vehicle_movement(&self) -> Option<shared::components::VehicleDriverMovement> {
+        self.local_vehicle_id()?;
+        self.units.get(&self.local_player_id?)?.driver_movement
+    }
+
+    pub fn local_input_blocked(&self) -> bool {
+        self.local_player_controlled() && self.local_vehicle_movement().is_none()
+    }
+
     pub fn local_player_controlled(&self) -> bool {
         self.local_player_id
             .and_then(|id| self.units.get(&id))
@@ -1952,6 +2431,7 @@ impl WorldUnits {
         if self.selected_name.as_deref() != selected_name {
             self.selected_name = selected_name.map(str::to_owned);
             self.local_player_id = None;
+            self.controlled_unit = None;
         }
         let Some(name) = selected_name else {
             return;
@@ -1963,28 +2443,108 @@ impl WorldUnits {
 /// Held items and animation reach past a model's bind-pose mesh bounds.
 const UNIT_BOX_MARGIN: f32 = 1.0;
 
+/// A creature visual built in parts before it attaches (`WorldUnits::attach_loaded_visuals`).
+struct Staged {
+    request: u64,
+    parts: VisualParts,
+    stage: Stage,
+}
+
+impl Staged {
+    fn shares_template(&self, other: &Staged) -> bool {
+        WorldModels::shares_template(&self.parts, &other.parts)
+    }
+}
+
+/// Where a staged visual's build is; each frame takes it one stage further.
+enum Stage {
+    /// Waits for the template a queued visual of its display makes.
+    Waiting,
+    /// Not started.
+    Queued,
+    /// Its body built, and some of its items attached (`CreatureBuild`).
+    Building(CreatureBuild),
+    /// Built; its template is not made yet.
+    Built(Gd<Node3D>),
+    /// Built, and its template made: it attaches next.
+    Templated(Gd<Node3D>),
+}
+
+impl Stage {
+    /// Frees the nodes built so far.
+    fn free(self) {
+        match self {
+            Self::Building(build) => build.free(),
+            Self::Built(visual) | Self::Templated(visual) => visual.free(),
+            Self::Waiting | Self::Queued => {}
+        }
+    }
+}
+
+impl Drop for WorldUnits {
+    fn drop(&mut self) {
+        self.discard_staged();
+    }
+}
+
+/// Applies camera admission and shadow radius `admission` to the unit subtree `node`,
+/// whose last applied pair was `applied`; new geometry (`applied` `None`) also has its
+/// batch materials marked as unit batches, whose shadow the M2 shader fades.
+pub(crate) fn apply_unit_admission(
+    node: &Gd<godot::classes::Node>,
+    (admitted, in_shadow_range): (bool, bool),
+    applied: Option<(bool, bool)>,
+) {
+    if applied.is_none() {
+        mark_unit_shadow_fade(node);
+    }
+    if applied != Some((admitted, in_shadow_range)) {
+        let mut node = node.clone();
+        crate::animation::set_unit_admission(&mut node, admitted, in_shadow_range);
+        crate::animation::refresh_unit_shadows(&node);
+    }
+}
+
+/// Sets the M2 shader's `unit_shadow_fade` on every distinct batch material under `node`
+/// that does not have it yet: units of one creature template share their materials.
+fn mark_unit_shadow_fade(node: &Gd<godot::classes::Node>) {
+    let _span = crate::profile::span(|| "unit.mark_shadow_fade".to_owned());
+    let mut materials = std::collections::HashSet::new();
+    let mut marked = 0;
+    for mesh in node
+        .find_children_ex("*")
+        .type_("MeshInstance3D")
+        .owned(false)
+        .done()
+        .iter_shared()
+    {
+        let Some(mut material) = mesh
+            .cast::<godot::classes::MeshInstance3D>()
+            .get_active_material(0)
+            .and_then(|material| material.try_cast::<godot::classes::ShaderMaterial>().ok())
+        else {
+            continue;
+        };
+        if materials.insert(material.instance_id())
+            && !material
+                .get_shader_parameter("unit_shadow_fade")
+                .booleanize()
+        {
+            material.set_shader_parameter("unit_shadow_fade", &true.to_variant());
+            marked += 1;
+        }
+    }
+    crate::rebuild_guard::count(crate::rebuild_guard::Rebuild::MaterialRebind, marked);
+}
+
 /// World box of a unit's model and its mount's model, grown by `UNIT_BOX_MARGIN`;
 /// `None` while it shows neither.
 fn unit_world_box(unit: &UnitNode) -> Option<(Vec3, Vec3)> {
-    let mount = unit.mount.as_ref().and_then(|mount| mount.node.as_ref());
-    [unit.visual.as_ref(), mount]
+    let mount = unit.mount.as_ref().and_then(|mount| mount.bounds.as_ref());
+    [unit.model_bounds.as_ref(), mount]
         .into_iter()
         .flatten()
-        .filter_map(|visual| {
-            visual
-                .try_get_node_as::<Node3D>("NpcModel")
-                .or_else(|| visual.try_get_node_as::<Node3D>("PlayerModel"))
-        })
-        .map(|model| {
-            let bounds = crate::world_models::mesh_bounds(&model);
-            let to_glam = |v: Vector3| Vec3::new(v.x, v.y, v.z);
-            SceneryDistance::new(
-                to_glam(bounds.position),
-                to_glam(bounds.end()),
-                crate::terrain::objects::affine(model.get_global_transform()),
-            )
-            .world_bounds()
-        })
+        .map(model_world_box)
         .reduce(|(low, high), (min, max)| (low.min(min), high.max(max)))
         .map(|(min, max)| {
             (
@@ -2047,7 +2607,9 @@ mod tests {
     #[test]
     fn npc_animation_lod_samples_in_the_frustum_and_freezes_outside_or_far() {
         assert_eq!(lod_at(Vec3::new(0.0, 0.0, -10.0)), AnimationLod::Full);
-        assert_eq!(lod_at(Vec3::new(0.0, 0.0, -45.0)), AnimationLod::Half);
+        assert_eq!(lod_at(Vec3::new(0.0, 0.0, -35.0)), AnimationLod::Strided(2));
+        assert_eq!(lod_at(Vec3::new(0.0, 0.0, -45.0)), AnimationLod::Strided(3));
+        assert_eq!(lod_at(Vec3::new(0.0, 0.0, -57.0)), AnimationLod::Strided(6));
         assert_eq!(lod_at(Vec3::new(0.0, 0.0, -70.0)), AnimationLod::Frozen);
         assert_eq!(lod_at(Vec3::new(0.0, 0.0, 10.0)), AnimationLod::Frozen);
         assert_eq!(lod_at(Vec3::new(13.0, 0.0, -10.0)), AnimationLod::Frozen);

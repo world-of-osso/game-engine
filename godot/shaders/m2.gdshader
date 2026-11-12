@@ -9,10 +9,10 @@ render_mode fog_disabled, specular_disabled, cull_back, blend_mix;
 // specular-after-light of m2shader_text.slang, and calcLight (commonLightFunctions.slang).
 // Textures hold authored bytes and are sampled unconverted, as the reference's UNORM
 // textures are; every colour below is authored (gamma) space until blend_output.
-uniform sampler2D base_texture : filter_linear_mipmap, repeat_enable;
-uniform sampler2D second_texture : filter_linear_mipmap, repeat_enable;
-uniform sampler2D third_texture : filter_linear_mipmap, repeat_enable;
-uniform sampler2D fourth_texture : filter_linear_mipmap, repeat_enable;
+uniform sampler2D base_texture : filter_linear_mipmap_anisotropic, repeat_enable;
+uniform sampler2D second_texture : filter_linear_mipmap_anisotropic, repeat_enable;
+uniform sampler2D third_texture : filter_linear_mipmap_anisotropic, repeat_enable;
+uniform sampler2D fourth_texture : filter_linear_mipmap_anisotropic, repeat_enable;
 // M2Texture flags of texture slot n at bits 2n (wrap U) and 2n + 1 (wrap V); an axis
 // without its flag clamps to the edge.
 uniform int texture_wrap = 255;
@@ -28,10 +28,16 @@ uniform vec3 texture_weights = vec3(1.0);
 uniform vec3 mesh_color = vec3(1.0);
 // meshOpacity: colour alpha times texture weight 0 (unless the batch skips it).
 uniform float transparency = 1.0;
-// Retail scenery distance fade of the placement (1 unless it is in its fade band).
-uniform float scenery_opacity = 1.0;
+// texture_count: how many texture slots the batch resolved, which decides whether its third
+// slot takes part in the combiner.
+uniform int texture_count = 1;
 uniform int render_flags = 0;
 uniform int gx_blend = 0;
+// A unit batch: its shadow fades out over the last tenth of the unit shadow radius
+// from the world camera (world.rs WorldUnits::cull_outdoor stops casting past it).
+uniform bool unit_shadow_fade = false;
+global uniform vec3 unit_shadow_camera;
+global uniform float unit_shadow_radius;
 
 #include "res://shaders/scene_light.gdshaderinc"
 #include "res://shaders/retail_fog.gdshaderinc"
@@ -52,6 +58,8 @@ varying vec3 world_normal;
 varying vec3 camera_position;
 varying vec3 authored_color;
 varying vec3 authored_specular;
+// GxBlend_BlendAdd writes colour already multiplied by the written alpha (see fragment()).
+varying float premultiplied;
 
 vec3 gamma_to_linear(vec3 gamma_color) {
 	vec3 low = gamma_color / 12.92;
@@ -120,10 +128,27 @@ void vertex() {
 	world_position = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 }
 
+// A 4x4 ordered-dither threshold in [0, 1) for the fragment at `pixel`.
+float bayer4(vec2 pixel) {
+	ivec2 cell = ivec2(mod(pixel, 4.0));
+	int index = cell.x + cell.y * 4;
+	const float matrix[16] = float[16](0.0, 8.0, 2.0, 10.0, 12.0, 4.0, 14.0, 6.0, 3.0, 11.0, 1.0, 9.0, 15.0, 7.0, 13.0, 5.0);
+	return (matrix[index] + 0.5) / 16.0;
+}
+
 void fragment() {
 	// forEachVisibleMesh skips a batch while its opacity is ~0.
 	if (transparency < 0.0001) {
 		discard;
+	}
+	// A fading unit drops a dithered share of its shadow-map texels. Only the
+	// directional shadow pass projects orthographically; the world camera is perspective.
+	if (unit_shadow_fade && PROJECTION_MATRIX[3][3] == 1.0) {
+		float distance_to_camera = distance(NODE_POSITION_WORLD, unit_shadow_camera);
+		float share = clamp((unit_shadow_radius - distance_to_camera) / (0.1 * unit_shadow_radius), 0.0, 1.0);
+		if (bayer4(FRAGCOORD.xy) >= share) {
+			discard;
+		}
 	}
 	// Godot flips the normal of back faces; the reference shades both sides with it.
 	vec3 normal = normalize(FRONT_FACING ? NORMAL : -NORMAL);
@@ -172,7 +197,13 @@ void fragment() {
 		case 5: diffuse *= tex2.rgb; break; // Opaque_Opaque
 		case 6: diffuse *= tex2.rgb; discard_alpha = tex.a * tex2.a; can_discard = true; break; // Mod_Mod
 		case 7: diffuse *= tex2.rgb * 2.0; discard_alpha = tex.a * tex2.a * 2.0; can_discard = true; break; // Mod_Mod2x
-		case 8: discard_alpha = tex.a + tex2.a; can_discard = true; specular = tex2.rgb; break; // Mod_Add
+		case 8: { // Mod_Add: a third slot masks the whole stage, coverage and additive layer.
+			float mask = texture_count > 2 ? sample_slot(third_texture, UV, 2).a : 1.0;
+			discard_alpha = (tex.a + tex2.a) * mask;
+			can_discard = true;
+			specular = tex2.rgb * mask;
+			break;
+		}
 		case 9: diffuse *= tex2.rgb * 2.0; discard_alpha = tex.a; can_discard = true; break; // Mod_Mod2xNA
 		case 10: discard_alpha = tex.a; can_discard = true; specular = tex2.rgb; break; // Mod_AddNA
 		case 11: diffuse *= tex2.rgb; discard_alpha = tex.a; can_discard = true; break; // Mod_Opaque
@@ -244,7 +275,14 @@ void fragment() {
 	RADIANCE = vec4(0.0, 0.0, 0.0, 1.0);
 	ALBEDO = vec3(1.0);
 	ROUGHNESS = 1.0;
-	ALPHA = color.a * scenery_opacity;
+	// ALPHA starts at the instance's fade, 1 - GeometryInstance3D.transparency: the retail
+	// scenery distance fade of a placement, without a per-placement material write.
+	ALPHA *= color.a;
+	// GxBlend_BlendAdd (13) blends ONE / ONE_MINUS_SRC_ALPHA, like the ribbon shader: without
+	// premultiplying here a texel whose alpha is 0 still adds its full colour, which fills a
+	// billboard's soft corners and draws a hard-edged square. The opaque variants replace both
+	// lines: any ALPHA reference moves a material into Godot's transparent pass.
+	premultiplied = gx_blend == 13 ? ALPHA : 1.0;
 	authored_color = color.rgb;
 	authored_specular = specular * mesh.rgb;
 	camera_position = CAMERA_POSITION_WORLD;
@@ -253,7 +291,7 @@ void fragment() {
 		if ((render_flags & 2) == 0) {
 			rgb = apply_retail_fog(rgb);
 		}
-		EMISSION = blend_output(rgb);
+		EMISSION = blend_output(rgb) * premultiplied;
 	}
 	world_normal = normalize((INV_VIEW_MATRIX * vec4(normal, 0.0)).xyz);
 }
@@ -273,7 +311,7 @@ void light() {
 		if ((render_flags & 2) == 0) {
 			rgb = apply_retail_fog(rgb);
 		}
-		DIFFUSE_LIGHT += blend_output(rgb);
+		DIFFUSE_LIGHT += blend_output(rgb) * premultiplied;
 	} else if (!LIGHT_IS_DIRECTIONAL && (render_flags & 1) == 0 && gx_blend <= 1) {
 		// M2 point lights reach opaque surfaces only: WebWowViewerCpp applies them in
 		// its deferred pass (pointLight.frag.slang:43-58). LIGHT_COLOR carries Godot's PI.

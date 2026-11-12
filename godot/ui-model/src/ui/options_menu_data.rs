@@ -196,6 +196,7 @@ pub enum SliderField {
     MinDistance,
     MaxDistance,
     Nameplate(StyleSlider),
+    HealerRaidLowest,
 }
 
 #[derive(Debug, Clone)]
@@ -265,6 +266,7 @@ pub struct HudDraft {
     pub show_action_bars: bool,
     pub cooldown_assist: client_options_data::CooldownAssistOptions,
     pub extra_action_bars: client_options_data::ExtraActionBars,
+    pub healer_ground_rings: client_options_data::HealerGroundRingOptions,
     pub show_nameplates: bool,
     pub nameplate_distance: f32,
     pub nameplate_style: NameplateStyle,
@@ -390,6 +392,7 @@ pub fn hud_draft_from_file(hud: &HudOptionsFile) -> HudDraft {
         show_action_bars: hud.show_action_bars,
         cooldown_assist: hud.cooldown_assist,
         extra_action_bars: hud.extra_action_bars,
+        healer_ground_rings: hud.healer_ground_rings,
         show_nameplates: hud.show_nameplates,
         nameplate_distance: hud.nameplate_distance,
         nameplate_style: hud.nameplate_style,
@@ -454,6 +457,7 @@ fn hud_to_view(h: &HudDraft) -> HudOptionsView {
         show_action_bars: h.show_action_bars,
         cooldown_assist: h.cooldown_assist,
         extra_action_bars: h.extra_action_bars,
+        healer_ground_rings: h.healer_ground_rings,
         show_nameplates: h.show_nameplates,
         nameplate_distance: h.nameplate_distance,
         nameplate_style: h.nameplate_style,
@@ -607,6 +611,7 @@ const SLIDER_ACTION_FIELDS: &[(&str, SliderField)] = &[
     ("render_scale", SliderField::RenderScale),
     ("ui_scale", SliderField::UiScale),
     ("nameplate_distance", SliderField::NameplateDistance),
+    ("healer_ground_rings_raid", SliderField::HealerRaidLowest),
     ("chat_font_size", SliderField::ChatFontSize),
     ("bloom_intensity", SliderField::BloomIntensity),
     ("master_volume", SliderField::MasterVolume),
@@ -684,6 +689,7 @@ pub fn slider_bounds(field: SliderField) -> (f32, f32) {
         SliderField::ZoomSpeed | SliderField::FollowSpeed => (2.0, 20.0),
         SliderField::MinDistance => (1.0, 10.0),
         SliderField::MaxDistance => (10.0, 60.0),
+        SliderField::HealerRaidLowest => (0.0, f32::from(client_options_data::MAX_RAID_LOWEST)),
         SliderField::Nameplate(slider) => slider.bounds(),
         SliderField::Layout(slider) => {
             let range = slider.range();
@@ -752,6 +758,9 @@ pub fn apply_slider_value(field: SliderField, value: f32, model: &mut OptionsMod
         SliderField::MaxDistance => {
             model.draft_camera.max_distance = value;
             normalize_camera_limits(&mut model.draft_camera);
+        }
+        SliderField::HealerRaidLowest => {
+            model.draft_hud.healer_ground_rings.raid_lowest = value.round() as u8
         }
         SliderField::Nameplate(slider) => slider.set(&mut model.draft_hud.nameplate_style, value),
         SliderField::Layout(slider) => apply_layout_slider(slider, value, &mut model.layout),
@@ -1078,6 +1087,13 @@ fn apply_hud_toggle(
         }
         "action_bar_4" => hud.extra_action_bars.action_bar_4 = !hud.extra_action_bars.action_bar_4,
         "action_bar_5" => hud.extra_action_bars.action_bar_5 = !hud.extra_action_bars.action_bar_5,
+        "healer_ground_rings" => hud.healer_ground_rings.enabled = !hud.healer_ground_rings.enabled,
+        "healer_ground_rings_all" => {
+            hud.healer_ground_rings.all_roles = !hud.healer_ground_rings.all_roles
+        }
+        "healer_ground_rings_colorblind" => {
+            hud.healer_ground_rings.colorblind_ramp = !hud.healer_ground_rings.colorblind_ramp
+        }
         "show_nameplates" => hud.show_nameplates = !hud.show_nameplates,
         "show_health_bars" => hud.show_health_bars = !hud.show_health_bars,
         "show_target_marker" => hud.show_target_marker = !hud.show_target_marker,
@@ -1204,6 +1220,7 @@ pub fn apply_hud_file_snapshot(h: &mut HudOptionsFile, d: &HudDraft) {
     h.show_action_bars = d.show_action_bars;
     h.cooldown_assist = d.cooldown_assist;
     h.extra_action_bars = d.extra_action_bars;
+    h.healer_ground_rings = d.healer_ground_rings.clamped();
     h.show_nameplates = d.show_nameplates;
     h.nameplate_style = d.nameplate_style.clamped();
     h.nameplate_distance = d

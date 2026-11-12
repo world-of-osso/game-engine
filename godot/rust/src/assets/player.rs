@@ -251,6 +251,11 @@ pub(crate) struct PlayerParts {
 }
 
 impl PlayerParts {
+    /// The parsed body model the parts build.
+    pub(crate) fn model(&self) -> Arc<CachedModel> {
+        self.model.clone()
+    }
+
     pub(crate) fn into_textures(self) -> DecodedTextures {
         self.textures
     }
@@ -393,7 +398,7 @@ pub(crate) fn load_player_model(
 fn load_player_body(
     data_root: &Path,
     player: &CharacterVisual,
-) -> Result<(CascListfileResolver, Arc<CachedModel>), String> {
+) -> Result<(Arc<CascListfileResolver>, Arc<CachedModel>), String> {
     let race = player.race;
     let sex = player.appearance.sex;
     let fdid = player_model_fdid(data_root, race, sex)?

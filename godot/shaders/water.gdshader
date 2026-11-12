@@ -7,10 +7,12 @@ render_mode unshaded, cull_disabled, blend_mix, depth_draw_never, fog_disabled;
 // authored colour (sRGB bytes / 255, as the terrain shader); the result is converted to linear.
 
 // LiquidTypeXTexture slot 2 (normal/bump) and slot 3 (foam) of the LiquidType.
-uniform sampler2D texture_2 : repeat_enable, filter_linear_mipmap;
-uniform sampler2D texture_3 : repeat_enable, filter_linear_mipmap;
+uniform sampler2D texture_2 : repeat_enable, filter_linear_mipmap_anisotropic;
+uniform sampler2D texture_3 : repeat_enable, filter_linear_mipmap_anisotropic;
 uniform sampler2D screen_texture : hint_screen_texture, filter_linear, repeat_disable;
 uniform sampler2D depth_texture : hint_depth_texture, filter_nearest, repeat_disable;
+// G10: 1/Float_11 from the LiquidType row, the fade width of the view-depth shore.
+uniform float shore_scale = 1.0;
 
 // Shared material clock in milliseconds (the reference scene time).
 global uniform float liquid_animation_time_ms;
@@ -21,7 +23,6 @@ uniform vec4 floats_8 = vec4(0.0);
 uniform vec4 floats_12 = vec4(0.0);
 uniform vec2 floats_16 = vec2(0.0);
 // LiquidType.Coefficient[0..3]: vertex depth -> close/far mix, a cubic.
-uniform vec4 depth_coefficients = vec4(0.0);
 // LiquidWater.cpp CalculateWavePeriod of the two wave scales.
 uniform vec2 wave_periods = vec2(0.0);
 // LiquidObject FlowSpeed and FlowDirection (degrees).
@@ -98,7 +99,8 @@ vec3 apply_retail_fog(vec3 color, vec3 view_position, mat4 inv_view) {
 void vertex() {
 	wow_position = to_wow((MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz);
 	// adt_water_geometry: MH2O vertex depth / 255 (vPositionDepth.w).
-	vertex_depth = COLOR.a;
+	// I2 B.4: the depth byte rides the second texture pair's second component.
+	vertex_depth = UV2.y;
 }
 
 void fragment() {
@@ -148,11 +150,11 @@ void fragment() {
 	float distance_to_camera = length(to_fragment);
 	vec3 view_direction = to_fragment / distance_to_camera;  // v87
 
-	// Water thickness along the view axis from the opaque depth buffer (v90-v94).
+	// Water thickness along the view axis from the opaque depth buffer (v90-v94). G10: this
+	// is the same screen-position view-depth sample ProcFel uses, the first opaque surface's
+	// view Z behind this fragment minus the water's own, so both families read one quantity.
 	float water_depth = -VERTEX.z;
-	float raw_depth = texture(depth_texture, SCREEN_UV).r;
-	float thickness = raw_depth <= 0.0001 ? 100000.0
-		: scene_view_depth(depth_texture, SCREEN_UV, INV_PROJECTION_MATRIX) - water_depth;
+	float thickness = scene_view_depth(depth_texture, SCREEN_UV, INV_PROJECTION_MATRIX) - water_depth;
 	float relative_thickness = thickness / max(water_depth, 0.0001);
 
 	// Two scrolled bump pairs blended by distance, then flattened by f6 and f14 (v95, v105).
@@ -180,10 +182,12 @@ void fragment() {
 		close_color.rgb = vec3(1.0);
 		far_color.rgb = vec3(1.0);
 	}
+	// G13: `vertex_depth` already carries the row's curved byte. Retail applies the curve
+	// once on the CPU at vertex write; no pixel program contains the polynomial, so this is
+	// the affine mix only.
 	float authored_depth = vertex_depth == 0.0 ? 0.0 : 1.0;  // v131
 	float d = vertex_depth;
-	float depth_mix = clamp(depth_coefficients.x + depth_coefficients.y * d + depth_coefficients.z * d * d + depth_coefficients.w * d * d * d, 0.0, 1.0);
-	float color_mix = depth_mix * f2 + abs(0.1 * bump.y);  // v138
+	float color_mix = d * f2 + abs(0.1 * bump.y);  // v138
 	vec4 water_color = close_color + (far_color - close_color) * color_mix;  // v139
 	vec3 lit_water = water_color.rgb * surface_light;  // v140
 
@@ -210,10 +214,11 @@ void fragment() {
 		+ clamp(normal.z - 0.8, 0.0, 1.0);
 	vec3 specular = specular_color * highlight * fresnel;  // v168
 
-	// Shore: alpha rises and foam fades over the first yards of water thickness (v169-v173).
-	float shore = 1.2 * clamp(fresnel * 0.5 + 0.2, 0.0, 1.0);
-	float alpha = smoothstep(0.0, shore, thickness);
-	float foam_fade = 1.0 - smoothstep(0.0, 2.5 * clamp(fresnel * 0.5 + 0.2, 0.0, 1.0), thickness * (1.0 - view_direction.z));
+	// Shore: the same view-depth gap as ProcFel, over the row's Float_11 fade width. The
+	// gap already grows with the view angle, so the shoreline needs no fresnel widening.
+	float shore_fade = clamp(thickness * shore_scale, 0.0, 1.0);
+	float alpha = shore_fade;
+	float foam_fade = 1.0 - shore_fade;
 	vec3 foam = texture(texture_3, v22.xy - normal.xy).rgb + texture(texture_3, v22.zw + 0.2 * normal.yx).rgb;
 	color += foam * (f7 * 0.35 * foam_fade * (1.1 - clamp(distance_to_camera / 150.0, 0.0, 1.0)) * normal.z);
 	alpha = (alpha + (1.0 - alpha) * clamp(-thickness, 0.0, 1.0)) * authored_depth;

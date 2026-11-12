@@ -1,4 +1,5 @@
 extends SceneTree
+const TerrainChunkInputs := preload("res://tests/terrain_chunk_inputs.gd")
 
 # M2 point-light falloff on the opaque M2, WMO and terrain shaders: an OmniLight3D set up
 # as assets/m2_lights.rs does (range = attenuation end, exponent 0, specular = start /
@@ -102,11 +103,12 @@ func wmo_material() -> ShaderMaterial:
 func terrain_material() -> ShaderMaterial:
 	var material := ShaderMaterial.new()
 	material.shader = load("res://shaders/terrain.gdshader")
-	material.set_shader_parameter("config", Vector4(1.0, 0.0, 1.0, 0.0))
-	material.set_shader_parameter("layer_params_0", Vector4(1.0, 0.0, 0.0, 1.0))
-	material.set_shader_parameter("height_0", solid_texture(Color(0.0, 0.0, 0.0, 0.5)))
-	material.set_shader_parameter("ground_0", solid_texture(Color(0.5, 0.4, 0.3, 0.0)))
-	material.set_shader_parameter("alpha_packed", solid_texture(Color(0.0, 0.0, 0.0, 1.0)))
+	var chunk := TerrainChunkInputs.new()
+	chunk.set_input(material, "config", Vector4(1.0, 0.0, 1.0, 0.0))
+	chunk.set_input(material, "layer_params_0", Vector4(1.0, 0.0, 0.0, 1.0))
+	chunk.set_input(material, "height_0", solid_texture(Color(0.0, 0.0, 0.0, 0.5)))
+	chunk.set_input(material, "ground_0", solid_texture(Color(0.5, 0.4, 0.3, 0.0)))
+	chunk.set_input(material, "alpha_packed", solid_texture(Color(0.0, 0.0, 0.0, 1.0)))
 	for name in ["ambient", "horizon_ambient", "ground_ambient", "direct"]:
 		material.set_shader_parameter(name, Vector3.ZERO)
 	material.set_shader_parameter("sun_direction", Vector3.DOWN)

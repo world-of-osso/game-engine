@@ -387,7 +387,12 @@ fn stage_npc_appearance(data: &Path) -> Result<(), String> {
     .map_err(|error| format!("Write fixture race-model CSV: {error}"))?;
     fs::write(
         retail.join("ChrRaces.csv"),
-        "ID,Name_lang,UnalteredVisualRaceID\n1,Human,0\n2,Orc,0\n",
+        "ID,Name_lang,UnalteredVisualRaceID,\
+         MaleTextureFallbackRaceID,MaleTextureFallbackSex,\
+         FemaleTextureFallbackRaceID,FemaleTextureFallbackSex,\
+         MaleModelFallbackRaceID,MaleModelFallbackSex,\
+         FemaleModelFallbackRaceID,FemaleModelFallbackSex\n\
+         1,Human,0,0,-1,0,-1,0,-1,0,-1\n2,Orc,0,0,-1,0,-1,0,-1,0,-1\n",
     )
     .map_err(|error| format!("Write fixture races CSV: {error}"))?;
     // Every fixture option and choice is ungated (requirement 0).
@@ -689,6 +694,7 @@ fn respond_to_selection(
             .id();
         *player = Some(spawned);
         *npc = Some(spawn_npc(app, 910010));
+        eprintln!("FIXTURE SELECTED character_id={}", request.character_id);
         app.world_mut().resource_mut::<Incoming>().selected_link = Some(link);
         send::<_, TerrainChannel>(
             app,

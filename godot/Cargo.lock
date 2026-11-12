@@ -3193,6 +3193,7 @@ dependencies = [
  "image 0.25.10",
  "ktx2-rw",
  "libc",
+ "md-5",
  "peercred-ipc",
  "png",
  "rmp-serde",
@@ -3200,6 +3201,7 @@ dependencies = [
  "rusqlite",
  "serde",
  "serde_json",
+ "sha2",
  "shared",
  "skrifa 0.44.0",
  "taffy",
@@ -3471,8 +3473,6 @@ dependencies = [
 [[package]]
 name = "godot-core"
 version = "0.5.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "40ab630dbc7ce797f09eda29025ebadab1b700778c988ad19c47bddc51874a90"
 dependencies = [
  "glam",
  "godot-bindings",
@@ -3484,8 +3484,6 @@ dependencies = [
 [[package]]
 name = "godot-ffi"
 version = "0.5.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "18c296047c042d74828b2cb2e71bbadd22dd4ff98346c696b6c0a4a5decbf57f"
 dependencies = [
  "godot-bindings",
  "godot-codegen",

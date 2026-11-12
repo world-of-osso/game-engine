@@ -8,7 +8,7 @@ render_mode unshaded, cull_disabled, blend_mix, depth_draw_never, fog_disabled;
 // the result is converted to linear.
 
 // LiquidTypeXTexture slot 2 (normal/bump), the reference's uTexture2.
-uniform sampler2D texture_2 : repeat_enable, filter_linear_mipmap;
+uniform sampler2D texture_2 : repeat_enable, filter_linear_mipmap_anisotropic;
 uniform sampler2D screen_texture : hint_screen_texture, filter_linear, repeat_disable;
 uniform sampler2D depth_texture : hint_depth_texture, filter_nearest, repeat_disable;
 
@@ -79,7 +79,8 @@ vec3 apply_retail_fog(vec3 color, vec3 view_position, mat4 inv_view) {
 void vertex() {
 	wow_position = to_wow((MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz);
 	// adt_water_geometry: MH2O vertex depth / 255 (vPositionDepth.w).
-	vertex_depth = COLOR.a;
+	// I2 B.4: the depth byte rides the second texture pair's second component.
+	vertex_depth = UV2.y;
 }
 
 void fragment() {

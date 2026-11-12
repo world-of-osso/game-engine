@@ -13,6 +13,7 @@ use ui_toolkit::{
 fn snapshot(phase: BgPhase, accepted: bool) -> PvpSnapshot {
     PvpSnapshot {
         lifetime_honor_xp: 0,
+        account_lifetime_honor_xp: 0,
         honor_level: None,
         honor: 0,
         honor_max: 0,
@@ -251,6 +252,49 @@ fn node_battleground_both_skin_hud_columns_and_results() {
             context.insert(view);
             screen.sync(&context, &mut registry);
             assert_text(&registry, "PVPMatchOutcome", "Victory");
+        }
+    }
+    set_thread_skin(ActiveSkin::Modern);
+}
+
+/// Window #6 AV victory: battleground rows showed dashes for measured combat counters.
+#[test]
+fn battleground_results_show_measured_combat_counters_and_honor_change() {
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut state = snapshot(BgPhase::Ended, true);
+        let bg = state.battleground.as_mut().unwrap();
+        bg.outcome = Some(BgOutcome::Winner(BgTeam::A));
+        bg.honor_reward = Some(2108);
+        let row = &mut bg.players[0];
+        (
+            row.killing_blows,
+            row.deaths,
+            row.damage_done,
+            row.healing_done,
+        ) = (3, 1, 1200, 450);
+        row.honorable_kills = Some(4);
+        let mut view = PvpView::default();
+        receive(&mut view, state);
+        let mut context = SharedContext::new();
+        context.insert(skin);
+        context.insert(view);
+        let mut registry = FrameRegistry::new(1280.0, 720.0);
+        Screen::new(pvp_screen).sync(&context, &mut registry);
+        assert_text(&registry, "PVPMatchOutcome", "Victory");
+        assert_text(&registry, "PVPMatchHonorReward", "Honor: 2108");
+        for (name, value) in [
+            ("PVPMatchPlayer81KB", "3"),
+            ("PVPMatchPlayer81HK", "4"),
+            ("PVPMatchPlayer81Deaths", "1"),
+            ("PVPMatchPlayer81Damage", "1200"),
+            ("PVPMatchPlayer81Healing", "450"),
+        ] {
+            assert_text(&registry, name, value);
         }
     }
     set_thread_skin(ActiveSkin::Modern);

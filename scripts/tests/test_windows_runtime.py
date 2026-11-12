@@ -33,9 +33,11 @@ class WindowsRuntimeTest(unittest.TestCase):
             git.chmod(0o755)
             uv = bin_dir / 'uv'
             uv.write_text('''#!/usr/bin/python3
-import pathlib, sys
+import os, pathlib, sys
 out = pathlib.Path.cwd() / 'bin'
 out.mkdir(exist_ok=True)
+pathlib.Path(os.environ['WORKER_COMMAND_LOG']).open('a').write(
+    ' '.join(sys.argv) + ' SOURCE_DATE_EPOCH=' + os.environ['SOURCE_DATE_EPOCH'] + '\\n')
 if 'target=editor' in sys.argv:
     (out / 'godot.windows.editor.x86_64.exe').write_bytes(b'editor')
 if 'target=template_release' in sys.argv:
@@ -43,12 +45,23 @@ if 'target=template_release' in sys.argv:
     (out / 'godot.windows.template_release.x86_64.exe').write_bytes(payload)
 ''')
             uv.chmod(0o755)
-            with patch.dict(os.environ, {'PATH': str(bin_dir) + os.pathsep + os.environ['PATH']}):
+            (engine / 'scripts/godot/godot-4.7.2-pr123546-pr123391-matlist-bonepose-present-audiobus-windows-template.sha512').write_text(
+                hashlib.sha512(b'template').hexdigest() + '\n')
+            command_log = root / 'scons-commands.txt'
+            with patch.dict(os.environ, {
+                'PATH': str(bin_dir) + os.pathsep + os.environ['PATH'],
+                'WORKER_COMMAND_LOG': str(command_log),
+                'SOURCE_DATE_EPOCH': 'caller-value',
+            }):
                 worker.build_runtime(root, uv, engine)
             runtime = root / 'artifacts/godot.exe'
             self.assertEqual(runtime.read_bytes(), b'template')
             self.assertEqual((source / 'bin/godot.windows.editor.x86_64.exe').read_bytes(), b'editor')
             self.assertEqual((root / 'artifacts/godot.sha512').read_text().strip(), hashlib.sha512(b'template').hexdigest())
+            commands = command_log.read_text().splitlines()
+            runtime_command = next(command for command in commands if 'target=template_release' in command)
+            self.assertIn('linkflags=-Wl,--no-insert-timestamp', runtime_command)
+            self.assertTrue(all('SOURCE_DATE_EPOCH=0' in command for command in commands))
 
     def test_import_uses_editor_not_shipped_template(self):
         with tempfile.TemporaryDirectory() as directory:

@@ -240,6 +240,13 @@ fn character_frame_skin_art_and_layout_preserve_modern_bytes() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         set_thread_skin(skin);
         let registry = build(view(true));
+        let border = frame(&registry, "CharacterFrameNineSlice");
+        let stats = frame(&registry, "CharacterStatsPaneClassBackground");
+        assert_eq!(border.frame_level, 500, "{skin:?}: template border layer");
+        assert!(
+            border.frame_level > stats.frame_level,
+            "{skin:?}: metal border remains above opaque stats art"
+        );
         for node in [
             "CharacterStatsPaneItemLevelCategoryBackground",
             "CharacterStatsPaneStat2Background",

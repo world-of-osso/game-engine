@@ -59,6 +59,7 @@ impl SpellEffects {
             EffectOwner::Detached(visual),
             Lifetime::UntilDetachedEnds { visual },
             0,
+            None,
         );
         Ok(true)
     }

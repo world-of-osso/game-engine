@@ -65,6 +65,33 @@ Blend mode -> `EGxBlend` (M2BlendingModeToEGxBlendEnum) and GL factors: 0 Opaque
 4 Add (SRC_ALPHA, ONE), 5 Mod (DST_COLOR, ZERO), 6 Mod2x (DST_COLOR, SRC_COLOR), 7 BlendAdd
 (ONE, 1-SRC_ALPHA). The written colour and alpha clamp to [0, 1] (UNORM attachment).
 
+BlendAdd (7) glides on premultiplied output: with (ONE, 1-SRC_ALPHA) an unpremultiplied texel
+of alpha 0 still adds its full colour, so a soft sprite paints its whole quad and overlapping
+quads saturate into a flat sheet with straight edges. Both shaders write colour times alpha for
+this mode: `m2.gdshader` for meshes (4cd7bc671) and `particle_composite.glsl.in` for M2 particles
+(30937455f). Add (M2 blend 4 -> GX 3, SRC_ALPHA/ONE) and NoAlphaAdd (M2 blend 3 -> GX 10,
+ONE/ONE) keep unpremultiplied colour, as their factors expect.
+
+**BlendAdd known gap (2026-11-06, narrowed 2026-11-07).** `m2.gdshader` premultiplies BlendAdd
+output; WebWowViewerCpp (`commonM2Material.slang:269`) writes it straight. Retail maps M2 blend 7
+to GxBlend 13 = ONE / INV_SRC_ALPHA (12.1.5 and Forever binaries), which expects a premultiplied
+source. Retail 12.x captures of Death and Decay now exist and read as a translucent darkening
+(`retail-ref/user-12x/`), which the premultiplied path produces once the third slot masks the
+batch; premultiplied and straight differ only in how the additive layer saturates. Before the
+third slot masked the batch, the offline preview (`foot_ik_ground_drape.gd` `drape_trigger`, ground
+batches pixel shaders 7 Mod_Mod2x and 8 Mod_Add) drew a 17.7 yd bright-red noise square in every
+variant tried: premultiplied, a soft-edged fiery layer (about 158k px changed at 3-9 s); straight,
+a pinker hard-edged quad (159k px); premultiplied with PS8's additive specular zeroed, a dark
+layer. An earlier premultiplied capture changed only 15-99 px at
+3-9 s; a rerun of the same build drew the layer, so that run's replay drew nothing and it is
+not evidence. `m2_blend_pixels.gd` reports its blend 7 case (WebWowViewerCpp's straight
+expectation) as a known gap instead of asserting it. Captures:
+`/syncthing/AgentShared/2026-11-06/fps-120-close/blend7-decay-6-premul2-nospec-straight.jpg`.
+
+NoAlphaAdd is unexercised: of 80,782 extracted M2s, material blend modes are 0:86,346,
+1:23,814, 2:67,951, 4:34,791, 5:325, 6:2,170, 7:8,036 and none use blend 3, so the shader's
+GX 10 path (which writes texture alpha rather than 1) has no scene to verify against.
+
 ## Batch Shaders
 
 A skin batch's `shader_id` and `textureCount` select a pixel shader (combiner, `calcM2FragMaterial`,
@@ -81,6 +108,16 @@ A skin batch's `shader_id` and `textureCount` select a pixel shader (combiner, `
 - Env coordinates are the view-space sphere map `posToTexCoord`; edge fade (vertex shaders 9, 12,
   13) scales the mesh colour and alpha by `clamp(2.7 (N.V)^2 - 0.4)`.
 - Combiner specular (Add/AddAlpha terms) is added after lighting, times the mesh colour.
+- A **three-texture Mod_Add** batch (pixel 8, `shader_id 0x4013` on the ground effects) masks its
+  whole stage with the third slot: coverage is `(t0.a + t1.a) * t2.a` and the additive layer is
+  `t1.rgb * t2.a`. The third slot has no texture transform of its own (`textureTransformsLookup`
+  entry -1 on 1522961) and is sampled at the mesh's first coordinate, once across the quad. Its
+  alpha is what makes the footprint round: those masks are 0 at the texture corners, 0.1-0.3 over
+  the inside and 0.5-0.9 in a rim band, and the ground quads are diamonds whose UV corners sit on
+  their tips, so the transparent corners fall outside the disc. Verified against the retail 12.x
+  screenshots in `/syncthing/AgentShared/2026-11-07/dnd-sharpness/retail-ref/user-12x/`:
+  round edge, see-through interior, darkening strongest near the rim, red only where the red
+  layer's own mask is opaque.
 
 Mesh colour is `colors[colorIndex]` (RGB, alpha); mesh opacity is its alpha times texture weight 0
 (`transparencyLookup[textureWeightComboIndex]`) unless batch flag `0x40` is set. Weights 0..2 also

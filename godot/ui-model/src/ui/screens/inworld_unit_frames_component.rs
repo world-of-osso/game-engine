@@ -41,8 +41,8 @@ use inworld_unit_frames_art::{
 };
 use inworld_unit_frames_aura::target_auras;
 pub use inworld_unit_frames_aura::{
-    MAX_TARGET_BUFFS, MAX_TARGET_DEBUFFS, TargetAuraView, set_target_auras, target_aura_icon,
-    target_frame_auras,
+    MAX_TARGET_BUFFS, MAX_TARGET_DEBUFFS, TargetAuraView, aura_elapsed, player_aura_icons,
+    set_target_auras, target_aura_icon, target_frame_auras,
 };
 use inworld_unit_frames_flare::{
     FLARE_FOCUS, FLARE_PLAYER, FLARE_TARGET, FLARE_TARGET_OF_TARGET, FlareFrame, FlareUnit,
@@ -148,7 +148,7 @@ pub struct UnitFrameState {
     pub show_resting_icon: bool,
     /// Forever player-frame auras; harmful entries belong to the local player or pet.
     /// Filled from the same counted-down aura data as BuffFrame.
-    pub player_auras: Vec<crate::aura_display_data::AuraInstance>,
+    pub player_auras: Vec<PlayerAuraIconState>,
     pub target_buffs: Vec<TargetAuraIconState>,
     pub target_debuffs: Vec<TargetAuraIconState>,
     /// Friendly target: buffs lead the aura container, else debuffs do.
@@ -272,9 +272,18 @@ pub struct TargetAuraIconState {
     pub dispel_color: Option<String>,
     /// Cast by the local player: `LargeAuraSize`.
     pub large: bool,
-    /// Elapsed fraction of a timed aura, for the reverse cooldown swipe; `None` when
-    /// permanent.
-    pub elapsed: Option<f32>,
+    /// A timed aura: its `Cooldown` frame shows. The swipe's elapsed fraction changes
+    /// every frame, so the host draws it beside this state (`aura_elapsed`), not in it.
+    pub timed: bool,
+}
+
+/// One Forever player-frame aura as drawn: icon, border and the timer text, which
+/// changes only when its displayed value does.
+#[derive(Clone, Debug, PartialEq)]
+pub struct PlayerAuraIconState {
+    pub icon: TargetAuraIconState,
+    pub is_debuff: bool,
+    pub timer: String,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -390,6 +399,7 @@ fn visible_target_of(state: &InWorldUnitFramesState) -> Option<&SmallUnitFrameSt
 }
 
 const UNIT_FRAME_SIZE: (f32, f32) = (UNIT_FRAME_W, UNIT_FRAME_H);
+const FOREVER_CLASS_BAR_GAP: f32 = 4.0;
 
 fn player_frame(
     state: &UnitFrameState,
@@ -402,11 +412,16 @@ fn player_frame(
             aura_state: Some(state),
             ..state.into()
         };
-        flare_frame(&FLARE_PLAYER, Some(unit), !visible, anchor)
+        let class_bar = class_bar(
+            state.class_bar.as_ref(),
+            FLARE_PLAYER.size.0 / 2.0,
+            FLARE_PLAYER.size.1 + FOREVER_CLASS_BAR_GAP,
+        );
+        flare_frame(&FLARE_PLAYER, Some(unit), !visible, anchor, class_bar)
     } else {
         let content = rsx! {
             {unit_frame_contents("Player", state, &PLAYER_SLOTS, HEALTH_BAR)}
-            {class_bar(state.class_bar.as_ref())}
+            {class_bar(state.class_bar.as_ref(), CLASS_BAR_CENTRE_X, CLASS_BAR_TOP)}
             {status_icons(state, skin)}
         };
         art_root(
@@ -442,6 +457,7 @@ fn target_frame(
             }),
             !visible,
             anchor,
+            Element::default(),
         )
     } else {
         let content = target
@@ -697,7 +713,7 @@ fn health_status_bar(tap_denied: bool, spec: BarSpec<'_>) -> Element {
 
 /// Retail `VerticalLayoutMixin` places a centred child at the container top plus its
 /// `topPadding`, shifted right by half its `leftPadding` (LayoutFrame.lua:340,346-348).
-fn class_bar(view: Option<&ClassBarView>) -> Element {
+fn class_bar(view: Option<&ClassBarView>, centre_x: f32, row_top: f32) -> Element {
     let Some(view) = view else {
         return Element::default();
     };
@@ -714,11 +730,52 @@ fn class_bar(view: Option<&ClassBarView>) -> Element {
             width,
             height,
             pos_type: "absolute",
-            pos_x: {CLASS_BAR_CENTRE_X + left_padding / 2.0 - width / 2.0},
-            pos_y: {CLASS_BAR_TOP + top_padding},
+            pos_x: {centre_x + left_padding / 2.0 - width / 2.0},
+            pos_y: {row_top + top_padding},
             {textures}
         }
     }
+}
+
+/// What the screen state keeps of a class bar: each texture's animated values (position,
+/// alpha, rotation, swipe progress) at rest. A filling, spinning or recharging bar then
+/// leaves the unit-frames state unchanged; the client applies the live values to the
+/// drawn frames with [`class_bar_texture_patch`] instead of rebuilding the screen.
+pub fn class_bar_layout(view: &ClassBarView) -> ClassBarView {
+    let textures = view
+        .textures
+        .iter()
+        .map(|texture| TextureView {
+            rect: (0.0, 0.0, texture.rect.2, texture.rect.3),
+            alpha: 1.0,
+            rotation: 0.0,
+            swipe: texture.swipe.map(|_| 0.0),
+            ..texture.clone()
+        })
+        .collect();
+    ClassBarView {
+        textures,
+        ..view.clone()
+    }
+}
+
+/// The animated attributes of `texture`'s frame, as [`class_bar_texture`] sets them.
+pub fn class_bar_texture_patch(texture: &TextureView) -> Vec<(&'static str, String)> {
+    let (x, y, _, _) = texture.rect;
+    let mut attrs = vec![("pos_x", x.to_string()), ("pos_y", y.to_string())];
+    if texture.swipe.is_some() {
+        attrs.push(("hidden", (!texture.shown).to_string()));
+        return attrs;
+    }
+    let hidden = !texture.shown || texture.alpha <= 0.0;
+    attrs.push(("hidden", hidden.to_string()));
+    attrs.push(("vertex_color", class_bar_vertex_color(texture)));
+    attrs.push(("rotation", texture.rotation.to_string()));
+    attrs
+}
+
+fn class_bar_vertex_color(texture: &TextureView) -> String {
+    format!("1.0,1.0,1.0,{}", texture.alpha)
 }
 
 /// One class bar texture at its alpha, named `prefix` + its name; hidden while not shown
@@ -743,7 +800,7 @@ fn class_bar_texture(prefix: &str, texture: &TextureView) -> Element {
     }
     let (x, y, width, height) = texture.rect;
     let coords = texture.art.tex_coords(1.0);
-    let color = format!("1.0,1.0,1.0,{}", texture.alpha);
+    let color = class_bar_vertex_color(texture);
     let hidden = !texture.shown || texture.alpha <= 0.0;
     rsx! {
         texture {
@@ -819,7 +876,13 @@ fn small_unit_frame(
     skin: ActiveSkin,
 ) -> Element {
     if skin == ActiveSkin::Forever {
-        return flare_frame(spec.flare, state.map(FlareUnit::from), false, anchor);
+        return flare_frame(
+            spec.flare,
+            state.map(FlareUnit::from),
+            false,
+            anchor,
+            Element::default(),
+        );
     }
     let content = state
         .map(|unit| small_unit_contents(&spec, unit, skin))

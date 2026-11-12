@@ -9,8 +9,9 @@ Replicated NPC models and placed doodads sample their bone animation at a rate c
 - [x] Replicated NPC attachment supplies the real animation runtime and exact display skin textures without adding a player marker or default equipment. Idle playback changes actual joint transforms.
 - [x] M2 +X model forward maps to logical network +Z forward below the NPC root; display scale is retained.
 - [ ] NPC models within 30 yd of the camera and on screen sample every frame.
-- [ ] NPC models between 30 yd and 60 yd and on screen sample every other frame, staggered by entity so roughly half sample each frame.
+- [ ] NPC models past 30 yd and on screen sample one frame in a stride that grows with distance, staggered by entity so the models of one band spread their samples across the frames instead of landing on the same one. The stride bands are 30/38/46/54 yd for strides 2/3/4/6, as `STRIDE_BANDS_YARDS` in `godot/rust/src/animation/lod.rs`; they are the retune points.
 - [ ] NPC models beyond 60 yd, or whose model bounds lie outside the camera frustum in the previous frame, do not sample; their joints keep the last written pose. The frustum test is the doodads' box-vs-frustum test, so the decision does not depend on renderer state and a headless client classifies NPCs as a rendered one does.
+- [ ] A model that is not sampling does not feed the momentum-sway tracker and restarts it when sampling resumes, so the frozen interval is not replayed as motion and no skeleton transform is read for it.
 - [x] A new binding samples until Bevy has evaluated it once, so an NPC frozen since spawn holds an authored pose, not the bind pose.
 - [ ] A skipped frame writes no joint transform, so the NPC's transform subtree is not dirtied.
 - [x] NPC material animation uses the same sampling decision as its bones, including models with materials but no bone animation. When sampling resumes, it uses the current animation and global clocks.
@@ -50,7 +51,7 @@ Replicated NPC models and placed doodads sample their bone animation at a rate c
 ## Known gaps
 
 - Frozen NPCs that are moving slide in their last pose until they re-enter range or view.
-- Thresholds are constants inherited from the retired client; no client option exposes them. They are not verified against an external client's animation LOD thresholds.
+- Thresholds are constants; no client option exposes them. The retail client keeps a per-instance animation LOD level and the `animFrameSkipLOD` rule ("animations will skip frames at distance"), but its distances and default level are **UNKNOWN**, so the stride bands are INFERRED (labelled in `lod.rs`) and carry a retirement condition: replace them once the retail values are located.
 
 ## Out of scope
 

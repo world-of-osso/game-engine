@@ -23,6 +23,9 @@ func run_test() -> void:
 	# Let startup settle before the fixture requests a map.
 	for frame in 120:
 		await process_frame
+	if str(client.account_state().ui_skin) != "Forever":
+		fail("Zephras proof requires the Forever skin: " + str(client.account_state().ui_skin))
+		return
 	var error: String = client.preview_world_map("2991", CENTER)
 	if error != "":
 		fail(error)
@@ -76,6 +79,9 @@ func run_test() -> void:
 			fail(lighting_error)
 			return
 		hide_ui(client)
+		# Freeze the shared material clock so two builds capture the same water phase.
+		root.get_node("M2MaterialClock").set_process(false)
+		RenderingServer.global_shader_parameter_set("liquid_animation_time_ms", 2000.0)
 		for frame in 30:
 			await process_frame
 		await RenderingServer.frame_post_draw
@@ -83,10 +89,10 @@ func run_test() -> void:
 		if image == null or image.is_empty() or image.save_png(OUTPUT) != OK:
 			fail("Cannot capture rendered map")
 			return
-		var meshes := tile.find_children("Chunk*", "MeshInstance3D", true, false)
+		var meshes := tile.find_children("Chunk*", "StaticBody3D", false, false)
 		print("ZEPHRAS_PROOF chunks=%d doodad_nodes=%d wmo_nodes=%d height=%s terrain=%s objects=%s screenshot=%s lighting=production-forever" % [meshes.size(), doodads.size(), wmos.size(), height, state.terrain, state.world_objects, OUTPUT])
 		if meshes.size() < 256:
-			fail("Expected 256 terrain meshes")
+			fail("Expected 256 terrain chunks")
 			return
 		camera.position = COAST + Vector3(110.0, 120.0, 110.0)
 		camera.look_at(COAST)

@@ -36,8 +36,13 @@ pub(super) struct Background {
 }
 
 impl Background {
-    /// Load `scene_id`, or the first authored scene when none was chosen.
-    pub fn load(data_root: PathBuf, scene_id: Option<u32>) -> Result<Self, String> {
+    /// Load `scene_id`, or the first authored scene when none was chosen, lit with
+    /// `shadow_cascades` sun shadow splits.
+    pub fn load(
+        data_root: PathBuf,
+        scene_id: Option<u32>,
+        shadow_cascades: u8,
+    ) -> Result<Self, String> {
         let catalog = read_authored_catalog(&data_root)?;
         let scene = match scene_id {
             Some(id) => catalog
@@ -72,7 +77,7 @@ impl Background {
             placement,
             terrain,
             materials: TerrainMaterials::default(),
-            lighting: WorldLighting::default(),
+            lighting: WorldLighting::new(shadow_cascades),
             light: None,
             objects,
             sky: None,
@@ -284,12 +289,17 @@ mod tests {
     use osso_asset_resolver::{AssetResolverConfig, CascListfileResolver};
 
     use super::*;
+    use game_engine_core::graphics_quality_data::GraphicsQuality;
 
     #[test]
     fn current_wdt_background_loads_primary_with_all_waterfall_placements() {
         let data_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
-        let mut background =
-            Background::load(data_root.clone(), None).expect("authored background");
+        let mut background = Background::load(
+            data_root.clone(),
+            None,
+            GraphicsQuality::default().preset().shadow_cascades,
+        )
+        .expect("authored background");
         assert_eq!(background.scene.id, 1);
         assert_eq!(background.scene.map_id, 2703);
         assert_eq!(background.scene.tile_coords(), (31, 37));

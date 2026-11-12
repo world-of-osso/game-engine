@@ -1,5 +1,6 @@
 //! Authored player and creature visual children for replicated units.
 use std::{
+    cell::RefCell,
     collections::HashMap,
     f32::consts::FRAC_PI_2,
     path::PathBuf,
@@ -22,9 +23,10 @@ use crate::{
     assets::{
         appearance::{NpcAppearances, PreparedNpc},
         creature::{
-            CreatureGear, CreatureModelParts, build_creature_model, insert_decoded_textures,
-            prepare_creature_model,
+            CachedModel, CreatureBuild, CreatureGear, CreatureModelParts, build_creature_model,
+            insert_decoded_textures, prepare_creature_model,
         },
+        creature_template::{CreatureTemplate, TemplateSource},
         equipment::place_equipment,
         player::{PlayerParts, build_player_model, prepare_player_parts},
     },
@@ -37,12 +39,15 @@ use crate::{
     outfit_data::OutfitData,
 };
 
+#[track_caller]
 pub(crate) fn bind_visual_light(visual: &Gd<Node3D>, light: Option<&TerrainLight>) {
     let meshes = visual
         .find_children_ex("*")
         .type_("MeshInstance3D")
         .owned(false)
         .done();
+    // Batches of one model with equal merge keys share their material: bind it once.
+    let mut bound = std::collections::HashSet::new();
     for node in meshes.iter_shared() {
         let mesh = node.cast::<MeshInstance3D>();
         if mesh.get_name().to_string().starts_with("M2RibbonStrip") {
@@ -53,8 +58,14 @@ pub(crate) fn bind_visual_light(visual: &Gd<Node3D>, light: Option<&TerrainLight
             .get_active_material(0)
             .expect("M2 or WMO batch has an authored material")
             .cast::<ShaderMaterial>();
+        if !bound.insert(material.instance_id()) {
+            continue;
+        }
+        // A creature template's units share their materials: the first binds them.
+        let lit = material.get_shader_parameter("scene_light").booleanize();
         match light {
-            Some(light) => light.bind_model(&mut material),
+            Some(light) if !lit => light.bind_model(&mut material),
+            Some(_) => {}
             None => TerrainLight::clear_model(&mut material),
         }
     }
@@ -138,6 +149,8 @@ enum VisualRequest {
 pub(crate) enum VisualParts {
     Creature {
         display_id: u32,
+        /// The replicated virtual items the gear was resolved from (a template's key).
+        items: EquipmentAppearance,
         display: CreatureDisplay,
         npc: Option<PreparedNpc>,
         gear: CreatureGear,
@@ -360,6 +373,7 @@ impl VisualCatalogs {
         let model = prepare_creature_model(&self.data_root, &display, &gear)?;
         Ok(VisualParts::Creature {
             display_id,
+            items: items.clone(),
             display,
             npc,
             gear,
@@ -418,6 +432,10 @@ pub(crate) struct WorldModels {
     /// Requests the workers have not taken yet, by request ID.
     requests: Arc<Mutex<HashMap<u64, VisualRequest>>>,
     next_request: u64,
+    /// World creature visuals by display and gear (`build_world_visual`).
+    templates: RefCell<Vec<CreatureTemplate>>,
+    /// Requests a template answered without a worker load, for the next `poll`.
+    template_hits: Vec<(u64, VisualParts)>,
 }
 
 impl WorldModels {
@@ -461,6 +479,8 @@ impl WorldModels {
             loader,
             requests,
             next_request: 0,
+            templates: RefCell::default(),
+            template_hits: Vec::new(),
         }
     }
 
@@ -472,6 +492,18 @@ impl WorldModels {
             SheathState::Unarmed,
         )?;
         self.build_visual(parts, None)
+    }
+
+    /// `display_id` holding `items` placed for `sheath`, as a world unit shows it
+    /// (`build_world_visual`).
+    pub(crate) fn load_world_display(
+        &self,
+        display_id: u32,
+        items: &EquipmentAppearance,
+        sheath: SheathState,
+    ) -> Result<Gd<Node3D>, String> {
+        let parts = self.catalogs.load_creature(display_id, items, sheath)?;
+        self.build_world_visual(parts, None, None)
     }
 
     /// Native player display from the same build-pinned ChrModel rows as unit voices.
@@ -539,6 +571,14 @@ impl WorldModels {
     /// `poll` hands it out under the returned request ID. Players load ahead of
     /// creatures: the loading screen waits for the local player's model.
     pub fn request(&mut self, appearance: &UnitAppearance, sheath: SheathState) -> u64 {
+        let id = self.next_request;
+        self.next_request += 1;
+        if let UnitAppearance::Creature { display_id, items } = appearance
+            && let Some(parts) = self.template_parts(*display_id, items, sheath)
+        {
+            self.template_hits.push((id, parts));
+            return id;
+        }
         let (request, priority) = match appearance {
             UnitAppearance::Creature { display_id, items } => (
                 VisualRequest::Creature {
@@ -553,8 +593,6 @@ impl WorldModels {
                 Priority::Now,
             ),
         };
-        let id = self.next_request;
-        self.next_request += 1;
         self.requests
             .lock()
             .expect("unit visual requests")
@@ -563,9 +601,56 @@ impl WorldModels {
         id
     }
 
-    /// Requested visuals whose file work finished since the last call.
+    /// Requested visuals whose file work finished since the last call, and those a
+    /// template answered.
     pub fn poll(&mut self) -> Vec<(u64, Result<VisualParts, String>)> {
-        self.loader.poll()
+        let mut ready = self.loader.poll();
+        ready.extend(
+            self.template_hits
+                .drain(..)
+                .map(|(id, parts)| (id, Ok(parts))),
+        );
+        ready
+    }
+
+    /// Main thread: the parts of a creature visual an earlier unit with `display_id` and
+    /// the replicated virtual items `items` made a template of, its items placed for
+    /// `sheath`. Its load needs no worker: the worker's file work, NPC texture compositing
+    /// and decoding would all be discarded for the template's instance.
+    fn template_parts(
+        &self,
+        display_id: u32,
+        items: &EquipmentAppearance,
+        sheath: SheathState,
+    ) -> Option<VisualParts> {
+        let templates = self.templates.borrow();
+        let source = templates
+            .iter()
+            .find(|template| template.made_for(display_id, items))?
+            .source();
+        let placements = virtual_item_placements(
+            self.visual_gear()
+                .expect("a template's visual loaded the gear rows"),
+            items,
+            sheath,
+        );
+        let mut gear = source.gear.clone();
+        for (item, attachment) in &mut gear.items {
+            if let Some((_, placed)) = placements.iter().find(|(slot, _)| *slot == item.slot) {
+                *attachment = *placed;
+            }
+        }
+        Some(VisualParts::Creature {
+            display_id,
+            items: items.clone(),
+            display: source.display,
+            npc: None,
+            gear,
+            model: CreatureModelParts {
+                model: Arc::clone(&source.model),
+                textures: Vec::new(),
+            },
+        })
     }
 
     /// Main thread: the nodes of `parts`; a player visual replacing `previous_player`
@@ -582,8 +667,175 @@ impl WorldModels {
                 npc,
                 gear,
                 model,
+                ..
             } => self.build_creature_visual(display_id, &display, npc, &gear, model),
             VisualParts::Player(parts) => self.build_player_visual(parts, previous_player),
+        }
+    }
+
+    /// Main thread: a world unit's visual. A creature whose display and gear an earlier
+    /// world unit had instantiates that unit's template; its first visual is built and
+    /// becomes the template. Its materials are shared with the other units of the
+    /// template, so only the world, which binds them all alike, takes these visuals.
+    /// `built` is the visual a staged build made of `parts`, whose template is made
+    /// (`make_template`).
+    pub fn build_world_visual(
+        &self,
+        parts: VisualParts,
+        previous_player: Option<&Gd<Node3D>>,
+        built: Option<Gd<Node3D>>,
+    ) -> Result<Gd<Node3D>, String> {
+        let VisualParts::Creature {
+            display_id,
+            items,
+            gear,
+            ..
+        } = &parts
+        else {
+            return self.build_visual(parts, previous_player);
+        };
+        let (display_id, gear) = (*display_id, gear.clone());
+        if let Some(visual) = built {
+            self.discard(parts);
+            return Ok(visual);
+        }
+        if let Some(template) = self
+            .templates
+            .borrow_mut()
+            .iter_mut()
+            .find(|template| template.matches(display_id, &gear))
+        {
+            let _span = crate::profile::span(|| "creature.template_instance".to_owned());
+            template.add_key(items);
+            self.discard(parts);
+            return template.instance(&gear);
+        }
+        let (source, items) = template_source(&parts).expect("a creature visual's parts");
+        let visual = self.build_visual(parts, None)?;
+        if let Err(error) = self.add_template(source, items, &visual) {
+            visual.free();
+            return Err(error);
+        }
+        Ok(visual)
+    }
+
+    /// Main thread: makes the template of `visual`, the first visual built of the
+    /// creature `parts`, before it enters the scene tree.
+    pub fn make_template(&self, parts: &VisualParts, visual: &Gd<Node3D>) -> Result<(), String> {
+        let (source, items) =
+            template_source(parts).ok_or("Only creature visuals have templates")?;
+        self.add_template(source, items, visual)
+    }
+
+    fn add_template(
+        &self,
+        source: TemplateSource,
+        items: EquipmentAppearance,
+        visual: &Gd<Node3D>,
+    ) -> Result<(), String> {
+        let _span = crate::profile::span(|| "creature.template".to_owned());
+        let display_id = source.display_id;
+        let template = CreatureTemplate::of(source, items, visual)
+            .map_err(|error| format!("Creature display {display_id} template: {error}"))?;
+        self.templates.borrow_mut().push(template);
+        Ok(())
+    }
+
+    /// Drop every creature template (`assets::release_map_resource_caches`).
+    pub fn release_templates(&mut self) {
+        self.templates.get_mut().clear();
+    }
+
+    /// Whether `parts` is a creature visual no template makes yet: its first visual
+    /// is built in parts (`start_build`) before it becomes the template.
+    pub fn needs_build(&self, parts: &VisualParts) -> bool {
+        let VisualParts::Creature {
+            display_id, gear, ..
+        } = parts
+        else {
+            return false;
+        };
+        !self
+            .templates
+            .borrow()
+            .iter()
+            .any(|template| template.matches(*display_id, gear))
+    }
+
+    /// Whether the creature visuals `a` and `b` instantiate one template.
+    pub fn shares_template(a: &VisualParts, b: &VisualParts) -> bool {
+        match (a, b) {
+            (
+                VisualParts::Creature {
+                    display_id, gear, ..
+                },
+                VisualParts::Creature {
+                    display_id: other_id,
+                    gear: other_gear,
+                    ..
+                },
+            ) => display_id == other_id && CreatureTemplate::same_models(gear, other_gear),
+            _ => false,
+        }
+    }
+
+    /// Main thread: inserts the decoded textures of the creature visual `parts` and builds
+    /// its body, the first part of its build (`CreatureBuild`); `parts` keeps what the
+    /// later parts and the attach read.
+    pub fn start_build(&self, parts: &mut VisualParts) -> Result<CreatureBuild, String> {
+        let VisualParts::Creature {
+            display,
+            npc,
+            gear,
+            model,
+            ..
+        } = parts
+        else {
+            return Err("Only creature visuals are built in parts".to_owned());
+        };
+        insert_decoded_textures(std::mem::take(&mut model.textures))?;
+        let appearance = npc
+            .take()
+            .map(|npc| npc.appearance.into_prepared())
+            .transpose()?;
+        let _span = crate::profile::span(|| "creature.build_model".to_owned());
+        CreatureBuild::body(
+            &self.catalogs.data_root,
+            display,
+            &model.model,
+            appearance.as_ref(),
+            gear,
+        )
+    }
+
+    /// Main thread: the next part of the build of the creature visual `parts`, an item,
+    /// or once every item is attached, the visual.
+    pub fn continue_build(
+        &self,
+        parts: &VisualParts,
+        mut build: CreatureBuild,
+    ) -> Result<BuildStep, String> {
+        let VisualParts::Creature {
+            display_id,
+            display,
+            model,
+            ..
+        } = parts
+        else {
+            build.free();
+            return Err("Only creature visuals are built in parts".to_owned());
+        };
+        match build.attach_next(&self.catalogs.data_root, &model.model) {
+            Ok(true) => Ok(BuildStep::Building(build)),
+            Ok(false) => {
+                let (built, missing) = build.finish();
+                creature_visual(*display_id, display, &model.model, built, missing)
+                    .map(BuildStep::Built)
+            }
+            Err(error) => {
+                build.free();
+                Err(error)
+            }
         }
     }
 
@@ -605,7 +857,12 @@ impl WorldModels {
         previous_player: Option<&Gd<Node3D>>,
     ) -> Result<Gd<Node3D>, String> {
         let catalogs = &self.catalogs;
+        let body = parts.model();
         let mut model = build_player_model(&catalogs.data_root, parts)?;
+        if let Err(error) = merge_shown_batches(&model, &body) {
+            model.free();
+            return Err(error);
+        }
         model.set_name("PlayerModel");
         // Its weapons are placed for the sheath state by the sync that follows the attach.
         if let Some(previous) = previous_player
@@ -625,37 +882,95 @@ impl WorldModels {
         gear: &CreatureGear,
         parts: CreatureModelParts,
     ) -> Result<Gd<Node3D>, String> {
-        let catalogs = &self.catalogs;
         insert_decoded_textures(parts.textures)?;
         let appearance = npc.map(|npc| npc.appearance.into_prepared()).transpose()?;
-        let (mut model, missing) = build_creature_model(
-            &catalogs.data_root,
+        let span = crate::profile::span(|| "creature.build_model".to_owned());
+        let (model, missing) = build_creature_model(
+            &self.catalogs.data_root,
             display,
             &parts.model,
             appearance.as_ref(),
             gear,
         )?;
-        if !missing.is_empty() {
-            godot_warn!("Creature display {display_id} missing texture FDIDs: {missing:?}");
-        }
-        model.set_name("NpcModel");
-        let scale = if display.scale_milli == 0 {
-            1.0
-        } else {
-            display.scale_milli as f32 / 1000.0
-        };
-        let mut visual = Node3D::new_alloc();
-        visual.set_name("NpcVisualRoot");
-        visual.set_meta("creature_display_id", &Variant::from(display_id));
-        visual.set_scale(Vector3::ONE * scale.max(0.01));
-        visual.set_meta(
-            "pet_instance_scale",
-            &Variant::from(display.pet_instance_scale_milli as f32 / 1000.0),
-        );
-        visual.set_rotation(Vector3::new(0.0, -FRAC_PI_2, 0.0));
-        visual.add_child(&model);
-        Ok(visual)
+        drop(span);
+        creature_visual(display_id, display, &parts.model, model, missing)
     }
+}
+
+/// What the template of a creature visual built of `parts` keeps, and the replicated
+/// virtual items it is first made for.
+fn template_source(parts: &VisualParts) -> Option<(TemplateSource, EquipmentAppearance)> {
+    let VisualParts::Creature {
+        display_id,
+        items,
+        display,
+        gear,
+        model,
+        ..
+    } = parts
+    else {
+        return None;
+    };
+    let source = TemplateSource {
+        display_id: *display_id,
+        display: *display,
+        model: Arc::clone(&model.model),
+        gear: gear.clone(),
+    };
+    Some((source, items.clone()))
+}
+
+/// What `WorldModels::continue_build` made: the build with an item more, or its visual.
+pub enum BuildStep {
+    Building(CreatureBuild),
+    Built(Gd<Node3D>),
+}
+
+/// The visual root of the creature model `model` built of display `display_id`, its
+/// shown batches merged; `missing` is the texture FDIDs the build did not find.
+fn creature_visual(
+    display_id: u32,
+    display: &CreatureDisplay,
+    parsed: &CachedModel,
+    mut model: Gd<Node3D>,
+    missing: PackedInt32Array,
+) -> Result<Gd<Node3D>, String> {
+    if !missing.is_empty() {
+        godot_warn!("Creature display {display_id} missing texture FDIDs: {missing:?}");
+    }
+    let span = crate::profile::span(|| "creature.merge".to_owned());
+    if let Err(error) = merge_shown_batches(&model, parsed) {
+        model.free();
+        return Err(error);
+    }
+    drop(span);
+    model.set_name("NpcModel");
+    let scale = if display.scale_milli == 0 {
+        1.0
+    } else {
+        display.scale_milli as f32 / 1000.0
+    };
+    let mut visual = Node3D::new_alloc();
+    visual.set_name("NpcVisualRoot");
+    visual.set_meta("creature_display_id", &Variant::from(display_id));
+    visual.set_scale(Vector3::ONE * scale.max(0.01));
+    visual.set_meta(
+        "pet_instance_scale",
+        &Variant::from(display.pet_instance_scale_milli as f32 / 1000.0),
+    );
+    visual.set_rotation(Vector3::new(0.0, -FRAC_PI_2, 0.0));
+    visual.add_child(&model);
+    Ok(visual)
+}
+
+/// A world unit's geosets are settled once its model is built: its opaque batches that
+/// bind identical materials draw as one (`batch_merge`).
+fn merge_shown_batches(model: &Gd<Node3D>, parsed: &CachedModel) -> Result<(), String> {
+    crate::assets::batch_merge::merge_shown_batches(
+        model,
+        &parsed.model,
+        &parsed.path.to_string_lossy(),
+    )
 }
 
 /// Where each of a creature's virtual item models goes under `sheath`.

@@ -364,6 +364,28 @@ pub fn hud_body(
                 "Open",
                 "cooldown_settings",
             ),
+            toggle_row(
+                "healer_ground_rings",
+                "Healer Ground Rings",
+                hud.healer_ground_rings.enabled,
+            ),
+            toggle_row(
+                "healer_ground_rings_all",
+                "Ground Rings for All Roles",
+                hud.healer_ground_rings.all_roles,
+            ),
+            toggle_row(
+                "healer_ground_rings_colorblind",
+                "Colour-blind Health Ramp",
+                hud.healer_ground_rings.colorblind_ramp,
+            ),
+            slider_row(
+                "healer_ground_rings_raid",
+                "Raid Ground Rings (Lowest N)",
+                f32::from(hud.healer_ground_rings.raid_lowest),
+                0.0,
+                f32::from(game_engine_core::client_options_data::MAX_RAID_LOWEST),
+            ),
             toggle_row("show_nameplates", "Show Nameplates", hud.show_nameplates),
             slider_row(
                 "nameplate_distance",

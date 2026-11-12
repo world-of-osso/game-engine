@@ -28,7 +28,7 @@ pub use melee::{MeleeHand, SwingResult};
 pub use voice::{UnitSound, VoiceSource, player_displays};
 
 /// Bump when the cached catalog layout or its build rules change.
-const CACHE_FORMAT: u32 = 18;
+const CACHE_FORMAT: u32 = 20;
 
 const SOURCE_TABLES: [&str; 30] = [
     "SpellEffect",
@@ -94,7 +94,8 @@ pub enum VisualEvent {
     ChannelEnd,
     OneShot,
     Other(u32),
-    /// Client display-state lifecycle, not a SpellVisualEvent DB2 row.
+    /// Display kit start/end (DB2 `StartEvent` 9, `EndEvent` 10): art held for as long as
+    /// the display lasts, which for an area trigger is its whole lifetime.
     DisplayStart,
     DisplayEnd,
 }
@@ -110,6 +111,10 @@ impl VisualEvent {
             6 => Self::Impact,
             7 => Self::AuraStart,
             8 => Self::AuraEnd,
+            // 9/10 are authored `SpellVisualEvent` rows too: the display kit that an area
+            // trigger holds for its lifetime.
+            9 => Self::DisplayStart,
+            10 => Self::DisplayEnd,
             11 => Self::ChannelStart,
             12 => Self::ChannelEnd,
             13 => Self::OneShot,
@@ -264,6 +269,9 @@ pub struct KitModel {
     pub scale: f32,
     /// SpellVisualEffectName.Alpha, applied to both meshes and particles.
     pub alpha: f32,
+    /// The effect's authored ground radius in yards, `0.0` when unset; an area trigger
+    /// scales the art by its own radius over this one.
+    pub effect_radius: f32,
     /// Seconds after the kit starts before the model appears.
     pub start_delay: f32,
     /// `StartAnimID`, `AnimID` and `EndAnimID`: the model's clip when the kit starts,
@@ -364,6 +372,9 @@ struct EffectName {
     model_fdid: u32,
     scale: f32,
     alpha: f32,
+    /// The effect's authored ground radius in yards, `0.0` when it has none. A trigger fits
+    /// this art to the radius it reports (`SpellVisualEffectName.EffectRadius`).
+    effect_radius: f32,
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
@@ -428,6 +439,10 @@ impl Table {
             .get(name)
             .copied()
             .ok_or_else(|| format!("{} missing {name} column", self.path.display()))
+    }
+
+    fn has_column(&self, name: &str) -> bool {
+        self.columns.contains_key(name)
     }
 
     fn indices<const N: usize>(&self, names: [&str; N]) -> Result<[usize; N], String> {
@@ -510,6 +525,34 @@ fn attachment(value: i64) -> Option<u8> {
 
 fn anim_id(value: i64) -> Option<u16> {
     u16::try_from(value).ok().filter(|&id| id != u16::MAX)
+}
+
+/// DB2 start events an area trigger must not replay (native-evidence-12.1.5/
+/// AT-visual-held-kit.md): the gate events 9, 10, 14, 15, 16 and 17, and the channel events
+/// 11 and 12, which the dispatcher's channel gate already skips. An area trigger re-issues
+/// every kit that starts at any other event and ends at [`VisualEvent::OneShot`].
+const NOT_REPLAYED_START: [u32; 8] = [9, 10, 11, 12, 14, 15, 16, 17];
+
+/// Whether an area trigger's periodic update re-issues this kit: retail's dispatcher replays
+/// records whose start event is not a channel/gate event and whose end event is the
+/// one-shot sentinel (13).
+pub fn replays_kit(start: VisualEvent, end: VisualEvent) -> bool {
+    let start = match start {
+        VisualEvent::PrecastStart => 1,
+        VisualEvent::PrecastEnd => 2,
+        VisualEvent::Cast => 3,
+        VisualEvent::TravelStart => 4,
+        VisualEvent::TravelEnd => 5,
+        VisualEvent::Impact => 6,
+        VisualEvent::AuraStart => 7,
+        VisualEvent::AuraEnd => 8,
+        VisualEvent::ChannelStart => 11,
+        VisualEvent::ChannelEnd => 12,
+        VisualEvent::OneShot => 13,
+        VisualEvent::Other(value) => value,
+        VisualEvent::DisplayStart | VisualEvent::DisplayEnd => return false,
+    };
+    end == VisualEvent::OneShot && !NOT_REPLAYED_START.contains(&start)
 }
 
 impl SpellVisualCatalog {
@@ -707,7 +750,60 @@ impl SpellVisualCatalog {
             .map(|choice| choice.visual_id)
     }
 
-    /// Kits `visual_id` starts at `event`, in authored order.
+    /// Whether the row is a display-state kit. Retail's area triggers show these for the
+    /// trigger's lifetime: they are the held ground look (Consecration's 59234/187938,
+    /// Death and Decay's 243682), not the cast burst.
+    fn shows_while_held(row: &EventRow) -> bool {
+        matches!(
+            (row.start, row.end),
+            (VisualEvent::DisplayStart, VisualEvent::DisplayEnd)
+        )
+    }
+
+    /// Every `SpellVisual` a spell can show, in priority order, ignoring caster
+    /// conditions: an area trigger's position is known but not always the caster that
+    /// would satisfy each variant's `PlayerCondition`.
+    pub fn visuals_for_spell(&self, spell_id: u32) -> Vec<u32> {
+        let mut ids: Vec<u32> = self
+            .spells
+            .get(&spell_id)
+            .map(|choices| choices.iter().map(|choice| choice.visual_id).collect())
+            .unwrap_or_default();
+        ids.sort_unstable();
+        ids.dedup();
+        ids
+    }
+
+    /// Kits an area trigger shows for a spell: first the display kits, which are held for
+    /// the trigger's whole lifetime, then the one-shots that start it. Every visual variant
+    /// contributes (a conditional visual holds the ground art: Death and Decay's disc is in
+    /// 173378, not in the unconditioned 169120), de-duplicated by kit id.
+    pub fn area_trigger_kits(&self, spell_id: u32) -> Vec<VisualKit> {
+        let mut kits: Vec<VisualKit> = Vec::new();
+        for held in [true, false] {
+            for visual in self.visuals_for_spell(spell_id) {
+                let Some(row) = self.visuals.get(&visual) else {
+                    continue;
+                };
+                for event in &row.events {
+                    let shows = if held {
+                        Self::shows_while_held(event)
+                    } else {
+                        replays_kit(event.start, event.end)
+                    };
+                    if !shows || event.kit_id == 0 {
+                        continue;
+                    }
+                    let kit = self.resolve_kit(event.kit_id, event.target, event.end);
+                    if !kits.iter().any(|known| known.kit_id == kit.kit_id) {
+                        kits.push(kit);
+                    }
+                }
+            }
+        }
+        kits
+    }
+
     pub fn kits(&self, visual_id: u32, event: VisualEvent) -> Vec<VisualKit> {
         let Some(visual) = self.visuals.get(&visual_id) else {
             return Vec::new();
@@ -803,3 +899,7 @@ fn spell_visual_links(table: &Table) -> Result<Vec<[i64; 8]>, String> {
         "ViewerPlayerConditionID",
     ])
 }
+
+#[cfg(test)]
+#[path = "spell_visual_replay_tests.rs"]
+mod replay_tests;

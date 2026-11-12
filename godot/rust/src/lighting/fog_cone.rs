@@ -29,7 +29,7 @@ impl FogCone {
             .load(SHADER_PATH)
             .and_then(|resource| resource.try_cast::<Shader>().ok())
             .ok_or_else(|| format!("Fog cone shader {SHADER_PATH} failed to load"))?;
-        let mut material = ShaderMaterial::new_gd();
+        let mut material = crate::rebuild_guard::new_shader_material();
         material.set_shader(&shader);
         material.set_render_priority(super::FOG_CONE_PRIORITY);
         let mut node = MeshInstance3D::new_alloc();
@@ -101,7 +101,7 @@ fn cone_mesh() -> Gd<ArrayMesh> {
         &vertices.to_variant(),
     );
     arrays.set(mesh::ArrayType::COLOR.ord() as usize, &colors.to_variant());
-    let mut mesh = ArrayMesh::new_gd();
+    let mut mesh = crate::rebuild_guard::new_array_mesh();
     mesh.add_surface_from_arrays(mesh::PrimitiveType::TRIANGLES, &arrays);
     mesh
 }

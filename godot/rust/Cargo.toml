@@ -9,7 +9,9 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 # Godot 4.7 GDExtension ABI and native scene/resource APIs replace Bevy rendering.
-godot = { version = "0.5.5", features = ["api-4-7"] }
+# Release builds skip the per-call liveness check (an ObjectDB lookup under a global
+# lock, 6-8% of crowd main-thread time); dev and debug builds keep their checks.
+godot = { version = "0.5.5", features = ["api-4-7", "safeguards-release-disengaged"] }
 game-engine-core = { path = "../core" }
 # Shared equipment slots retain the original persisted transform-config representation.
 serde = { version = "1", features = ["derive"] }
@@ -31,6 +33,10 @@ image = { version = "0.25", default-features = false, features = ["tga"] }
 png = "0.17"
 # Reuse the original local-CASC/listfile resolver and canonical FDID asset cache.
 osso_asset_resolver = { package = "asset-resolver", path = "../../../asset-resolver" }
+# Verify locally extracted assets against the build's root content key (MD5) and record
+# their SHA-256 in client receipts, as the closure authentication does (already locked).
+md-5 = "0.10"
+sha2 = "0.10"
 game-engine-network = { path = "../network" }
 game-engine-session = { path = "../session" }
 # Authoritative wire message types; engine scheduling stays inside the network worker.

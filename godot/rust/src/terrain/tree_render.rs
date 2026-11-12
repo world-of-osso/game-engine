@@ -133,7 +133,7 @@ fn build_weighted_mesh(
     if source.get_surface_count() == 0 {
         return Err("mesh has no surfaces".into());
     }
-    let mut weighted = ArrayMesh::new_gd();
+    let mut weighted = crate::rebuild_guard::new_array_mesh();
     weighted.set_blend_shape_mode(source.get_blend_shape_mode());
     weighted.set_lightmap_size_hint(source.get_lightmap_size_hint());
     for index in 0..source.get_blend_shape_count() {
@@ -168,6 +168,7 @@ fn copy_weighted_surface(
         .lods(&lods)
         .flags(source.surface_get_format(surface) | mesh::ArrayFormat::COLOR)
         .done();
+    crate::render_surface::store_render_surface_arrays(weighted, &arrays);
     if weighted.get_surface_count() != surface + 1 {
         return Err("Godot rejected weighted arrays".into());
     }

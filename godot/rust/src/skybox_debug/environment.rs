@@ -150,7 +150,7 @@ fn load_material(path: &str) -> Result<Gd<ShaderMaterial>, String> {
         .ok_or_else(|| format!("Cannot load SkyboxDebug shader {path}"))?
         .try_cast::<Shader>()
         .map_err(|_| format!("SkyboxDebug resource {path} is not a Shader"))?;
-    let mut material = ShaderMaterial::new_gd();
+    let mut material = crate::rebuild_guard::new_shader_material();
     material.set_shader(&shader);
     Ok(material)
 }
@@ -287,7 +287,7 @@ fn dome_indices() -> Vec<i32> {
 
 fn create_dome_mesh() -> Gd<ArrayMesh> {
     let arrays = dome_mesh_arrays(&dome_vertices());
-    let mut dome = ArrayMesh::new_gd();
+    let mut dome = crate::rebuild_guard::new_array_mesh();
     dome.add_surface_from_arrays(mesh::PrimitiveType::TRIANGLES, &arrays);
     dome
 }

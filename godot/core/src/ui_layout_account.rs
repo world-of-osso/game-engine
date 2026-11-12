@@ -60,17 +60,25 @@ pub fn persist_token_account(
     write_private_accounts(path, &serialized)
 }
 
-/// An unknown saved token must be identified by a credential login, never guessed.
-pub fn read_token_account(path: &Path, realm: &str, token: &str) -> Result<String, String> {
+/// Find the username already authenticated for this token, without guessing an identity.
+pub fn read_token_account_if_present(
+    path: &Path,
+    realm: &str,
+    token: &str,
+) -> Result<Option<String>, String> {
     let accounts = read_accounts(path)?;
-    accounts
+    Ok(accounts
         .realms
         .get(realm)
         .and_then(|tokens| tokens.get(token))
-        .cloned()
-        .ok_or_else(|| {
-            "Saved session has no HUD layout account; log in with username and password".into()
-        })
+        .cloned())
+}
+
+/// An unknown saved token must be identified by a credential login, never guessed.
+pub fn read_token_account(path: &Path, realm: &str, token: &str) -> Result<String, String> {
+    read_token_account_if_present(path, realm, token)?.ok_or_else(|| {
+        "Saved session has no HUD layout account; log in with username and password".into()
+    })
 }
 
 fn read_accounts(path: &Path) -> Result<TokenAccounts, String> {
@@ -164,6 +172,22 @@ mod tests {
             assert!(ui_layout_data::set_active_layout(isolated, 30, "HudPersistent").is_err());
         }
         assert_eq!(fs::read_to_string(base).unwrap(), "ownerless legacy data");
+        fs::remove_dir_all(directory).unwrap();
+    }
+
+    #[test]
+    fn missing_launcher_account_mapping_is_distinct_from_storage_errors() {
+        let directory =
+            std::env::temp_dir().join(format!("hudmanager-token-lookup-{}", std::process::id()));
+        let path = directory.join("layout_accounts.ron");
+        let realm = "game.worldofosso.com:5000";
+        assert_eq!(
+            read_token_account_if_present(&path, realm, "unknown"),
+            Ok(None)
+        );
+        fs::create_dir_all(&directory).unwrap();
+        fs::write(&path, "invalid RON").unwrap();
+        assert!(read_token_account_if_present(&path, realm, "unknown").is_err());
         fs::remove_dir_all(directory).unwrap();
     }
 

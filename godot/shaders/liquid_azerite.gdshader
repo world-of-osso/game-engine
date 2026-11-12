@@ -8,14 +8,14 @@ render_mode unshaded, cull_disabled, blend_mix, depth_draw_never, fog_disabled;
 
 // forwardLiquidShader_text.slang binds uTexture0/1/2/4/5 (v9-v13), uTexture6 = next frame of
 // slot 5 (v14), uTexture7 = env map FDID 1797551 (v15), uTexture8 = foam FDID 1844666 (v16).
-uniform sampler2D texture_0 : repeat_enable, filter_linear_mipmap;
-uniform sampler2D texture_1 : repeat_enable, filter_linear_mipmap;
-uniform sampler2D texture_2 : repeat_enable, filter_linear_mipmap;
-uniform sampler2D texture_4 : repeat_enable, filter_linear_mipmap;
-uniform sampler2D texture_5 : repeat_enable, filter_linear_mipmap;
-uniform sampler2D texture_next : repeat_enable, filter_linear_mipmap;
-uniform sampler2D environment_texture : repeat_enable, filter_linear_mipmap;
-uniform sampler2D shore_foam : repeat_enable, filter_linear_mipmap;
+uniform sampler2D texture_0 : repeat_enable, filter_linear_mipmap_anisotropic;
+uniform sampler2D texture_1 : repeat_enable, filter_linear_mipmap_anisotropic;
+uniform sampler2D texture_2 : repeat_enable, filter_linear_mipmap_anisotropic;
+uniform sampler2D texture_4 : repeat_enable, filter_linear_mipmap_anisotropic;
+uniform sampler2D texture_5 : repeat_enable, filter_linear_mipmap_anisotropic;
+uniform sampler2D texture_next : repeat_enable, filter_linear_mipmap_anisotropic;
+uniform sampler2D environment_texture : repeat_enable, filter_linear_mipmap_anisotropic;
+uniform sampler2D shore_foam : repeat_enable, filter_linear_mipmap_anisotropic;
 uniform sampler2D depth_texture : hint_depth_texture, filter_nearest, repeat_disable;
 
 // Shared material clock in milliseconds (the reference scene time).
@@ -88,7 +88,8 @@ vec3 unpack_normal(vec2 texel) {
 void vertex() {
 	wow_position = to_wow((MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz);
 	// adt_water_geometry: MH2O vertex depth / 255 (vPositionDepth.w).
-	vertex_depth = COLOR.a;
+	// I2 B.4: the depth byte rides the second texture pair's second component.
+	vertex_depth = UV2.y;
 }
 
 void fragment() {

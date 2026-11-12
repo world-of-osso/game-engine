@@ -47,11 +47,11 @@ impl WmoLiquids {
             let Some(liquid_type) = wmo_liquid::group_liquid_type(asset.root.flags, header) else {
                 continue;
             };
+            let geometry = wmo_liquid::liquid_geometry(liquid, liquid_type);
             let surface = self
                 .native(map_id, liquid_type, resolver, data_root)
                 .and_then(|native| {
                     let interior = wmo_liquid::group_interior_lit(header.flags);
-                    let geometry = wmo_liquid::liquid_geometry(liquid, liquid_type);
                     self.materials
                         .wmo_surface(liquid_type, interior, &native, geometry)
                 });
@@ -78,6 +78,7 @@ impl WmoLiquids {
     ) -> Result<Arc<NativeLiquidMaterial>, String> {
         let source = LiquidSource {
             map_id,
+            family: game_engine_core::liquid_data::LiquidFamily::Wmo,
             resolver,
             data_root,
             textures: &self.textures,

@@ -170,15 +170,29 @@ impl LightingCatalog {
         // by farClip / EndFogColorDistance.
         let toward_end = (FOG_FAR_CLIP / fog.end_fog_color_distance).clamp(0.0, 1.0);
         sky.fog_color = lerp_rgb(sky.fog_color, fog.end_fog_color, toward_end);
+        let (colors, color_source) = self.water_colors(&sky, map_id, wow_position, minutes);
         let mut water = WaterLight {
-            river_close: with_alpha(sky.river_close_color, alphas.river[0]),
-            river_far: with_alpha(sky.river_far_color, alphas.river[1]),
-            ocean_close: with_alpha(sky.ocean_close_color, alphas.ocean[0]),
-            ocean_far: with_alpha(sky.ocean_far_color, alphas.ocean[1]),
+            river_close: with_alpha(colors[0], alphas.river[0]),
+            river_far: with_alpha(colors[1], alphas.river[1]),
+            ocean_close: with_alpha(colors[2], alphas.ocean[0]),
+            ocean_far: with_alpha(colors[3], alphas.ocean[1]),
             specular: linear_to_authored_rgb(sky.sun_color),
             underwater_fog: INERT_UNDERWATER_FOG,
             underwater_fog_color: [0.0; 3],
         };
+        if std::env::var_os("GAME_ENGINE_WATER_DEBUG").is_some() {
+            eprintln!(
+                "WATER COLOURS map {map_id} at {wow_position:?} minutes {minutes}: river {:?}/{:?} ocean {:?}/{:?} from {}",
+                water.river_close,
+                water.river_far,
+                water.ocean_close,
+                water.ocean_far,
+                match color_source {
+                    Some(id) => format!("the fixed LightParams row {id}"),
+                    None => "the zone sample".to_owned(),
+                }
+            );
+        }
         if let Some(underwater) = self.sample_underwater(map_id, wow_position, minutes) {
             water.underwater_fog = retail_fog(&underwater);
             water.underwater_fog_color = linear_to_authored_rgb(underwater.fog_color);
@@ -268,6 +282,68 @@ impl LightingCatalog {
     ) -> Result<SkyColorSet<[f32; 3]>, String> {
         sample_light_blend(&self.keyframes, weights, minutes, lerp_rgb)
             .ok_or_else(|| format!("No authored lighting for map {map_id} at {wow_position:?}"))
+    }
+
+    /// The four liquid colours, in `[river close, river far, ocean close, ocean far]` order.
+    ///
+    /// A zone sample authors them on retail, but the Forever `LightData` rows leave all four
+    /// water columns at zero on every zone slot; in that DB2 the only row that authors water
+    /// colour is the Light's fixed record slot (`Death`, record 4 of the eight the environment
+    /// block copies — `ENV-RECORD-WRITER.md` §2.1). Only the channels the zone leaves zero are
+    /// filled from it, so retail water keeps its per-zone colour, and a colour that is zero in
+    /// both stays zero instead of being replaced by an invented default. The returned id is
+    /// the LightParams row that supplied the fallback, for the debug log.
+    fn water_colors(
+        &self,
+        sky: &SkyColorSet<[f32; 3]>,
+        map_id: u32,
+        wow_position: [f32; 3],
+        minutes: f32,
+    ) -> ([[f32; 3]; 4], Option<u32>) {
+        let zone = [
+            sky.river_close_color,
+            sky.river_far_color,
+            sky.ocean_close_color,
+            sky.ocean_far_color,
+        ];
+        if zone.iter().all(|color| *color != [0.0; 3]) {
+            return (zone, None);
+        }
+        let Some((id, fixed)) = self.fixed_water_colors(map_id, wow_position, minutes) else {
+            return (zone, None);
+        };
+        let pick = |zone: [f32; 3], fixed: [f32; 3]| if zone == [0.0; 3] { fixed } else { zone };
+        (
+            std::array::from_fn(|index| pick(zone[index], fixed[index])),
+            Some(id),
+        )
+    }
+
+    /// The authored water colours of the Light's fixed record slot, or `None` when that slot
+    /// has no Light or authors no water colour either.
+    fn fixed_water_colors(
+        &self,
+        map_id: u32,
+        wow_position: [f32; 3],
+        minutes: f32,
+    ) -> Option<(u32, [[f32; 3]; 4])> {
+        let weights = self
+            .blend_weights(map_id, wow_position, LightParamsSlot::Death)
+            .ok()?;
+        let id = *weights.first().map(|(id, _)| id)?;
+        let sky = self
+            .sample_sky(&weights, minutes, map_id, wow_position)
+            .ok()?;
+        let colors = [
+            sky.river_close_color,
+            sky.river_far_color,
+            sky.ocean_close_color,
+            sky.ocean_far_color,
+        ];
+        colors
+            .iter()
+            .any(|color| *color != [0.0; 3])
+            .then_some((id, colors))
     }
 
     /// Overlays each LightParams' alphas by its weight, as `sample_light_blend` does colours.

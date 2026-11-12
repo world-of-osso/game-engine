@@ -178,6 +178,7 @@ pub struct HudOptionsView {
     pub show_action_bars: bool,
     pub cooldown_assist: game_engine_core::client_options_data::CooldownAssistOptions,
     pub extra_action_bars: game_engine_core::client_options_data::ExtraActionBars,
+    pub healer_ground_rings: game_engine_core::client_options_data::HealerGroundRingOptions,
     pub show_nameplates: bool,
     pub nameplate_distance: f32,
     pub nameplate_style: crate::nameplate_style::NameplateStyle,

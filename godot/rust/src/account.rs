@@ -89,11 +89,11 @@ use shared::protocol::{
     InteractionOpened, InventoryDelta, InventoryError, InventorySnapshot, MerchantChannel,
     MerchantFailed, RepairItem, SellAllJunkItems, SellItem, VendorInventory,
 };
+use shared::protocol::{ControlUpdate, PetAction, PetClearSpells, PetSpellAutocast, PetSpells};
 use shared::protocol::{
     MailChannel, MailFailed, MailRequest, MailSent, MailboxContents, PendingMail, SendMail,
     UseGameObject,
 };
-use shared::protocol::{PetAction, PetClearSpells, PetSpellAutocast, PetSpells};
 use shared::protocol::{PetStableChannel, PetStableContents, PetStableFailed, PetStableRequest};
 
 use game_engine_ui_model::group_state::{GroupCommand, GroupState};
@@ -194,6 +194,9 @@ pub struct Account {
     pub group: GroupState,
     /// The pet action bar of the last `PetSpells`; `None` without a pet (`PetClearSpells`).
     pub pet_bar: Option<PetSpells>,
+    /// The unit the server lets this client control (`ControlUpdate`), separate from the
+    /// player's own body. `None` means the local player is controlled.
+    pub controlled_unit: Option<u64>,
     /// The group's raid target icons, or the solo player's own.
     pub raid_targets: RaidTargetIcons,
 }
@@ -385,6 +388,9 @@ fn layout_accounts_path() -> PathBuf {
     game_engine_core::client_options_data::options_path().with_file_name("layout_accounts.ron")
 }
 
+const LAUNCHER_ACCOUNT_NAME_REQUIRED: &str =
+    "Log in once to link this launcher account with the game client.";
+
 impl Account {
     pub(crate) fn login_reply_pending(&self) -> bool {
         self.session.screen == SessionScreen::Login && self.bridge.is_some() && !self.reply_received
@@ -430,6 +436,7 @@ impl Account {
             xp: None,
             group: GroupState::default(),
             pet_bar: None,
+            controlled_unit: None,
             raid_targets: RaidTargetIcons::default(),
         }
     }
@@ -448,6 +455,44 @@ impl Account {
         }
         self.start_transport(username, password, register)
             .map_err(SessionError)
+    }
+
+    /// Connects with a launcher token and its username, never a password.
+    pub fn connect_launcher(
+        &mut self,
+        hostname: &str,
+        token: &str,
+        account_name: Option<&str>,
+    ) -> Result<Option<String>, SessionError> {
+        self.prepare_connection(hostname).map_err(SessionError)?;
+        self.session.set_launcher_token(token);
+        let Some(token) = self.session.token.as_deref() else {
+            self.request_launcher_account_name();
+            return Ok(None);
+        };
+        let username = match account_name.map(str::trim).filter(|name| !name.is_empty()) {
+            Some(username) => Some(username.to_owned()),
+            None => game_engine_core::ui_layout_account::read_token_account_if_present(
+                &layout_accounts_path(),
+                hostname,
+                token,
+            )
+            .map_err(SessionError)?,
+        };
+        let Some(username) = username else {
+            self.request_launcher_account_name();
+            return Ok(None);
+        };
+        self.pending_layout_username = Some(username.clone());
+        self.start_transport("", "", false).map_err(SessionError)?;
+        Ok(Some(username))
+    }
+
+    fn request_launcher_account_name(&mut self) {
+        self.session.token = None;
+        self.session.feedback = Some(LAUNCHER_ACCOUNT_NAME_REQUIRED.into());
+        self.session.feedback_is_informational = true;
+        self.session.screen = SessionScreen::Login;
     }
 
     pub fn connect_startup(
@@ -1663,6 +1708,9 @@ impl Account {
     }
 
     fn load_layout_username(&mut self, request: &AuthRequest) -> Result<(), String> {
+        if self.pending_layout_username.is_some() {
+            return Ok(());
+        }
         use game_engine_core::ui_layout_account::read_token_account;
         let username = match request {
             AuthRequest::Login(request) => match &request.token {
@@ -1912,6 +1960,17 @@ impl Account {
         if message.is::<PetClearSpells>() {
             decode::<PetClearSpells>(message)?;
             self.pet_bar = None;
+            return Ok(());
+        }
+        if message.is::<ControlUpdate>() {
+            let update = decode::<ControlUpdate>(message)?;
+            self.controlled_unit = if update.on {
+                Some(update.unit)
+            } else if self.controlled_unit == Some(update.unit) {
+                None
+            } else {
+                self.controlled_unit
+            };
             return Ok(());
         }
         if self.receive_spell_message(&message) {
@@ -2574,6 +2633,7 @@ impl Account {
                     fs::write(&path, token)
                         .map_err(|error| format!("Save session {}: {error}", path.display()))?;
                 }
+                SessionEffect::RemoveSavedToken => self.remove_saved_token()?,
                 SessionEffect::SelectCharacter(request) => {
                     self.connected_bridge()?.send::<_, AuthChannel>(request)?
                 }
@@ -2596,6 +2656,15 @@ impl Account {
             }
         }
         Ok(())
+    }
+
+    fn remove_saved_token(&self) -> Result<(), String> {
+        let path = token_path(&self.data_root, Some(&self.hostname));
+        match fs::remove_file(&path) {
+            Ok(()) => Ok(()),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+            Err(error) => Err(format!("Remove saved session {}: {error}", path.display())),
+        }
     }
 
     fn format_transfer_error(&self, aborted: TransferAborted) -> Result<String, String> {
@@ -2796,6 +2865,10 @@ fn quest_message(
         return Ok(Err(message));
     }))
 }
+
+#[cfg(test)]
+#[path = "account_auth_stale_token_tests.rs"]
+mod auth_stale_token_tests;
 
 #[cfg(test)]
 #[path = "account_toys_tests.rs"]
@@ -3393,6 +3466,40 @@ mod tests {
             .dispatch_message(ProtocolMessage::for_tests(PetClearSpells), &mut output)
             .unwrap();
         assert_eq!(account.pet_bar, None);
+        assert!(output.is_empty());
+    }
+
+    #[test]
+    fn control_update_sets_and_clears_the_controlled_unit() {
+        use shared::protocol::ControlUpdate;
+        let mut account = Account::new(PathBuf::from("/nonexistent-control-data"));
+        let mut output = Vec::new();
+        let unit = 0x0000_0002_0000_0031;
+        account
+            .dispatch_message(
+                ProtocolMessage::for_tests(ControlUpdate { unit, on: true }),
+                &mut output,
+            )
+            .unwrap();
+        assert_eq!(account.controlled_unit, Some(unit));
+        // A stale release for another unit must not clear the current control.
+        account
+            .dispatch_message(
+                ProtocolMessage::for_tests(ControlUpdate {
+                    unit: unit + 1,
+                    on: false,
+                }),
+                &mut output,
+            )
+            .unwrap();
+        assert_eq!(account.controlled_unit, Some(unit));
+        account
+            .dispatch_message(
+                ProtocolMessage::for_tests(ControlUpdate { unit, on: false }),
+                &mut output,
+            )
+            .unwrap();
+        assert_eq!(account.controlled_unit, None);
         assert!(output.is_empty());
     }
 

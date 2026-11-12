@@ -12,6 +12,7 @@ use game_engine_ui_model::casting_bar_frame_component::{
     CastingBarState, casting_bar_frame_screen,
 };
 use game_engine_ui_model::faction_reaction::Reaction;
+use game_engine_ui_model::inworld_unit_frames_component::class_bars::{ClassBarView, settled_view};
 use game_engine_ui_model::inworld_unit_frames_component::inworld_unit_frames_art::{
     atlas_size, sized_atlas_texture,
 };
@@ -19,7 +20,8 @@ use game_engine_ui_model::inworld_unit_frames_component::{
     InWorldUnitFramesState, PetFrameState, PowerBarState, SmallUnitFrameState, UnitFrameMenuState,
     UnitFrameState, inworld_unit_frames_screen,
 };
-use shared::components::{CreatureClassification, PowerType};
+use game_engine_ui_model::status::{ClassBarPlayer, ClassBarResource};
+use shared::components::{CreatureClassification, PowerEntry, PowerType, UnitPowers, UnitRunes};
 use ui_toolkit::atlas::ActiveSkin;
 use ui_toolkit::frame::{Dimension, Frame, WidgetData, WidgetType};
 use ui_toolkit::registry::FrameRegistry;
@@ -48,6 +50,26 @@ fn unit(name: &str, power: PowerType) -> UnitFrameState {
         show_resting_icon: true,
         ..UnitFrameState::named(name)
     }
+}
+
+fn power_entry(power: PowerType, current: i32, max: i32) -> PowerEntry {
+    PowerEntry {
+        power,
+        current,
+        max,
+        partial: 0,
+        regen_per_sec: 0.0,
+    }
+}
+
+fn class_bar_view(
+    player: ClassBarPlayer,
+    powers: &UnitPowers,
+    runes: Option<&UnitRunes>,
+) -> ClassBarView {
+    let resource = ClassBarResource::for_player(powers, runes, &player)
+        .expect("class powers provide a class resource");
+    settled_view(&resource).expect("class resource has a renderable bar")
 }
 
 fn small(name: &str) -> SmallUnitFrameState {
@@ -279,9 +301,11 @@ fn forevergaps_live_player_auras_grow_outward_above_both_corners_with_timers() {
         debuff_type: DebuffType::Magic,
     };
     let mut player = unit("Fbflare", PowerType::Mana);
-    player.player_auras = (0..12).map(|id| aura(id, false, 60.0)).collect();
-    player.player_auras.insert(0, aura(100, false, 0.0));
-    player.player_auras.push(aura(101, true, 60.0));
+    let mut auras: Vec<_> = (0..12).map(|id| aura(id, false, 60.0)).collect();
+    auras.insert(0, aura(100, false, 0.0));
+    auras.push(aura(101, true, 60.0));
+    player.player_auras =
+        game_engine_ui_model::inworld_unit_frames_component::player_aura_icons(&auras);
     let registry = unit_frames_with_player(ActiveSkin::Forever, player.clone());
     assert_eq!(
         fixed_rect(&registry, "PlayerBuffIcon0"),
@@ -574,6 +598,84 @@ fn forever_player_frame_is_flareui_thin_frame_with_bronze_border() {
         );
     }
     assert!(registry.get_by_name("TargetManaBar").is_none());
+}
+
+#[test]
+fn forever_player_frame_renders_death_knight_runes_and_evoker_essence() {
+    const DEATH_KNIGHT_CLASS_ID: u8 = 6;
+    const EVOKER_CLASS_ID: u8 = 13;
+    const BLOOD_DEATH_KNIGHT_SPEC_ID: u32 = 250;
+
+    let runes = UnitRunes {
+        duration_ms: 10_000,
+        ready_in_ms: vec![0; 6],
+    };
+    let death_knight_powers = UnitPowers {
+        entries: vec![
+            power_entry(PowerType::RunicPower, 0, 1_150),
+            power_entry(PowerType::Runes, 6, 6),
+        ],
+        ..UnitPowers::default()
+    };
+    let death_knight = ClassBarPlayer {
+        class: DEATH_KNIGHT_CLASS_ID,
+        spec: Some(BLOOD_DEATH_KNIGHT_SPEC_ID),
+        level: 80,
+        in_combat: false,
+    };
+    let mut death_knight_state = unit("Runes", PowerType::RunicPower);
+    death_knight_state.class_id = Some(DEATH_KNIGHT_CLASS_ID);
+    death_knight_state.class_bar = Some(class_bar_view(
+        death_knight,
+        &death_knight_powers,
+        Some(&runes),
+    ));
+    let death_knight_registry = unit_frames_with_player(ActiveSkin::Forever, death_knight_state);
+    assert_forever_class_bar_row(
+        &death_knight_registry,
+        "PlayerSecondaryResourcePip0Rune_Active",
+    );
+
+    let evoker_powers = UnitPowers {
+        entries: vec![power_entry(PowerType::Essence, 5, 5)],
+        ..UnitPowers::default()
+    };
+    let evoker = ClassBarPlayer {
+        class: EVOKER_CLASS_ID,
+        spec: None,
+        level: 80,
+        in_combat: false,
+    };
+    let mut evoker_state = unit("Essence", PowerType::Mana);
+    evoker_state.class_id = Some(EVOKER_CLASS_ID);
+    evoker_state.class_bar = Some(class_bar_view(evoker, &evoker_powers, None));
+    let evoker_registry = unit_frames_with_player(ActiveSkin::Forever, evoker_state);
+    assert_forever_class_bar_row(
+        &evoker_registry,
+        "PlayerSecondaryResourcePip0FillDoneEssenceIcon",
+    );
+}
+
+fn assert_forever_class_bar_row(registry: &FrameRegistry, visible_texture: &str) {
+    let player_id = registry.get_by_name("PlayerFrame").expect("player frame");
+    let row_id = registry
+        .get_by_name("PlayerSecondaryResourceRow")
+        .expect("class resource row");
+    let player = registry.get(player_id).expect("player frame exists");
+    assert_eq!(
+        (player.width, player.height),
+        (Dimension::Fixed(240.0), Dimension::Fixed(60.0))
+    );
+    assert!(
+        player.children.contains(&row_id),
+        "class bar is under PlayerFrame"
+    );
+    assert!(registry.get_by_name("PlayerPortrait").is_none());
+    assert!(fixed_rect(registry, "PlayerSecondaryResourceRow").1 >= 60.0);
+    assert!(
+        !frame(registry, visible_texture).hidden,
+        "resource texture is visible"
+    );
 }
 
 #[test]

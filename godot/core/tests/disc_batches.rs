@@ -1,0 +1,320 @@
+//! Disc batches of the area-trigger ground models: textures, wrap, transforms and alpha
+//! coverage, next to what our shader does with the same binding.
+use game_engine_core::blp;
+use game_engine_core::m2;
+use game_engine_core::m2_material::{BatchBinding, MaterialTracks, batch_binding};
+
+fn model(fdid: u32) -> m2::Model {
+    let read = |name: String| {
+        let path = format!("{}/../../data/models/{name}", env!("CARGO_MANIFEST_DIR"));
+        std::fs::read(&path).unwrap_or_else(|error| panic!("{path}: {error}"))
+    };
+    m2::parse_model(&read(format!("{fdid}.m2")), &read(format!("{fdid}00.skin"))).unwrap()
+}
+
+fn texture(fdid: u32) -> Option<blp::RgbaImage> {
+    let path = format!(
+        "{}/../../data/textures/{fdid}.blp",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    let bytes = std::fs::read(&path).ok()?;
+    blp::decode_rgba(&bytes).ok()
+}
+
+/// Alpha coverage of a texture: the share of texels above 0.5 and the alpha at the centre and
+/// at the four edge midpoints, which is what separates a round disc from a square.
+fn alpha_report(fdid: u32) -> Option<String> {
+    let image = texture(fdid)?;
+    let (width, height) = (image.width as usize, image.height as usize);
+    let alpha = |x: usize, y: usize| image.pixels[(y * width + x) * 4 + 3];
+    let opaque = (0..width * height)
+        .filter(|&index| image.pixels[index * 4 + 3] > 127)
+        .count();
+    let corner = alpha(0, 0);
+    let edges = [
+        alpha(width / 2, 0),
+        alpha(width - 1, height / 2),
+        alpha(width / 2, height - 1),
+        alpha(0, height / 2),
+    ];
+    let centre = alpha(width / 2, height / 2);
+    Some(format!(
+        "{fdid} {width}x{height} opaque={:.2} centre={centre} edge_mid={edges:?} corner={corner}",
+        opaque as f32 / (width * height) as f32
+    ))
+}
+
+/// Mean luminance and alpha in eight rings from the texture centre (0) to its corner (7).
+fn radial_profile(fdid: u32) -> Option<String> {
+    let image = texture(fdid)?;
+    let (width, height) = (image.width as usize, image.height as usize);
+    let mut sums = [(0.0f64, 0.0f64, 0usize); 8];
+    let half = ((width * width + height * height) as f64).sqrt() / 2.0;
+    for y in 0..height {
+        for x in 0..width {
+            let dx = x as f64 + 0.5 - width as f64 / 2.0;
+            let dy = y as f64 + 0.5 - height as f64 / 2.0;
+            let ring = (((dx * dx + dy * dy).sqrt() / half) * 8.0).min(7.0) as usize;
+            let texel = &image.pixels[(y * width + x) * 4..(y * width + x) * 4 + 4];
+            let luminance =
+                0.299 * texel[0] as f64 + 0.587 * texel[1] as f64 + 0.114 * texel[2] as f64;
+            sums[ring].0 += luminance;
+            sums[ring].1 += texel[3] as f64;
+            sums[ring].2 += 1;
+        }
+    }
+    let rings: Vec<String> = sums
+        .iter()
+        .map(|(l, a, n)| {
+            let n = (*n).max(1) as f64;
+            format!("{:.0}/{:.0}", l / n, a / n)
+        })
+        .collect();
+    Some(format!(
+        "{fdid} lum/alpha rings centre->corner: {}",
+        rings.join(" ")
+    ))
+}
+
+#[test]
+fn quad_batch_textures_report_radial_profiles() {
+    for fdid in [1522961u32, 1248077, 1387771] {
+        let model = model(fdid);
+        for (index, unit) in model.batches.iter().enumerate() {
+            let start = usize::from(unit.texture_coord_index);
+            let count = usize::from(unit.texture_count);
+            let coords: Vec<i32> = (start..start + count)
+                .map(|slot| {
+                    model
+                        .texture_unit_lookup
+                        .get(slot)
+                        .map_or(-99, |value| i32::from(*value))
+                })
+                .collect();
+            let tex_start = usize::from(unit.texture_id);
+            let combos: Vec<i32> = (tex_start..tex_start + count)
+                .map(|slot| {
+                    model
+                        .texture_lookup
+                        .get(slot)
+                        .map_or(-99, |value| i32::from(*value))
+                })
+                .collect();
+            println!(
+                "RAW {fdid} unit {index} texture_id {} texture_coord_index {} texture_unit_lookup {:?}",
+                unit.texture_id, unit.texture_coord_index, model.texture_unit_lookup,
+            );
+            println!(
+                "PROFILE {fdid} unit {index} shader {:#06x} tex_count {count} texture_combo {combos:?} texcoord_combo {coords:?} uv_anim_lookup {:?}",
+                unit.shader_id,
+                (usize::from(unit.texture_animation_id)
+                    ..usize::from(unit.texture_animation_id) + count)
+                    .map(|slot| {
+                        model
+                            .uv_animation_lookup
+                            .get(slot)
+                            .map_or(-99, |value| i32::from(*value))
+                    })
+                    .collect::<Vec<_>>(),
+            );
+            for combo in &combos {
+                let Some(fdid) = usize::try_from(*combo)
+                    .ok()
+                    .and_then(|slot| model.texture_fdids.get(slot))
+                else {
+                    continue;
+                };
+                match radial_profile(*fdid) {
+                    Some(profile) => println!("    {profile}"),
+                    None => println!("    {fdid}: not local"),
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn quad_batches_report_positions_and_uvs() {
+    for fdid in [1522961u32, 1248077, 1387771] {
+        let model = model(fdid);
+        for (index, unit) in model.batches.iter().enumerate() {
+            let submesh = &model.submeshes[usize::from(unit.submesh_index)];
+            if submesh.vertex_count > 8 {
+                continue;
+            }
+            let start = usize::from(submesh.vertex_start);
+            let end = start + usize::from(submesh.vertex_count);
+            println!(
+                "QUAD {fdid} unit {index} shader {:#06x} verts:",
+                unit.shader_id
+            );
+            for vertex in &model.vertices[start..end] {
+                println!(
+                    "    pos {:?} uv1 {:?} uv2 {:?}",
+                    vertex.position, vertex.tex_coords, vertex.tex_coords_2
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn disc_batches_report_texture_alpha_and_wrap() {
+    for fdid in [1522961u32, 1248077, 1387770, 1387771] {
+        let model = model(fdid);
+        let tracks = MaterialTracks::of(&model);
+        println!(
+            "MODEL {fdid} batches={} textures={:?} texture_types={:?} anim={} trans={} colors={}",
+            model.batches.len(),
+            model.texture_fdids,
+            model.texture_types,
+            model.texture_animations.len(),
+            model.transparency_tracks.len(),
+            model.color_tracks.len()
+        );
+        let resolved =
+            m2::resolve_render_batches(&model, &[], true, |fdid| Some(format!("/x/{fdid}.blp")))
+                .unwrap();
+        for batch in &resolved {
+            let binding: BatchBinding =
+                batch_binding(&model, &model.batches[batch.source_unit_index], &[])
+                    .expect("binding");
+            println!(
+                "  unit {} submesh {} shader {:#06x} blend {} flags {:#04x} pixel {} vertex {} wrap {:#06x} transforms {:?} weights {:?} color {:?} weight0 {}",
+                batch.source_unit_index,
+                batch.submesh_index,
+                batch.shader_id,
+                batch.blend_mode,
+                model.batches[batch.source_unit_index].flags,
+                binding.pixel_shader,
+                binding.vertex_shader,
+                binding.texture_wrap,
+                binding.texture_transforms,
+                binding.texture_weights,
+                binding.color,
+                binding.apply_weight,
+            );
+            if let Some(submesh) = model.submeshes.get(batch.submesh_index) {
+                let start = usize::from(submesh.vertex_start);
+                let count = usize::from(submesh.vertex_count);
+                let positions: Vec<[f32; 3]> = model.vertices[start..start + count]
+                    .iter()
+                    .map(|vertex| vertex.position)
+                    .collect();
+                let centre = positions.iter().fold([0.0f32; 3], |mut acc, p| {
+                    acc[0] += p[0];
+                    acc[1] += p[1];
+                    acc[2] += p[2];
+                    acc
+                });
+                let n = positions.len() as f32;
+                let centre = [centre[0] / n, centre[1] / n, centre[2] / n];
+                let radii: Vec<f32> = positions
+                    .iter()
+                    .map(|p| {
+                        ((p[0] - centre[0]).powi(2)
+                            + (p[1] - centre[1]).powi(2)
+                            + (p[2] - centre[2]).powi(2))
+                        .sqrt()
+                    })
+                    .collect();
+                let max = radii.iter().copied().fold(0.0f32, f32::max);
+                let min = radii.iter().copied().fold(f32::MAX, f32::min);
+                let ring = radii.iter().filter(|&&r| r > max * 0.95).count();
+                println!(
+                    "    mesh verts={count} tris={} radius {min:.2}..{max:.2} outer_ring={ring}/{count}",
+                    submesh.triangle_count
+                );
+            }
+            for slot in &binding.textures {
+                match slot.and_then(|fdid| alpha_report(fdid)) {
+                    Some(report) => println!("    t{slot:?}: {report}"),
+                    None => println!("    slot {slot:?}: texture not local"),
+                }
+            }
+        }
+        drop(tracks);
+    }
+}
+
+/// Coverage of a masked Mod_Add batch over the quad's texture space: the third slot is the
+/// round footprint the ground effects draw through, so the quad's own square corners must stay
+/// uncovered while the interior keeps a light, partial coverage.
+#[test]
+fn three_texture_add_batches_mask_their_quad_into_a_disc() {
+    let mut masked = 0;
+    let mut interiors: Vec<f32> = Vec::new();
+    for fdid in [1522961u32, 1248077, 1387770, 1387771] {
+        let model = model(fdid);
+        let resolved =
+            m2::resolve_render_batches(&model, &[], true, |fdid| Some(format!("/x/{fdid}.blp")))
+                .unwrap();
+        for batch in resolved {
+            let binding =
+                batch_binding(&model, &model.batches[batch.source_unit_index], &[]).unwrap();
+            if binding.pixel_shader != 8 || binding.textures.len() != 3 {
+                continue;
+            }
+            let mask = binding.textures[2].and_then(sample_alpha);
+            let coverage_at = |u: f32, v: f32| match &mask {
+                Some(mask) => mask(u, v),
+                None => 1.0,
+            };
+            let corners = [
+                coverage_at(0.0, 0.0),
+                coverage_at(1.0, 0.0),
+                coverage_at(0.0, 1.0),
+                coverage_at(1.0, 1.0),
+            ];
+            let interior = coverage_at(0.65, 0.5);
+            let ring = coverage_at(0.86, 0.5);
+            println!(
+                "MASK {fdid} unit {} corners {corners:?} interior {interior:.2} ring {ring:.2}",
+                batch.source_unit_index
+            );
+            assert!(
+                mask.is_some(),
+                "{fdid} unit {}: the masked batch's third texture is not local",
+                batch.source_unit_index
+            );
+            for corner in corners {
+                assert!(
+                    corner <= 0.08,
+                    "{fdid} unit {}: corner mask alpha {corner:.2} leaves the quad's square corner drawn",
+                    batch.source_unit_index
+                );
+            }
+            assert!(
+                interior <= 0.6,
+                "{fdid} unit {}: interior coverage {interior:.2} is not a see-through layer",
+                batch.source_unit_index
+            );
+            assert!(
+                ring > interior,
+                "{fdid} unit {}: the mask peak {ring:.2} is not on the rim band (interior {interior:.2})",
+                batch.source_unit_index
+            );
+            interiors.push(interior);
+            masked += 1;
+        }
+    }
+    assert!(
+        masked >= 2,
+        "only {masked} three-texture Mod_Add batch was checked"
+    );
+    assert!(
+        interiors.iter().any(|coverage| *coverage > 0.02),
+        "no masked batch keeps any interior coverage, so the disc's inside would be clean"
+    );
+}
+
+/// Alpha lookup over a texture's texel grid, by normalised texture coordinate.
+fn sample_alpha(fdid: u32) -> Option<Box<dyn Fn(f32, f32) -> f32>> {
+    let image = texture(fdid)?;
+    let (width, height) = (image.width as usize, image.height as usize);
+    Some(Box::new(move |u: f32, v: f32| {
+        let x = ((u.rem_euclid(1.0) * width as f32) as usize).min(width - 1);
+        let y = ((v.rem_euclid(1.0) * height as f32) as usize).min(height - 1);
+        f32::from(image.pixels[(y * width + x) * 4 + 3]) / 255.0
+    }))
+}

@@ -1,8 +1,9 @@
 # Patched crates
 
-Copied from `world-of-osso/bevy-patches` at fork commit
-`ad6dd31447a48082bcdcc783f4a4951c9d47e4ba`. No sibling checkout is required.
-Only `ktx2-rw` and `taffy` are patched; Bevy dependencies remain registry crates.
+`ktx2-rw` and `taffy` are copied from `world-of-osso/bevy-patches` at fork commit
+`ad6dd31447a48082bcdcc783f4a4951c9d47e4ba`; `godot-ffi` and `godot-core` are the crates.io
+0.5.5 packages. No sibling checkout is required. Only these four are patched; Bevy dependencies remain
+registry crates.
 Sources, examples, tests, authorship and license declarations are retained.
 Neither imported package contained separate LICENSE files.
 
@@ -47,3 +48,71 @@ Standalone crate tests can run with `cargo test --manifest-path
 vendor/taffy/Cargo.toml --test rounding_gaps` (through `agent-run` for agents).
 Godot tests use `scripts/engine-build.py`; its source snapshot includes `vendor/`,
 including taffy's compile-time README input.
+
+## godot-ffi (MPL-2.0)
+
+The crates.io `godot-ffi` 0.5.5 package (gdext commit
+`e7b3a4a7dc9678a5502dc8432c258c702ff89429`), with its normalized `Cargo.toml`, `build.rs`
+and `src/`. One change, in `src/lib.rs` `is_main_thread`: the calling thread's id comes
+from a thread-local instead of `std::thread::current().id()`. With the default balanced
+safeguards every engine call checks the main thread; `std::thread::current()` clones and
+drops the thread handle (two atomic operations) each time: 4.4% of the main thread's CPU
+in Stormwind in a release profile (`docs/wiki/investigations/godot-stormwind-fps.md`). The comparison with
+`main_thread_id()` is unchanged, so `discover_main_thread` still moves the main thread.
+
+Retire the patch when upstream godot-rust releases an equivalent fix.
+
+### Upstream patch note
+
+Title: `is_main_thread`: cache the calling thread's id in a thread-local.
+
+```diff
+-        std::thread::current().id() == main_thread_id()
++        thread_local! {
++            static CURRENT_THREAD_ID: std::thread::ThreadId = std::thread::current().id();
++        }
++        CURRENT_THREAD_ID.with(|id| *id == main_thread_id())
+```
+
+With balanced safeguards every engine call checks the main thread, and
+`std::thread::current()` clones and drops the `Thread` handle (an atomic increment and
+decrement) each time. A thread's id never changes, so a lazily initialized thread-local
+gives the same answer; `main_thread_id()` is still read on every call, so
+`discover_main_thread` still moves the main thread.
+
+Benchmark (Godot 4.7.2 release template, Linux, Stormwind indoor pose, 1920x1080):
+- microbenchmark: 15.1 → 4.8 ns per `is_main_thread` call;
+- frame-pointer profile: `std::thread::current` was 4.4% (release) to 9% (debug) of
+  main-thread samples;
+- interleaved A/B, 4 pairs per build (`data/diagnostics/fps-measure-2026-11-06/close-2`):
+  main-thread CPU 15.73 → 15.05 ms per frame (−0.68 ms), client process 10.54 → 9.78 ms,
+  p99 frame 47.2 → 38.5 ms.
+
+## godot-core (MPL-2.0)
+
+The crates.io `godot-core` 0.5.5 package (gdext commit
+`e7b3a4a7dc9678a5502dc8432c258c702ff89429`), with its normalized `Cargo.toml`, `build.rs`
+and `src/`. One change, in `src/meta/signature.rs` (and its two readers): `CallContext::gd`
+keeps the `ClassId` and reads the class name only when the context is displayed or turned
+into a call error. With the default balanced safeguards `RawGd::check_rtti` builds a context
+for every `bind()`, `bind_mut()`, `clone()` and `ffi_cast()`, and `ClassId::to_cow_str` locks
+the global class-id cache each time. In 8 s main-thread profiles of the 40-player Battle Shout
+crowd (symbolized release template and extension, `profile/crowd-ctx-*` under
+`data/diagnostics/fps-120-close-2026-11-06/`) `ClassIdCache::lock` plus `to_cow_str` fell from
+7.2-8.6% of samples to 0.10-0.13%, and the extension's share from 45% to 38.5-39.5%; casts
+still take the lock through `is_dynamic_class`. The checks and their messages are unchanged.
+
+Release builds enable `safeguards-release-disengaged`. Upstream 0.5.5 then warns about code
+that only feeds `balanced_assert!` (the `current` bindings in `src/classes/class_runtime.rs`,
+`Base::is_valid` in `src/obj/base.rs`); those items carry the same
+`#[cfg(safeguards_balanced)]` as the assertion.
+
+Retire the patches when upstream godot-rust releases equivalent fixes.
+
+### Upstream patch note
+
+Title: `CallContext::gd`: resolve the class name lazily.
+
+`check_rtti` runs on every `Gd` bind/clone in balanced mode and only shows the context on a
+panic; storing `ClassId` (`Copy`, resolved through a per-type `OnceLock`) instead of
+`to_cow_str()` avoids a global mutex and a string clone per call.

@@ -1,4 +1,5 @@
 use super::*;
+use crate::assets::attachments::{attachment_point, visual_attachment_point};
 
 impl SpellEffects {
     /// A node of kit model `effect` (FDID `fdid`) under `parent`, with its particles
@@ -132,6 +133,10 @@ impl SpellEffects {
                     return Err(error);
                 }
             };
+        self.drape_pending.push(super::DrapeCandidate {
+            node: node.clone(),
+            attempts: 0,
+        });
         Ok(ActiveEffect {
             node,
             particles,
@@ -145,6 +150,80 @@ impl SpellEffects {
             clips,
             phase,
         })
+    }
+
+    /// Re-issue the kits an area trigger replays at `position`, one pass per server pulse.
+    /// Retail re-runs the spell's one-shot kits instead of holding them
+    /// (native-evidence-12.1.5/AT-visual-held-kit.md).
+    pub(crate) fn replay_area_trigger(
+        &mut self,
+        trigger: u64,
+        spell_id: u32,
+        position: [f32; 3],
+        radius: f32,
+        world: &mut WorldUnits,
+    ) -> Result<(), String> {
+        let Some(catalog) = self.catalog()? else {
+            return Ok(());
+        };
+        let kits = catalog.area_trigger_kits(spell_id);
+        godot_print!(
+            "area trigger {trigger} spell {spell_id}: kits {:?} at {position:?}",
+            kits.iter().map(|kit| kit.kit_id).collect::<Vec<_>>()
+        );
+        if kits.is_empty() {
+            return Ok(());
+        }
+        let mut root = self.effects_root(world)?;
+        let anchor = match self.area_trigger_anchors.get(&trigger) {
+            Some(anchor) if anchor.is_instance_valid() => anchor.clone(),
+            _ => {
+                let anchor = effect_anchor(
+                    &format!("AreaTrigger{trigger}"),
+                    Vector3::new(position[0], position[1], position[2]),
+                );
+                root.add_child(&anchor);
+                self.area_trigger_anchors.insert(trigger, anchor.clone());
+                anchor
+            }
+        };
+        let visual_id = anchor.instance_id();
+        let owner = EffectOwner::Detached(visual_id);
+        for kit in &kits {
+            // A held display kit already on this anchor is the ground look itself, so a
+            // server pulse must not stack a second copy of it.
+            if self
+                .active
+                .iter()
+                .any(|effect| effect.owner == owner && effect.kit_id == kit.kit_id)
+            {
+                continue;
+            }
+            self.census_start(kit, visual_id, spell_id, Some(radius));
+        }
+        Ok(())
+    }
+
+    /// The anchors of the area triggers currently shown, for the offline fixtures.
+    pub(crate) fn area_trigger_nodes(&self) -> Vec<Gd<Node3D>> {
+        self.area_trigger_anchors
+            .values()
+            .filter(|anchor| anchor.is_instance_valid())
+            .cloned()
+            .collect()
+    }
+
+    /// Free the anchors of triggers the replica stopped reporting. Only those may be freed:
+    /// a trigger the replica never saw (a preview fixture injecting one directly) must keep
+    /// its anchor, or the models it queued resolve against a freed node and never draw.
+    pub(crate) fn retain_area_triggers(&mut self, retired: &[u64]) {
+        self.area_trigger_anchors.retain(|trigger, anchor| {
+            let keep = !retired.contains(trigger);
+            if !keep && anchor.is_instance_valid() {
+                anchor.clone().free();
+            }
+            keep
+        });
     }
 
     pub(super) fn advance_models(&mut self, delta: f32) {
@@ -277,7 +356,7 @@ impl ActiveEffect {
 /// clip it plays (id, looping, seconds into the clip), or `None` once a one-shot is
 /// over. One-shots play Start, then End, then the particle tail; held kits loop their
 /// Hold (else Start) clip after Start until their end event.
-pub(super) fn phase_at(
+pub(crate) fn phase_at(
     clips: &EffectClips,
     held: bool,
     seconds: f32,
@@ -310,6 +389,32 @@ pub(super) fn phase_at(
 /// or alternate position is synthesized; other attachment IDs require their rig.
 const GROUND_ATTACHMENT: u8 = 19;
 
+/// Detached anchor with the rig a kit model's attachments resolve against: the preview
+/// kits build the same tree, so a trigger replay can place hand- and ground-attached models.
+pub(crate) fn effect_anchor(name: &str, position: Vector3) -> Gd<Node3D> {
+    let mut anchor = Node3D::new_alloc();
+    anchor.set_name(name);
+    anchor.set_position(position);
+    let mut model = Node3D::new_alloc();
+    model.set_name("NpcModel");
+    let mut skeleton = Node3D::new_alloc();
+    skeleton.set_name("Skeleton3D");
+    model.add_child(&skeleton);
+    for attachment in 0..=60u8 {
+        let mut bone = Node3D::new_alloc();
+        bone.set_name(&format!("AttachmentBone{attachment}"));
+        let mut point = Node3D::new_alloc();
+        point.set_name(&format!("Attachment{attachment}"));
+        bone.add_child(&point);
+        skeleton.add_child(&bone);
+    }
+    let mut ground = Node3D::new_alloc();
+    ground.set_name("AttachmentGround");
+    skeleton.add_child(&ground);
+    anchor.add_child(&model);
+    anchor
+}
+
 fn effect_attachment_node(
     world: &WorldUnits,
     owner: EffectOwner,
@@ -321,9 +426,7 @@ fn effect_attachment_node(
             let root = Gd::<Node3D>::try_from_instance_id(visual).ok()?;
             match attachment {
                 None | Some(GROUND_ATTACHMENT) => Some(root),
-                Some(attachment) => root.try_get_node_as::<Node3D>(&format!(
-                    "NpcModel/Skeleton3D/AttachmentBone{attachment}/Attachment{attachment}"
-                )),
+                Some(attachment) => visual_attachment_point(&root, u32::from(attachment)),
             }
         }
     }
@@ -337,11 +440,7 @@ pub(super) fn attachment_node(
 ) -> Option<Gd<Node3D>> {
     match attachment {
         None | Some(GROUND_ATTACHMENT) => world.unit_node(id),
-        Some(attachment) => world
-            .unit_model_node(id)?
-            .try_get_node_as::<Node3D>(&format!(
-                "Skeleton3D/AttachmentBone{attachment}/Attachment{attachment}"
-            )),
+        Some(attachment) => attachment_point(&world.unit_model_node(id)?, u32::from(attachment)),
     }
 }
 
@@ -386,7 +485,7 @@ pub(super) fn missile_basis(direction: Vector3, scale: f32) -> Basis {
 
 /// A missile at `position` moving `step` yards straight at `goal`: its next position,
 /// or `None` when it arrives within this step.
-pub(super) fn missile_step(position: Vector3, goal: Vector3, step: f32) -> Option<Vector3> {
+pub(crate) fn missile_step(position: Vector3, goal: Vector3, step: f32) -> Option<Vector3> {
     let to_goal = goal - position;
     (to_goal.length() > step).then(|| position + to_goal.normalized() * step)
 }

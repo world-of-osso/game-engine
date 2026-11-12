@@ -19,8 +19,9 @@ use shared::components::{Mounted, SheathState, VehiclePassenger};
 
 use std::collections::HashMap;
 
-use super::{Locomotion, UnitNode};
+use super::{Locomotion, ModelBounds, UnitNode};
 use crate::animation::WowAnimationPlayer;
+use crate::assets::attachments::visual_attachment_point;
 use crate::world_models::{UnitAppearance, WorldModels};
 
 /// AnimationData 91: the rider's seated clip.
@@ -31,7 +32,7 @@ const ANIM_MOUNT_FLIGHT_LEFT: u16 = 552;
 const ANIM_MOUNT_FLIGHT_RIGHT: u16 = 554;
 const ANIM_MOUNT_FLIGHT_RUN: u16 = 556;
 /// The mount model's saddle: attachment 0 (MountMain).
-const SADDLE: &str = "NpcModel/Skeleton3D/AttachmentBone0/Attachment0";
+const SADDLE: u32 = 0;
 
 pub(super) struct UnitPassenger {
     pub state: VehiclePassenger,
@@ -73,16 +74,12 @@ pub(super) fn seat_passenger(
         return Ok(());
     };
     let id = passenger.definition.attachment;
-    let attachment = vehicle
-        .try_get_node_as::<Node3D>(&format!(
-            "NpcModel/Skeleton3D/AttachmentBone{id}/Attachment{id}"
-        ))
-        .ok_or_else(|| {
-            format!(
-                "VehicleSeat {}: M2 attachment {id} absent",
-                passenger.state.seat_id
-            )
-        })?;
+    let attachment = visual_attachment_point(vehicle, u32::from(id)).ok_or_else(|| {
+        format!(
+            "VehicleSeat {}: M2 attachment {id} absent",
+            passenger.state.seat_id
+        )
+    })?;
     let local = seat_local_transform(passenger.definition.offset, passenger.definition.rotation);
     let matrix = glam::Mat4::from(local).to_cols_array();
     let basis = Basis::from_cols(
@@ -104,6 +101,8 @@ pub(super) struct UnitMount {
     pub request: Option<u64>,
     /// The loaded mount model, a child of the unit's node.
     pub node: Option<Gd<Node3D>>,
+    /// The mount model's merged mesh bounds, read when the model is attached.
+    pub bounds: Option<ModelBounds>,
 }
 
 /// The mount's clip for the rider's locomotion clip: the same gait on the ground, the
@@ -225,6 +224,7 @@ pub(super) fn sync_mount(unit: &mut UnitNode, mounted: Option<&Mounted>, models:
             SheathState::Unarmed,
         )),
         node: None,
+        bounds: None,
     });
 }
 
@@ -241,7 +241,7 @@ pub(super) fn seat_rider(unit: &mut UnitNode) {
         .mount
         .as_ref()
         .and_then(|mount| mount.node.as_ref())
-        .and_then(|node| node.try_get_node_as::<Node3D>(SADDLE))
+        .and_then(|node| visual_attachment_point(node, SADDLE))
         .unwrap_or_else(|| unit.node.clone());
     let seated = visual
         .get_parent()

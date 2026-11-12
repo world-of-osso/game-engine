@@ -1,3 +1,4 @@
+use crate::rebuild_guard::ThemeOverrides;
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
@@ -15,7 +16,7 @@ use ui_toolkit::layout::LayoutRect;
 use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::widgets::button::ButtonState;
 use ui_toolkit::widgets::font_string::{GameFont, JustifyH, JustifyV, Outline};
-use ui_toolkit::widgets::texture::TextureSource;
+use ui_toolkit::widgets::texture::{DynamicTexture, TextureSource};
 
 use super::assets;
 use super::hit_button::RegistryButton;
@@ -26,6 +27,8 @@ use crate::frame_error::report_once;
 
 #[path = "font_string_markup.rs"]
 mod font_string_markup;
+#[path = "projection_parity_fixture.rs"]
+mod projection_parity_fixture;
 #[path = "text_markup_fixture.rs"]
 mod text_markup_fixture;
 
@@ -74,7 +77,7 @@ fn apply_atlas_sampling(
     );
     let mut shader = godot::classes::Shader::new_gd();
     shader.set_code(ATLAS_TILE_SHADER);
-    let mut material = godot::classes::ShaderMaterial::new_gd();
+    let mut material = crate::rebuild_guard::new_shader_material();
     material.set_shader(&shader);
     material.set_shader_parameter("region", &region.to_variant());
     material.set_shader_parameter("repeats", &repeats.to_variant());
@@ -179,6 +182,10 @@ pub struct UiProjection {
     arrived: u64,
     /// Skin the projected visuals were drawn under.
     skin: atlas::ActiveSkin,
+    /// Z index last set on each frame's node.
+    z_indices: HashMap<u64, i32>,
+    /// The dynamic texture pixels each frame's parts last drew.
+    dynamic_drawn: HashMap<u64, Vec<DynamicTexture>>,
     assisted_elapsed: HashMap<u64, f64>,
 }
 
@@ -200,6 +207,8 @@ impl UiProjection {
             waiting: HashSet::new(),
             arrived: 0,
             skin: atlas::thread_skin(),
+            z_indices: HashMap::new(),
+            dynamic_drawn: HashMap::new(),
             assisted_elapsed: HashMap::new(),
         }
     }
@@ -394,12 +403,20 @@ impl UiProjection {
         super::hud_edit_layout::apply_active_placements(registry, &mut bounds);
         drop(span);
         let created = std::cell::Cell::new(0);
-        let nodes_span =
-            crate::profile::span(|| format!("projection.nodes {} created", created.get()));
+        let updated = std::cell::Cell::new(0);
+        let nodes_span = crate::profile::span(|| {
+            format!(
+                "projection.nodes {} created {} updated",
+                created.get(),
+                updated.get()
+            )
+        });
         let current: HashSet<u64> = registry.frames_iter().map(|frame| frame.id).collect();
         for id in self.nodes.keys().copied().collect::<Vec<_>>() {
             if !current.contains(&id) {
                 self.visuals.remove(&id);
+                self.dynamic_drawn.remove(&id);
+                self.z_indices.remove(&id);
                 if let Some(mut node) = self.nodes.remove(&id) {
                     // Detach now: a queued node keeps its name until the frame ends, so a
                     // replacement frame of the same name would be renamed by Godot.
@@ -407,37 +424,39 @@ impl UiProjection {
                         parent.remove_child(&node);
                     }
                     node.queue_free();
+                    crate::rebuild_guard::count(crate::rebuild_guard::Rebuild::UiTree, 1);
                 }
             }
         }
-        let mut frames: Vec<_> = registry.frames_iter().cloned().collect();
-        frames.sort_by_key(|frame| (depth(registry, frame.id), frame.id));
-        for frame in &frames {
-            let rect = &bounds[&frame.id];
-            let parent = frame
-                .parent_id
-                .and_then(|id| self.nodes.get(&id))
-                .cloned()
-                .unwrap_or_else(|| self.root.clone());
-            if self.replace_font_string_node(frame, registry, &parent)? {
-                created.set(created.get() + 1);
+        let mut order: Vec<_> = registry.frames_iter().map(|frame| frame.id).collect();
+        order.sort_by_cached_key(|&id| (depth(registry, id), id));
+        // Frames whose rect or an ancestor's rect moved; parents come before children.
+        let mut moved = HashSet::new();
+        for id in order {
+            let rect = &bounds[&id];
+            let frame = registry.get(id).expect("ordered frame");
+            if frame.layout_rect.as_ref() != Some(rect)
+                || frame
+                    .parent_id
+                    .is_some_and(|parent| moved.contains(&parent))
+            {
+                moved.insert(id);
             }
-            if !self.nodes.contains_key(&frame.id) {
-                let node = self.create_node(frame, registry)?;
-                parent
-                    .clone()
-                    .upcast::<godot::classes::Node>()
-                    .add_child(&node);
-                self.nodes.insert(frame.id, node);
-                created.set(created.get() + 1);
+            let z = super::projection_order::native_z(&layers, frame);
+            if self.node_outdated(frame, registry, &moved) {
+                let frame = frame.clone();
+                self.project_frame(&frame, rect, &bounds, registry, &created)?;
+                updated.set(updated.get() + 1);
+                self.z_indices.remove(&id);
             }
-            self.update_node(frame, rect, &bounds, registry)?;
-            self.nodes
-                .get_mut(&frame.id)
-                .expect("projected frame")
-                .set_z_index(super::projection_order::native_z(&layers, frame));
+            if self.z_indices.insert(id, z) != Some(z) {
+                self.nodes
+                    .get_mut(&id)
+                    .expect("projected frame")
+                    .set_z_index(z);
+            }
             registry
-                .set_computed_layout(frame.id, rect.clone())
+                .set_computed_layout(id, rect.clone())
                 .map_err(str::to_owned)?;
         }
         drop(nodes_span);
@@ -448,6 +467,49 @@ impl UiProjection {
         registry.rect_dirty.clear();
         registry.drain_removed_frames();
         Ok(())
+    }
+
+    /// Whether `frame`'s node must be drawn again: what `update_node` reads changed.
+    /// Besides the frame itself that is its rect and its ancestors' (`moved`), and its
+    /// parent's button state (highlight layers, stepper arrows). A frame without a
+    /// projected visual is new or lost its art (skin, scale or arrived files).
+    fn node_outdated(&self, frame: &Frame, registry: &FrameRegistry, moved: &HashSet<u64>) -> bool {
+        registry.render_dirty.contains(&frame.id)
+            || moved.contains(&frame.id)
+            || !self.visuals.contains_key(&frame.id)
+            || frame
+                .parent_id
+                .is_some_and(|parent| registry.render_dirty.contains(&parent))
+    }
+
+    /// Create, replace or update the node of `frame` laid out at `rect`.
+    fn project_frame(
+        &mut self,
+        frame: &Frame,
+        rect: &LayoutRect,
+        bounds: &HashMap<u64, LayoutRect>,
+        registry: &FrameRegistry,
+        created: &std::cell::Cell<usize>,
+    ) -> Result<(), String> {
+        let parent = frame
+            .parent_id
+            .and_then(|id| self.nodes.get(&id))
+            .cloned()
+            .unwrap_or_else(|| self.root.clone());
+        if self.replace_font_string_node(frame, registry, &parent)? {
+            crate::rebuild_guard::count(crate::rebuild_guard::Rebuild::UiTree, 1);
+            created.set(created.get() + 1);
+        }
+        if !self.nodes.contains_key(&frame.id) {
+            let node = self.create_node(frame, registry)?;
+            parent
+                .clone()
+                .upcast::<godot::classes::Node>()
+                .add_child(&node);
+            self.nodes.insert(frame.id, node);
+            created.set(created.get() + 1);
+        }
+        self.update_node(frame, rect, bounds, registry)
     }
 
     /// Nodes are appended as frames are created; a rebuild can insert or reorder
@@ -569,6 +631,9 @@ impl UiProjection {
     }
 
     fn create_node(&self, frame: &Frame, registry: &FrameRegistry) -> Result<Gd<Control>, String> {
+        crate::rebuild_guard::count_detail(crate::rebuild_guard::Rebuild::UiTree, 1, || {
+            frame.name.clone()
+        });
         let unresolved_panel = frame.panel_style.is_some() && frame.nine_slice.is_none();
         if frame.backdrop.is_some() || unresolved_panel {
             return Err(format!(
@@ -833,13 +898,10 @@ impl UiProjection {
             part.rect[0] += position.x - whole.x;
             part.rect[1] += position.y - whole.y;
         }
-        // A dynamic texture keeps its source when its pixels change; the registry marks
-        // the frames that draw it dirty, so re-read those.
-        let dynamic_redraw = registry.render_dirty.contains(&frame.id)
-            && visual
-                .images
-                .iter()
-                .any(|part| matches!(part.source, Some(TextureSource::Dynamic(_))));
+        // A dynamic texture keeps its source when its pixels change. A frame is dirtied for
+        // other reasons too (a relayout), so compare the pixels last drawn.
+        let dynamic = dynamic_textures(&visual, registry);
+        let dynamic_redraw = self.dynamic_drawn.get(&frame.id) != Some(&dynamic);
         if dynamic_redraw || self.visuals.get(&frame.id) != Some(&visual) {
             if self.sync_parts(&node, &visual, registry)? {
                 self.waiting.insert(frame.id);
@@ -847,6 +909,7 @@ impl UiProjection {
                 self.waiting.remove(&frame.id);
             }
             self.visuals.insert(frame.id, visual);
+            self.dynamic_drawn.insert(frame.id, dynamic);
         }
         // The track mask stays fixed while scrolling moves unchanged level art.
         if super::journeys_track_mask::apply(&node, frame, rect, registry)? {
@@ -881,6 +944,9 @@ impl UiProjection {
         visual: &FrameVisual,
         registry: &FrameRegistry,
     ) -> Result<bool, String> {
+        crate::rebuild_guard::count_detail(crate::rebuild_guard::Rebuild::UiTree, 1, || {
+            Some(crate::rebuild_guard::node_label(node))
+        });
         let mut loading = false;
         let mut container = node.get_node_as::<Control>(PARTS_NODE);
         for mut child in container.get_children().iter_shared() {
@@ -923,7 +989,8 @@ impl UiProjection {
             label.set_name("Text");
             label.set_mouse_filter(godot::classes::control::MouseFilter::IGNORE);
             label.set_anchors_preset(godot::classes::control::LayoutPreset::FULL_RECT);
-            self.style_label(&mut label, text)?;
+            let font = self.font(text.font);
+            self.style_label(&mut label, text, font.as_ref());
             container.add_child(&label);
             label.set_size(node.get_size());
         }
@@ -950,7 +1017,7 @@ impl UiProjection {
             // the sampled arrow image. A grey vertex tint would leave its hue intact.
             let mut shader = godot::classes::Shader::new_gd();
             shader.set_code("shader_type canvas_item; void fragment() { COLOR.rgb = vec3(dot(COLOR.rgb, vec3(0.299, 0.587, 0.114))); }");
-            let mut material = godot::classes::ShaderMaterial::new_gd();
+            let mut material = crate::rebuild_guard::new_shader_material();
             material.set_shader(&shader);
             rect.set_material(&material);
         }
@@ -970,18 +1037,24 @@ impl UiProjection {
         Ok((rect.upcast(), matches!(art, Art::Loading)))
     }
 
-    fn style_label(&mut self, label: &mut Gd<Label>, text: &TextPart) -> Result<(), String> {
+    /// `font` is the label's resolved font: one font override per update, so an
+    /// unchanged label sets no theme override.
+    fn style_label(
+        &mut self,
+        label: &mut Gd<Label>,
+        text: &TextPart,
+        font: Option<&Gd<godot::classes::FontFile>>,
+    ) {
         label.set_text(&text.content);
         label.set_horizontal_alignment(horizontal(text.justify_h));
         label.set_vertical_alignment(vertical(text.justify_v));
-        if let Some(font) = self.font(text.font) {
-            label.add_theme_font_override("font", &font);
+        if let Some(font) = font {
+            label.change_theme_font_override("font", font);
         }
-        label.add_theme_font_size_override("font_size", text.font_size as i32);
-        label.add_theme_color_override("font_color", color(text.color));
+        label.change_theme_font_size_override("font_size", text.font_size as i32);
+        label.change_theme_color_override("font_color", color(text.color));
         let mut control = label.clone().upcast::<Control>();
         apply_text_effects(&mut control, text.outline, text.shadow);
-        Ok(())
     }
 
     fn update_editbox(
@@ -996,17 +1069,17 @@ impl UiProjection {
             update_single_line_edit(node.clone().cast::<LineEdit>(), data);
             // Godot's default minimum (4 × 'M') widens narrow edits past their authored
             // rect (copper 48 → 51.3); Retail EditBoxes take only their XML width.
-            node.add_theme_constant_override("minimum_character_width", 0);
+            node.change_theme_constant_override("minimum_character_width", 0);
         }
         if let Some(font) = self.font(data.font) {
-            node.add_theme_font_override("font", &font);
+            node.change_theme_font_override("font", &font);
         }
-        node.add_theme_font_size_override("font_size", data.font_size as i32);
-        node.add_theme_color_override("font_color", color(data.text_color));
+        node.change_theme_font_size_override("font_size", data.font_size as i32);
+        node.change_theme_color_override("font_color", color(data.text_color));
         // Original caret: 2px, drawn in the edit text color.
-        node.add_theme_color_override("caret_color", color(data.text_color));
-        node.add_theme_constant_override("caret_width", 2);
-        let mut style = StyleBoxEmpty::new_gd();
+        node.change_theme_color_override("caret_color", color(data.text_color));
+        node.change_theme_constant_override("caret_width", 2);
+        let mut style = crate::rebuild_guard::new_style_box::<StyleBoxEmpty>();
         for (side, inset) in [
             (godot::builtin::Side::LEFT, data.text_insets[0]),
             (godot::builtin::Side::RIGHT, data.text_insets[1]),
@@ -1018,7 +1091,7 @@ impl UiProjection {
         // LineEdit::get_minimum_size takes max(normal, read_only) even while
         // editable. Leaving read_only themed inflated the journal's20px box to23px.
         for state in ["normal", "focus", "read_only"] {
-            node.add_theme_stylebox_override(state, &style);
+            node.change_theme_stylebox_override(state, &style);
         }
         // Apply authored bounds after the font/border theme, not the default theme's minimum.
         // Labels use the same ordering; otherwise small copper inputs retain their creation size.
@@ -1080,11 +1153,10 @@ impl UiProjection {
             outline: data.outline,
             shadow: data.shadow_color.map(|color| (color, data.shadow_offset)),
         };
-        self.style_label(&mut node, &text)?;
-        node.add_theme_font_override("font", &font);
+        self.style_label(&mut node, &text, Some(&font));
         // FONT_POSITIVE_SPACING_GAP_TRUNCATION: integer native theme loses fractional
         // positive gaps; toolkit intrinsic allocation remains exact. Current census:0.
-        node.add_theme_constant_override("line_spacing", metrics.spacing_ui as i32);
+        node.change_theme_constant_override("line_spacing", metrics.spacing_ui as i32);
         // A fixed FontString whose height holds no second line stays on one line and cuts
         // the rest with an ellipsis, as WoW does: Retail's 32×10 action button `HotKey`
         // (`ActionButtonTemplate.xml:85-91`) draws "Middle Mouse" on one truncated line
@@ -1142,7 +1214,7 @@ mod spacing_tests;
 fn flat_button() -> Gd<Button> {
     let mut button = RegistryButton::new_alloc().upcast::<Button>();
     button.set_focus_mode(godot::classes::control::FocusMode::NONE);
-    let empty = StyleBoxEmpty::new_gd();
+    let empty = crate::rebuild_guard::new_style_box::<StyleBoxEmpty>();
     for state in [
         "normal",
         "hover",
@@ -1151,7 +1223,7 @@ fn flat_button() -> Gd<Button> {
         "focus",
         "hover_pressed",
     ] {
-        button.add_theme_stylebox_override(state, &empty);
+        button.change_theme_stylebox_override(state, &empty);
     }
     button
 }
@@ -1170,6 +1242,18 @@ fn vertical(justify: JustifyV) -> VerticalAlignment {
         JustifyV::Middle => VerticalAlignment::CENTER,
         JustifyV::Bottom => VerticalAlignment::BOTTOM,
     }
+}
+
+/// The current pixels of each dynamic texture `visual` draws, in part order.
+fn dynamic_textures(visual: &FrameVisual, registry: &FrameRegistry) -> Vec<DynamicTexture> {
+    visual
+        .images
+        .iter()
+        .filter_map(|part| match part.source {
+            Some(TextureSource::Dynamic(id)) => registry.dynamic_texture(id).cloned(),
+            _ => None,
+        })
+        .collect()
 }
 
 fn depth(registry: &FrameRegistry, id: u64) -> usize {
@@ -1192,13 +1276,13 @@ fn apply_text_effects(
         Outline::Outline => 2,
         Outline::ThickOutline => 4,
     };
-    node.add_theme_constant_override("outline_size", outline);
-    node.add_theme_color_override("font_outline_color", Color::from_rgba(0.0, 0.0, 0.0, 1.0));
+    node.change_theme_constant_override("outline_size", outline);
+    node.change_theme_color_override("font_outline_color", Color::from_rgba(0.0, 0.0, 0.0, 1.0));
     // FontString shadows use x right, y up; Godot's y is down.
     let (shadow_color, [x, y]) = shadow.unwrap_or(([0.0; 4], [0.0, 0.0]));
-    node.add_theme_color_override("font_shadow_color", color(shadow_color));
-    node.add_theme_constant_override("shadow_offset_x", x.round() as i32);
-    node.add_theme_constant_override("shadow_offset_y", (-y).round() as i32);
+    node.change_theme_color_override("font_shadow_color", color(shadow_color));
+    node.change_theme_constant_override("shadow_offset_x", x.round() as i32);
+    node.change_theme_constant_override("shadow_offset_y", (-y).round() as i32);
 }
 
 fn color([r, g, b, a]: [f32; 4]) -> Color {

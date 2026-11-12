@@ -255,6 +255,222 @@ At the indoor pose, one private server ran four 300-frame Forever samples in bef
 
 An active equipment check used Prynne's replicated main-hand model 148554, selecting its authored animation 144 in the fixture because the idle track disables emission. One of two equipped ribbon nodes was visible. After dynamic buffer updates replaced per-frame surface rebuilds and unchanged material writes, two 180-frame samples measured 0.0199 and 0.0978 ms/frame world-ribbon thread CPU, including 0.0096 and 0.0448 ms/frame for all ribbon uploads. These are separate runs at a second location, not a controlled before/after claim. The surrounding world reported 96 missing asset receipts; they do not establish a clean scene. Fixture and logs: `data/diagnostics/m2-ribbons-world-2026-11-01/`; Forever capture: `/syncthing/AgentShared/2026-11-01/m2-ribbons-world/npc-prynne.png`.
 
+## Culling and foot IK regression (2026-11-06)
+
+The 120 FPS gate failed on a quiet Windows desktop on 2026-11-06: 91 FPS median (10.93 ms) at the indoor pose, against 140–151 FPS on 2026-10-31. The per-step receipt named two steps: Culling 4.34 ms (1.548 ms on 10-31) and Foot IK 2.12 ms (the system did not exist on 10-31). Both are CPU-side, so the relative signal was measured on a Linux release library (`/proc/<pid>/maps` checked per run) with the same pose, Forever skin and 1920x1080, in paired A/B runs whose host load is recorded.
+
+The Culling regression is `d5f97ee2a` ("Reject remote units outside portal visibility from the camera, keeping their shadows", 2026-11-01, not an ancestor of the 10-31 qualification commit). It added `WorldUnits::cull_outdoor`, which reads `unit_world_box` for every unit every frame; `mesh_bounds` walks the model's mesh children through the Godot API, which cost 6.90 ms of the 10.37 ms Culling step for 53 units. Admission flips were rare (0.22–0.28 per frame), so the box read itself, not the shadow refresh, was the cost. The fix reads the merged model bounds when the visual (and its mount) is attached, and again after a sheath change reparents the model's equipment meshes, then places the cached model-space box with the current transform.
+
+The Foot IK cost is `605a63d49`/`ff5df7b97` (2026-11-05, foot IK plus ground draping, also absent from the 10-31 commit). It solved every unit within 45 yd each frame, including units whose animation LOD had frozen their pose, and each solve scanned every spawned doodad (16,691 in Stormwind) for the visible surface under a foot. The fix skips a unit whose animation did not write its pose this frame (the skeleton still holds the previous solve), indexes doodads by the 8-yard column cells their bounds cover, and reuses the collision floor the surface query already read instead of reading it again for the snapshot.
+
+| Pose, Linux release, same client | Run | Load 1 min | Client process ms | Culling ms | Foot IK ms |
+|---|---|---:|---:|---:|---:|
+| master `fdf8fefa6` | a1 | 66.0 | 26.74 | 10.70 | 6.26 |
+| master `fdf8fefa6` | a2 | 63.9 | 17.11 | 7.17 | 3.65 |
+| culling + foot IK fix | b1 | 129.9 | 15.46 | 4.27 | 0.47 |
+| culling + foot IK fix | b2 | 35.8 | 7.04 | 1.92 | 0.25 |
+
+Each value is the median of a 25 s idle segment at the pose. Normalised by the client's own process time (the load proxy), Culling fell from 0.400/0.419 to 0.276/0.273 ms per client-ms and Foot IK from 0.234/0.213 to 0.030/0.036. With the fix a profiled idle segment (`b3`, client 7.57 ms) puts Culling at 1.94 ms: particles 1.15, doodads 0.48, and terrain, units and WMO below the 0.3 ms print threshold. Those two components match the pre-regression breakdown above, so the remaining Culling cost is not a further regression.
+
+No visual change: the scenery receipt records every spawned placement's in-tree visibility and each mesh's visibility and shadow mode. Master and the fixed build at this pose matched **16,691 of 16,691 placements, 0 mismatched**; two runs of one build alone differed by 32 and 5 placements, so that is below the run-to-run floor. Screenshots cannot resolve the difference across client starts: identical builds landed in two different world-light states (57.9% of pixels differed in one same-build pair, 13.1% in the cross-build pair). For foot IK the offline `foot_ik_ground_drape.gd` fixture still puts both feet at gaps 0.000 on the stair tread, and its rug and step probes still find render surfaces 0.021 and 0.577 yd above the collision floor.
+
+Evidence: `data/diagnostics/fps-regressions-2026-11-06/culling/` (`summary.json`, `a*.{log,png,receipt.json,maps}`, `b*.{log,png,receipt.json,maps}`, `compare.py`, `run-client.sh`), the foot IK fixture captures in `data/diagnostics/fps-regressions-2026-11-06/foot-ik/`, and the 960 px Forever captures in `/syncthing/AgentShared/2026-11-06/fps-regressions/`. The Windows re-measurement of the gate is the lead's.
+
+## Render thread and WMO draws (2026-11-06)
+
+The Windows receipt for `71621ba9d` (84.1 FPS) spent about 7 ms per frame outside every
+client step. A Linux profile at the canonical pose (symbolized `lto=none` build of the
+pinned Godot, release extension, 3030 draw calls, 441 of them shadow) splits the frame
+across two CPU-bound threads, with the GPU at 3.1 ms:
+
+| Thread | CPU ms/frame | Largest costs |
+|---|---|---|
+| main | 8.6 (client 5.1) | `Skeleton3D` deferred updates, transform propagation, label reshaping |
+| render (`WorkerThread 0`) | 8.1 | draw recording plus `RenderingDeviceGraph` translation about 50%, M2 material uniform re-uploads 9%, GDScript compositor callbacks 6% |
+
+Draw submission scales with draw calls, and WMO group batches were nearly all of them:
+one `MeshInstance3D` and `ShaderMaterial` per MOBA batch, 333 visible groups.
+
+- **Exterior batch merge** (`wmo/merge.rs`). Batches within a group never share a material
+  (Stormwind magic district: 186 groups, 864 batches, 101 materials), so the merge is
+  across groups. Opaque batches of exterior groups in the portal graph merge when every
+  material input matches (material, exterior lighting, shadow casting, vertex colour and
+  UV streams) and they fall in the same 256-yard cell; blended batches keep their draw
+  order and interior groups keep exact portal culling. Portal traversal starts from every
+  exterior group, so they are drawn together; `cull_wmos` shows a merged node while any
+  of its groups is drawn. Canonical pose: 3030 -> 2671 draw calls, shadow 441 -> 327,
+  GPU 3.09 -> 2.92 ms, same-pose capture SSIM 0.9988 (differences only in the clock text).
+  Merged exterior batches are often outside the frustum already, so the draw saving is
+  smaller than the node count suggests (magic district: 544 exterior nodes -> 189).
+- **Nameplate theme overrides.** `add_theme_*_override` always notifies, and a Label then
+  reshapes its text. Nameplates set font size and colour every frame; they now set them
+  only when the style changes (the cast bar likewise).
+- The "canvas free" entry in the render-thread profile is symbol aliasing: the stack is
+  canvas `update_dirty_items` -> `update_dirty_resources` -> `_update_queued_materials`,
+  about 24 M2 material updates per frame from animated texture matrices and colours.
+
+Receipts now report `threads` (main and render CPU and wait per frame, read from both
+thread clocks at each segment end; `godot/tests/thread_cpu_split.gd`) and the viewport's
+render CPU and GPU time, so a Windows frame can be split into work and waiting.
+
+## Water draws and the M2 alpha pass (2026-11-06)
+
+A per-owner census (each owner hidden in turn, Godot's draw counters read before and after)
+at the canonical pose after the WMO merge put ADT water first: about 670 of 2650 draws
+came from about 740 MH2O chunk-layer instances over the canals. The canals sit behind the
+walls but inside the frustum, and nothing occludes a transparent surface. Layers of one
+LiquidType/LiquidObject in one 4x4-chunk block (about 133 yd) now share one mesh
+(`terrain/water.rs`): 2650 -> 2045 draws, shadow draws unchanged at 327.
+
+The proof capture (`water_coast_compare.gd`, Stormwind canal, clock frozen) first lost a
+boat afloat in the canal. The cause was older: `4cd7bc671` (2026-11-05) premultiplied
+BlendAdd with `premultiplied = gx_blend == 13 ? ALPHA : 1.0`. Godot's shader compiler
+flags any `ALPHA` reference, including a read (`shader_compiler.cpp`), and
+`uses_alpha_pass()` then sends the material to the transparent pass. The opaque
+GxBlend 0/1 variants drop only the `ALPHA` write, so from that commit every opaque M2
+batch drew back to front with no depth write and cast no shadow. A water surface sorted
+after a boat blended over it, tree canopies showed their branches through the leaves,
+and characters and doodads lost their shadows. The premultiply now reads
+`color.a * scenery_opacity`; `m2_blend_pixels.gd` checks an opaque batch over a
+later-sorted depth-less surface.
+
+Restoring the opaque pass raises the canonical-pose draws (Linux, per owner, bug -> fix):
+units 230 -> 541 (shadow 0 -> 311), doodads 353 -> 541 (shadow 0 -> 244); Forward+
+always runs its opaque depth prepass, so opaque batches count twice. Total 2045 -> 2561,
+shadow 327 -> 937. The 10-31 Windows receipt, taken before `4cd7bc671`, had 3822 draws
+and a 6.7 ms p50. With the fix, the water merge changes no canal pixel (SSIM 0.99997;
+the only differences are animated particles).
+
+## Foot IK query cuts (2026-11-07)
+
+The 120 FPS outdoor receipt for `8d0bea36d` puts Foot IK at 0.885 ms/frame at the Trade
+District pose (0.310 indoors). Temporary counters in the client (removed before shipping)
+measured what that step actually does at the pose on a Linux release library:
+
+| Measure | Value at the pose |
+|---|---|
+| units in the 45 yd range | 6-8 per frame (100 iterated for the distance test) |
+| feet, and so ground queries | 2 per unit, 13-17 per frame |
+| `visible_surface` per foot | ~505 WMO group-boxes tested, ~6 doodad candidates, 0 cache hits |
+| `collision_floor` per foot | ~100 WMO collision entries, ~183 M2 `LosTile` BVH queries, 1 physics ray |
+| per-foot cost | collision floor ~55 µs, visible surface ~58 µs (contended host) |
+
+The fix keeps the solve identical and removes work a foot does not need:
+
+- **Still-foot reuse.** Each foot keeps the ground it last sampled, with the foot position
+  and a ground epoch (parsed-terrain epoch, drawn-doodad/WMO epoch, game-object collision
+  epoch; a transport deck moves without a replicated change, so its presence forces a
+  query every frame). A foot that has not moved more than 1 mm horizontally and whose
+  epoch holds reuses its sample. `foot_ik::reuses_ground` owns this rule and is unit
+  tested.
+- **Distance stride (INFERRED, not retail-verified).** Ground queries run every frame
+  inside 12 yd, every other frame inside 25 yd, every third frame beyond, per unit, so
+  distant units do not all query on one frame. The retail client names no foot IK in the
+  surveyed images while it does have a per-instance animation LOD and `animFrameSkipLOD`
+  ("animations will skip frames at distance"), so the distance cadence is retail-consistent
+  rather than retail-proven; `FOOT_IK_NEAR_QUERY_RANGE`/`FOOT_IK_MID_QUERY_RANGE` in
+  `world.rs` are the retune points and the comment carries the retirement condition. The
+  solve, blend and pelvis offset still run every frame, so a reused sample never pops.
+- **Indexed WMO groups.** Drawn WMO groups are bucketed by the 8-yard cells their bounds
+  cover, like doodads, instead of scanning every spawned group box per column query
+  (~505 -> ~32 tests per foot at this pose).
+- **No game-object ray when nothing can answer it.** The broadphase of the game-object
+  floor ray costs more than the terrain lookups, so it is skipped while no spawned object
+  has collision enabled on that layer.
+
+Paired Linux release A/B at the pose (idle, 20 s systems segment, host load recorded; the
+host was shared, so wall-clock medians are normalised by the client's own process time):
+
+| Build | Load 1 min | Client process ms | Foot IK ms | Foot IK / client ms |
+|---|---:|---:|---:|---:|
+| master `895f9899d` | 110.8 | 15.16 | 3.364 | 0.222 |
+| query stride + WMO index + GO ray skip | 68.6 | 9.85 | 1.007 | 0.102 |
+| master `895f9899d` | 42.3 | 7.20 | 1.690 | 0.235 |
+| query stride + WMO index + GO ray skip | 52.1 | 5.22 | 0.542 | 0.104 |
+| master `895f9899d` | 36.4 | 5.80 | 1.563 | 0.269 |
+| plus still-foot reuse | 45.4 | 4.20 | 0.351 | 0.084 |
+
+The last pair was taken back to back at similar host load: Foot IK falls 1.563 -> 0.351 ms
+(4.5x), and its share of a client frame 0.269 -> 0.084 (3.2x). The earlier rows separate the
+two stages; their absolute millisecond figures are not comparable across rows because the
+host load moved, so the share of client time is the load-independent part. `perf stat instructions:u` per frame was attempted
+and discarded: the counters attached to the Godot thread covered windows of 10-450 ms
+instead of the 15-20 s segment, so the per-frame counts were unusable.
+
+Visual proof uses the offline `foot_ik_ground_drape.gd` fixture, whose captures are
+deterministic (paused character, frozen clock): master and the branch produce
+**pixel-identical** stand-before, stand-after and empty-stairs frames (0 differing pixels
+of 921,600). Live screenshots cannot separate builds here, as before: two runs of one build
+differed by 84k-169k pixels, more than the 158k of a cross-build pair.
+
+Evidence: `/syncthing/AgentShared/2026-11-06/fps-foot-ik/`
+(`stairs-stand-{before,after}-{master,branch}.jpg`, `stairs-empty-master.jpg`),
+`data/diagnostics/fps-120-close-2026-11-06/foot-ik/`. Windows re-measurement is the lead's.
+
+## Particle workers: measured and dropped (2026-11-08)
+
+Doodad M2 particle emitters were simulated on a global rayon pool (one deterministic
+random stream per emitter; prepare and draw stayed on the main thread). The Windows
+receipt for that branch (`c8b54d959`, not merged) fell from 257/222 FPS median
+(indoor/outdoor, reference `6479eb327`) to 175/174. Main-thread CPU rose 3.6-3.8 ->
+5.6-5.7 ms and render-thread CPU by 1.3-1.4 ms.
+
+- **The ceiling was small.** On master the whole `cull.particles` span costs 0.24 ms
+  outdoors and 0.34 ms indoors on the Windows release build, so a pool can save at most
+  about 0.3 ms.
+- **The pool cost more than that.** Spans that never run on the pool also slowed:
+  `cull.unit_animation_lod` 0.062 -> 0.387 ms, and the render thread. A 24-thread pool
+  woken every frame competes with the main and render threads (INFERRED; no OS trace).
+- **Linux debug A/Bs cannot show this.** Main-thread instruction counts on the loaded
+  Linux host moved by less than their noise and do not see Windows scheduling.
+
+Rule taken from it: do not move sub-millisecond per-frame work to a worker pool. The
+doodad admission test (`cull.doodads`, 0.18-0.20 ms on Windows) stays on the main thread
+for the same reason. Evidence: `data/diagnostics/fps-receipt-c8b54d959-2026-11-08/README.md`.
+
+## Occlusion culling from WMO exterior shells (2026-11-08)
+
+Portal culling hides a WMO's interior groups behind its own walls, not behind other WMOs.
+At the outdoor pose 167 interior batches of distant districts (sw_keep, sw_oldtown) passed
+their doorways but sat behind nearer buildings: hiding them removed about 170 draw calls
+and changed no pixel beyond the noise of moving units and water. A census by hiding each
+owner in turn (Linux, master `691751cf9`, 2460 draws) put WMO groups at about 830 draws,
+units 380, WMO doodads 290, ADT doodads 270. Doodads are already auto-instanced by the
+Forward+ renderer (1005 visible surfaces cost 661 draws), so instancing them would gain little.
+
+`wmo/occluder.rs` gives each WMO of at least 100 yd one `ArrayOccluder3D` built from the drawn opaque batches
+(MOMT blend mode 0) of its EXTERIOR (MOGP `0x8`) groups. Interior groups, so rooms and
+dungeons, and alpha-keyed or blended batches never occlude. `project.godot` turns occlusion
+culling on with 128 rays per thread and Low BVH build quality.
+
+- **Settings must be in the project.** Setting `Viewport.use_occlusion_culling` at runtime
+  culled nothing; the project setting has to be on at startup.
+- **Ray count.** The buffer has rays x logical cores pixels (3072 on the 24-core desktop).
+  Linux outdoor, instructions per frame: render 18.5 -> 13.4 Minstr at 128, 256 or 512 rays;
+  whole-process cost +4.2 (128), +10.9 (256), +24 (512) Minstr on the worker threads.
+- **BVH rebuilds.** Adding or removing one WMO occluder, as streaming does, rebuilds the
+  BVH inside the viewport render. At High build quality the measured render CPU after the
+  change reached 20-60 ms (no-occluder control: at most 11 ms); at Low the frame time after
+  a change stayed near the control (median of the 10-frame maxima 23.3 vs 21.4 ms, loaded
+  Linux host) with the same culled draws. Keeping only triangles of at least 8 yd2 cut the
+  occluder to 20% of its triangles but culled fewer draws and stalled more than Low quality.
+- **Only large shells.** Each occluder added or removed costs one rebuild, and a rebuild
+  for many changes in one frame costs about as much as for one. Of the 61 Stormwind WMO
+  occluders, the 18 whose bounding box spans at least 100 yd hold 84% of the triangles and
+  cull the same draws at eight views (outdoor and indoor, within 24 draws), so only those get
+  one: 70% fewer rebuilds while streaming. Applying changes one per N frames spread the
+  same rebuilds (more total stall than applying them together) and was not adopted.
+- **Linux A/B** (master `3fc8727cb` against branch, bench-adcb9dd81): outdoor draws 2450 ->
+  1464, render thread 18.3-18.5 -> 13.5-13.7 Minstr/frame; indoor draws 1668 -> 1114, render
+  17.7 -> 14.6-15.4. Main thread unchanged where frame rates match.
+- **Visual checks.** Occluders shown, hidden and shown again at four yaws per pose with a
+  3072-pixel buffer (96 rays on the 32-core host): every stable difference was animated
+  water, flames, critters or moving units. Neltharus and Halls of Infusion captures match
+  master (interior groups never occlude).
+
+Evidence: `data/diagnostics/fps-120-close-2026-11-06/profile/occ-*`, `occimpl-*`,
+`occr-*`; captures in `/syncthing/AgentShared/2026-11-08/fps-120-close/walls-regression/`.
+
 ## Sources
 
 - `src/rendering/camera/culling.rs`: the original doodad, WMO and portal culling. Its 200/2,000/400 yd distances cite no source (commit `f475000f`), so they were not used.
@@ -268,3 +484,4 @@ An active equipment check used Prynne's replicated main-hand model 148554, selec
 - [[solarityclient-performance-comparison]]: the reference client's culling pipeline.
 - [[movement-performance]]: Bevy-side CPU measurements and the A/B method.
 - [[stormwind-hilly-plaza]]: why the portal traversal ignores antiportals and requires a floor below the camera.
+- [[release-fps-reprofile-2026-11-11]]: standard Stormwind and Ruby release profile costs.

@@ -201,7 +201,22 @@ struct SurfaceData {
     bones: Vec<i32>,
     weights: Vec<f32>,
     indices: Vec<i32>,
+    /// Bounds of all rest vertices, for an unskinned draw.
+    rest: Bounds,
+    /// Rest bounds of the vertices each bone moves; `None` when some vertex's weights
+    /// do not sum to one, so its skinned position may leave its bones' boxes.
+    bone_bounds: Option<Vec<(usize, Bounds)>>,
 }
+
+/// An axis-aligned box `[min, max]`.
+#[derive(Clone, Copy, Debug)]
+struct Bounds {
+    min: Vector3,
+    max: Vector3,
+}
+
+/// Rest-space slack for the weight-sum tolerance and float rounding.
+const BOUNDS_MARGIN: f32 = 0.02;
 
 /// Meshes kept before freed ones are pruned from the surface cache.
 const SURFACE_CACHE_PRUNE: usize = 4096;
@@ -247,12 +262,122 @@ fn read_surface(mesh: &Gd<Mesh>, surface: i32) -> Option<SurfaceData> {
             || (0..vertices.len() as i32).collect(),
             |indices| indices.to_vec(),
         );
-    Some(SurfaceData {
-        vertices,
-        bones,
-        weights,
-        indices,
+    Some(SurfaceData::new(vertices, bones, weights, indices))
+}
+
+impl SurfaceData {
+    fn new(vertices: Vec<Vector3>, bones: Vec<i32>, weights: Vec<f32>, indices: Vec<i32>) -> Self {
+        Self {
+            rest: bounds_of(vertices.iter().copied()),
+            bone_bounds: bone_bounds(&vertices, &bones, &weights),
+            vertices,
+            bones,
+            weights,
+            indices,
+        }
+    }
+}
+
+fn bounds_of(points: impl Iterator<Item = Vector3>) -> Bounds {
+    let mut bounds = Bounds {
+        min: Vector3::splat(f32::INFINITY),
+        max: Vector3::splat(f32::NEG_INFINITY),
+    };
+    for point in points {
+        bounds.min = bounds.min.coord_min(point);
+        bounds.max = bounds.max.coord_max(point);
+    }
+    Bounds {
+        min: bounds.min - Vector3::splat(BOUNDS_MARGIN),
+        max: bounds.max + Vector3::splat(BOUNDS_MARGIN),
+    }
+}
+
+/// Per bone, the rest box of the vertices it moves with a positive weight. A linear
+/// blend whose weights sum to one stays in the hull of its bones' posed boxes.
+fn bone_bounds(
+    vertices: &[Vector3],
+    bones: &[i32],
+    weights: &[f32],
+) -> Option<Vec<(usize, Bounds)>> {
+    if vertices.is_empty() || bones.is_empty() {
+        return None;
+    }
+    let per_vertex = bones.len() / vertices.len();
+    let mut moved: HashMap<usize, Vec<Vector3>> = HashMap::new();
+    for (index, &vertex) in vertices.iter().enumerate() {
+        let mut total = 0.0;
+        for slot in index * per_vertex..(index + 1) * per_vertex {
+            let (Some(&bone), Some(&weight)) = (bones.get(slot), weights.get(slot)) else {
+                continue;
+            };
+            if weight > 0.0 {
+                total += weight;
+                moved.entry(bone as usize).or_default().push(vertex);
+            }
+        }
+        if (total - 1.0f32).abs() > 1e-4 {
+            return None;
+        }
+    }
+    Some(
+        moved
+            .into_iter()
+            .map(|(bone, points)| (bone, bounds_of(points.into_iter())))
+            .collect(),
+    )
+}
+
+/// False only when the ray misses every box that holds the surface's drawn vertices,
+/// so the surface cannot be hit and need not be skinned.
+fn ray_may_hit(
+    data: &SurfaceData,
+    to_world: Transform3D,
+    palette: Option<&[Transform3D]>,
+    ray: &Ray,
+) -> bool {
+    let Some(palette) = palette.filter(|_| !data.bones.is_empty()) else {
+        return ray_crosses_box(ray, to_world, data.rest);
+    };
+    data.bone_bounds.as_ref().is_none_or(|boxes| {
+        boxes.iter().any(|&(bone, bounds)| {
+            // A bone outside the palette drops its weight from the blend.
+            palette
+                .get(bone)
+                .is_none_or(|&pose| ray_crosses_box(ray, to_world * pose, bounds))
+        })
     })
+}
+
+/// Whether the ray crosses `bounds` placed by `transform` (slab test in box space,
+/// where the ray parameter is unchanged); true for a degenerate transform.
+fn ray_crosses_box(ray: &Ray, transform: Transform3D, bounds: Bounds) -> bool {
+    if transform.basis.determinant().abs() < 1e-12 {
+        return true;
+    }
+    let local = transform.affine_inverse();
+    let origin = local * ray.origin;
+    let direction = local.basis * ray.direction;
+    let (origin, direction) = (origin.to_array(), direction.to_array());
+    let (min, max) = (bounds.min.to_array(), bounds.max.to_array());
+    let (mut near, mut far) = (0.0f32, f32::INFINITY);
+    for axis in 0..3 {
+        let (o, d) = (origin[axis], direction[axis]);
+        let (min, max) = (min[axis], max[axis]);
+        if d.abs() < 1e-12 {
+            if o < min || o > max {
+                return false;
+            }
+            continue;
+        }
+        let (t1, t2) = ((min - o) / d, (max - o) / d);
+        near = near.max(t1.min(t2));
+        far = far.min(t1.max(t2));
+        if near > far {
+            return false;
+        }
+    }
+    true
 }
 
 fn surface_hit(
@@ -261,6 +386,9 @@ fn surface_hit(
     palette: Option<&[Transform3D]>,
     ray: &Ray,
 ) -> Option<f32> {
+    if !ray_may_hit(data, to_world, palette, ray) {
+        return None;
+    }
     let skinned = palette
         .filter(|_| !data.bones.is_empty())
         .map(|palette| skin_vertices(&data.vertices, &data.bones, &data.weights, palette));
@@ -332,3 +460,7 @@ fn ray_triangle(ray: &Ray, a: Vector3, b: Vector3, c: Vector3) -> Option<f32> {
     let distance = edge2.dot(q) * inverse;
     (distance > 0.0).then_some(distance)
 }
+
+#[cfg(test)]
+#[path = "unit_pick_tests.rs"]
+mod tests;

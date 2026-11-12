@@ -5,6 +5,7 @@
 //! follows the user's reference of 2026-10-04: as wide as the health frame, the icon at
 //! its left end and the name inside.
 
+use crate::rebuild_guard::ThemeOverrides;
 use std::collections::HashMap;
 use std::path::Path;
 
@@ -243,6 +244,8 @@ pub(crate) struct CastNodes {
     pub icon: Gd<TextureRect>,
     pub shield: Gd<TextureRect>,
     pub text: Gd<RichTextLabel>,
+    /// The font size override last set: each set makes Godot lay the text out again.
+    font_size: Option<i32>,
 }
 
 fn texture_rect(name: &str) -> Gd<TextureRect> {
@@ -283,11 +286,11 @@ impl CastNodes {
         text.set_fit_content(true);
         text.set_autowrap_mode(godot::classes::text_server::AutowrapMode::OFF);
         text.set_scroll_active(false);
-        text.add_theme_font_override("normal_font", font);
-        text.add_theme_color_override("default_color", Color::WHITE);
+        text.change_theme_font_override("normal_font", font);
+        text.change_theme_color_override("default_color", Color::WHITE);
         // Outlined like the plate's name (the user's reference of 2026-10-04).
-        text.add_theme_color_override("font_outline_color", Color::BLACK);
-        text.add_theme_constant_override("outline_size", 2);
+        text.change_theme_color_override("font_outline_color", Color::BLACK);
+        text.change_theme_constant_override("outline_size", 2);
         // Fill above its background, spark and icon row on top.
         for node in [
             background.clone().upcast::<Control>(),
@@ -310,6 +313,7 @@ impl CastNodes {
             icon,
             shield,
             text,
+            font_size: None,
         }
     }
 
@@ -369,8 +373,11 @@ impl CastNodes {
             self.text.set_text(&bbcode);
         }
         let size = style.cast_font_size.round() as i32;
-        self.text
-            .add_theme_font_size_override("normal_font_size", size);
+        if self.font_size != Some(size) {
+            self.font_size = Some(size);
+            self.text
+                .change_theme_font_size_override("normal_font_size", size);
+        }
         let height = self.text.get_content_height() as f32;
         let width = self.text.get_content_width() as f32;
         self.text

@@ -63,6 +63,29 @@ impl WowRibbonWorldProbe {
         }
     }
 
+    /// Exercise the production visible-surface query and report its retained candidate cells.
+    #[func]
+    fn surface_census(&mut self, terrain_height: f64) -> VarDictionary {
+        let mut result = VarDictionary::new();
+        let Some(objects) = &mut self.objects else {
+            result.set("error", "probe has no loaded model");
+            return result;
+        };
+        let height = objects.visible_surface(
+            Some(terrain_height as f32),
+            0.0,
+            0.0,
+            terrain_height as f32 - 0.05,
+            2.0,
+            self.frame,
+        );
+        if let Some(height) = height {
+            result.set("height", height);
+        }
+        result.set("doodad_cells", objects.cache_counts().2 as i64);
+        result
+    }
+
     #[func]
     fn advance(&mut self, camera: Gd<Camera3D>, delta: f64) {
         let Some(objects) = &mut self.objects else {
@@ -75,6 +98,7 @@ impl WowRibbonWorldProbe {
             &frustum,
             delta * 1000.0,
             self.frame,
+            scenery_shadow_radius(),
         );
         objects.update_particles(camera.get_global_transform(), &frustum, delta as f32);
         self.frame += 1;
@@ -95,7 +119,7 @@ impl ObjectSelection for WmoRootSelection {
         }
     }
 
-    fn doodad(&self, _: &DoodadPlacement, _: Option<&str>, _: Tile) -> bool {
+    fn doodad(&self, _: &DoodadPlacement, _: impl FnOnce() -> Option<String>, _: Tile) -> bool {
         false
     }
 
@@ -194,9 +218,13 @@ impl WowWmoPlacementProbe {
         let position = camera.get_global_position();
         let frustum = crate::camera::frustum(&camera);
         loaded.objects.cull_wmos(position, &frustum);
-        loaded
-            .objects
-            .cull_doodads(position, &frustum, delta_ms, self.frame);
+        loaded.objects.cull_doodads(
+            position,
+            &frustum,
+            delta_ms,
+            self.frame,
+            scenery_shadow_radius(),
+        );
         loaded.objects.update_particles(
             camera.get_global_transform(),
             &frustum,
@@ -228,4 +256,11 @@ impl WowWmoPlacementProbe {
         }
         state
     }
+}
+
+/// The default quality row's scenery shadow radius, as the client uses it.
+fn scenery_shadow_radius() -> f32 {
+    game_engine_core::graphics_quality_data::GraphicsQuality::default()
+        .preset()
+        .scenery_shadow_radius
 }

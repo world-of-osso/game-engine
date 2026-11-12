@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Build immutable launcher packs and a persistent chunk index from a staged bundle."""
 import argparse
+import gzip
 import hashlib
 import json
 import struct
@@ -126,8 +127,10 @@ def build_packs(source, output, input_manifest=None, source_map=None, source_sta
         path = packdir / digest
         try:
             identity = source_identity(path.stat())
-        except OSError as error:
-            raise ValueError(f'missing pack: {path}') from error
+        except OSError:
+            # Chunks reused from the published manifest keep their bucket pack; only packs
+            # written in this run exist locally to validate.
+            continue
         records_digest = hashlib.sha256(json.dumps(
             [(key, existing[key]) for key in sorted(keys)], sort_keys=True, separators=(',', ':')
         ).encode()).hexdigest()
@@ -155,7 +158,35 @@ def build_packs(source, output, input_manifest=None, source_map=None, source_sta
         temporary = path.with_suffix(path.suffix + '.part')
         temporary.write_text(json.dumps(value, sort_keys=True, separators=(',', ':')))
         temporary.replace(path)
+    write_compressed_revision(output, manifest)
     return manifest
+
+
+def write_compressed_revision(output, manifest):
+    index = json.dumps(manifest, sort_keys=True, separators=(',', ':')).encode()
+    compressed = gzip.compress(index, compresslevel=6, mtime=0)
+    digest = hashlib.sha256(compressed).hexdigest()
+    index_path = output / 'indexes' / f'{digest}.json.gz'
+    index_path.parent.mkdir(parents=True, exist_ok=True)
+    if index_path.exists():
+        if index_path.read_bytes() != compressed:
+            raise ValueError(f'content-addressed index differs: {index_path}')
+    else:
+        temporary = index_path.with_suffix('.json.gz.part')
+        temporary.write_bytes(compressed)
+        temporary.replace(index_path)
+    revision = {
+        'version': 3,
+        'index': {
+            'sha256': digest,
+            'size': len(compressed),
+            'uncompressed_size': len(index),
+        },
+    }
+    root = json.dumps(revision, sort_keys=True, separators=(',', ':')).encode()
+    temporary_root = output / 'manifest-v3.json.part'
+    temporary_root.write_bytes(root)
+    temporary_root.replace(output / 'manifest-v3.json')
 
 
 def main():

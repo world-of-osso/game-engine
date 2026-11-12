@@ -1,6 +1,6 @@
 //! Local-only creature model companions and textures for the native M2 loader.
 use std::{
-    collections::{BTreeSet, HashMap, HashSet},
+    collections::{BTreeSet, HashMap, HashSet, VecDeque},
     fs,
     path::{Path, PathBuf},
     sync::{Arc, LazyLock, Mutex},
@@ -16,7 +16,7 @@ use osso_asset_resolver::{AssetResolverConfig, CascListfileResolver};
 
 use super::{
     appearance::PreparedAppearance,
-    build_model,
+    appearance_shows, build_model_filtered,
     equipment::{attach_each_equipment, place_equipment},
     material::insert_shared_texture,
     read_model_file,
@@ -24,7 +24,7 @@ use super::{
 use crate::equipment_appearance_data::{RuntimeModelAppearance, model_attachment_id};
 
 /// What a creature model holds: its display's armor item models and its virtual items.
-#[derive(Default)]
+#[derive(Clone, Default, PartialEq)]
 pub(crate) struct CreatureGear {
     /// Armor item models, at their slots' default attachments.
     pub(crate) armor_models: Vec<RuntimeModelAppearance>,
@@ -71,8 +71,114 @@ pub(crate) fn prepare_creature_model(
     Ok(CreatureModelParts { model, textures })
 }
 
-/// Main thread: the nodes of the display's `model` with its armor and held items; their
-/// decoded textures are inserted first (`insert_decoded_textures`).
+/// A creature model built one part per call, so no frame builds a whole creature: its
+/// body (`body`), each armor and held item (`attach_next`), then their placement
+/// (`finish`). A creature's geosets never change once built, so its body has no batch it
+/// hides: no node, material or mesh.
+pub(crate) struct CreatureBuild {
+    model: Gd<Node3D>,
+    missing: PackedInt32Array,
+    /// Armor and held item models not attached yet, in attach order.
+    pending: VecDeque<RuntimeModelAppearance>,
+    /// Held items, each with the attachment it is placed on.
+    held: Vec<(RuntimeModelAppearance, Option<u32>)>,
+    model_fdid: u32,
+    alpha: u8,
+}
+
+impl CreatureBuild {
+    /// Main thread: the nodes of the display's `model` without its items; the decoded
+    /// textures are inserted first (`insert_decoded_textures`).
+    pub(crate) fn body(
+        data_root: &Path,
+        display: &CreatureDisplay,
+        model: &CachedModel,
+        appearance: Option<&PreparedAppearance>,
+        gear: &CreatureGear,
+    ) -> Result<Self, String> {
+        let span = crate::profile::span(|| "creature.resolver".to_owned());
+        let resolver =
+            authored_model_resolver(data_root, display.source_product, display.model_fdid)?;
+        drop(span);
+        let path = GString::from(model.path.to_string_lossy().as_ref());
+        let geosets = gear.extra_geosets.as_deref();
+        let (model, missing) = build_model_filtered(
+            &model.model,
+            &path,
+            &display.skin_fdids,
+            appearance,
+            |part| creature_shows(part, appearance, geosets),
+        )?;
+        let span = crate::profile::span(|| "creature.held_items".to_owned());
+        let held: Vec<_> = held_items(&model, &resolver, &gear.items)
+            .into_iter()
+            .cloned()
+            .collect();
+        drop(span);
+        let pending = gear
+            .armor_models
+            .iter()
+            .chain(held.iter().map(|(item, _)| item))
+            .cloned()
+            .collect();
+        Ok(Self {
+            model,
+            missing,
+            pending,
+            held,
+            model_fdid: display.model_fdid,
+            alpha: display.model_alpha,
+        })
+    }
+
+    /// Main thread: attaches the next item to the body of `model`; `false` once every item
+    /// is attached. An item that fails is reported, and the build goes on without it.
+    pub(crate) fn attach_next(
+        &mut self,
+        data_root: &Path,
+        model: &CachedModel,
+    ) -> Result<bool, String> {
+        let Some(item) = self.pending.pop_front() else {
+            return Ok(false);
+        };
+        let _span = crate::profile::span(|| "creature.equipment".to_owned());
+        let fdid = self.model_fdid;
+        let report = |item: &RuntimeModelAppearance, error: String| {
+            godot_error!(
+                "Creature model {fdid}: {:?} item FDID {}: {error}",
+                item.slot,
+                item.fdid
+            );
+        };
+        attach_each_equipment(
+            &mut self.model,
+            &model.model,
+            data_root,
+            std::slice::from_ref(&item),
+            report,
+        )?;
+        Ok(true)
+    }
+
+    /// Main thread: the model with its held items placed, and the texture FDIDs it misses.
+    pub(crate) fn finish(mut self) -> (Gd<Node3D>, PackedInt32Array) {
+        for (item, attachment) in &self.held {
+            if let Err(error) = place_equipment(&self.model, item.slot, *attachment) {
+                godot_error!("Creature model {}: {error}", self.model_fdid);
+            }
+        }
+        apply_display_alpha(&mut self.model, self.alpha);
+        (self.model, self.missing)
+    }
+
+    /// Frees the nodes built so far.
+    pub(crate) fn free(self) {
+        self.model.free();
+    }
+}
+
+/// Main thread: the nodes of the display's `model` with its armor and held items, in one
+/// call (`CreatureBuild`).
 pub(crate) fn build_creature_model(
     data_root: &Path,
     display: &CreatureDisplay,
@@ -80,39 +186,30 @@ pub(crate) fn build_creature_model(
     appearance: Option<&PreparedAppearance>,
     gear: &CreatureGear,
 ) -> Result<(Gd<Node3D>, PackedInt32Array), String> {
-    let resolver = authored_model_resolver(data_root, display.source_product, display.model_fdid)?;
-    let parsed = &model.model;
-    let path = GString::from(model.path.to_string_lossy().as_ref());
-    let (mut model, missing) = build_model(parsed, &path, &display.skin_fdids, appearance)?;
-    if let Some(geosets) = &gear.extra_geosets {
-        apply_display_geosets(&mut model, geosets);
-    }
-    let items = held_items(&model, &resolver, &gear.items);
-    let models: Vec<_> = gear
-        .armor_models
-        .iter()
-        .chain(items.iter().map(|(item, _)| item))
-        .cloned()
-        .collect();
-    let report = |item: &RuntimeModelAppearance, error: String| {
-        godot_error!(
-            "Creature model {}: {:?} item FDID {}: {error}",
-            display.model_fdid,
-            item.slot,
-            item.fdid
-        );
-    };
-    if let Err(error) = attach_each_equipment(&mut model, parsed, data_root, &models, report) {
-        model.free();
-        return Err(error);
-    }
-    for (item, attachment) in items {
-        if let Err(error) = place_equipment(&model, item.slot, *attachment) {
-            godot_error!("Creature model {}: {error}", display.model_fdid);
+    let mut build = CreatureBuild::body(data_root, display, model, appearance, gear)?;
+    loop {
+        match build.attach_next(data_root, model) {
+            Ok(true) => {}
+            Ok(false) => return Ok(build.finish()),
+            Err(error) => {
+                build.free();
+                return Err(error);
+            }
         }
     }
-    apply_display_alpha(&mut model, display.model_alpha);
-    Ok((model, missing))
+}
+
+/// Whether a creature shows mesh part `part`: its appearance's geosets, then its display's
+/// geoset rows (`extra_geosets`), which apply only to the model's own batches.
+fn creature_shows(
+    part: u16,
+    appearance: Option<&PreparedAppearance>,
+    geosets: Option<&[(u16, u16)]>,
+) -> bool {
+    let shown = appearance_shows(appearance, part);
+    geosets.map_or(shown, |geosets| {
+        display_geoset_visible(part, shown, geosets)
+    })
 }
 
 /// Fade this visual's geometry, never materials shared with another creature.
@@ -126,19 +223,6 @@ fn apply_display_alpha(model: &mut Gd<Node3D>, alpha: u8) {
     for mesh in meshes.iter_shared() {
         mesh.cast::<godot::classes::MeshInstance3D>()
             .set_transparency(transparency);
-    }
-}
-
-/// Apply only to this model's own batches, before adding armor or virtual-item children.
-fn apply_display_geosets(model: &mut Gd<Node3D>, geosets: &[(u16, u16)]) {
-    for child in model.get_children().iter_shared() {
-        let Ok(mut mesh) = child.try_cast::<godot::classes::MeshInstance3D>() else {
-            continue;
-        };
-        let part = mesh.get_meta(super::M2_MESH_PART_META).to::<i64>();
-        let part = u16::try_from(part).expect("M2 batch mesh part is a u16");
-        let visible = display_geoset_visible(part, mesh.is_visible(), geosets);
-        mesh.set_visible(visible);
     }
 }
 
@@ -159,7 +243,7 @@ fn held_items<'a>(
                 return true;
             };
             let id = model_attachment_id(item.slot, Path::new(&authored));
-            model.has_node(&format!("Skeleton3D/AttachmentBone{id}/Attachment{id}"))
+            super::attachments::attachment_point(model, id).is_some()
         })
         .collect()
 }
@@ -176,7 +260,7 @@ pub(crate) fn authored_model_resolver(
     data_root: &Path,
     product: game_engine_core::asset_product::AssetProduct,
     fdid: u32,
-) -> Result<CascListfileResolver, String> {
+) -> Result<Arc<CascListfileResolver>, String> {
     authored_asset_resolver(data_root, product, fdid, "m2")
 }
 
@@ -185,15 +269,35 @@ pub(crate) fn authored_asset_resolver(
     product: game_engine_core::asset_product::AssetProduct,
     fdid: u32,
     kind: &str,
-) -> Result<CascListfileResolver, String> {
-    let index = load_asset_index(data_root)?;
-    let receipt = index.receipt(product, fdid, kind)?;
+) -> Result<Arc<CascListfileResolver>, String> {
+    let receipt = super::client_receipts::load_or_extract_receipt(data_root, product, fdid, kind)?;
+    let key = (
+        data_root.to_owned(),
+        product.as_str(),
+        receipt.build_key.clone(),
+    );
+    // One resolver per data root and build: a resolver opens its listfile databases and
+    // keeps their answers, so a new one per asset reopened them for each model, item and
+    // texture (up to 20 ms of a creature's main-thread build on Windows).
+    static RESOLVERS: LazyLock<
+        Mutex<HashMap<(PathBuf, &'static str, String), Arc<CascListfileResolver>>>,
+    > = LazyLock::new(|| Mutex::new(HashMap::new()));
+    if let Some(resolver) = RESOLVERS.lock().expect("asset resolvers").get(&key) {
+        return Ok(Arc::clone(resolver));
+    }
     let identity = osso_asset_resolver::AssetIdentity::new(product.as_str(), &receipt.build_key)?;
-    Ok(CascListfileResolver::new(
+    let resolver = Arc::new(CascListfileResolver::new(
         AssetResolverConfig::new()
             .with_data_root(data_root)
             .with_shared_data_root(data_root)
             .with_identity(identity),
+    ));
+    Ok(Arc::clone(
+        RESOLVERS
+            .lock()
+            .expect("asset resolvers")
+            .entry(key)
+            .or_insert(resolver),
     ))
 }
 
@@ -271,7 +375,7 @@ pub(crate) fn wmo_resolver(
     data_root: &Path,
     product: game_engine_core::asset_product::AssetProduct,
     fdid: u32,
-) -> Result<CascListfileResolver, String> {
+) -> Result<Arc<CascListfileResolver>, String> {
     if data_root.join("cache/model-asset-index.json").is_file()
         && load_asset_index(data_root)?
             .receipt(product, fdid, "wmo")
@@ -279,7 +383,7 @@ pub(crate) fn wmo_resolver(
     {
         return authored_asset_resolver(data_root, product, fdid, "wmo");
     }
-    Ok(local_resolver(data_root))
+    Ok(Arc::new(local_resolver(data_root)))
 }
 
 pub(crate) fn local_resolver(data_root: &Path) -> CascListfileResolver {
@@ -321,6 +425,17 @@ pub(crate) fn model_cache_entries() -> usize {
     MODELS.lock().expect("model cache").len()
 }
 
+/// Drop parsed models and the published-texture names when a world ends. Godot nodes still
+/// hold the meshes and textures they use; without this, every map of a session kept its
+/// models, and their textures could never be published again after the texture cache clear.
+pub(crate) fn clear_model_caches() {
+    MODELS.lock().expect("model cache").clear();
+    PUBLISHED_TEXTURES
+        .lock()
+        .expect("published textures")
+        .clear();
+}
+
 /// Model `fdid`, extracted and parsed once per process (workers load it ahead of the
 /// main thread); a failure is not kept, so the next use tries again.
 pub(crate) fn load_model_files(
@@ -343,6 +458,12 @@ pub(crate) fn load_model_files(
         .expect("model cache")
         .insert(key, Arc::clone(&cached));
     Ok(cached)
+}
+
+/// The parsed model whose files are at `path` (`CachedModel::path`, the cache key, and a
+/// model root's `M2_SOURCE_META`), if a worker parsed it.
+pub(crate) fn model_at(path: &Path) -> Option<Arc<CachedModel>> {
+    MODELS.lock().expect("model cache").get(path).cloned()
 }
 
 /// Model `fdid` if a worker already parsed it (`load_model_files`), without file work.

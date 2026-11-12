@@ -1,6 +1,7 @@
 use crate::camera_control_data::{
     DEFAULT_CAMERA_FOV_DEGREES, MAX_CAMERA_FOV_DEGREES, MIN_CAMERA_FOV_DEGREES,
 };
+use crate::graphics_quality_data::GraphicsQuality;
 use crate::input_bindings_data::InputBindingsData;
 use crate::nameplate_style_data::NameplateStyle;
 use crate::realm_preset_data::{RealmPreset, default_realm_preset};
@@ -27,12 +28,37 @@ pub const DEFAULT_NAMEPLATE_DISTANCE: f32 = 40.0;
 pub const MIN_CHAT_FONT_SIZE: f32 = 8.0;
 pub const MAX_CHAT_FONT_SIZE: f32 = 16.0;
 
+/// Largest raid "lowest N" the options page offers.
+pub const MAX_RAID_LOWEST: u8 = 5;
+
 const fn default_mouse_sensitivity() -> f32 {
     0.003
 }
 const fn default_camera_fov_degrees() -> f32 {
     DEFAULT_CAMERA_FOV_DEGREES
 }
+const fn default_ground_effect_draping_enabled() -> bool {
+    true
+}
+
+/// Retail `textureFilteringMode` 5, the Retail default: 16x anisotropy.
+pub const DEFAULT_ANISOTROPIC_FILTERING: u8 = 16;
+
+const fn default_anisotropic_filtering() -> u8 {
+    DEFAULT_ANISOTROPIC_FILTERING
+}
+
+/// The sampler anisotropy the option asks for, snapped to the ladder Godot accepts.
+pub fn anisotropic_filtering_level(value: u8) -> u8 {
+    match value {
+        0..=1 => 1,
+        2..=3 => 2,
+        4..=7 => 4,
+        8..=15 => 8,
+        _ => 16,
+    }
+}
+
 const fn default_particle_effects_enabled() -> bool {
     true
 }
@@ -202,6 +228,32 @@ pub struct GraphicsOptionsFile {
     pub bloom_enabled: bool,
     #[serde(default = "default_bloom_intensity", rename = "bloomIntensity")]
     pub bloom_intensity: f32,
+    /// Flat ground spell effects follow the visible render surface (carpets, stairs).
+    /// On by default; no Retail options row exists for it, like the liquid paths.
+    #[serde(
+        default = "default_ground_effect_draping_enabled",
+        rename = "groundEffectDrapingEnabled"
+    )]
+    pub ground_effect_draping_enabled: bool,
+    /// Anisotropic filtering for every world texture sampler: 1, 2, 4, 8 or 16 samples.
+    ///
+    /// Retail `textureFilteringMode` (12.1.5.70688) indexes an anisotropy ladder
+    /// 1/1/2/4/8/16 for its values 0..5 and defaults to 5, so Retail samples 16x. The
+    /// callback and the ladder are proved from the client image; that the final value
+    /// reaches the sampler descriptor is inferred (decomp `SAMPLER-AND-PROJECTED-NOTES.md`,
+    /// INFERRED). Retail exposes it as the anisotropic filtering graphics setting.
+    ///
+    /// Retirement: remove this option if the decomp proves Retail scales anisotropy per
+    /// texture descriptor rather than through one sampler level (the option must then
+    /// follow that mapping), or when the client stops using Godot's viewport anisotropy.
+    #[serde(
+        default = "default_anisotropic_filtering",
+        rename = "anisotropicFiltering"
+    )]
+    pub anisotropic_filtering: u8,
+    /// The distance and shadow preset row (`graphics_quality_data`).
+    #[serde(default, rename = "graphicsQuality")]
+    pub graphics_quality: GraphicsQuality,
 }
 
 impl Default for GraphicsOptionsFile {
@@ -219,6 +271,9 @@ impl Default for GraphicsOptionsFile {
             colorblind_mode: default_colorblind_mode(),
             bloom_enabled: default_bloom_enabled(),
             bloom_intensity: default_bloom_intensity(),
+            ground_effect_draping_enabled: default_ground_effect_draping_enabled(),
+            anisotropic_filtering: default_anisotropic_filtering(),
+            graphics_quality: GraphicsQuality::default(),
         }
     }
 }
@@ -257,14 +312,51 @@ pub struct CooldownAssistOptions {
     pub highlight_viewer: bool,
 }
 
+/// Healer ground rings: the health arc under party members (PLAN USER 11-05). On by
+/// default for healer specializations in a party; other roles opt in with `all_roles`,
+/// and raids show only the `raid_lowest` lowest-health members unless that is 0.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct HealerGroundRingOptions {
+    pub enabled: bool,
+    /// Show rings for a non-healer specialization (opt-in) and in a party of any role.
+    pub all_roles: bool,
+    /// Colour-blind-safe health ramp, the default secondary cue.
+    pub colorblind_ramp: bool,
+    /// Raid mode: the lowest-health members shown, 0 disables rings in raids.
+    pub raid_lowest: u8,
+}
+
+impl Default for HealerGroundRingOptions {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            all_roles: false,
+            colorblind_ramp: true,
+            raid_lowest: 0,
+        }
+    }
+}
+
+impl HealerGroundRingOptions {
+    pub fn clamped(mut self) -> Self {
+        self.raid_lowest = self.raid_lowest.min(MAX_RAID_LOWEST);
+        self
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HudOptionsFile {
     pub show_minimap: bool,
     pub show_action_bars: bool,
+    #[serde(default, rename = "combatText")]
+    pub combat_text: crate::combat_text_options::CombatTextOptions,
     #[serde(default)]
     pub cooldown_assist: CooldownAssistOptions,
     #[serde(default, rename = "extraActionBars")]
     pub extra_action_bars: ExtraActionBars,
+    #[serde(default, rename = "healerGroundRings")]
+    pub healer_ground_rings: HealerGroundRingOptions,
     pub show_nameplates: bool,
     #[serde(default = "default_nameplate_distance", rename = "nameplateDistance")]
     pub nameplate_distance: f32,
@@ -306,8 +398,10 @@ impl Default for HudOptionsFile {
         Self {
             show_minimap: true,
             show_action_bars: true,
+            combat_text: crate::combat_text_options::CombatTextOptions::default(),
             cooldown_assist: CooldownAssistOptions::default(),
             extra_action_bars: ExtraActionBars::default(),
+            healer_ground_rings: HealerGroundRingOptions::default(),
             show_nameplates: true,
             nameplate_distance: default_nameplate_distance(),
             nameplate_style: NameplateStyle::default(),
@@ -348,6 +442,7 @@ impl GraphicsOptionsFile {
             .frame_rate_limit
             .clamp(MIN_FRAME_RATE_LIMIT, MAX_FRAME_RATE_LIMIT);
         self.bloom_intensity = self.bloom_intensity.clamp(0.0, 1.0);
+        self.anisotropic_filtering = anisotropic_filtering_level(self.anisotropic_filtering);
         self
     }
     pub fn validate(&self) -> Result<(), String> {
@@ -360,6 +455,7 @@ impl GraphicsOptionsFile {
 
 impl HudOptionsFile {
     pub fn clamped(mut self) -> Self {
+        self.healer_ground_rings = self.healer_ground_rings.clamped();
         self.nameplate_distance = self
             .nameplate_distance
             .clamp(MIN_NAMEPLATE_DISTANCE, MAX_NAMEPLATE_DISTANCE);

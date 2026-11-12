@@ -28,13 +28,26 @@ impl SpellEffects {
         Ok(Some(kit))
     }
 
-    pub(crate) fn census_start(&mut self, kit: &VisualKit, visual: InstanceId, spell: u32) {
+    /// `trigger_radius`: set for an area trigger, which fits the art to its own radius.
+    pub(crate) fn census_start(
+        &mut self,
+        kit: &VisualKit,
+        visual: InstanceId,
+        spell: u32,
+        trigger_radius: Option<f32>,
+    ) {
         let lifetime = if kit.end == VisualEvent::OneShot {
             Lifetime::OneShot
         } else {
             Lifetime::UntilDetachedEnds { visual }
         };
-        self.queue_owned_models(kit, EffectOwner::Detached(visual), lifetime, spell);
+        self.queue_owned_models(
+            kit,
+            EffectOwner::Detached(visual),
+            lifetime,
+            spell,
+            trigger_radius,
+        );
     }
 
     pub(crate) fn census_clear(&mut self, visual: InstanceId) {
@@ -51,6 +64,8 @@ impl SpellEffects {
         });
     }
 
+    // Only the debug-built spell census fixture reads these.
+    #[cfg(debug_assertions)]
     pub(crate) fn census_advance_animations(
         &mut self,
         visual: InstanceId,
@@ -76,6 +91,8 @@ impl SpellEffects {
         Ok(())
     }
 
+    // Only the debug-built spell census fixture reads these.
+    #[cfg(debug_assertions)]
     pub(crate) fn census_active_models(&self, visual: InstanceId) -> Vec<u32> {
         self.active
             .iter()
@@ -84,6 +101,8 @@ impl SpellEffects {
             .collect()
     }
 
+    // Only the debug-built spell census fixture reads these.
+    #[cfg(debug_assertions)]
     pub(crate) fn census_particles_drawn(&self) -> usize {
         self.pools.drawn()
     }

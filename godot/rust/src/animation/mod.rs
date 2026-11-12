@@ -21,14 +21,16 @@ use godot::builtin::Transform3D;
 mod action;
 mod attachment;
 mod billboard;
-pub(crate) use attachment::{refresh_unit_shadows, set_camera_admitted, take_gate_time_ms};
+pub(crate) use attachment::{refresh_unit_shadows, set_unit_admission, take_gate_time_ms};
 mod momentum;
 mod mount_special;
 mod parent;
 #[cfg(test)]
 mod parent_tests;
+mod pose_writer;
 #[cfg(test)]
 mod replacement_tests;
+mod sequence_plan;
 pub(crate) use action::ActionPriority;
 pub(crate) mod lod;
 
@@ -79,6 +81,13 @@ const POSE_CLIPS: [PoseClips; 3] = [
 
 fn pose_clips(matches: impl Fn(&PoseClips) -> bool) -> Option<&'static PoseClips> {
     POSE_CLIPS.iter().find(|clips| matches(clips))
+}
+
+fn constant_or<T: Copy>(component: sequence_plan::Component<T>, sample: impl FnOnce() -> T) -> T {
+    match component {
+        sequence_plan::Component::Constant(value) => value,
+        sequence_plan::Component::Sampled => sample(),
+    }
 }
 
 fn wow_vec3(value: [f32; 3]) -> Vector3 {
@@ -185,6 +194,8 @@ fn keyframed<T>(track: &m2_anim::AnimTrack<T>, sequence: usize) -> bool {
 pub struct AnimationState {
     sequences: Vec<m2::Sequence>,
     tracks: std::sync::Arc<Vec<m2::BoneAnimTracks>>,
+    /// Per own sequence: the bone components that do not depend on time.
+    plans: std::sync::Arc<sequence_plan::SequencePlans>,
     parent: Option<parent::ParentBank>,
     material_tracks: MaterialTracks,
     material_snapshot: MaterialSnapshot,
@@ -290,6 +301,7 @@ impl AnimationState {
             material_snapshot,
             sequences,
             tracks: model.bone_tracks.clone(),
+            plans: sequence_plan::SequencePlans::shared(&model.bone_tracks, model.sequences.len()),
             parent,
             global_sequences: model.global_sequences.clone(),
             global_ms: 0.0,
@@ -406,29 +418,72 @@ impl AnimationState {
         {
             return parent.sample(index, time_ms, self.global_ms);
         }
+        let Some(plans) = self.plans.sequence(index) else {
+            return self.sample_unplanned(index, time_ms);
+        };
         self.tracks
             .iter()
             .zip(&self.local_pivots)
-            .map(|(track, &pivot)| {
-                let (timeline, time) = self.track_time(&track.translation, index, time_ms);
-                let translation = m2_anim::evaluate_vec3_track(&track.translation, timeline, time)
-                    .map(wow_vec3)
-                    .unwrap_or(Vector3::ZERO);
-                let (timeline, time) = self.track_time(&track.rotation, index, time_ms);
-                let rotation = m2_anim::evaluate_rotation_track(&track.rotation, timeline, time)
-                    .map(|q| Quaternion::new(q[0], q[1], q[2], q[3]).normalized())
-                    .unwrap_or(Quaternion::IDENTITY);
-                let (timeline, time) = self.track_time(&track.scale, index, time_ms);
-                let scale = m2_anim::evaluate_vec3_track(&track.scale, timeline, time)
-                    .map(|s| Vector3::new(s[0], s[2], s[1]))
-                    .unwrap_or(Vector3::ONE);
-                BonePose {
-                    position: pivot + translation,
-                    rotation,
-                    scale,
-                }
+            .zip(plans)
+            .map(|((track, &pivot), plan)| BonePose {
+                position: pivot
+                    + constant_or(plan.translation, || {
+                        self.sample_translation(track, index, time_ms)
+                    }),
+                rotation: match &plan.rotation {
+                    sequence_plan::RotationPlan::Constant(rotation) => *rotation,
+                    sequence_plan::RotationPlan::Keyed(keys) => keys.sample(time_ms as u32),
+                    sequence_plan::RotationPlan::Sampled => {
+                        self.sample_rotation(track, index, time_ms)
+                    }
+                },
+                scale: constant_or(plan.scale, || self.sample_scale(track, index, time_ms)),
             })
             .collect()
+    }
+
+    /// A sequence without a plan (one the model does not own) samples every track.
+    fn sample_unplanned(&self, index: usize, time_ms: f64) -> Vec<BonePose> {
+        self.tracks
+            .iter()
+            .zip(&self.local_pivots)
+            .map(|(track, &pivot)| BonePose {
+                position: pivot + self.sample_translation(track, index, time_ms),
+                rotation: self.sample_rotation(track, index, time_ms),
+                scale: self.sample_scale(track, index, time_ms),
+            })
+            .collect()
+    }
+
+    fn sample_translation(
+        &self,
+        track: &m2::BoneAnimTracks,
+        index: usize,
+        time_ms: f64,
+    ) -> Vector3 {
+        let (timeline, time) = self.track_time(&track.translation, index, time_ms);
+        m2_anim::evaluate_vec3_track(&track.translation, timeline, time)
+            .map(wow_vec3)
+            .unwrap_or(Vector3::ZERO)
+    }
+
+    fn sample_rotation(
+        &self,
+        track: &m2::BoneAnimTracks,
+        index: usize,
+        time_ms: f64,
+    ) -> Quaternion {
+        let (timeline, time) = self.track_time(&track.rotation, index, time_ms);
+        m2_anim::evaluate_rotation_track(&track.rotation, timeline, time)
+            .map(|q| Quaternion::new(q[0], q[1], q[2], q[3]).normalized())
+            .unwrap_or(Quaternion::IDENTITY)
+    }
+
+    fn sample_scale(&self, track: &m2::BoneAnimTracks, index: usize, time_ms: f64) -> Vector3 {
+        let (timeline, time) = self.track_time(&track.scale, index, time_ms);
+        m2_anim::evaluate_vec3_track(&track.scale, timeline, time)
+            .map(|s| Vector3::new(s[0], s[2], s[1]))
+            .unwrap_or(Vector3::ONE)
     }
 
     fn sampled_poses(&self) -> Vec<BonePose> {
@@ -886,6 +941,15 @@ pub struct WowAnimationPlayer {
     bounds_sequence: Option<usize>,
     /// The skeleton's motion, fed to the momentum sway each processed frame.
     velocity: momentum::VelocityTracker,
+    /// The two foot chains found from attachment points 47/48, for client-side foot IK.
+    leg_rig: Option<game_engine_core::foot_ik::LegRig>,
+    /// Attachment participation and the participation epoch it was read at.
+    participation: std::cell::Cell<Option<(u64, bool)>>,
+    /// The pose last written to each bone; an unchanged component is not written again.
+    written: Vec<BonePose>,
+    /// Poses written to the skeleton so far; a reader holding bone poses re-reads them
+    /// when it changes.
+    pose_writes: u64,
 }
 
 #[godot_api]
@@ -903,6 +967,10 @@ impl INode for WowAnimationPlayer {
             attachments: None,
             bounds_sequence: None,
             velocity: Default::default(),
+            leg_rig: None,
+            participation: std::cell::Cell::new(None),
+            written: Vec::new(),
+            pose_writes: 0,
         }
     }
 
@@ -917,9 +985,46 @@ impl INode for WowAnimationPlayer {
 
     fn process(&mut self, delta: f64) {
         let _timing = crate::profile::node_span("WowAnimationPlayer.process");
-        self.feed_velocity_change(delta);
+        // A pose that is not sampled cannot show the sway, and the frozen interval must
+        // not count as motion when sampling resumes: the tracker restarts instead.
+        if self.sampling {
+            self.feed_velocity_change(delta);
+        } else {
+            self.velocity.reset();
+        }
         self.advance_time_ms(delta * 1000.0);
     }
+}
+
+/// Attachment lookup ids of the two feet in every local playable character M2.
+pub(crate) fn detect_leg_rig(model: &m2::Model) -> Option<game_engine_core::foot_ik::LegRig> {
+    let foot = |attachment: u32| -> Option<u16> {
+        let index = *model.attachment_lookup.get(attachment as usize)?;
+        if index < 0 {
+            return None;
+        }
+        model
+            .attachments
+            .get(index as usize)
+            .map(|attachment| attachment.bone)
+    };
+    let parents: Vec<i16> = model.bones.iter().map(|bone| bone.parent_bone_id).collect();
+    let pivots: Vec<[f32; 3]> = model
+        .bones
+        .iter()
+        .map(|bone| {
+            let pivot = wow_vec3(bone.pivot);
+            [pivot.x, pivot.y, pivot.z]
+        })
+        .collect();
+    game_engine_core::foot_ik::detect_legs(
+        &parents,
+        &pivots,
+        [
+            foot(game_engine_core::foot_ik::FOOT_ATTACHMENTS[0]),
+            foot(game_engine_core::foot_ik::FOOT_ATTACHMENTS[1]),
+        ],
+    )
 }
 
 impl WowAnimationPlayer {
@@ -946,10 +1051,43 @@ impl WowAnimationPlayer {
             attachments,
             bounds_sequence: None,
             velocity: Default::default(),
+            leg_rig: detect_leg_rig(model),
+            participation: std::cell::Cell::new(None),
+            written: Vec::new(),
+            pose_writes: 0,
         });
         player.set_name("WowAnimationPlayer");
         player.bind_mut().write_poses();
         Ok(player)
+    }
+
+    /// Whether this frame does not rewrite the animation's own pose (paused, or frozen by
+    /// the animation LOD), so a client-side pose pass must restore it before solving.
+    pub(crate) fn pose_stale(&self) -> bool {
+        self.paused || !self.sampling
+    }
+
+    /// Rewrites the sampled animation pose, discarding last frame's foot IK rotations.
+    pub(crate) fn restore_sampled_pose(&mut self) {
+        self.write_poses();
+    }
+
+    /// Applies the billboard and non-inheriting bones' global overrides of the last written
+    /// pose again, after the skeleton's bones were removed and added back.
+    pub(crate) fn reapply_bone_overrides(&mut self) {
+        if let (Some(billboards), Some(skeleton)) = (&self.billboards, &mut self.skeleton) {
+            billboards.apply(&self.written, skeleton);
+        }
+    }
+
+    /// The displayed skeleton, for client-side pose passes such as foot IK.
+    pub(crate) fn skeleton(&self) -> Option<Gd<Skeleton3D>> {
+        self.skeleton.clone()
+    }
+
+    /// The leg chains foot IK can solve, when the model defines both feet.
+    pub(crate) fn leg_rig(&self) -> Option<game_engine_core::foot_ik::LegRig> {
+        self.leg_rig
     }
 
     /// Kick the momentum sway with the skeleton's horizontal velocity change since the
@@ -1208,6 +1346,12 @@ impl WowAnimationPlayer {
         self.sampling = sampling;
     }
 
+    /// Whether this frame's advance wrote the bone pose. A pose that was not written is
+    /// still the one the last pose pass left on the skeleton.
+    pub(crate) fn samples_poses(&self) -> bool {
+        self.sampling
+    }
+
     pub(crate) fn seek_fixed_time_ms(&mut self, time_ms: f64) -> Result<(), String> {
         self.validated_bone_count("Fixed sky animation time")?;
         let animation = self
@@ -1230,15 +1374,44 @@ impl WowAnimationPlayer {
             return;
         };
         let poses = animation.sampled_poses();
+        // Foot IK rewrites these bones after the pose pass, so the skeleton no longer
+        // holds what was written to them.
+        let solved = self.leg_rig.map(|rig| {
+            [
+                rig.pelvis,
+                rig.legs[0].upper,
+                rig.legs[0].lower,
+                rig.legs[1].upper,
+                rig.legs[1].lower,
+            ]
+        });
+        let mut writer = pose_writer::PoseWriter::new(skeleton);
         for (index, pose) in poses.iter().enumerate() {
-            skeleton.set_bone_pose_position(index as i32, pose.position);
-            skeleton.set_bone_pose_rotation(index as i32, pose.rotation);
-            skeleton.set_bone_pose_scale(index as i32, pose.scale);
+            let bone = index as i32;
+            let last = self
+                .written
+                .get(index)
+                .filter(|_| !solved.is_some_and(|bones| bones.contains(&index)));
+            if last.is_none_or(|last| last.position != pose.position) {
+                writer.position(bone, pose.position);
+            }
+            if last.is_none_or(|last| last.rotation != pose.rotation) {
+                writer.rotation(bone, pose.rotation);
+            }
+            if last.is_none_or(|last| last.scale != pose.scale) {
+                writer.scale(bone, pose.scale);
+            }
         }
         if let Some(billboards) = &self.billboards {
             billboards.apply(&poses, skeleton);
         }
+        self.written = poses;
+        self.pose_writes += 1;
         self.apply_sequence_bounds();
+    }
+
+    pub(crate) fn pose_writes(&self) -> u64 {
+        self.pose_writes
     }
 
     fn write_attachment_gates(&mut self) {
@@ -1314,7 +1487,17 @@ impl WowAnimationPlayer {
     /// Attached children may retain color/identity/clock while callbacks are ineligible.
     #[func]
     fn callbacks_eligible(&self) -> bool {
-        attachment::participates(&self.base().clone())
+        let node = self.base().clone();
+        let epoch = attachment::participation_epoch(&node);
+        if let (Some(epoch), Some((read_at, participates))) = (epoch, self.participation.get())
+            && read_at == epoch
+        {
+            return participates;
+        }
+        let participates = attachment::participates(&node);
+        self.participation
+            .set(epoch.map(|epoch| (epoch, participates)));
+        participates
     }
 
     #[func]
@@ -1501,6 +1684,8 @@ mod npc_locomotion_tests;
 
 #[cfg(test)]
 mod npc_pose_tests;
+#[cfg(test)]
+mod sequence_plan_tests;
 #[cfg(test)]
 mod stand_pose_tests;
 

@@ -28,6 +28,7 @@ const FLOATS_PER_PARTICLE := 20
 var client: Node
 var scene: Node
 var shots := ""
+var held_pose_moves := 0
 
 func _initialize() -> void:
 	call_deferred("run_test")
@@ -64,14 +65,32 @@ func run_test() -> void:
 		return
 	if not await check_emitters(TORCH):
 		return
+	if not check_held_pose(TORCH):
+		return
 	if not await check_orbit():
 		return
 	for model in [PORTAL, FROSTBOLT]:
 		push_key(KEY_TAB)
 		if not await check_emitters(model):
 			return
+		if not check_held_pose(model):
+			return
+	if held_pose_moves == 0:
+		fail("No model's animation moved an emitter: held poses were never re-read")
+		return
 	print("PASS: particle debug screen")
 	quit(0)
+
+# A placement that holds its emitter transforms (world doodads) re-reads them on every
+# animation pose write, so it matches a placement that re-reads them every update.
+func check_held_pose(model: int) -> bool:
+	var parity: Dictionary = scene.held_pose_parity(60)
+	if parity.has("error") or parity.mismatched != 0:
+		fail("Model %d held emitter transforms differ from re-read ones: %s" % [model, parity])
+		return false
+	held_pose_moves += parity.moved
+	print("HELD_POSE model=%d moved=%d" % [model, parity.moved])
+	return true
 
 func check_torch_overlay() -> bool:
 	if not await wait_drawn(TORCH):

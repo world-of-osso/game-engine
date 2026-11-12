@@ -37,7 +37,7 @@ fn aura(spell_id: u32) -> TargetAuraIconState {
         stacks: 1,
         dispel_color: None,
         large: true,
-        elapsed: None,
+        timed: false,
     }
 }
 fn units(reaction: Reaction) -> FrameRegistry {
@@ -184,7 +184,7 @@ fn text_is_player_left_and_target_tot_focus_mirrored() {
     );
 }
 #[test]
-fn pet_is_below_player_right_with_retail_player_portrait() {
+fn pet_is_below_player_right_without_forever_portraits() {
     let r = units(Reaction::Hostile);
     let pet = frame(&r, "PetFrame");
     assert_eq!(
@@ -195,10 +195,7 @@ fn pet_is_below_player_right_with_retail_player_portrait() {
         (pet.margin.left, pet.margin.top),
         (Val::Px(-370.0), Val::Px(306.0))
     );
-    // Lead decision 2026-10-14: Forever gets the Retail PlayerPortrait slot.
-    // Mainline PlayerFrame.xml: 60x60 at TOPLEFT24,-19; other frames stay portrait-free.
-    assert_eq!(rect(&r, "PlayerPortrait"), (24.0, 19.0, 60.0, 60.0));
-    for prefix in ["Target", "TargetOfTarget", "Focus", "PetFrame"] {
+    for prefix in ["Player", "Target", "TargetOfTarget", "Focus", "PetFrame"] {
         assert!(r.get_by_name(&format!("{prefix}Portrait")).is_none());
     }
 }

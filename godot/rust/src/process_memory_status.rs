@@ -3,6 +3,7 @@ pub struct ProcessMemoryKb {
     pub rss_kb: u64,
     pub anon_kb: u64,
     pub data_kb: u64,
+    pub swap_kb: u64,
 }
 
 #[cfg(target_os = "linux")]
@@ -18,6 +19,8 @@ pub fn current_process_memory_kb() -> ProcessMemoryKb {
             memory.anon_kb = parse_kb_field(value);
         } else if let Some(value) = line.strip_prefix("VmData:") {
             memory.data_kb = parse_kb_field(value);
+        } else if let Some(value) = line.strip_prefix("VmSwap:") {
+            memory.swap_kb = parse_kb_field(value);
         }
     }
     memory

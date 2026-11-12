@@ -5,6 +5,7 @@
 //! Controls: left drag orbits, the wheel zooms, Tab / Shift+Tab cycles [`MODELS`],
 //! 1-9 toggle emitters #0-#8, 0 enables every emitter, R restarts the emitters.
 
+use crate::rebuild_guard::ThemeOverrides;
 use std::{path::PathBuf, rc::Rc};
 
 use game_engine_core::{
@@ -419,6 +420,48 @@ impl WowParticleDebug {
         crate::particle_composite::pool_instances(&pool)
     }
 
+    /// Fixture: two placements of the shown model, one holding its pose (`hold_pose`)
+    /// and one re-reading it, through `frames` animation steps of 1/30 s. `mismatched`
+    /// counts steps whose emitter transforms differ, `moved` steps that moved them.
+    #[func]
+    fn held_pose_parity(&mut self, frames: i64) -> VarDictionary {
+        const STEP_S: f32 = 1.0 / 30.0;
+        let mut result = VarDictionary::new();
+        let Some((node, particles)) = self
+            .shown
+            .as_ref()
+            .and_then(|shown| Some((shown.node.clone(), shown.particles.clone()?)))
+        else {
+            result.set("error", "no shown model with particles");
+            return result;
+        };
+        let (mut held, _) = self.pools.place(&particles, &node, PARTICLE_SEED);
+        held.hold_pose();
+        let (mut fresh, _) = self.pools.place(&particles, &node, PARTICLE_SEED);
+        let mut player =
+            node.try_get_node_as::<crate::animation::WowAnimationPlayer>("M2Animation");
+        let view = view_basis(Transform3D::IDENTITY);
+        let (mut mismatched, mut moved) = (0_i64, 0_i64);
+        let mut last: Vec<Transform3D> = Vec::new();
+        for _ in 0..frames {
+            if let Some(player) = &mut player {
+                player
+                    .bind_mut()
+                    .advance_time_ms(f64::from(STEP_S) * 1000.0);
+            }
+            self.pools.begin_frame();
+            held.update_and_draw(&node, STEP_S, 1.0, &view, &mut self.pools);
+            fresh.update_and_draw(&node, STEP_S, 1.0, &view, &mut self.pools);
+            self.pools.end_frame();
+            mismatched += i64::from(held.emitter_transforms() != fresh.emitter_transforms());
+            moved += i64::from(!last.is_empty() && last != fresh.emitter_transforms());
+            last = fresh.emitter_transforms().to_vec();
+        }
+        result.set("mismatched", mismatched);
+        result.set("moved", moved);
+        result
+    }
+
     /// The shown model, its emitters and this frame's drawn particles, for fixtures.
     #[func]
     fn debug_state(&self) -> VarDictionary {
@@ -537,20 +580,20 @@ impl WowParticleDebug {
     fn attach_overlay(&mut self) {
         let mut layer = CanvasLayer::new_alloc();
         layer.set_name("Overlay");
-        let mut style = StyleBoxFlat::new_gd();
+        let mut style = crate::rebuild_guard::new_style_box::<StyleBoxFlat>();
         style.set_bg_color(Color::from_rgba(0.02, 0.02, 0.02, 0.82));
         style.set_content_margin_all(10.0);
         let mut panel = PanelContainer::new_alloc();
         panel.set_name("EmitterOverlay");
-        panel.add_theme_stylebox_override("panel", &style);
+        panel.change_theme_stylebox_override("panel", &style);
         panel.set_anchors_preset(LayoutPreset::TOP_RIGHT);
         panel.set_offset(Side::LEFT, -532.0);
         panel.set_offset(Side::RIGHT, -12.0);
         panel.set_offset(Side::TOP, 12.0);
         panel.set_mouse_filter(MouseFilter::IGNORE);
         let mut label = Label::new_alloc();
-        label.add_theme_font_size_override("font_size", 15);
-        label.add_theme_color_override("font_color", Color::WHITE);
+        label.change_theme_font_size_override("font_size", 15);
+        label.change_theme_color_override("font_color", Color::WHITE);
         label.set_autowrap_mode(AutowrapMode::WORD_SMART);
         label.set_mouse_filter(MouseFilter::IGNORE);
         panel.add_child(&label);

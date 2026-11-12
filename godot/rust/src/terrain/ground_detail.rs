@@ -292,7 +292,7 @@ impl GroundDetail {
         if mesh.batches.is_empty() {
             return Ok(None);
         }
-        let mut array_mesh = ArrayMesh::new_gd();
+        let mut array_mesh = crate::rebuild_guard::new_array_mesh();
         let mut materials = Vec::with_capacity(mesh.batches.len());
         for batch in &mesh.batches {
             add_batch_surface(&mut array_mesh, mesh, batch.first_index, batch.index_count);
@@ -319,7 +319,7 @@ impl GroundDetail {
         let mut missing = PackedInt32Array::new();
         let texture = shared_texture(texture_fdid, &dir, &mut missing)?
             .ok_or_else(|| format!("detail texture {texture_fdid} missing in {}", dir.display()))?;
-        let mut material = ShaderMaterial::new_gd();
+        let mut material = crate::rebuild_guard::new_shader_material();
         material.set_shader(self.shader.as_ref().expect("prepared"));
         material.set_shader_parameter("detail_texture", &texture.to_variant());
         material.set_shader_parameter("detail_distance", &DEFAULT_DISTANCE.to_variant());

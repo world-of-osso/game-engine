@@ -1,7 +1,10 @@
 //! Native M2/BLP conversion with authored batch resolution and materials.
 pub(crate) mod appearance;
-mod attachments;
+pub(crate) mod attachments;
+pub(crate) mod batch_merge;
+pub(crate) mod client_receipts;
 pub(crate) mod creature;
+pub(crate) mod creature_template;
 pub(crate) mod equipment;
 pub(crate) mod m2_lights;
 pub(crate) mod material;
@@ -29,12 +32,14 @@ use osso_asset_resolver::{AssetResolverConfig, CascListfileResolver};
 #[class(base = RefCounted)]
 pub struct WowAssetLoader {
     base: Base<RefCounted>,
+    /// The world's unit visuals, made on the first `load_world_creature_display`.
+    world: Option<crate::world_models::WorldModels>,
 }
 
 #[godot_api]
 impl IRefCounted for WowAssetLoader {
     fn init(base: Base<RefCounted>) -> Self {
-        Self { base }
+        Self { base, world: None }
     }
 }
 
@@ -96,6 +101,94 @@ impl WowAssetLoader {
             }
             Err(error) => error_result(error),
         }
+    }
+
+    /// A creature display holding `items` (`player_request::equipment`) placed for `sheath`
+    /// (0 unarmed, 1 melee, 2 ranged), built as the world builds a unit's visual: a display
+    /// and items this loader built before instantiate its first visual's template
+    /// (`WorldModels::build_world_visual`).
+    #[func]
+    fn load_world_creature_display(
+        &mut self,
+        display_id: i64,
+        items: VarArray,
+        sheath: i64,
+    ) -> VarDictionary {
+        let models = self.world.get_or_insert_with(|| {
+            crate::world_models::WorldModels::new(player_request::data_root())
+        });
+        let loaded = u32::try_from(display_id)
+            .map_err(|_| format!("Invalid creature display {display_id}"))
+            .and_then(|display| {
+                let items = player_request::equipment(&items)?;
+                let sheath = player_request::sheath_state(sheath)?;
+                models.load_world_display(display, &items, sheath)
+            });
+        match loaded {
+            Ok(node) => {
+                let mut result = VarDictionary::new();
+                result.set("node", &node);
+                result
+            }
+            Err(error) => error_result(error),
+        }
+    }
+
+    /// Release the map's shared resources as a map change does (`GameClient`'s loading
+    /// screen and world transfer).
+    #[func]
+    fn release_map_resources(&mut self) {
+        release_map_resource_caches(self.world.as_mut());
+    }
+
+    /// `display_id` holding `items` placed for `sheath`, through the world's visual request
+    /// (`WorldModels::request` then `poll` in the same call): `ready` is whether it was
+    /// ready at once, which only a template's answer is (a worker load arrives in a later
+    /// frame), and `node` its visual when it was.
+    #[func]
+    fn request_world_creature_display(
+        &mut self,
+        display_id: i64,
+        items: VarArray,
+        sheath: i64,
+    ) -> VarDictionary {
+        let models = self.world.get_or_insert_with(|| {
+            crate::world_models::WorldModels::new(player_request::data_root())
+        });
+        let requested = u32::try_from(display_id)
+            .map_err(|_| format!("Invalid creature display {display_id}"))
+            .and_then(|display| {
+                let appearance = crate::world_models::UnitAppearance::Creature {
+                    display_id: display,
+                    items: player_request::equipment(&items)?,
+                };
+                let sheath = player_request::sheath_state(sheath)?;
+                let request = models.request(&appearance, sheath);
+                let ready = models.poll().into_iter().find(|(id, _)| *id == request);
+                ready
+                    .map(|(_, parts)| {
+                        parts.and_then(|parts| models.build_world_visual(parts, None, None))
+                    })
+                    .transpose()
+            });
+        match requested {
+            Ok(node) => {
+                let mut result = VarDictionary::new();
+                result.set("ready", node.is_some());
+                if let Some(node) = node {
+                    result.set("node", &node);
+                }
+                result
+            }
+            Err(error) => error_result(error),
+        }
+    }
+
+    /// The attachment point `id` of the model root `model` as world code reaches it
+    /// (`attachments::attachment_point`): made on first use, null when the model has none.
+    #[func]
+    fn attachment_point(&self, model: Gd<Node3D>, id: i64) -> Option<Gd<Node3D>> {
+        attachments::attachment_point(&model, u32::try_from(id).ok()?)
     }
 
     #[func]
@@ -234,8 +327,7 @@ pub(super) fn dependent_asset_path(
         "wow_classic_beta" => game_engine_core::asset_product::AssetProduct::Forever,
         other => return Err(format!("Unsupported asset product {other}")),
     };
-    let index = creature::load_asset_index(&root)?;
-    Ok(root.join(&index.receipt(product, fdid, kind)?.path))
+    Ok(root.join(client_receipts::load_or_extract_receipt(&root, product, fdid, kind)?.path))
 }
 
 fn primary_skin_path(
@@ -430,6 +522,11 @@ pub(crate) const M2_ABOVE_CHARACTER_META: &str = "m2_above_character";
 pub(crate) const M2_SOURCE_META: &str = "m2_source_path";
 /// Batch metadata: the skin section's mesh part (geoset) ID.
 const M2_MESH_PART_META: &str = "m2_mesh_part";
+/// Batch metadata: the skin submesh the batch draws.
+const M2_SUBMESH_META: &str = "m2_submesh";
+/// Batch metadata on opaque batches: batches of one model with the same group bind
+/// identical materials (`batch_merge`).
+const M2_MERGE_GROUP_META: &str = "m2_merge_group";
 
 fn m2_bounds(model: &m2::Model) -> Aabb {
     wow_aabb(model.bounding_box_min, model.bounding_box_max)
@@ -538,6 +635,8 @@ pub(super) fn build_model_filtered_with_textures(
     .collect();
     let tracks = game_engine_core::m2_material::MaterialTracks::of(model);
     let mut batches = Vec::new();
+    let mut shared = Vec::new();
+    let span = crate::profile::span(|| "model.load_batches".to_owned());
     for (batch_index, batch) in resolved.iter().enumerate() {
         if let Some(loaded) = load_batch(
             model,
@@ -546,15 +645,17 @@ pub(super) fn build_model_filtered_with_textures(
             skin_texture_fdids,
             path,
             &mut missing,
+            &mut shared,
             appearance,
             textures,
         )? {
-            batches.push((batch_index, batch.mesh_part_id, loaded));
+            batches.push((batch_index, batch.submesh_index, batch.mesh_part_id, loaded));
         }
     }
+    drop(span);
     let span = crate::profile::span(|| "model.skeleton".to_owned());
     let (mut skeleton, skin) = build_skeleton(&model.bones);
-    if let Err(error) = attachments::add_attachment_nodes(&mut skeleton, model) {
+    if let Err(error) = attachments::record_attachments(&mut skeleton, model) {
         skeleton.free();
         return Err(error);
     }
@@ -579,7 +680,7 @@ pub(super) fn build_model_filtered_with_textures(
         tracks,
         batches
             .iter()
-            .map(|(_, _, batch)| (batch.material.clone(), batch.binding.clone())),
+            .map(|(_, _, _, batch)| (batch.material.clone(), batch.binding.clone())),
     );
     let bounds = m2_bounds(model);
     let mut root = Node3D::new_alloc();
@@ -593,16 +694,30 @@ pub(super) fn build_model_filtered_with_textures(
     }
     root.set_meta(M2_SOURCE_META, &path.to_variant());
     root.add_child(&skeleton);
-    for (batch_index, mesh_part, batch) in batches {
+    let mut merge_keys: Vec<batch_merge::MergeKey> = Vec::new();
+    let span = crate::profile::span(|| "model.batch_nodes".to_owned());
+    for (batch_index, submesh, mesh_part, batch) in batches {
         let LoadedBatch {
             mesh,
             material,
             visible,
+            merge,
             ..
         } = batch;
         let mut instance = MeshInstance3D::new_alloc();
         instance.set_name(&format!("Batch{batch_index}"));
         instance.set_meta(M2_MESH_PART_META, &i64::from(mesh_part).to_variant());
+        instance.set_meta(M2_SUBMESH_META, &(submesh as i64).to_variant());
+        if let Some(key) = merge {
+            let group = merge_keys
+                .iter()
+                .position(|known| *known == key)
+                .unwrap_or_else(|| {
+                    merge_keys.push(key);
+                    merge_keys.len() - 1
+                });
+            instance.set_meta(M2_MERGE_GROUP_META, &(group as i64).to_variant());
+        }
         instance.set_mesh(&mesh);
         instance.set_visible(visible);
         if let Some(skin) = &skin {
@@ -620,6 +735,7 @@ pub(super) fn build_model_filtered_with_textures(
         instance.set_material_override(&material);
         root.add_child(&instance);
     }
+    drop(span);
     if let Some(mut player) = player {
         root.add_child(&player);
         player.bind_mut().apply_sequence_bounds();
@@ -647,6 +763,17 @@ struct LoadedBatch {
     material: Gd<ShaderMaterial>,
     binding: game_engine_core::m2_material::BatchBinding,
     visible: bool,
+    merge: Option<batch_merge::MergeKey>,
+}
+
+/// A material one model build already made for a merge key, and the texture files its
+/// load reported missing. Batches with equal keys bind identical, identically animated
+/// materials (`batch_merge::MergeKey`), so they share one: a creature's sections built
+/// one each (~120 for a Stormwind guard), most freed again by the merge.
+struct SharedMaterial {
+    key: batch_merge::MergeKey,
+    material: Gd<ShaderMaterial>,
+    missing: Vec<i32>,
 }
 
 fn load_batch(
@@ -656,6 +783,7 @@ fn load_batch(
     skin_texture_fdids: &[u32],
     path: &GString,
     missing: &mut PackedInt32Array,
+    shared: &mut Vec<SharedMaterial>,
     appearance: Option<&appearance::PreparedAppearance>,
     textures: Option<&HashMap<u32, Gd<godot::classes::ImageTexture>>>,
 ) -> Result<Option<LoadedBatch>, String> {
@@ -665,31 +793,44 @@ fn load_batch(
             batch.source_unit_index
         )
     })?;
-    let visible = appearance.is_none_or(|appearance| {
-        let visible = !appearance.hidden_geoset_ids.contains(&batch.mesh_part_id)
-            && game_engine_core::npc_appearance_selection_data::npc_geoset_visible(
-                batch.mesh_part_id,
-                &appearance.selected_geosets,
-                &appearance.authored_geosets,
-            );
-        game_engine_core::geoset_visibility_data::apply_exact_geoset_overrides(
-            batch.mesh_part_id,
-            visible,
-            &appearance.equipment_geosets,
-        )
-    });
+    let unit = model
+        .batches
+        .get(batch.source_unit_index)
+        .ok_or("Resolved batch has no skin batch")?;
+    let binding = game_engine_core::m2_material::batch_binding(model, unit, skin_texture_fdids)?;
+    let visible = appearance_shows(appearance, batch.mesh_part_id);
     check_required_replacement(batch, appearance)?;
     let missing_before = missing.len();
-    let _span = crate::profile::span(|| format!("model.load_material {}", batch.submesh_index));
-    let (material, binding) = material::load_material(
-        model,
-        tracks,
-        batch,
-        skin_texture_fdids,
-        path,
-        missing,
-        textures.or_else(|| appearance.map(|appearance| &appearance.textures)),
-    )?;
+    let merge = batch_merge::MergeKey::of(batch, &binding);
+    let material = match merge
+        .as_ref()
+        .and_then(|key| shared.iter().find(|known| known.key == *key))
+    {
+        Some(known) => {
+            missing.extend(known.missing.iter().copied());
+            known.material.clone()
+        }
+        None => {
+            let _span =
+                crate::profile::span(|| format!("model.load_material {}", batch.submesh_index));
+            let material = material::load_material(
+                tracks,
+                batch,
+                &binding,
+                path,
+                missing,
+                textures.or_else(|| appearance.map(|appearance| &appearance.textures)),
+            )?;
+            if let Some(key) = &merge {
+                shared.push(SharedMaterial {
+                    key: key.clone(),
+                    material: material.clone(),
+                    missing: missing.as_slice()[missing_before..].to_vec(),
+                });
+            }
+            material
+        }
+    };
     let active = match appearance.and_then(|appearance| {
         appearance
             .inactive_npc_texture_types
@@ -723,7 +864,28 @@ fn load_batch(
         material,
         binding,
         visible,
+        merge,
     }))
+}
+
+/// Whether `appearance` shows mesh part `part`; a model without one shows every part.
+pub(super) fn appearance_shows(
+    appearance: Option<&appearance::PreparedAppearance>,
+    part: u16,
+) -> bool {
+    appearance.is_none_or(|appearance| {
+        let visible = !appearance.hidden_geoset_ids.contains(&part)
+            && game_engine_core::npc_appearance_selection_data::npc_geoset_visible(
+                part,
+                &appearance.selected_geosets,
+                &appearance.authored_geosets,
+            );
+        game_engine_core::geoset_visibility_data::apply_exact_geoset_overrides(
+            part,
+            visible,
+            &appearance.equipment_geosets,
+        )
+    })
 }
 
 /// A prepared body must bind its own body (1) and hair (6) textures.
@@ -766,8 +928,30 @@ fn shared_batch_mesh(
     Ok(mesh)
 }
 
+/// Release the resources a map built: meshes, textures, scenery materials and parsed
+/// models are shared for the whole session, so a map change must clear them or the
+/// session keeps every map alive. `models`' creature templates go with them: they hold
+/// the map's meshes and instantiate from the parsed models cleared here.
+pub(crate) fn release_map_resource_caches(models: Option<&mut crate::world_models::WorldModels>) {
+    if let Some(models) = models {
+        models.release_templates();
+    }
+    material::clear_world_resource_caches();
+    clear_shared_meshes();
+    creature::clear_model_caches();
+}
+
 pub(crate) fn clear_shared_meshes() {
     MESHES.with_borrow_mut(HashMap::clear);
+    batch_merge::clear_merged_meshes();
+}
+
+/// Shared batch meshes and merged-unit meshes held for every model seen so far.
+pub(crate) fn mesh_cache_counts() -> (usize, usize) {
+    (
+        MESHES.with_borrow(HashMap::len),
+        batch_merge::merged_mesh_count(),
+    )
 }
 
 pub(crate) fn build_batch_mesh(
@@ -775,7 +959,11 @@ pub(crate) fn build_batch_mesh(
     sub: &m2::Submesh,
 ) -> Result<Gd<ArrayMesh>, String> {
     let _mesh = crate::profile::span(|| "phase.mesh_build.m2".to_owned());
-    let streams = m2::submesh_arrays(model, sub)?;
+    Ok(streams_mesh(&m2::submesh_arrays(model, sub)?))
+}
+
+/// One triangle surface of `streams`.
+fn streams_mesh(streams: &m2::SubmeshArrays) -> Gd<ArrayMesh> {
     let vectors = |values: &[[f32; 3]]| {
         let values: Vec<_> = values.iter().copied().map(Vector3::from_array).collect();
         PackedVector3Array::from(values.as_slice())
@@ -812,7 +1000,8 @@ pub(crate) fn build_batch_mesh(
         mesh::ArrayType::INDEX.ord() as usize,
         &local_indices.to_variant(),
     );
-    let mut mesh = ArrayMesh::new_gd();
+    let mut mesh = crate::rebuild_guard::new_array_mesh();
     mesh.add_surface_from_arrays(mesh::PrimitiveType::TRIANGLES, &arrays);
-    Ok(mesh)
+    crate::render_surface::store_render_surface_arrays(&mut mesh, &arrays);
+    mesh
 }

@@ -115,7 +115,7 @@ impl KitHold {
 /// A kit model's clips (present on the model) and how long its particles outlive
 /// emission.
 #[derive(Clone, Copy, Debug)]
-struct EffectClips {
+pub(crate) struct EffectClips {
     start: (u16, f32),
     hold: Option<u16>,
     end: Option<(u16, f32)>,
@@ -123,7 +123,7 @@ struct EffectClips {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
-enum Phase {
+pub(crate) enum Phase {
     Start(f32),
     Hold,
     End(f32),
@@ -335,6 +335,8 @@ pub struct SpellEffects {
     next_flight: u64,
     held: HashMap<u64, HeldCast>,
     pools: ParticlePools,
+    /// One anchor per live area trigger; its position is where the replayed kits play.
+    area_trigger_anchors: HashMap<u64, Gd<Node3D>>,
     root: Option<Gd<Node3D>>,
     /// Newest kit starts, oldest first, bounded.
     started: Vec<KitStart>,
@@ -344,11 +346,39 @@ pub struct SpellEffects {
     /// Main-thread time spent on spell visuals this frame so far, and in the last frame.
     busy: Duration,
     frame_ms: f32,
+    /// Spawned kit models whose flat ground batches still have to follow the visible
+    /// surface; a model waits for the geometry it drapes on to spawn.
+    drape_pending: Vec<DrapeCandidate>,
+}
+
+/// A spawned spell model awaiting ground draping, with the attempts made so far.
+pub(crate) struct DrapeCandidate {
+    pub node: Gd<Node3D>,
+    pub attempts: u8,
+}
+
+impl DrapeCandidate {
+    /// Retry a model whose render geometry was not spawned yet; bounded so a model with
+    /// no surface anywhere is not scanned every frame for its whole life.
+    pub(crate) fn retry(&mut self) -> bool {
+        self.attempts = self.attempts.saturating_add(1);
+        self.attempts < 120 && self.node.is_instance_valid()
+    }
 }
 
 const STARTED_KEEP: usize = 64;
 
 impl SpellEffects {
+    /// Models spawned since the last call whose flat ground batches may need draping.
+    pub(crate) fn take_drape_pending(&mut self) -> Vec<DrapeCandidate> {
+        std::mem::take(&mut self.drape_pending)
+    }
+
+    /// Puts a model back for another attempt, while its attempts allow it.
+    pub(crate) fn requeue_drape(&mut self, candidate: DrapeCandidate) {
+        self.drape_pending.push(candidate);
+    }
+
     pub fn new(data_root: PathBuf) -> Self {
         let catalog = load_catalog(&data_root);
         Self {
@@ -374,12 +404,14 @@ impl SpellEffects {
             next_flight: 0,
             held: HashMap::new(),
             pools: ParticlePools::new(1.0),
+            area_trigger_anchors: HashMap::new(),
             root: None,
             started: Vec::new(),
             seed: 0,
             vocal_seed: 0,
             busy: Duration::ZERO,
             frame_ms: 0.0,
+            drape_pending: Vec::new(),
         }
     }
 
@@ -568,14 +600,14 @@ fn join_errors(errors: Vec<String>) -> Result<(), String> {
 
 mod aura_alpha;
 mod casts;
-#[cfg(debug_assertions)]
 mod census;
 mod displays;
 mod kits;
 mod missiles;
 mod models;
+pub(crate) use models::effect_anchor;
 #[cfg(test)]
-use models::{missile_step, phase_at};
+pub(crate) use models::{missile_step, phase_at};
 
 #[path = "spell_auras.rs"]
 mod auras;

@@ -2,30 +2,29 @@ shader_type spatial;
 render_mode fog_disabled, specular_disabled;
 #include "res://shaders/m2_point_light.gdshaderinc"
 
-// config: layer count, blend mode (0 layered, 1 weighted, 2 height-weighted), UV repeat.
-uniform vec4 config = vec4(1.0, 0.0, 1.0, 0.0);
-// layer_params: height scale, height offset, MCMT id (unused), overbright multiplier.
-uniform vec4 layer_params_0 = vec4(1.0, 0.0, 0.0, 1.0);
-uniform vec4 layer_params_1 = vec4(1.0, 0.0, 0.0, 1.0);
-uniform vec4 layer_params_2 = vec4(1.0, 0.0, 0.0, 1.0);
-uniform vec4 layer_params_3 = vec4(1.0, 0.0, 0.0, 1.0);
-// animation_params.xy: UV velocity; .z: reflection multiplier.
-uniform vec4 animation_params_0;
-uniform vec4 animation_params_1;
-uniform vec4 animation_params_2;
-uniform vec4 animation_params_3;
+// One ADT tile: every MCNK chunk in one draw. UV2 carries each vertex's chunk (index_x,
+// index_y); UV is the chunk's own 0..1 texture coordinate.
+//
+// chunk_data, texel (index_y * 16 + index_x, row):
+//   row 0      config: layer count, blend mode (0 layered, 1 weighted, 2 height-weighted),
+//              UV repeat
+//   rows 1-4   layer_params per slot: height scale, height offset, MCMT id (unused),
+//              overbright multiplier
+//   rows 5-8   animation_params per slot: .xy UV velocity, .z reflection multiplier
+//   row 9      ground texture of each slot, row 10 its height texture (see layer_texel)
+uniform sampler2D chunk_data : filter_nearest, repeat_disable;
 uniform float animation_time;
 
-uniform sampler2D ground_0 : source_color, repeat_enable;
-uniform sampler2D ground_1 : source_color, repeat_enable;
-uniform sampler2D ground_2 : source_color, repeat_enable;
-uniform sampler2D ground_3 : source_color, repeat_enable;
-uniform sampler2D height_0 : repeat_enable;
-uniform sampler2D height_1 : repeat_enable;
-uniform sampler2D height_2 : repeat_enable;
-uniform sampler2D height_3 : repeat_enable;
-// MCAL is packed linearly; sampling must never apply sRGB decoding.
-uniform sampler2D alpha_packed : filter_linear, repeat_disable;
+// Layer textures by size class (rust/src/terrain/tile_material.rs LayerArrays).
+uniform sampler2DArray layers_0 : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
+uniform sampler2DArray layers_1 : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
+uniform sampler2DArray layers_2 : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
+uniform sampler2DArray layers_3 : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
+// Each chunk's 64x64 MCAL at (index_x, index_y) * 64, packed linearly: sampling must never
+// apply sRGB decoding.
+uniform sampler2D alpha_atlas : filter_linear, repeat_disable;
+// R > 0.5: the chunk is rejected from the camera and only casts its shadow.
+uniform sampler2D chunk_hidden : filter_nearest, repeat_disable;
 uniform samplerCube environment_map : source_color;
 
 #include "res://shaders/scene_light.gdshaderinc"
@@ -98,34 +97,88 @@ vec3 apply_retail_fog(vec3 color, vec3 world_position, vec3 camera_position) {
 	return retail_fog(color, world_position, camera_position, 0);
 }
 
+const float CHUNK_REF_WHITE = -1.0;
+const float CHUNK_REF_UNTEXTURED = -2.0;
+const float LAYER_CLASS_STRIDE = 4096.0;
+
+varying flat ivec2 terrain_chunk;
+
+// A texture reference of chunk_data rows 9-10: class * LAYER_CLASS_STRIDE + layer;
+// CHUNK_REF_WHITE samples Godot's default white of an unbound sampler, and
+// CHUNK_REF_UNTEXTURED the original renderer's one gray texel. The size class branches per
+// pixel, so the anisotropic footprint comes from gradients taken outside them.
+vec4 layer_texel(float ref, vec2 uv, vec2 uv_dx, vec2 uv_dy) {
+	if (ref < -1.5) {
+		return vec4(vec3(0.21586050011389926), 1.0);
+	}
+	if (ref < -0.5) {
+		return vec4(1.0);
+	}
+	int size_class = int(ref / LAYER_CLASS_STRIDE);
+	vec3 coord = vec3(uv, ref - float(size_class) * LAYER_CLASS_STRIDE);
+	if (size_class == 0) {
+		return textureGrad(layers_0, coord, uv_dx, uv_dy);
+	} else if (size_class == 1) {
+		return textureGrad(layers_1, coord, uv_dx, uv_dy);
+	} else if (size_class == 2) {
+		return textureGrad(layers_2, coord, uv_dx, uv_dy);
+	}
+	return textureGrad(layers_3, coord, uv_dx, uv_dy);
+}
+
+vec4 chunk_row(int row) {
+	return texelFetch(chunk_data, ivec2(terrain_chunk.y * 16 + terrain_chunk.x, row), 0);
+}
+
 void vertex() {
+	terrain_chunk = ivec2(round(UV2));
+	// A camera-rejected chunk collapses to a point outside the shadow pass: no fragments.
+	if (!IN_SHADOW_PASS && texelFetch(chunk_hidden, terrain_chunk, 0).r > 0.5) {
+		VERTEX = vec3(0.0);
+	}
 	terrain_world_position = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 }
 
 void fragment() {
+	vec4 config = chunk_row(0);
+	vec4 layer_params_0 = chunk_row(1);
+	vec4 layer_params_1 = chunk_row(2);
+	vec4 layer_params_2 = chunk_row(3);
+	vec4 layer_params_3 = chunk_row(4);
+	vec4 animation_params_0 = chunk_row(5);
+	vec4 animation_params_1 = chunk_row(6);
+	vec4 animation_params_2 = chunk_row(7);
+	vec4 animation_params_3 = chunk_row(8);
+	vec4 ground = chunk_row(9);
+	vec4 height = chunk_row(10);
 	vec2 uv0 = UV + animation_params_0.xy * animation_time;
 	vec2 uv1 = UV + animation_params_1.xy * animation_time;
 	vec2 uv2 = UV + animation_params_2.xy * animation_time;
 	vec2 uv3 = UV + animation_params_3.xy * animation_time;
-	vec4 c0 = texture(ground_0, uv0 * config.z);
-	vec4 c1 = texture(ground_1, uv1 * config.z);
-	vec4 c2 = texture(ground_2, uv2 * config.z);
-	vec4 c3 = texture(ground_3, uv3 * config.z);
+	// Every layer scrolls by a constant: all share the derivatives of the repeated UV.
+	vec2 uv_dx = dFdx(UV * config.z);
+	vec2 uv_dy = dFdy(UV * config.z);
+	vec4 c0 = layer_texel(ground.x, uv0 * config.z, uv_dx, uv_dy);
+	vec4 c1 = layer_texel(ground.y, uv1 * config.z, uv_dx, uv_dy);
+	vec4 c2 = layer_texel(ground.z, uv2 * config.z, uv_dx, uv_dy);
+	vec4 c3 = layer_texel(ground.w, uv3 * config.z, uv_dx, uv_dy);
 	c0.rgb = linear_to_gamma(c0.rgb) * layer_params_0.w;
 	c1.rgb = linear_to_gamma(c1.rgb) * layer_params_1.w;
 	c2.rgb = linear_to_gamma(c2.rgb) * layer_params_2.w;
 	c3.rgb = linear_to_gamma(c3.rgb) * layer_params_3.w;
 
-	vec3 alpha = texture(alpha_packed, UV).rgb;
+	// Clamping to the chunk's edge texel centres matches its own clamp-to-edge texture.
+	vec2 alpha_texel = vec2(terrain_chunk) * 64.0 + clamp(UV * 64.0, vec2(0.5), vec2(63.5));
+	vec3 alpha = texture(alpha_atlas, alpha_texel / 1024.0).rgb;
 	vec4 weights = weighted_weights(alpha);
 	if (int(config.y) == 0) {
 		weights = layered_weights(alpha, int(config.x));
 	} else if (int(config.y) == 2) {
 		vec4 heights = vec4(
-			texture(height_0, uv0 * config.z).a * layer_params_0.x + layer_params_0.y,
-			texture(height_1, uv1 * config.z).a * layer_params_1.x + layer_params_1.y,
-			texture(height_2, uv2 * config.z).a * layer_params_2.x + layer_params_2.y,
-			texture(height_3, uv3 * config.z).a * layer_params_3.x + layer_params_3.y
+			layer_texel(height.x, uv0 * config.z, uv_dx, uv_dy).a * layer_params_0.x + layer_params_0.y,
+			layer_texel(height.y, uv1 * config.z, uv_dx, uv_dy).a * layer_params_1.x + layer_params_1.y,
+			layer_texel(height.z, uv2 * config.z, uv_dx, uv_dy).a * layer_params_2.x + layer_params_2.y,
+			layer_texel(height.w, uv3 * config.z, uv_dx, uv_dy).a * layer_params_3.x + layer_params_3.y
 		);
 		weights = height_weighted(weights, heights);
 	}

@@ -7,8 +7,9 @@ extends SceneTree
 ## Required, 12.1.0.69933: a swing the server sends as `CriticalHit` arrives as
 ## "Hit { critical: true }", swooshes the crit kit 236 (WeaponSwingSounds2 Medium crit),
 ## lands an impact kit no plain hit used (WeaponImpactSounds `CritImpactSoundID`; 53249
-## on the flesh worg), and its
-## floating combat text reads "<amount>!" at 1.5x the plain size.
+## on the flesh worg), and its floating combat text keeps the amount punctuation-free and
+## uses the Retail crit height ratio (WorldTextCritScreenY_v2 / WorldTextScreenY_v2 =
+## 0.0275 / 0.015).
 
 const PASSWORD := "fbtest"
 ## Center distance the fixture accepts (the server swings within 5 yd).
@@ -33,6 +34,8 @@ const MOB_DEATH := 11910
 ## The widest $CSS → $CAH gap of the attack clips (HumanMale HD Attack2H 133 ms). Sounds
 ## start on frame boundaries, so a measured gap may also span two of the longest frames.
 const LAND_GAP := 0.133
+## WorldTextCritScreenY_v2 / WorldTextScreenY_v2: a crit draws this much taller than a hit.
+const CRIT_HEIGHT_RATIO := 0.0275 / 0.015
 
 var client: Node
 var character := ""
@@ -45,7 +48,7 @@ var longest_frame := 0.0
 ## Every sound start and melee event seen, keyed so the bounded snapshot lists merge.
 var sounds := {}
 var melee := {}
-## Floating combat texts seen: crit ("N!") texts with their font sizes, and plain sizes.
+## Floating combat texts seen: large crit labels and normal-size numeric labels.
 var crit_texts := {}
 var plain_sizes := {}
 
@@ -66,11 +69,11 @@ func _process(delta: float) -> bool:
 			print("FIXTURE SOUND %s unit=%s kit=%d fdid=%d at=%.3f" % [start.source, who(start.unit), start.sound_kit, start.fdid, start.at])
 	for label in client.find_children("CombatText*", "Label3D", false, false):
 		var text: String = label.text
-		if text.ends_with("!"):
+		if label.font_size >= 100:
 			if not crit_texts.has(text):
 				crit_texts[text] = label.font_size
 				print("FIXTURE CRIT_TEXT %s size=%d" % [text, label.font_size])
-		elif text.is_valid_int():
+		elif text.is_valid_int() and label.font_size == 64:
 			plain_sizes[label.font_size] = true
 	for seen in visuals.melee:
 		var key := "%.4f|%d|%d" % [seen.at, seen.attacker, seen.target]
@@ -129,8 +132,9 @@ func run_test() -> void:
 		return
 	for size in crit_texts.values():
 		for plain in plain_sizes.keys():
-			if size * 2 != plain * 3:
-				fail("Crit text size %d is not 1.5x the plain %d" % [size, plain])
+			if absf(float(size) / float(plain) - CRIT_HEIGHT_RATIO) > 0.02:
+				fail("Crit text size %d is not %.3fx the plain %d" % [
+					size, CRIT_HEIGHT_RATIO, plain])
 				return
 	if not check_landing():
 		return

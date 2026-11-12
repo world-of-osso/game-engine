@@ -58,6 +58,16 @@ def texture_references(keys, tables):
         raise ValueError(
             f"Forever LiquidType textures missing: {sorted(selected - mapped)}"
         )
+    for type_id in selected:
+        if int(types[type_id]["MaterialID"]) != 130:
+            continue
+        rows = [row for row in tables["LiquidTypeXTexture"]
+                if int(row["LiquidTypeID"]) == type_id]
+        if len(rows) != 6 or any(int(row["FileDataID"]) == 0 for row in rows):
+            raise ValueError(
+                f"Forever LiquidType {type_id} Material130 requires six authored textures"
+            )
+    # The default renderer still uses the explicitly borrowed LiquidType5 fallback.
     if any(int(types[type_id]["MaterialID"]) == 130 for type_id in selected):
         textures.update(borrowed_water_textures(tables, types))
     refs = {(fdid, f"textures/{fdid}.blp") for fdid in textures}
@@ -70,7 +80,7 @@ def texture_references(keys, tables):
 
 
 def borrowed_water_textures(tables, types):
-    # Explicitly borrowed compatibility inputs, not the client-authored PBR contract.
+    # Default Material130 fallback inputs; not the authored PBR contract.
     legacy = types.get(5)
     if legacy is None or int(legacy["MaterialID"]) != 1:
         raise ValueError(

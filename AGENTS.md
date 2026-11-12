@@ -31,7 +31,7 @@ M2/skin, WMO, ADT/WDT parsers live in the public `world-of-osso/wow-formats` wor
 
 ## Dev
 
-- Plain root `cargo run`/`rd` builds the debug std-only `game-engine-launcher`, then uses `python3 scripts/engine-build.py --root <checkout>` to build the Godot native extension on the selected `local` or `native` host before normal local Godot import/launch; `bd` is `cargo build`. The launcher uses `GODOT_BIN`, else the pinned patched Godot `4.7.2-pr123946-pr123546-pr123391-matlist-bonepose-present` at `${XDG_CACHE_HOME:-~/.cache}/game-engine/godot/4.7.2-pr123946-pr123546-pr123391-matlist-bonepose-present/`, checking its SHA-512 on every launch and failing with build instructions when it is missing or differs (build it once with `scripts/godot/build-patched-godot.sh` (2 jobs; `--jobs N` overrides); [why](docs/wiki/investigations/godot-wayland-exit-hang.md)); runs a one-time headless `--import` when `godot/.godot/extension_list.cfg` is missing; forwards user startup flags after Godot's `--` separator. It does not start the server. See `docs/remote-builds.md`.
+- Plain root `cargo run`/`rd` builds the debug std-only `game-engine-launcher`, then uses `python3 scripts/engine-build.py --root <checkout>` to build the Godot native extension on the selected `local` or `native` host before normal local Godot import/launch; `bd` is `cargo build`. The launcher uses `GODOT_BIN`, else the pinned patched Godot `4.7.2-pr123946-pr123546-pr123391-matlist-bonepose-present-audiobus` at `${XDG_CACHE_HOME:-~/.cache}/game-engine/godot/4.7.2-pr123946-pr123546-pr123391-matlist-bonepose-present-audiobus/`, checking its SHA-512 on every launch and failing with build instructions when it is missing or differs (build it once with `scripts/godot/build-patched-godot.sh` (2 jobs; `--jobs N` overrides); [why](docs/wiki/investigations/godot-wayland-exit-hang.md)); runs a one-time headless `--import` when `godot/.godot/extension_list.cfg` is missing; forwards user startup flags after Godot's `--` separator. It does not start the server. See `docs/remote-builds.md`.
 - `cargo run -- --screen charselect` — Authenticate with configured credentials or a saved token and open character select.
 - `cargo run -- --server dev --screen inworld --char Name` — Resolve `dev`/`prod` server aliases, authenticate, select the named roster character, and enter the world. Omit `--char` to select the default character.
 - `cargo run -- --screen charcreate` — Open standalone character creation. Add `--server <host>` to authenticate before entering it; `charcreate-customize` opens its Customize mode.
@@ -63,7 +63,7 @@ M2/skin, WMO, ADT/WDT parsers live in the public `world-of-osso/wow-formats` wor
 - `cd ../game-server && ./run-dev.sh` — Auto-restart server on code changes (for testing `--screen inworld`)
 - Game server uses **UDP** (lightyear/netcode) — check with `ss -ulnp | grep 5000`, NOT `ss -tlnp`
 - Dev profile: `[profile.dev] debug = 1, split-debuginfo = "unpacked"`; `godot/Cargo.toml` adds `opt-level = 2` for dependencies and the parser/network/extension crates (unoptimized they stall the main thread).
-- Patched crates `taffy` (godot) and `ktx2-rw` (godot, tools) live in `vendor/`; provenance and retirement conditions in `vendor/README.md`.
+- Patched crates `taffy`, `godot-ffi`, `godot-core` (godot) and `ktx2-rw` (godot, tools) live in `vendor/`; provenance and retirement conditions in `vendor/README.md`.
 - Textures loaded from `data/textures/{fdid}.blp` (named by FileDataID)
 - **NEVER download files to /tmp/** — always save to `data/` for persistence. /tmp is ephemeral.
 
@@ -74,6 +74,7 @@ M2/skin, WMO, ADT/WDT parsers live in the public `world-of-osso/wow-formats` wor
 - Agents build and test through the launcher/helper with the saved default (`native` on agent-server: host cargo, artifacts in `<checkout>/target`, at most 3 concurrent runs via the helper's slots; no build-lock). `--build-host local` uses the bookworm container and is required for `--release` (glibc portability). Do not bypass the helper with direct extension Cargo or recreate bulk target caches unless explicitly asked; lightweight launcher tests are allowed. See `docs/remote-builds.md`.
 - Formatter changes count as your changes.
 - Append-only registries (tooltip sources, sound kits) use slices (`const REGISTRY: &[Entry] = &[...]`); append entries without updating a count. Preserve lookup order.
+- A per-frame code path that touches materials, environment/sky, meshes or UI theme/tree must be change-driven (dirty flag or input hash) and count through `godot/rust/src/rebuild_guard.rs` (`count`, `new_shader_material`, `new_array_mesh`, `set_global_shader_parameter`, `ThemeOverrides`). `godot/tests/rebuild_guard_live.gd` fails a steady idle frame over the allowlist in `godot/tests/rebuild_guard.gd`; add an allowlist entry only with its source cited. See [rebuild guard](docs/wiki/systems/rebuild-guard.md).
 
 ## UI Screens (rsx! + Screen pattern)
 

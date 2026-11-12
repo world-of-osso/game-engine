@@ -15,7 +15,7 @@ use godot::{
 };
 
 use crate::{
-    terrain::{doodad_collision::DOODAD_LAYER, streaming::StreamedTerrain},
+    terrain::doodad_collision::DOODAD_LAYER,
     wmo::collision::{TERRAIN_LAYER, WMO_LAYER},
 };
 
@@ -23,21 +23,22 @@ pub(crate) struct WorldCamera {
     node: Option<Gd<Camera3D>>,
     state: CameraState,
     fov_degrees: f32,
+    /// The graphics quality preset's far plane, in yards.
+    far_clip: f32,
     teleport_anchor: game_engine_core::camera_follow_data::TeleportAnchor,
 }
 
-impl Default for WorldCamera {
-    fn default() -> Self {
+impl WorldCamera {
+    pub fn new(far_clip: f32) -> Self {
         Self {
             node: None,
             state: CameraState::default(),
             fov_degrees: DEFAULT_CAMERA_FOV_DEGREES,
+            far_clip,
             teleport_anchor: Default::default(),
         }
     }
-}
 
-impl WorldCamera {
     pub fn configure(&mut self, options: &CameraOptionsFile) {
         self.state.follow_speed = options.follow_speed;
         self.state.zoom_speed = options.zoom_speed;
@@ -131,13 +132,12 @@ impl WorldCamera {
         &mut self,
         parent: &mut Gd<Node3D>,
         player: &Gd<Node3D>,
-        terrain: &StreamedTerrain,
         delta: f32,
         epoch: Option<u32>,
     ) -> Result<(), String> {
         let mut camera = self
             .node
-            .get_or_insert_with(|| spawn_camera(parent))
+            .get_or_insert_with(|| spawn_camera(parent, self.far_clip))
             .clone();
         camera.set_fov(self.fov_degrees);
         let mut space = camera
@@ -160,7 +160,6 @@ impl WorldCamera {
             translated,
             [target.x, target.y, target.z].into(),
             delta,
-            terrain,
             |origin, direction, length| {
                 raycast_solid(
                     &mut space,
@@ -193,20 +192,12 @@ pub(crate) fn follow_pose(
     current: glam::Vec3,
     target: glam::Vec3,
     delta: f32,
-    terrain: &StreamedTerrain,
     mut solid_hit: impl FnMut(glam::Vec3, glam::Vec3, f32) -> Option<f32>,
 ) -> CameraPose {
     let ray_length = state.distance.max(state.target_distance);
-    let mut height_at = |x, z| terrain.height_at(x, z);
-    let pose = follow_camera(
-        state,
-        current,
-        target,
-        delta,
-        Some(&mut height_at),
-        |origin, direction| solid_hit(origin, direction, ray_length),
-        |point| camera_ground(terrain, point.x, point.z),
-    );
+    let pose = follow_camera(state, current, target, delta, |origin, direction| {
+        solid_hit(origin, direction, ray_length)
+    });
     let sight = pose.position.distance(pose.eye_target);
     CameraPose {
         position: keep_in_sight(pose.eye_target, pose.position, |origin, direction| {
@@ -216,27 +207,15 @@ pub(crate) fn follow_pose(
     }
 }
 
-fn spawn_camera(parent: &mut Gd<Node3D>) -> Gd<Camera3D> {
+fn spawn_camera(parent: &mut Gd<Node3D>, far_clip: f32) -> Gd<Camera3D> {
     let mut camera = Camera3D::new_alloc();
     camera.set_name("WorldCamera");
     camera.set_fov(DEFAULT_CAMERA_FOV_DEGREES);
-    // Match the original Bevy perspective clipping defaults; FOV is vertical in both engines.
+    // The original Bevy near plane; FOV is vertical in both engines.
     camera.set_near(0.1);
-    camera.set_far(1000.0);
+    camera.set_far(far_clip);
     parent.add_child(&camera);
     camera
-}
-
-fn camera_ground(terrain: &StreamedTerrain, x: f32, z: f32) -> Option<f32> {
-    if terrain
-        .map_wdt
-        .as_ref()
-        .is_some_and(|map| map.global_wmo.is_some())
-    {
-        return None;
-    }
-    // Preserve the original camera's ground plane outside loaded height grids.
-    Some(terrain.height_at(x, z).unwrap_or(0.0))
 }
 
 /// Nearest hit on visible terrain, on WMO collision, which is solid whether or not the WMO
