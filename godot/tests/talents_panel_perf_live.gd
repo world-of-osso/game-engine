@@ -24,7 +24,15 @@ class InputEventProbe extends Node:
 func capture_world_trace() -> void:
 	world_trace_prefetched_at_entry = client.get_node_or_null("SpellBookPrewarmUI") != null
 	print("TALENTS_PANEL_WORLD_TRACE_START ", JSON.stringify({"prefetched_ui_at_entry": world_trace_prefetched_at_entry}))
-	await measure("talents_first_10s_inworld", world_trace_seconds, func(_time: float): pass)
+	for samples in [intervals, client_ms, process_ms, physics_ms, main_cpu_ms]:
+		samples.clear()
+	recording_systems = false
+	last_usec = 0
+	var started_usec := Time.get_ticks_usec()
+	recording = true
+	while Time.get_ticks_usec() - started_usec < int(world_trace_seconds * 1000000.0):
+		await process_frame
+	recording = false
 	world_trace_finished = true
 	if intervals.size() != client_ms.size():
 		fail("In-world frame trace has mismatched interval and process samples")
