@@ -81,6 +81,27 @@ fn arcane_talents_render_real_icons_positions_edges_and_staged_choices_in_both_s
 }
 
 #[test]
+fn cached_spellbook_talents_rebuild_forever_rank_art_on_skin_change() {
+    let data = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
+    game_engine_ui_model::paths::set_data_root(data.clone()).unwrap();
+    let state = load_preview_state(&data, PlayerSpellsTab::Talents).unwrap();
+    let mut shared = SharedContext::new();
+    shared.insert(state);
+    shared.insert(ActiveSkin::Modern);
+    let mut registry = FrameRegistry::new(1920.0, 1080.0);
+    let mut screen = Screen::new(spellbook_frame_screen);
+
+    set_thread_skin(ActiveSkin::Modern);
+    screen.sync(&shared, &mut registry);
+    assert!(registry.get_by_name("TalentNode62121SpendArt").is_none());
+
+    set_thread_skin(ActiveSkin::Forever);
+    shared.insert(ActiveSkin::Forever);
+    screen.sync(&shared, &mut registry);
+    assert!(registry.get_by_name("TalentNode62121SpendArt").is_some());
+}
+
+#[test]
 fn talent_tree3_available_icons_and_spec_background_are_authored_in_both_skins() {
     use ui_toolkit::widgets::texture::TextureSource;
     let data = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");

@@ -38,7 +38,7 @@ pub(super) fn controls(view: &TalentView, scale: f32) -> Element {
             label_name: "TalentLoadoutName",
             arrow_name: "TalentLoadoutArrow",
             text: view.editor.loadout_caption(),
-            width: 120.0 * scale,
+            width: 200.0 * scale,
             height: 25.0 * scale,
             x: 48.0 * scale,
             // menu_primitives takes y-up offsets; talent canvas is y-down.
