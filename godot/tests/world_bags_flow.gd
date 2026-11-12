@@ -292,6 +292,7 @@ func hover_bag_slot(client: Node, slot: int) -> bool:
 	var entered := [false]
 	control.mouse_entered.connect(func(): entered[0] = true, CONNECT_ONE_SHOT)
 	await move_tooltip_pointer(control.get_global_rect().get_center())
+	print("BAGS HOVER entered=", entered[0], " requested=", control.get_global_rect().get_center(), " viewport_mouse=", root.get_mouse_position(), " hovered=", root.gui_get_hovered_control(), " tooltip=", client.tooltip_state())
 	if not entered[0]:
 		var point := control.get_global_rect().get_center()
 		var local_point := control.get_global_transform().affine_inverse() * point
@@ -339,7 +340,8 @@ func wait_item_tooltip(client: Node, title_text: String, title_color: Color, cop
 			return false
 		print("BAGS TOOLTIP observed title=", title_text, " color=", title.get_theme_color("font_color"), " copper=", copper, " id=", item_id_line)
 		return true
-	fail("RED: physical authored bag hover did not project original TooltipFrame/TooltipTitle for " + title_text)
+	var slot := authored_control(client, "ContainerFrame0Slot%s" % (1 if title_text == "Linen Cloth" else 2))
+	fail("RED: physical authored bag hover did not project original TooltipFrame/TooltipTitle for %s: mouse=%s hovered=%s slot=%s tooltip=%s" % [title_text, root.get_mouse_position(), root.gui_get_hovered_control(), slot.get_global_rect() if slot != null else null, client.tooltip_state()])
 	return false
 
 func check_item_tooltip_rect(client: Node, panel: Control, owner_slot: int) -> bool:
