@@ -13,6 +13,7 @@ use ui_toolkit::{
     layout_values::Val,
     registry::FrameRegistry,
     screen::{Screen, SharedContext},
+    strata::DrawLayer,
     widgets::texture::BlendMode,
 };
 
@@ -25,7 +26,7 @@ fn date_parts(date: NaiveDate) -> (i32, u32, u32) {
 }
 
 #[test]
-fn today_glow_uses_retail_anchor_and_additive_blending() {
+fn today_glow_and_year_header_match_retail_layers() {
     let today = date(2026, 11, 12);
     let mut calendar = CalendarModel::default();
     calendar
@@ -40,6 +41,15 @@ fn today_glow_uses_retail_anchor_and_additive_blending() {
     set_thread_skin(ActiveSkin::Forever);
     let mut registry = FrameRegistry::new(1920.0, 1080.0);
     Screen::new(calendar_frame_screen).sync(&shared, &mut registry);
+
+    let year = registry
+        .get(registry.get_by_name("CalendarYearName").unwrap())
+        .unwrap();
+    let weekday = registry
+        .get(registry.get_by_name("CalendarWeekday4Name").unwrap())
+        .unwrap();
+    assert_eq!(year.draw_layer, DrawLayer::Artwork);
+    assert_eq!(weekday.draw_layer, DrawLayer::Background);
 
     let glow = registry
         .get(registry.get_by_name("CalendarTodayTextureGlow").unwrap())

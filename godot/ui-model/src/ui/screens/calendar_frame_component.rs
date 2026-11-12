@@ -273,7 +273,7 @@ fn calendar_weekday(index: usize, weekday: &str) -> Element {
         12.0,
         WEEKDAY_GOLD,
         "CENTER",
-        "ARTWORK",
+        "BACKGROUND",
     ));
     elements
 }
