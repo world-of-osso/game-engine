@@ -105,7 +105,8 @@ func run_test() -> void:
 		fail("No local player node WorldUnits/" + character)
 		return
 	var spec_id := int(OS.get_environment("BENCH_SPEC_ID"))
-	if spec_id > 0 and not await select_specialization(spec_id):
+	var active_spec_id := int(client.spells_state().get("spec", 0))
+	if spec_id > 0 and active_spec_id != spec_id and not await select_specialization(spec_id):
 		return
 	var ready_spells: Dictionary = client.spells_state()
 	if int(ready_spells.get("level", 0)) != 90 or int(ready_spells.get("spec", 0)) <= 0:
