@@ -242,7 +242,7 @@ fn character_frame_skin_art_and_layout_preserve_modern_bytes() {
         let registry = build(view(true));
         let border = frame(&registry, "CharacterFrameNineSlice");
         let stats = frame(&registry, "CharacterStatsPaneClassBackground");
-        assert_eq!(border.frame_level, 500.0, "{skin:?}: template border layer");
+        assert_eq!(border.frame_level, 500, "{skin:?}: template border layer");
         assert!(
             border.frame_level > stats.frame_level,
             "{skin:?}: metal border remains above opaque stats art"

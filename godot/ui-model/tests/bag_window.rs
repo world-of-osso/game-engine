@@ -127,7 +127,7 @@ fn assert_backpack_window(skin: ActiveSkin) -> Vec<TextureSource> {
     let border = frame(&registry, "ContainerFrame0NineSlice");
     assert_eq!(border.parent_id, registry.get_by_name("ContainerFrame0"));
     assert!(border.panel_style.is_some(), "{skin:?}: frame border drawn");
-    assert_eq!(border.frame_level, 500.0, "{skin:?}: template border layer");
+    assert_eq!(border.frame_level, 500, "{skin:?}: template border layer");
     let border_rect = rect(border);
     assert!(
         border_rect[0] < 0.0 && border_rect[2] > bounds[2],
@@ -148,7 +148,7 @@ fn assert_backpack_window(skin: ActiveSkin) -> Vec<TextureSource> {
     );
     let portrait_rect = rect(portrait);
     assert_eq!(
-        portrait.frame_level, 400.0,
+        portrait.frame_level, 400,
         "{skin:?}: template portrait layer"
     );
     assert_eq!(
@@ -158,7 +158,7 @@ fn assert_backpack_window(skin: ActiveSkin) -> Vec<TextureSource> {
     );
     assert_eq!(
         frame(&registry, "ContainerFrame0PortraitRing").frame_level,
-        501.0,
+        501,
         "{skin:?}: OVERLAY ring is above NineSlice"
     );
     assert!(
