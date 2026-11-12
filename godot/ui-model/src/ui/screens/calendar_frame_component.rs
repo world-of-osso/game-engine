@@ -17,6 +17,7 @@ use crate::ui::strata::FrameStrata;
 
 const FRAME_WIDTH: f32 = 659.0;
 const FRAME_HEIGHT: f32 = 624.0;
+const CALENDAR_DAY_DATE_FRAME_LEVEL: f32 = 2.0;
 const DAY_WIDTH: f32 = 91.0;
 const DAY_HEIGHT: f32 = 91.0;
 const DAY_COLUMNS: usize = 7;
@@ -329,16 +330,27 @@ fn calendar_day_button_art(index: usize) -> String {
 }
 
 fn calendar_day_date(index: usize, day: &CalendarDay, left: f32, top: f32) -> Element {
+    let name = DynName(format!("CalendarDayButton{}Date", index + 1));
     let text = day.date.day().to_string();
-    calendar_font_string(
-        format!("CalendarDayButton{}Date", index + 1),
-        &text,
-        [left + 5.0, top + 5.0, 23.0, 18.0],
-        12.0,
-        NORMAL,
-        "LEFT",
-        "ARTWORK",
-    )
+    rsx! {
+        fontstring {
+            name,
+            width: 23.0,
+            height: 18.0,
+            text,
+            font: GameFont::FrizQuadrata,
+            font_size: 12.0,
+            font_color: NORMAL,
+            justify_h: "LEFT",
+            word_wrap: false,
+            max_lines: 1,
+            pos_type: "absolute",
+            left: left + 5.0,
+            top: top + 5.0,
+            draw_layer: "ARTWORK",
+            frame_level: CALENDAR_DAY_DATE_FRAME_LEVEL,
+        }
+    }
 }
 
 fn calendar_day_events(index: usize, day: &CalendarDay, left: f32, top: f32) -> Element {
