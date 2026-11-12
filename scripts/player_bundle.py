@@ -26,8 +26,9 @@ DATA_FILE_GLOBS = (
     '*.csv', '*.ron', 'local-listfile-cache.sqlite',
     'battle-pet-model-scenes.json', 'battle-pets.json',
 )
-# The current map screens render World and Housing UiMap systems.
-RENDERED_UI_MAP_SYSTEMS = {0, 2}
+WORLD_UI_MAP_SYSTEM = 0
+HOUSING_UI_MAP_SYSTEM = 2
+WORLD_UI_MAP_TYPES = {2, 3}
 # ui-model::paths configures atlas lookup from both DB2 exports.
 ATLAS_DB2_VERSIONS = ('active', '1.60.1.69913')
 # These DB2 atlas rows point to files absent from the installed CASC build; see the player-bundle spec.
@@ -141,42 +142,99 @@ def is_blp_file(path):
         return False
 
 
+def housing_neighborhood_map_ids(root):
+    path = root / 'data/cache/housing.sqlite'
+    with closing(sqlite3.connect(path.resolve().as_uri() + '?mode=ro', uri=True)) as catalog:
+        builds = catalog.execute('SELECT build_key FROM housing_catalog_build').fetchall()
+        if len(builds) != 1:
+            raise ValueError(f'{path} must declare one housing catalog build')
+        rows = catalog.execute(
+            'SELECT record_id, fields_json FROM housing_catalog_record '
+            'WHERE build_key=? AND table_name=? ORDER BY record_id',
+            (builds[0][0], 'NeighborhoodMap'),
+        ).fetchall()
+    map_ids = set()
+    for record_id, fields_json in rows:
+        try:
+            map_id = int(json.loads(fields_json)['MapID'])
+        except (KeyError, TypeError, ValueError, json.JSONDecodeError) as error:
+            raise ValueError(f'{path} NeighborhoodMap {record_id} has invalid MapID') from error
+        if map_id > 0:
+            map_ids.add(map_id)
+    return map_ids
+
+
 def ui_texture_fdids(root):
-    maps = {
-        int(row['ID']) for row in read_db2_rows(root, 'UiMap')
-        if int(row['System']) in RENDERED_UI_MAP_SYSTEMS
-    }
-    art_links = {
-        int(row['UiMapArtID']) for row in read_db2_rows(root, 'UiMapXMapArt')
-        if int(row['PhaseID']) == 0 and int(row['UiMapID']) in maps
+    map_rows = {int(row['ID']): row for row in read_db2_rows(root, 'UiMap')}
+    art_by_map = {
+        int(row['UiMapID']): int(row['UiMapArtID'])
+        for row in read_db2_rows(root, 'UiMapXMapArt') if int(row['PhaseID']) == 0
     }
     arts = {int(row['ID']): row for row in read_db2_rows(root, 'UiMapArt')}
-    layer_styles = {
-        int(row['UiMapArtStyleID']) for row in read_db2_rows(root, 'UiMapArtStyleLayer')
-        if int(row['LayerIndex']) == 0
+    layers = {
+        int(row['UiMapArtStyleID']): row
+        for row in read_db2_rows(root, 'UiMapArtStyleLayer') if int(row['LayerIndex']) == 0
     }
-    art_ids = {
-        art_id for art_id in art_links
-        if art_id in arts and int(arts[art_id]['UiMapArtStyleID']) in layer_styles
+    tiles = {}
+    for row in read_db2_rows(root, 'UiMapArtTile'):
+        if int(row['LayerIndex']) == 0:
+            tiles.setdefault(int(row['UiMapArtID']), []).append(row)
+    art_layouts = {
+        map_id: art_id for map_id, art_id in art_by_map.items()
+        if art_id in arts
+        and int(arts[art_id]['UiMapArtStyleID']) in layers
+        and art_id in tiles
     }
+    world_map_ids = {
+        map_id for map_id, row in map_rows.items()
+        if int(row['System']) == WORLD_UI_MAP_SYSTEM
+        and int(row['Type']) in WORLD_UI_MAP_TYPES
+    }
+    world_map_ids.intersection_update(
+        int(row['UiMapID']) for row in read_db2_rows(root, 'UiMapAssignment')
+        if int(row['WMOGroupID']) == 0 and int(row['MapID']) >= 0
+    )
+    world_map_ids.intersection_update(art_layouts)
+    requestable_map_ids = set(world_map_ids)
+    for map_id in world_map_ids:
+        visited = {map_id}
+        parent_id = int(map_rows[map_id]['ParentUiMapID'])
+        while (
+            parent_id in map_rows
+            and int(map_rows[parent_id]['System']) == WORLD_UI_MAP_SYSTEM
+            and parent_id in art_layouts
+            and parent_id not in visited
+        ):
+            requestable_map_ids.add(parent_id)
+            visited.add(parent_id)
+            parent_id = int(map_rows[parent_id]['ParentUiMapID'])
+
+    housing_world_map_ids = housing_neighborhood_map_ids(root)
+    requestable_map_ids.update(
+        int(row['UiMapID']) for row in read_db2_rows(root, 'UiMapAssignment')
+        if int(row['WMOGroupID']) == 0
+        and int(row['MapID']) >= 0
+        and int(row['MapID']) in housing_world_map_ids
+        and int(row['UiMapID']) in map_rows
+        and int(map_rows[int(row['UiMapID'])]['System']) == HOUSING_UI_MAP_SYSTEM
+        and int(row['UiMapID']) in art_layouts
+    )
+
+    art_ids = {art_layouts[map_id] for map_id in requestable_map_ids}
     fdids = {
         int(arts[art_id]['HighlightFileDataID']) for art_id in art_ids
         if int(arts[art_id]['HighlightFileDataID']) > 0
     }
-    fdids.update(
-        int(row['FileDataID']) for row in read_db2_rows(root, 'UiMapArtTile')
-        if int(row['UiMapArtID']) in art_ids and int(row['LayerIndex']) == 0
-        and int(row['FileDataID']) > 0
-    )
-    overlay_ids = {
-        int(row['ID']) for row in read_db2_rows(root, 'WorldMapOverlay')
-        if int(row['UiMapArtID']) in art_ids
-    }
-    fdids.update(
-        int(row['FileDataID']) for row in read_db2_rows(root, 'WorldMapOverlayTile')
-        if int(row['WorldMapOverlayID']) in overlay_ids and int(row['LayerIndex']) == 0
-        and int(row['FileDataID']) > 0
-    )
+    for art_id in art_ids:
+        layer = layers[int(arts[art_id]['UiMapArtStyleID'])]
+        width, height = float(layer['LayerWidth']), float(layer['LayerHeight'])
+        tile_width, tile_height = float(layer['TileWidth']), float(layer['TileHeight'])
+        fdids.update(
+            int(row['FileDataID']) for row in tiles[art_id]
+            if int(row['FileDataID']) > 0
+            and int(row['ColIndex']) * tile_width < width
+            and int(row['RowIndex']) * tile_height < height
+        )
     for version in ATLAS_DB2_VERSIONS:
         atlas_ids = {
             int(row['UiTextureAtlasID'])

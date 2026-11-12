@@ -48,13 +48,40 @@ def client_read_files(repo):
     return files
 
 
+def write_housing_catalog(data, map_ids=()):
+    path = data / 'cache/housing.sqlite'
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.unlink(missing_ok=True)
+    with closing(sqlite3.connect(path)) as catalog, catalog:
+        catalog.execute(
+            'CREATE TABLE housing_catalog_build '
+            '(build_key TEXT PRIMARY KEY, build TEXT NOT NULL, report_sha256 TEXT NOT NULL, '
+            'ledger_sha256 TEXT NOT NULL)'
+        )
+        catalog.execute(
+            'CREATE TABLE housing_catalog_record '
+            '(build_key TEXT NOT NULL, table_name TEXT NOT NULL, record_id INTEGER NOT NULL, '
+            'fields_json TEXT NOT NULL, PRIMARY KEY (build_key, table_name, record_id))'
+        )
+        catalog.execute(
+            'INSERT INTO housing_catalog_build VALUES (?, ?, ?, ?)',
+            ('fixture', 'fixture', '', ''),
+        )
+        for record_id, map_id in enumerate(map_ids, start=1):
+            catalog.execute(
+                'INSERT INTO housing_catalog_record VALUES (?, ?, ?, ?)',
+                ('fixture', 'NeighborhoodMap', record_id, json.dumps({'MapID': str(map_id)})),
+            )
+
+
 def write_empty_ui_db2(data):
     tables = {
-        'UiMap': 'ID,System\n',
+        'UiMap': 'ID,System,Type,ParentUiMapID\n',
+        'UiMapAssignment': 'UiMapID,MapID,WMOGroupID\n',
         'UiMapXMapArt': 'PhaseID,UiMapArtID,UiMapID\n',
         'UiMapArt': 'ID,HighlightFileDataID,UiMapArtStyleID\n',
-        'UiMapArtStyleLayer': 'UiMapArtStyleID,LayerIndex\n',
-        'UiMapArtTile': 'UiMapArtID,LayerIndex,FileDataID\n',
+        'UiMapArtStyleLayer': 'UiMapArtStyleID,LayerIndex,LayerWidth,LayerHeight,TileWidth,TileHeight\n',
+        'UiMapArtTile': 'UiMapArtID,LayerIndex,FileDataID,RowIndex,ColIndex\n',
         'WorldMapOverlay': 'ID,UiMapArtID\n',
         'WorldMapOverlayTile': 'WorldMapOverlayID,LayerIndex,FileDataID\n',
         'UiTextureAtlasMember': 'ID,UiTextureAtlasID\n',
@@ -70,6 +97,7 @@ def write_empty_ui_db2(data):
     (forever_atlas / 'UiTextureAtlas.csv').write_text(
         'ID,FileDataID,UiTextureAtlasSetID\n'
     )
+    write_housing_catalog(data)
 
 
 spec = importlib.util.spec_from_file_location('player_bundle', Path(__file__).parents[1] / 'player_bundle.py')
@@ -264,10 +292,11 @@ class PlayerBundleTest(unittest.TestCase):
                 path.write_text(name)
             index = {'version': 1, 'assets': [{'product': 'wow', 'build_key': 'dcfc90fffd79ba00406ae46f5f657592', 'path': 'products/wow/dcfc90fffd79ba00406ae46f5f657592/models/1011653.m2'}]}
             (data / 'cache/model-asset-index.json').write_text(json.dumps(index))
-            expected = {'cache/model-asset-index.json', 'cache/catalog.sqlite', 'textures/12.blp', 'Map.csv', 'battle-pet-model-scenes.json', 'battle-pets.json',
+            expected = {'cache/model-asset-index.json', 'cache/catalog.sqlite', 'cache/housing.sqlite', 'textures/12.blp', 'Map.csv', 'battle-pet-model-scenes.json', 'battle-pets.json',
                         'local-listfile-cache.sqlite', *{f'db2/active/{name}.csv' for name in (
-                            'UiMap', 'UiMapXMapArt', 'UiMapArt', 'UiMapArtStyleLayer',
-                            'UiMapArtTile', 'WorldMapOverlay', 'WorldMapOverlayTile',
+                            'UiMap', 'UiMapAssignment', 'UiMapXMapArt', 'UiMapArt',
+                            'UiMapArtStyleLayer', 'UiMapArtTile', 'WorldMapOverlay',
+                            'WorldMapOverlayTile',
                             'UiTextureAtlasMember', 'UiTextureAtlas',
                         )},
                         'db2/1.60.1.69913/UiTextureAtlasMember.csv',
@@ -284,10 +313,9 @@ class PlayerBundleTest(unittest.TestCase):
             for relative in selected:
                 self.assertEqual((target / 'data' / relative).read_bytes(), (data / relative).read_bytes())
 
-    def test_staged_ui_texture_closure_uses_map_systems_and_both_atlas_sources(self):
+    def test_staged_ui_texture_closure_uses_requestable_maps_and_both_atlas_sources(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            root.mkdir(exist_ok=True)
             subprocess.run(['git', 'init', '-q', str(root)], check=True)
             (root / 'godot').mkdir()
             (root / 'godot/project.godot').write_text('project')
@@ -296,8 +324,8 @@ class PlayerBundleTest(unittest.TestCase):
             for name in bundle.DATA_DIRS:
                 (data / name).mkdir(parents=True)
             write_empty_ui_db2(data)
+            write_housing_catalog(data, (2735, 2736))
             forever_tables = data / 'db2/1.60.1.69913'
-            forever_tables.mkdir(parents=True, exist_ok=True)
             (forever_tables / 'UiTextureAtlasMember.csv').write_text(
                 'ID,UiTextureAtlasID\n1,4100\n2,4101\n3,4102\n4,4103\n'
             )
@@ -311,24 +339,53 @@ class PlayerBundleTest(unittest.TestCase):
 
             tables = data / 'db2/active'
             rows = {
-                'UiMap': 'ID,System\n862,0\n875,0\n1165,0\n2401,2\n2402,1\n2403,3\n',
-                'UiMapXMapArt': 'PhaseID,UiMapArtID,UiMapID\n0,887,862\n0,900,875\n0,1143,1165\n0,2056,2401\n0,999,2402\n0,998,2403\n1,1000,1165\n',
-                'UiMapArt': 'ID,HighlightFileDataID,UiMapArtStyleID\n887,2168041,5\n900,2168254,5\n1143,0,5\n2056,0,106\n998,777776,7\n999,777777,7\n1000,777778,7\n',
-                'UiMapArtStyleLayer': 'UiMapArtStyleID,LayerIndex\n5,0\n5,1\n7,0\n106,0\n',
-                'UiMapArtTile': 'UiMapArtID,LayerIndex,FileDataID\n887,0,1599407\n900,0,1603193\n1143,0,2133758\n2056,0,7438338\n1143,1,999999\n998,0,777779\n999,0,777780\n1000,0,777781\n',
-                'WorldMapOverlay': 'ID,UiMapArtID\n80,887\n81,2056\n82,998\n83,999\n',
-                'WorldMapOverlayTile': 'WorldMapOverlayID,LayerIndex,FileDataID\n80,0,2034162\n81,0,0\n80,1,777782\n82,0,777783\n83,0,777784\n',
+                'UiMap': 'ID,System,Type,ParentUiMapID\n'
+                         '862,0,3,947\n875,0,3,947\n1165,0,6,947\n'
+                         '900,0,3,947\n947,0,1,946\n946,0,0,0\n'
+                         '2401,2,3,0\n2402,2,3,0\n2403,2,3,0\n',
+                'UiMapAssignment': 'UiMapID,MapID,WMOGroupID\n'
+                                   '862,1,0\n875,2,0\n1165,3,0\n'
+                                   '2401,2735,0\n2402,2736,0\n2403,999,0\n',
+                'UiMapXMapArt': 'PhaseID,UiMapArtID,UiMapID\n'
+                                '0,887,862\n0,900,875\n0,1143,1165\n'
+                                '0,999,900\n0,2056,2401\n0,2057,2402\n'
+                                '0,998,2403\n0,1001,947\n0,1002,946\n'
+                                '1,1000,862\n',
+                'UiMapArt': 'ID,HighlightFileDataID,UiMapArtStyleID\n'
+                            '887,2168041,5\n900,2168254,5\n1143,0,7\n'
+                            '999,777777,5\n2056,0,5\n2057,0,5\n'
+                            '998,777776,5\n1001,0,5\n1002,0,5\n1000,777778,5\n',
+                'UiMapArtStyleLayer': 'UiMapArtStyleID,LayerIndex,LayerWidth,LayerHeight,TileWidth,TileHeight\n'
+                                     '5,0,256,256,256,256\n'
+                                     '7,0,256,256,256,256\n',
+                'UiMapArtTile': 'UiMapArtID,LayerIndex,FileDataID,RowIndex,ColIndex\n'
+                                '887,0,1599407,0,0\n887,0,999998,1,0\n'
+                                '900,0,1603193,0,0\n1143,0,2133758,0,0\n'
+                                '999,0,777779,0,0\n2056,0,7438338,0,0\n'
+                                '2057,0,7438339,0,0\n998,0,777780,0,0\n'
+                                '1001,0,7438340,0,0\n1002,0,7438341,0,0\n'
+                                '1000,0,777781,0,0\n',
+                'WorldMapOverlay': 'ID,UiMapArtID\n80,887\n',
+                'WorldMapOverlayTile': 'WorldMapOverlayID,LayerIndex,FileDataID\n'
+                                      '80,0,2034162\n80,1,777782\n',
                 'UiTextureAtlasMember': 'ID,UiTextureAtlasID\n1,3215\n2,3963\n3,9999\n',
-                'UiTextureAtlas': 'ID,FileDataID\n3215,6875169\n3963,8040088\n9999,3307666\n10000,555000\n',
+                'UiTextureAtlas': 'ID,FileDataID\n'
+                                 '3215,6875169\n3963,8040088\n'
+                                 '9999,3307666\n10000,555000\n',
             }
             for name, content in rows.items():
                 (tables / f'{name}.csv').write_text(content)
 
             expected_fdids = {
-                1599407, 1603193, 2133758, 7438338, 2034162,
+                1599407, 1603193, 7438338, 7438339, 7438340, 7438341,
                 2168041, 2168254, 6875169, 8040088, 6855432,
             }
             self.assertEqual(bundle.ui_texture_fdids(root), expected_fdids)
+            self.assertNotIn(2034162, expected_fdids)
+            self.assertNotIn(2133758, expected_fdids)
+            self.assertNotIn(777779, expected_fdids)
+            self.assertNotIn(777780, expected_fdids)
+            self.assertNotIn(999998, expected_fdids)
             self.assertNotIn(3307666, expected_fdids)
             self.assertNotIn(6227333, expected_fdids)
             selected = set(bundle.data_files(root))
