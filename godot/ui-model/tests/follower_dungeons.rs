@@ -17,11 +17,14 @@ fn catalog() -> FollowerDungeons {
         }],
     }
 }
-fn render(view: View, skin: ActiveSkin) -> FrameRegistry {
+fn set_data_root() {
     game_engine_ui_model::paths::set_data_root(
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
     )
     .unwrap();
+}
+fn render(view: View, skin: ActiveSkin) -> FrameRegistry {
+    set_data_root();
     set_thread_skin(skin);
     let mut shared = SharedContext::new();
     shared.insert(skin);
@@ -266,10 +269,7 @@ fn follower_group_finder_both_skins_use_the_server_catalog_and_real_queue_action
 }
 #[test]
 fn follower_group_finder_uses_retail_lfg_ranges_and_squish_fallback() {
-    game_engine_ui_model::paths::set_data_root(
-        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
-    )
-    .unwrap();
+    set_data_root();
     let ranges = game_engine_ui_model::follower_dungeons::retail_level_ranges().unwrap();
     assert_eq!(
         ranges.get(&2436),
@@ -347,6 +347,7 @@ fn follower_group_finder_disables_and_refuses_dungeons_below_player_level() {
 
 #[test]
 fn follower_group_finder_localizes_unavailable_gear_source_error() {
+    set_data_root();
     let mut view = View {
         visible: true,
         ..Default::default()
