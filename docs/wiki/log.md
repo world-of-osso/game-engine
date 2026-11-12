@@ -11,15 +11,15 @@ VERIFIED, TEST: the core input-binding suite passes 17/17, and the UI-model Inte
 VERIFIED, FOREVER LIVE: the owned-UDP `keybinds` filter passes on `127.0.0.1:55974`. It checks U/Reputation, Shift-Y/Statistics, Ctrl-I/Group Finder, J/Guild, Shift-J/Adventure Guide, and a captured F7 binding that closes/reopens Minimap. It asserts the Forever UI skin; this does not claim the other keybind flow cases passed. VERIFIED, LIVE LOG: the same run logged unresolved negative-geoset rows and an excluded QuestPOIBlob, outside the binding assertions.
 ## Native Calendar panel — 2026-11-12
 
-VERIFIED, CODE: `GameTimeFrame` opens the native CalendarFrame only in Forever; `CalendarStateUpdate` snapshots populate the local-date grid, with no local holiday/event fallback or invented full-frame backdrop. The corrected tile atlas, grid bounds, weekday tiles, year anchor, and current-day glow are covered by the presentation test.
+VERIFIED, CODE: `GameTimeFrame` opens the native CalendarFrame only in Forever; `CalendarStateUpdate` snapshots populate the local-date grid. No local holiday/event fallback or invented full-frame backdrop was added. The follow-up darkens other-month cells and raises the year plaque/label above the overlapping month art without changing their anchors.
 
-VERIFIED, TEST: The focused calendar integration filter passes 5/5 tests. The native dev helper build, local release helper build, and `cargo fmt --all -- --check` pass.
+VERIFIED, TEST: The focused calendar integration filter passes 5/5 tests, including November 29–30 unchanged, December 1–12 shaded, and previous-month shading. Native dev and local release helper builds pass; `cargo fmt --all` passes.
 
-VERIFIED, LIVE: Private UDP `127.0.0.1:5995` automation opened the panel, navigated November 2026 to December and back, closed it, and reopened it from the minimap. The fresh capture has no automation or texture-load errors. Evidence is under `/syncthing/AgentShared/2026-11-12/calendar-panel/`.
+VERIFIED, LIVE: A fresh private client on UDP `127.0.0.1:5995` opened the panel, navigated November 2026 to December and back, closed it, and reopened it from `GameTimeFrame`. The final tree has 12 dark frames, 24 `CalendarShadows` textures, and no `EventBackground` frames. Client logs have no JS automation, authentication, or UI texture-load errors.
 
-VERIFIED, IMAGE: The 3× source comparison shows tile art across the full grid with no world bleed. Two remaining defects are visible in the 4× crops: December 1–12 are not dimmed, and the top of `2026` is obscured by the month-title art. See [[calendar-panel-rendering]].
+VERIFIED, IMAGE: The fresh 3× header/grid capture shows no world bleed. The 4× crop shows November 29–30 normal and December 1–12 dark; the 8× crop shows all of `2026` at its XML anchor. Evidence is under `/syncthing/AgentShared/2026-11-12/calendar-panel/`. See [[calendar-panel-rendering]].
 
-VERIFIED, CLEANUP: The owned client and server stopped after capture, and UDP port 5995 is free.
+VERIFIED, CLEANUP: The owned client and server stopped, and UDP port 5995 is free. The server used a private database copy under the engine target; no build or data write occurred in the game-server checkout.
 
 UNVERIFIED, LIVE: The final image contains no event title, so non-empty event rendering was not proven against a live server; the model test supplies a concrete `CalendarEventSnapshot`.
 
