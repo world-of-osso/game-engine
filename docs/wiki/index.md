@@ -338,7 +338,7 @@
 
 - [Shared Retail menu primitives](systems/menu-primitives.md) — source dropdown/filter/reset/menu elements and measured NavBar; native decimal-alpha regression fixture and [bounded native menu order](systems/menu-primitives.md#native-menu-order-2026-10-18).
 
-- [Native follower dungeon Group Finder](systems/follower-dungeons.md) — server-authoritative level eligibility, localized refusal text, prior both-skin native admission/five-role/14m follow proof, and VERIFIED private level-10 Ruby admission with four followers retained for 116.3 seconds; one separate Warlock summon gap remains.
+- [Native follower dungeon Group Finder](systems/follower-dungeons.md) — server-authoritative level eligibility, localized refusal text, prior both-skin native admission/five-role/14m follow proof, and VERIFIED private level-10 Ruby admission with four followers retained for 116.3 seconds; VERIFIED: a separate Warlock pet-summon gap was observed and remains unchanged.
 
 - [Source-private summons](systems/toy-box.md#source-private-summon-proof-2026-10-12) — real two-peer owner-only UDP repair/public control and both-skin owner sign model/scale/natural expiry; census337 unchanged.
 
