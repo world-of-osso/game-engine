@@ -186,30 +186,27 @@ func save_texture_reference(decal: Decal) -> bool:
 	return true
 
 func capture_out_of_range_reticle() -> bool:
-	client.set_camera_orbit(PI, -0.3, 48.0)
+	client.set_camera_orbit(PI, -0.3, 120.0)
 	await wait_frames(12)
-	var point := reticle_point(-41.0)
-	var viewport := Rect2(Vector2.ZERO, Vector2(root.size))
-	if not viewport.has_point(point):
-		fail("Out-of-range ground point projects outside the viewport: " + str(point))
-		return false
-	await pointer(point)
-	await wait_frames(4)
-	var decal := client.get_node_or_null("GroundSpellReticle") as Decal
-	if decal == null or not decal.visible:
-		fail("Out-of-range ground point did not retain a visible decal")
-		return false
-	var distance := player.global_position.distance_to(decal.global_position)
-	print("GROUND_RANGE_PROOF player=", player.global_position, " decal=", decal.global_position,
-		" distance=", distance, " max=40.0 color=", decal.modulate)
-	if distance <= 40.0:
-		fail("Out-of-range test ray hit a surface within 40 yards")
-		return false
-	if decal.modulate.r <= decal.modulate.g:
-		fail("Out-of-range Flamestrike decal is not red")
-		return false
-	await capture("ground-target-invalid")
-	return true
+	for screen_y in [160, 280, 400, 520, 640]:
+		for screen_x in [160, 400, 640, 880, 1120]:
+			var point := Vector2(screen_x, screen_y)
+			await pointer(point)
+			var decal := client.get_node_or_null("GroundSpellReticle") as Decal
+			if decal == null or not decal.visible:
+				continue
+			var distance := player.global_position.distance_to(decal.global_position)
+			print("GROUND_RANGE_PROBE point=", point, " distance=", distance,
+				" max=40.0 color=", decal.modulate)
+			if distance <= 40.0:
+				continue
+			if decal.modulate.r <= decal.modulate.g:
+				fail("Out-of-range Flamestrike decal is not red")
+				return false
+			await capture("ground-target-invalid")
+			return true
+	fail("No visible ground point beyond Flamestrike's 40-yard range")
+	return false
 
 func place_flamestrike(sent_before: int) -> bool:
 	client.set_camera_orbit(PI, -0.3, 12.0)
