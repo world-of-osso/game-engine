@@ -21,6 +21,15 @@ VERIFIED: The old X11 fixture warp left the target slot unhovered; relative `roo
 VERIFIED: Local 12.1 DB2 distinguishes cursor destinations through `SpellTargetRestrictions.Targets=64`; Consecration 26573 has `DEST_DEST`, range ID1 (Self Only), and no restriction row, while Flamestrike 2120 and DnD 43265 have the explicit destination flag. The native catalog now maps school masks to the sourced AoE `targetarea_*.blp` textures. See [[spell-catalog#ground-destination-and-aoe-decal--2026-11-11]] and [[target-circle-rendering#spell-ground-target-placement]].
 
 VERIFIED: Private Forever phases pass: Flamestrike 2120 proves green/red range tint and one-time placement; ordinary Consecration 26573 sends without opening the cursor. VERIFIED: The 3× review shows broad filled Fire art beside the user's thin-ring crop. UNVERIFIED: Exact visual parity, and private live behavior for Raging Consecration 50915; details are in [[target-circle-rendering#private-forever-proof--2026-11-11]].
+## WowStyle1 dropdown caption alignment — 2026-11-11
+
+INFERRED: The previous full-owner Label rectangle centered at y12.5, while Forever's authored 10px Text region centered at y13. VERIFIED: Commit `65168d644` aligns the shared native line box to the source-region center and preserves the one-line caption contract. VERIFIED: `ea6d3e4ff` removes a redundant vertical-justification attribute; MIDDLE is already the FontString default. VERIFIED: `3cdec84d7` names the source Text and Arrow insets without changing the geometry. VERIFIED: Current Quest Log source has no shared dropdown callsite. VERIFIED: Final rendered preview, targeted test and helper-build proof pass; full GameClient Group Finder Type proof remains pending. See [[menu-primitives#wowstyle1-caption-source-region-alignment-2026-11-11]].
+
+## WowStyle2 Forever idle atlas verification — 2026-11-11
+
+VERIFIED: The Forever preview's default Style2 background uses the set-1 c60 idle member (FDID8069112, crop144,85,39×39), not the gray Modern/set-0 crop. After the source's 12px side slices, both preview side borders match idle with zero RGB error; hover-1 and open are separate members. The component needs no idle-art fix. The 3× comparison and measurements are in `data/diagnostics/dropdown-valign-2026-11-11/live-client-group-finder/visual-review/`.
+
+UNVERIFIED: This is RegistryUi preview evidence, not a full GameClient Group Finder capture. The latter remains blocked until capacity grants ADD for UDP5992.
 
 ## Ruby emitter frustum cache — 2026-11-11
 

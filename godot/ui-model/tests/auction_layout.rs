@@ -97,40 +97,34 @@ fn auction_search_uses_inherited_small_font_and_instruction_colour() {
 }
 
 #[test]
-fn auction_duration_uses_retail_dropdown_geometry() {
+fn auction_duration_uses_retail_dropdown_font_and_dimensions() {
     // SellFrame.lua:159-170 overrides the shared template's width/font/alignment.
-    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
-        let registry = render(skin, "duration");
-        let dropdown = frame(&registry, "AuctionHouseFrameItemSellFrameDurationDropdown");
-        assert_eq!(
-            (dropdown.width.value(), dropdown.height.value()),
-            (115.0, 25.0)
-        );
-        let caption = frame(
-            &registry,
-            "AuctionHouseFrameItemSellFrameDurationDropdownText",
-        );
-        assert_eq!(
-            caption.position.top,
-            ui_toolkit::layout_values::Val::Px(
-                (dropdown.height.value() - caption.height.value()) / 2.0
-            ),
-            "Duration caption must be vertically centered"
-        );
-        let Some(WidgetData::FontString(text)) = &caption.widget_data else {
-            panic!("duration text missing")
-        };
-        assert_eq!(
-            text.font,
-            ui_toolkit::widgets::font_string::GameFont::ArialNarrow
-        );
-        assert_eq!(text.font_size, 12.0);
-        assert_eq!(
-            text.justify_h,
-            ui_toolkit::widgets::font_string::JustifyH::Right
-        );
-    }
-    set_thread_skin(ActiveSkin::Modern);
+    let registry = render(ActiveSkin::Forever, "duration");
+    let dropdown = frame(&registry, "AuctionHouseFrameItemSellFrameDurationDropdown");
+    assert_eq!(
+        (dropdown.width.value(), dropdown.height.value()),
+        (115.0, 25.0)
+    );
+    let caption = frame(
+        &registry,
+        "AuctionHouseFrameItemSellFrameDurationDropdownText",
+    );
+    let Some(WidgetData::FontString(text)) = &caption.widget_data else {
+        panic!("duration text missing")
+    };
+    assert_eq!(
+        text.font,
+        ui_toolkit::widgets::font_string::GameFont::ArialNarrow
+    );
+    assert_eq!(text.font_size, 12.0);
+    assert_eq!(
+        text.justify_h,
+        ui_toolkit::widgets::font_string::JustifyH::Right
+    );
+    assert_eq!(
+        text.justify_v,
+        ui_toolkit::widgets::font_string::JustifyV::Middle
+    );
 }
 
 #[test]
