@@ -326,8 +326,16 @@ fn ui_template_behavior_services_loadout_menu_keeps_disabled_export_owner_and_re
             .get(registry.get_by_name("TalentSearchBox").unwrap())
             .unwrap();
         let scale = search.height.value() / 30.0;
-        assert_eq!(dropdown.width.value(), 120.0 * scale);
+        assert_eq!(dropdown.width.value(), 200.0 * scale);
         assert_eq!(dropdown.height.value(), 25.0 * scale);
+        let ui_toolkit::layout_values::Val::Px(dropdown_left) = dropdown.position.left else {
+            panic!("dropdown left")
+        };
+        let ui_toolkit::layout_values::Val::Px(search_left) = search.position.left else {
+            panic!("SearchBox left")
+        };
+        let gap = search_left - dropdown_left - dropdown.width.value();
+        assert!((gap - 20.0 * scale).abs() < 0.001);
         let ui_toolkit::layout_values::Val::Px(dropdown_top) = dropdown.position.top else {
             panic!("dropdown top")
         };

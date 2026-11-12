@@ -165,6 +165,21 @@ func run_test() -> void:
 			client.account_state().screen, book != null, panel != null and panel.is_visible_in_tree(), node_count,
 			str(root.gui_get_focus_owner()), str(client.spells_state())])
 		return
+	var book_ui := client.get_node_or_null("SpellBookUI")
+	var dropdown := book_ui.find_child("TalentLoadoutDropDown", true, false) as Control if book_ui != null else null
+	var search := book_ui.find_child("TalentSearchBox", true, false) as Control if book_ui != null else null
+	var caption := book_ui.find_child("TalentLoadoutName", true, false) as Label if book_ui != null else null
+	if dropdown == null or search == null or caption == null:
+		fail("Talents footer is missing the loadout caption or SearchBox")
+		return
+	var ui_scale := search.size.y / 30.0
+	var dropdown_gap := (search.global_position.x - dropdown.global_position.x - dropdown.size.x) / ui_scale
+	if absf(dropdown.size.x / ui_scale - 200.0) > 0.5 or absf(dropdown_gap - 20.0) > 0.5:
+		fail("Loadout footer geometry differs from Retail: width=%s gap=%s" % [dropdown.size.x / ui_scale, dropdown_gap])
+	if caption.text != "Default Loadout" or caption.get_line_count() != 1:
+		fail("Default Loadout caption is clipped: %s lines=%s" % [caption.text, caption.get_line_count()])
+	print("TALENTS_PANEL_FOOTER_PASS ", JSON.stringify({"dropdown_width": dropdown.size.x / ui_scale,
+		"gap_to_search": dropdown_gap, "caption": caption.text, "caption_lines": caption.get_line_count()}))
 	var first_frame_ms := float(Time.get_ticks_usec() - keypress_usec) / 1000.0
 	print("TALENTS_PANEL_FIRST_FRAME ", JSON.stringify({"open_ms": first_frame_ms, "talent_nodes": node_count,
 		"wait_frames": open_wait_frames, "lookup_total_ms": float(lookup_total_usec) / 1000.0,
