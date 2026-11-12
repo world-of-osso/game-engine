@@ -29,7 +29,7 @@ func run_test() -> void:
 	if error != "":
 		fail("Private account connection: " + error)
 		return
-	if not await enter_named_character():
+	if not await enter_world():
 		return
 	var skin_error: String = client.preview_world_skin(true)
 	if skin_error != "" or client.account_state().ui_skin != "Forever":
@@ -72,42 +72,6 @@ func run_test() -> void:
 	print("GROUND_TARGETING_LIVE PASS phase=", phase, " skin=Forever spell=", FLAMESTRIKE)
 	client.free()
 	quit(0)
-
-func enter_named_character() -> bool:
-	var deadline := Time.get_ticks_msec() + 60000
-	while Time.get_ticks_msec() < deadline:
-		await process_frame
-		var state: Dictionary = client.account_state()
-		if state.reply_received and state.screen == "CharacterSelect":
-			if state.character_count >= 1 and client.get_node_or_null("CharacterSelectUI") != null:
-				break
-	var ui := client.get_node_or_null("CharacterSelectUI")
-	if ui == null:
-		fail("No character select: " + str(client.account_state()))
-		return false
-	var card: Control
-	for index in range(client.account_state().character_count):
-		var candidate := ui.find_child("CharCard_%d" % index, true, false) as Control
-		if candidate == null:
-			continue
-		var label := candidate.find_child("CharSelectCharacterName", true, false) as Label
-		if label != null and label.text == character:
-			card = candidate
-			break
-	if card == null:
-		fail("No character card for " + character)
-		return false
-	await click(card)
-	await click(ui.find_child("EnterWorld", true, false))
-	if not await wait_until(func():
-		var state: Dictionary = client.account_state()
-		return state.screen == "InWorld" and state.local_player_position != null \
-			and state.local_server_position != null and state.terrain.pending_count == 0 \
-			and not state.terrain.parsed_tiles.is_empty()
-	, 180000, "enter world"):
-		return false
-	await wait_frames(60)
-	return true
 
 func consecration_targeting_proof(baseline: bool) -> bool:
 	if not client.spells_state().known.has(CONSECRATION):
