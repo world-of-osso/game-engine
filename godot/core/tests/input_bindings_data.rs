@@ -158,10 +158,21 @@ fn complete_token_grammar_round_trips_and_rejects_unsupported() {
 #[test]
 fn inventory_defaults_and_sections_are_exact() {
     let bindings = InputBindingsData::default();
-    assert_eq!(InputAction::ALL.len(), 141);
+    assert_eq!(InputAction::ALL.len(), 142);
     assert_eq!(
         BindingSection::ALL.map(|s| actions_for_section(s).len()),
-        [8, 6, 14, 22, 12, 12, 12, 12, 1, 16, 6, 20]
+        [8, 6, 14, 22, 12, 12, 12, 12, 1, 17, 6, 20]
+    );
+    let interface = actions_for_section(BindingSection::Interface);
+    let retail_group_finder_order = [
+        InputAction::ToggleSocial,
+        InputAction::ToggleGroupFinder,
+        InputAction::ToggleCollections,
+    ];
+    assert!(
+        interface
+            .windows(retail_group_finder_order.len())
+            .any(|window| window == retail_group_finder_order.as_slice())
     );
     let housing = actions_for_section(BindingSection::Housing);
     assert_eq!(
@@ -274,6 +285,18 @@ fn inventory_defaults_and_sections_are_exact() {
     assert_eq!(
         bindings.binding(InputAction::ToggleFramerate),
         Some(InputBinding::CtrlKeyboard(BindingKey::KeyR))
+    );
+    assert_eq!(
+        InputAction::ToggleGroupFinder.label(),
+        "Toggle Group Finder"
+    );
+    assert_eq!(
+        InputAction::ToggleGroupFinder.section(),
+        BindingSection::Interface
+    );
+    assert_eq!(
+        bindings.binding(InputAction::ToggleGroupFinder),
+        Some(InputBinding::Keyboard(BindingKey::KeyI))
     );
     assert_eq!(
         InputAction::ToggleFramerate.label(),
