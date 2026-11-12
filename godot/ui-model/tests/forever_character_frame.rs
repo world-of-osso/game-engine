@@ -160,6 +160,7 @@ fn forever_mode_tabs_use_only_discovered_currency_and_the_authored_icon_ids() {
     with_currency.has_currencies = true;
     with_currency.tab = game_engine_ui_model::character_frame::CharacterTab::Currency;
     let all_tabs = build(with_currency);
+    assert_eq!(size(&all_tabs, "CharacterFrame"), (631.0, 484.0));
     assert_eq!(icon_fdid(&all_tabs, "CharacterFrameTab2Icon"), 8_197_103);
     assert_eq!(icon_fdid(&all_tabs, "CharacterFrameTab5Icon"), 8_197_078);
     assert_eq!(pos(&all_tabs, "CharacterFrameTab5"), (frame_width, 144.0));

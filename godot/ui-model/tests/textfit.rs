@@ -46,12 +46,23 @@ fn character(tab: CharacterTab) -> FrameRegistry {
 }
 
 #[test]
-fn textfit_character_tab_captions_fit_in_both_skins() {
+fn character_tab_presentation_matches_the_active_skin_template() {
     configure_data();
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         set_thread_skin(skin);
         for tab in [CharacterTab::PaperDoll, CharacterTab::Reputation] {
             let registry = character(tab);
+            if skin == ActiveSkin::Forever {
+                for index in 1..=2 {
+                    assert!(
+                        registry
+                            .get_by_name(&format!("CharacterFrameTab{index}Text"))
+                            .is_none(),
+                        "Forever mode tabs are icon-only"
+                    );
+                }
+                continue;
+            }
             for index in 1..=2 {
                 let button = frame(&registry, &format!("CharacterFrameTab{index}"));
                 let caption = frame(&registry, &format!("CharacterFrameTab{index}Text"));

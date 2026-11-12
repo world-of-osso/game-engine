@@ -66,13 +66,18 @@ fn ui_template_blend_discovered_zero_pvp_wallet_opens_source_token_rows_in_both_
         let mut screen = Screen::new(character_frame_screen);
         screen.sync(&shared, &mut registry);
         assert!(registry.get_by_name("CharacterFrameTab3").is_none());
+        assert!(registry.get_by_name("CharacterFrameTab5").is_none());
         view.has_currencies = true;
         shared.insert(view.clone());
         screen.sync(&shared, &mut registry);
+        let currency_tab_name = match skin {
+            ActiveSkin::Modern => "CharacterFrameTab3",
+            ActiveSkin::Forever => "CharacterFrameTab5",
+        };
         let tab = registry
             .get(
                 registry
-                    .get_by_name("CharacterFrameTab3")
+                    .get_by_name(currency_tab_name)
                     .expect("discovered wallet tab"),
             )
             .unwrap();
@@ -83,11 +88,18 @@ fn ui_template_blend_discovered_zero_pvp_wallet_opens_source_token_rows_in_both_
         let ui_toolkit::frame::Dimension::Fixed(height) = window.height else {
             panic!("CharacterFrame must have a fixed source size")
         };
-        assert_eq!(
-            tab.position.top,
-            ui_toolkit::layout_values::Val::Px(height - 2.0),
-            "discovered-wallet tabs anchor to the shown subframe BOTTOMLEFT y-2"
-        );
+        match skin {
+            ActiveSkin::Modern => assert_eq!(
+                tab.position.top,
+                ui_toolkit::layout_values::Val::Px(height - 2.0),
+                "Retail bottom tabs anchor to the shown subframe BOTTOMLEFT y-2"
+            ),
+            ActiveSkin::Forever => assert_eq!(
+                tab.position.top,
+                ui_toolkit::layout_values::Val::Px(144.0),
+                "Forever Currency remains source tab5 and stacks after Character and Reputation"
+            ),
+        }
         view.tab = CharacterTab::from_action(tab.onclick.as_deref().unwrap()).unwrap();
         view.currencies = wallet_rows();
         shared.insert(view.clone());
@@ -105,11 +117,15 @@ fn ui_template_blend_discovered_zero_pvp_wallet_opens_source_token_rows_in_both_
         }
         apply_character_frame_postsetup(&mut registry, view.tab);
         let currency_tab = registry
-            .get(registry.get_by_name("CharacterFrameTab3").unwrap())
+            .get(registry.get_by_name(currency_tab_name).unwrap())
             .unwrap();
+        let expected_top = match skin {
+            ActiveSkin::Modern => 422.0,
+            ActiveSkin::Forever => 144.0,
+        };
         assert_eq!(
             currency_tab.position.top,
-            ui_toolkit::layout_values::Val::Px(422.0)
+            ui_toolkit::layout_values::Val::Px(expected_top)
         );
         assert_eq!(text(&registry, "CharacterFrameTitleText"), "Currency");
         assert_eq!(text(&registry, "TokenHeader2Name"), "Player vs. Player");

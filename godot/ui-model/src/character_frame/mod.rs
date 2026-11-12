@@ -546,10 +546,14 @@ pub fn character_frame_screen(ctx: &SharedContext) -> Element {
         .expect("CharacterFrameView must be in SharedContext");
     let hide = !view.visible;
     let paperdoll = view.tab == CharacterTab::PaperDoll;
-    let (width, height) = match view.tab {
-        CharacterTab::PaperDoll => read_character_layout().size,
-        CharacterTab::Reputation => reputation::frame_size(read_character_layout().size),
-        CharacterTab::Currency => (currency::WIDTH, FRAME_H),
+    let skin = thread_skin();
+    let (width, height) = match skin {
+        ActiveSkin::Forever => read_character_layout().size,
+        ActiveSkin::Modern => match view.tab {
+            CharacterTab::PaperDoll => read_character_layout().size,
+            CharacterTab::Reputation => reputation::frame_size(read_character_layout().size),
+            CharacterTab::Currency => (currency::WIDTH, FRAME_H),
+        },
     };
     let title = match view.tab {
         CharacterTab::PaperDoll => &view.title,
