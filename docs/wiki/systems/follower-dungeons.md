@@ -12,7 +12,9 @@ VERIFIED (server-combat tests at `e9b46e3f08` and engine UI-model tests at `0a47
 
 VERIFIED (engine UI-model 11/11 at `0a473ee2`, native account/chat 4/4 at `b8eeaf814`): Retail GlobalStrings localize level and unavailable-gear refusals in the Group Finder description and system chat. These tests do not prove a live admission.
 
-UNVERIFIED: the private UDP 5996 level-10 Paladin admission to Ruby Life Pools, four-follower roster and 60-second retention proof is pending.
+VERIFIED (private UDP 5996, November 11, 2026): a level-10 Paladin entered Ruby Life Pools map2521 instance2. The server selected follower specs `[104, 264, 64, 254]`. Scene captures at 23:44:57.030 and 23:46:53.328 CST, 116.298 seconds apart, and party-frame captures at 23:44:57.602 and 23:46:54.048 CST, 116.446 seconds apart, show `Fjpaladin` and `Follower1`–`Follower4` at the dungeon entrance. The private logs, proof ledger and captures are under `data/diagnostics/follower-join-fail-2026-11-11/private-run/`.
+
+VERIFIED (separate private server log): an earlier natural party selection containing Warlock spec265 failed because pet entry417 resolved zero learned native summons and returned the character to map0. That separate profile-spawn gap remains unchanged; the passing run used the server's normal selection and no profile or spell workaround. UNVERIFIED: other random party compositions are not covered by this single successful run.
 
 ## Native frames
 

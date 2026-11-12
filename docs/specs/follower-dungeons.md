@@ -2,7 +2,7 @@
 
 Server gameplay contract: [follower dungeons](../../../game-server/docs/specs/follower-dungeons.md).
 
-- Group Finder opens from `LFDMicroButton` into Retail Mainline `PVEFrame`/`LFDQueueFrame` follower mode. It requests the prepared server catalog, selects one authored entry and a tank/healer/damage role, and sends `QueueForLfg` on reliable `LfgChannel`. Unprepared entries are not invented or offered. The existing PvP tab remains available; Raid Finder and Premade Groups remain unavailable.
+- Group Finder opens through `MinimapLauncherButton` and `LauncherEntryLFDMicroButton` into Retail Mainline `PVEFrame`/`LFDQueueFrame` follower mode. It requests the prepared server catalog, selects one authored entry and a tank/healer/damage role, and sends `QueueForLfg` on reliable `LfgChannel`. Unprepared entries are not invented or offered. The existing PvP tab remains available; Raid Finder and Premade Groups remain unavailable.
 - The follower type dropdown, role icons/checks, source20px dungeon checkbox rows and ScrollBox/MinimalScrollBar use the same elements in Modern and Forever. Pending requests and active matches disable repeat admission; server refusals remain visible in the follower description and IPC status.
 - Native `lfg queue <role> <dungeon IDs>` retains the same selected-role transport for diagnostics. Difficulty205 selects a follower dungeon in the imported server catalog.
 - Queue-send acknowledgment is not server acceptance. `lfg status` exposes the latest authoritative snapshot, match roster and refusal; reconnect clears stale state.
@@ -10,7 +10,7 @@ Server gameplay contract: [follower dungeons](../../../game-server/docs/specs/fo
 
 - [x] The client displays entries from the server catalog and does not use local DB2 bounds or player level to hide, disable, or refuse a listed dungeon. It sends the selected catalog ID; the server checks eligibility before map transfer.
 - [x] Server refusal keys use Retail GlobalStrings in the Group Finder description and system chat.
-- [ ] Private UDP 5996 live proof: a fresh level-10 Paladin joins Ruby Life Pools and remains with four followers for at least 60 seconds.
+- [x] VERIFIED (private UDP 5996 on November 11, 2026): a level-10 Paladin queued Ruby Life Pools (dungeon2436, map2521) and entered instance2. Scene captures at 23:44:57.030 and 23:46:53.328 CST, 116.298 seconds apart, and party-frame captures at 23:44:57.602 and 23:46:54.048 CST, 116.446 seconds apart, show the Paladin with `Follower1`–`Follower4`. The private server log and captures are under `data/diagnostics/follower-join-fail-2026-11-11/private-run/`; this proof covers the selected party only.
 - Existing LFG dequeue/role-check requests use the same transport. Completed follower admission is a running instance, not a human matchmaking queue entry.
 - Both Modern and Forever show the same replicated followers and existing party frames; no skin-specific gameplay or invented UI frames.
 - Local user-approved server workaround uses labelled-spec player spells and same-map Normal population/entrance; absent Rogue/DK/DH identities and full-rotation gaps remain explicit in the server contract.
