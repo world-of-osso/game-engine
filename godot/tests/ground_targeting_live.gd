@@ -169,7 +169,20 @@ func capture_valid_reticle(sent_before: int) -> bool:
 		return false
 	if decal.modulate.g <= decal.modulate.r:
 		fail("In-range Flamestrike decal is not green")
+	if not await save_texture_reference(decal):
+		return false
 	await capture("ground-target-after")
+	return true
+
+func save_texture_reference(decal: Decal) -> bool:
+	var path := OS.get_environment("GROUND_TEXTURE_REFERENCE")
+	if path == "":
+		return true
+	var image: Image = decal.texture_albedo.get_image()
+	if image.save_png(path) != OK:
+		fail("Could not save authored target-area texture: " + path)
+		return false
+	print("GROUND_TEXTURE_REFERENCE ", path)
 	return true
 
 func capture_out_of_range_reticle() -> bool:
