@@ -250,7 +250,8 @@ impl GameClient {
         }
     }
 
-    /// Retail `OPENALLBAGS`, `TOGGLEBACKPACK` and `TOGGLEBAG1-4` (Bindings_Standard.xml:1203-1223).
+    /// Retail `OPENALLBAGS`, `TOGGLEBACKPACK`, `TOGGLEREAGENTBAG1`, and `TOGGLEBAG1-4`
+    /// (`Bindings_Standard.xml:1203-1223`).
     fn apply_bag_bindings(&mut self) {
         let input = self.physical_input.gameplay_state(self.keyboard_free());
         let bindings = &self.client_options.bindings;
