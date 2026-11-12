@@ -1,3 +1,7 @@
+## SpellMisc spell lookup key — 2026-11-11
+
+VERIFIED: The random-mount icon used the SpellMisc row ID instead of its `SpellID` key; the engine constant and rendered-view test now use the Retail-resolved icon. See [[db2-format#installed-csv-column-order-and-signed-selections]].
+
 ## Ruby emitter frustum cache — 2026-11-11
 
 VERIFIED: `TerrainObjects::update_particles` reuses doodad frustum admission when the exact plane list is unchanged; the bit-field fixture matches fresh AABB culling for 25 bounds across changed and unchanged views. Particle simulation and deferral still run each frame. See [[follower-combat-fps#emitter-frustum-admission-cache-2026-11-11]].
