@@ -478,6 +478,7 @@ fn load_map_art(
         })
         .collect();
     Ok(WorldMapFrameState {
+        visible: true,
         viewport,
         map_id,
         map_name: map_name.into(),

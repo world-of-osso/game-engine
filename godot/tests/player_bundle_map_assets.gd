@@ -72,8 +72,14 @@ func wait_for_map_tiles(owner: Node, prefix: String, expected_count: int) -> Dic
 func missing_map_tiles(tiles: Array[Node]) -> Array[String]:
 	var missing: Array[String] = []
 	for tile in tiles:
-		var texture := tile.get_node_or_null("Parts/Part0") as TextureRect
-		if texture == null or texture.texture == null:
+		var textures: Array[Node] = tile.find_children("*", "TextureRect", true, false)
+		var loaded := false
+		for node in textures:
+			var texture := node as TextureRect
+			if texture.texture != null:
+				loaded = true
+				break
+		if not loaded:
 			missing.append(str(tile.name))
 	return missing
 
