@@ -33,6 +33,10 @@ fn today_glow_uses_retail_anchor_and_additive_blending() {
         .unwrap();
     let mut shared = SharedContext::new();
     shared.insert(calendar.view().unwrap().unwrap());
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
     set_thread_skin(ActiveSkin::Forever);
     let mut registry = FrameRegistry::new(1920.0, 1080.0);
     Screen::new(calendar_frame_screen).sync(&shared, &mut registry);
