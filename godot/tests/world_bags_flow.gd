@@ -30,6 +30,7 @@ func set_capture_resolution() -> bool:
 		fail("GODOT_TEST_RESOLUTION dimensions must be positive: " + requested)
 		return false
 	root.size = Vector2i(width, height)
+	print("BAGS DISPLAY requested=", Vector2i(width, height), " root=", root.size, " window=", DisplayServer.window_get_size(), " screen=", DisplayServer.screen_get_size())
 	return true
 
 func run_test() -> void:
