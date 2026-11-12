@@ -6,7 +6,7 @@ Offline audit tooling in `scripts/asset_closure.py` computes a content-rooted de
 
 - [x] Traverse ADT textures/placements, WMO groups/materials/doodads, and M2 skins/skeletons/external animations/textures to a fixed point; retain all incoming reasons and missing leaves.
 - [x] Seed Northshire tiles, a male level-1 Human Warrior, starting kit, local world.db spawn displays and spellbook SpellMisc icons.
-- [ ] For `items: starting`, match native `NewCharacterKit` selection: use Retail loadouts plus TDB overrides for non-Skyborne races, and Forever70205 loadouts for races 95/96; use the same RaceMask bits as the server. Keep generic bare item IDs unresolved.
+- [x] For `items: starting`, match native `NewCharacterKit` selection: use Retail loadouts plus TDB overrides for non-Skyborne races, and Forever70205 loadouts for races 95/96; use the same RaceMask bits as the server. Keep generic bare item IDs unresolved.
 - [x] Seed selected maps' authored skybox/celestial models through every Light.LightParamsID slot, LightParams.LightSkyboxID and LightSkybox FDIDs, including maps without terrain tiles; retain positive missing joins and traverse model descendants.
 - [x] Seed dynamic game-object templates through GameObjectDisplayInfo.FileDataID: explicit tile/all selectors, unspawned templates in the full superset, native type15 transport WMOs versus other model requests, and selected template identities in the world fingerprint.
 - [x] Emit deterministic JSON with FDID/type/path, edges, product/build provenance status, presence, sizes and SHA-256; fingerprint every resolver module, not just the entrypoint.

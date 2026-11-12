@@ -1,3 +1,7 @@
+## Starting-kit item source selection — 2026-11-11
+
+VERIFIED: `items: starting` now mirrors `NewCharacterKit` Purpose-9 source-build, RaceMask and TDB-override rules. The targeted player-source tests pass 5/5: a Troll Shaman's item 157655 reaches Retail FDID 464822, race 95 reaches Forever70205 FDID 464823, and wrong-source/build or wrong-mask rows stay out; the root-product tests pass 6/6, including unresolved bare item IDs. Code: `scripts/closure_seeds.py`, `scripts/closure_player_roots.py`; proof: `scripts/tests/test_closure_player_sources.py` and `scripts/tests/test_closure_root_products.py`.
+
 ## GameObject M2 receipt gate closed — 2026-11-11
 
 VERIFIED: The lead-published third fragment has 11 asset rows and 2 companion aliases, including receipts for M2s 166432 and 1697838; all 13 referenced payloads match their receipt hashes. On commit `d4bb12bf0f204a5ad4391c3369a6173d1645e8ec`, an extracted-only race-30 Paladin reached map 1860 at start distance 0.00 with two parsed terrain tiles, zero receipt errors and zero CASC diagnostics. The run used no flat aliases or fallback. Afterward, the private server stopped and all 23 temporary receipt-index links were removed; the slot's original cache path was restored. Evidence: `/home/osso/.worktrees/charcreate-receipts/agent-assets/live/gameobject-final-live-proof.json`. See [[m2-product-shadowing]].
