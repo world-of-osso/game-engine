@@ -326,7 +326,7 @@ fn calendar_days(view: &CalendarView) -> Element {
         }
         elements.extend(calendar_day_date(index, day, left, top));
         elements.extend(calendar_day_events(index, day, left, top));
-        elements.extend(calendar_day_dark_overlay(
+        elements.extend(build_calendar_day_dark_overlay(
             index,
             day,
             first_viewed_month_day,
@@ -381,7 +381,7 @@ fn calendar_day_button_art(index: usize) -> String {
     format!("{cell_x},{tex_right},{cell_y},{tex_bottom}")
 }
 
-fn calendar_day_dark_overlay(
+fn build_calendar_day_dark_overlay(
     index: usize,
     day: &CalendarDay,
     first_viewed_month_day: NaiveDate,
@@ -392,24 +392,16 @@ fn calendar_day_dark_overlay(
         return Vec::new();
     }
 
-    let (top_tex_coords, bottom_tex_coords) = if day.date < first_viewed_month_day {
-        (
-            CALENDAR_PREVIOUS_MONTH_DARK_TOP_TEX_COORDS,
-            CALENDAR_PREVIOUS_MONTH_DARK_BOTTOM_TEX_COORDS,
-        )
-    } else {
-        (
-            CALENDAR_NEXT_MONTH_DARK_TOP_TEX_COORDS,
-            CALENDAR_NEXT_MONTH_DARK_TOP_TEX_COORDS,
-        )
-    };
-    let top_texture = calendar_day_dark_texture(
+    let is_previous_month = day.date < first_viewed_month_day;
+    let (top_tex_coords, bottom_tex_coords) =
+        select_calendar_dark_day_texture_coords(is_previous_month);
+    let top_texture = build_calendar_day_dark_texture(
         index,
         "Top",
         top_tex_coords,
         [0.0, 0.0, DAY_WIDTH, CALENDAR_DARK_FRAME_TOP_HEIGHT],
     );
-    let bottom_texture = calendar_day_dark_texture(
+    let bottom_texture = build_calendar_day_dark_texture(
         index,
         "Bottom",
         bottom_tex_coords,
@@ -420,6 +412,32 @@ fn calendar_day_dark_overlay(
             CALENDAR_DARK_FRAME_BOTTOM_HEIGHT,
         ],
     );
+    build_calendar_day_dark_frame(index, left, top, top_texture, bottom_texture)
+}
+
+fn select_calendar_dark_day_texture_coords(
+    is_previous_month: bool,
+) -> (&'static str, &'static str) {
+    if is_previous_month {
+        (
+            CALENDAR_PREVIOUS_MONTH_DARK_TOP_TEX_COORDS,
+            CALENDAR_PREVIOUS_MONTH_DARK_BOTTOM_TEX_COORDS,
+        )
+    } else {
+        (
+            CALENDAR_NEXT_MONTH_DARK_TOP_TEX_COORDS,
+            CALENDAR_NEXT_MONTH_DARK_TOP_TEX_COORDS,
+        )
+    }
+}
+
+fn build_calendar_day_dark_frame(
+    index: usize,
+    left: f32,
+    top: f32,
+    top_texture: Element,
+    bottom_texture: Element,
+) -> Element {
     rsx! {
         r#frame {
             name: {DynName(format!("CalendarDayButton{}DarkFrame", index + 1))},
@@ -435,7 +453,7 @@ fn calendar_day_dark_overlay(
     }
 }
 
-fn calendar_day_dark_texture(
+fn build_calendar_day_dark_texture(
     index: usize,
     part: &str,
     tex_coords: &str,
