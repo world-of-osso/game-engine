@@ -40,7 +40,6 @@ const NEXT_PAGE_DOWN: u32 = 130_865;
 const NEXT_PAGE_DISABLED: u32 = 130_864;
 const MOUSE_HIGHLIGHT: u32 = 130_757;
 const NORMAL: &str = "1.0,1.0,1.0,1.0";
-const MUTED: &str = "0.55,0.55,0.55,1.0";
 const WEEKDAY_GOLD: &str = "1.0,1.0,0.60392157,1.0";
 const CALENDAR_BORDER_TEXTURES: [CalendarTexture; 12] = [
     CalendarTexture::new(
@@ -283,7 +282,7 @@ fn calendar_days(view: &CalendarView) -> Element {
         let row = index / DAY_COLUMNS;
         let left = WEEKDAY_LEFT + column as f32 * DAY_WIDTH;
         let top = DAY_TOP + row as f32 * DAY_HEIGHT;
-        elements.extend(calendar_day_button(index, day, left, top));
+        elements.extend(calendar_day_button(index, left, top));
         elements.extend(calendar_day_date(index, day, left, top));
         elements.extend(calendar_day_events(index, day, left, top));
         if day.is_today {
@@ -293,8 +292,8 @@ fn calendar_days(view: &CalendarView) -> Element {
     elements
 }
 
-fn calendar_day_button(index: usize, day: &CalendarDay, left: f32, top: f32) -> Element {
-    let (tex_coords, vertex_color) = calendar_day_button_art(index, day);
+fn calendar_day_button(index: usize, left: f32, top: f32) -> Element {
+    let tex_coords = calendar_day_button_art(index);
     rsx! {
         button {
             name: {DynName(format!("CalendarDayButton{}", index + 1))},
@@ -307,7 +306,6 @@ fn calendar_day_button(index: usize, day: &CalendarDay, left: f32, top: f32) -> 
             button_default_skin: false,
             button_fdid_up: "235428",
             button_up_tex_coords: {tex_coords.as_str()},
-            button_up_vertex_color: vertex_color,
             button_fdid_highlight: "235438",
             button_highlight_tex_coords: "0,0.34375,0,0.6875",
             button_highlight_size: "88,88",
@@ -319,7 +317,7 @@ fn calendar_day_button(index: usize, day: &CalendarDay, left: f32, top: f32) -> 
     }
 }
 
-fn calendar_day_button_art(index: usize, day: &CalendarDay) -> (String, &'static str) {
+fn calendar_day_button_art(index: usize) -> String {
     let cell_x = if index % 2 == 0 { 90.0 / 256.0 } else { 0.0 };
     let cell_y = if index % 4 < 2 { 0.0 } else { 90.0 / 256.0 };
     let tex_coords = format!(
@@ -327,19 +325,17 @@ fn calendar_day_button_art(index: usize, day: &CalendarDay) -> (String, &'static
         cell_x + 90.0 / 256.0 - 0.001,
         cell_y + 90.0 / 256.0 - 0.001
     );
-    let vertex_color = if day.in_viewed_month { NORMAL } else { MUTED };
-    (tex_coords, vertex_color)
+    tex_coords
 }
 
 fn calendar_day_date(index: usize, day: &CalendarDay, left: f32, top: f32) -> Element {
     let text = day.date.day().to_string();
-    let color = if day.in_viewed_month { NORMAL } else { MUTED };
     calendar_font_string(
         format!("CalendarDayButton{}Date", index + 1),
         &text,
         [left + 5.0, top + 5.0, 23.0, 18.0],
         12.0,
-        color,
+        NORMAL,
         "LEFT",
         "ARTWORK",
     )
