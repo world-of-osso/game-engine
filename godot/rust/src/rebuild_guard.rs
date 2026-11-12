@@ -40,9 +40,11 @@ pub(crate) enum Rebuild {
     Theme,
     /// UI and nameplate controls created, freed or re-parented by a rebuild.
     UiTree,
+    /// Native UI projection relaid out after a window position change.
+    UiLayout,
 }
 
-const CATEGORIES: [(Rebuild, &str); 8] = [
+const CATEGORIES: [(Rebuild, &str); 9] = [
     (Rebuild::SkyCubemap, "sky_cubemap"),
     (Rebuild::Environment, "environment"),
     (Rebuild::MaterialRebind, "material_rebind"),
@@ -51,6 +53,7 @@ const CATEGORIES: [(Rebuild, &str); 8] = [
     (Rebuild::ShaderMaterial, "shader_material"),
     (Rebuild::Theme, "theme"),
     (Rebuild::UiTree, "ui_tree"),
+    (Rebuild::UiLayout, "ui_layout"),
 ];
 
 static COUNTS: [AtomicU64; CATEGORIES.len()] = [const { AtomicU64::new(0) }; CATEGORIES.len()];
