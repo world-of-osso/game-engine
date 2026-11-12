@@ -1,5 +1,5 @@
 //! Retail Mainline CollectionsJournal: one portrait shell and shared tab bar.
-use game_engine_ui_model::merchant_frame_component::tab_width;
+use game_engine_ui_model::merchant_frame_component::{PanelTab, PanelTabResize, panel_tabs};
 use game_engine_ui_model::quest_art::{
     DynName, named_atlas_texture, portrait_border, window_portrait_slot, window_portrait_texture,
 };
@@ -189,34 +189,28 @@ fn atlas_corner_ring(
 }
 
 fn tabs(selected: usize) -> Element {
-    let mut left = 11.0;
-    let mut tabs: Vec<_> = TABS
+    let tabs: Vec<_> = TABS
         .into_iter()
         .enumerate()
         .map(|(index, title)| {
-            let width = tab_width(title);
-            let tab = journal_tab(index, selected, title, left, width);
-            // Retail AnchorTabs uses a +3px gap after SetNumTabs.
-            left += width + 3.0;
-            tab
+            let action = match index {
+                0 => "collections:mounts",
+                1 => "collections:pets",
+                2 => "collections:toys",
+                _ => "",
+            };
+            PanelTab::new(
+                format!("CollectionsJournalTab{}", index + 1),
+                title,
+                action,
+                index == selected,
+            )
         })
         .collect();
-    let active = tabs.remove(selected);
-    tabs.into_iter().flatten().chain(active).collect()
-}
-
-fn journal_tab(index: usize, active: usize, title: &str, left: f32, width: f32) -> Element {
-    let action = match index {
-        0 => "collections:mounts",
-        1 => "collections:pets",
-        2 => "collections:toys",
-        _ => "",
-    };
-    game_engine_ui_model::merchant_frame_component::tab(
-        &format!("CollectionsJournalTab{}", index + 1),
-        title,
-        (left, SIZE[1] - 2.0, width),
-        index == active,
-        action,
+    panel_tabs(
+        &tabs,
+        (11.0, SIZE[1] - 2.0),
+        PanelTabResize::default(),
+        ui_toolkit::tab_art::TabLayout::Panel,
     )
 }

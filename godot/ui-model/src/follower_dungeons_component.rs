@@ -10,7 +10,7 @@ use crate::quest_art::{
     DynName, NORMAL_FONT_COLOR, named_atlas_texture, panel_button, window_chrome,
 };
 use crate::ui::screens::auction_house_frame_component::inset_border;
-use crate::ui::screens::merchant_frame_component::{tab, tab_width};
+use crate::ui::screens::merchant_frame_component::{PanelTab, PanelTabResize, panel_tabs};
 use shared::protocol::GroupRoleSnapshot;
 use ui_toolkit::{rsx, screen::SharedContext, strata::FrameStrata, widget_def::Element};
 
@@ -18,13 +18,21 @@ pub const FOLLOWER_LIST: &str = "LFDQueueFrameFollowerScrollBox";
 pub const ROW_HEIGHT: usize = 20;
 const LIST_HEIGHT: f32 = 177.0;
 const QUEUE_LEFT: f32 = 224.0;
+const FRAME_W: f32 = 563.0;
+const FRAME_H: f32 = 428.0;
+const TABS_LEFT: f32 = 19.0;
 
 pub(super) fn screen(shared: &SharedContext) -> Element {
     let view = shared.get::<View>().cloned().unwrap_or_default();
     if !view.visible {
         return vec![];
     }
-    let mut children = window_chrome("PVEFrame", (563.0, 428.0), "Group Finder", "follower:close");
+    let mut children = window_chrome(
+        "PVEFrame",
+        (FRAME_W, FRAME_H),
+        "Group Finder",
+        "follower:close",
+    );
     children.extend(named_atlas_texture(
         "PVEFramePortrait".into(),
         "groupfinder-eye-frame",
@@ -34,32 +42,26 @@ pub(super) fn screen(shared: &SharedContext) -> Element {
     children.extend(categories());
     children.extend(queue_panel(shared, &view));
     children.extend(tabs());
-    rsx! { r#frame { name: "PVEFrame", width: 563.0, height: 428.0, left: 100.0, top: 84.0,
+    rsx! { r#frame { name: "PVEFrame", width: FRAME_W, height: FRAME_H, left: 100.0, top: 84.0,
     pos_type: "absolute", strata: FrameStrata::Dialog, mouse_enabled: true, {children} } }
 }
-/// PVEFrame.xml PanelTabButtonTemplate: BOTTOMLEFT19,-30; subsequent LEFT-to-RIGHT -16.
+/// PVEFrame.lua calls SetNumTabs, which reanchors these templates at +3 and sets
+/// maxTabWidth to (frame width - 19) / tab count.
 fn tabs() -> Element {
-    let mut left = 19.0;
-    [
-        ("Group Finder", ""),
-        ("Player vs. Player", "follower:pvp"),
-        ("Mythic+ Dungeons", ""),
-    ]
-    .into_iter()
-    .enumerate()
-    .flat_map(|(index, (title, action))| {
-        let width = tab_width(title);
-        let elements = tab(
-            &format!("PVEFrameTab{}", index + 1),
-            title,
-            (left, 428.0 + 30.0 - 32.0, width),
-            index == 0,
-            action,
-        );
-        left += width - 16.0;
-        elements
-    })
-    .collect()
+    let tabs = [
+        PanelTab::new("PVEFrameTab1", "Group Finder", "", true),
+        PanelTab::new("PVEFrameTab2", "Player vs. Player", "follower:pvp", false),
+        PanelTab::new("PVEFrameTab3", "Mythic+ Dungeons", "", false),
+    ];
+    panel_tabs(
+        &tabs,
+        (TABS_LEFT, FRAME_H + 30.0 - 32.0),
+        PanelTabResize {
+            max_width: Some((FRAME_W - TABS_LEFT) / tabs.len() as f32),
+            ..PanelTabResize::default()
+        },
+        ui_toolkit::tab_art::TabLayout::Panel,
+    )
 }
 fn categories() -> Element {
     [

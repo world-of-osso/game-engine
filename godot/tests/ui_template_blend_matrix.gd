@@ -38,7 +38,7 @@ func cases(forever: bool) -> Array:
 func run_cases() -> void:
 	root.size = Vector2i(1920, 1080)
 	root.content_scale_size = Vector2i.ZERO
-	completion = preload("res://tests/completion.gd").new(self, 42)
+	completion = preload("res://tests/completion.gd").new(self, 21)
 	var output := OS.get_environment("UI_TEMPLATE_BLEND_CAPTURES")
 	if not completion.require(not output.is_empty(), "UI_TEMPLATE_BLEND_CAPTURES required"):
 		return

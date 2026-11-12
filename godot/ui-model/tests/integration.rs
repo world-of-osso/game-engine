@@ -72,6 +72,7 @@ mod npcportraits;
 mod options_policy;
 mod options_views;
 mod panel_lifecycle;
+mod panel_tabs;
 mod party_layout;
 mod personal_resource_display;
 mod pet_action_bar;

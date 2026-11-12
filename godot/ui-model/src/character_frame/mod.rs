@@ -64,7 +64,7 @@ pub fn paperdoll_unequip_request(
     })))
 }
 pub use crate::character_frame_component::{equipment_slot_action, parse_equipment_slot_action};
-use crate::merchant_frame_component::{tab, tab_width};
+use crate::merchant_frame_component::{PanelTab, PanelTabResize, panel_tabs};
 use crate::quest_art::{
     DynName, HIGHLIGHT_FONT_COLOR, NORMAL_FONT_COLOR, portrait_border, window_chrome,
     window_portrait, window_portrait_slot,
@@ -1013,7 +1013,7 @@ fn slot_icon(button: &PaperDollButton, view: &PaperDollSlotView) -> Element {
     children
 }
 
-/// CF.xml: tabs TOPLEFT at previous TOPRIGHT+1, first BOTTOMLEFT11,2.
+/// CF.xml: first BOTTOMLEFT11,2; `SetNumTabs` replaces later XML +1 anchors with +3.
 /// CF.lua67–73/TokenUI.lua: undiscovered wallets do not expose Currency.
 fn tabs(selected: CharacterTab, has_currencies: bool, size: (f32, f32)) -> Element {
     // Keep pre-existing undiscovered-wallet chrome out of this continuation.
@@ -1021,52 +1021,47 @@ fn tabs(selected: CharacterTab, has_currencies: bool, size: (f32, f32)) -> Eleme
     if thread_skin() == ActiveSkin::Forever && !has_currencies {
         return forever_tabs(selected, size.0);
     }
-    let (character_w, reputation_w) = (tab_width("Character"), tab_width("Reputation"));
     let definitions = [
         (
             1,
             "Character",
-            11.0,
             CharacterTab::PaperDoll,
             ACTION_TAB_CHARACTER,
         ),
         (
             2,
             "Reputation",
-            12.0 + character_w,
             CharacterTab::Reputation,
             ACTION_TAB_REPUTATION,
         ),
         (
             3,
             "Currency",
-            13.0 + character_w + reputation_w,
             CharacterTab::Currency,
             "character_tab:currency",
         ),
     ];
-    let mut visible: Vec<_> = definitions
+    let tabs: Vec<_> = definitions
         .into_iter()
-        .filter(|(id, _, _, _, _)| *id != 3 || has_currencies)
-        .collect();
-    visible.sort_by_key(|(_, _, _, which, _)| *which == selected);
-    visible
-        .into_iter()
-        .flat_map(|(id, title, left, which, action)| {
-            tab(
-                &format!("CharacterFrameTab{id}"),
+        .filter(|(id, _, _, _)| *id != 3 || has_currencies)
+        .map(|(id, title, which, action)| {
+            PanelTab::new(
+                format!("CharacterFrameTab{id}"),
                 title,
-                (left, size.1 - 2.0, tab_width(title)),
-                which == selected,
                 action,
+                which == selected,
             )
         })
-        .collect()
+        .collect();
+    panel_tabs(
+        &tabs,
+        (11.0, size.1 - 2.0),
+        PanelTabResize::default(),
+        ui_toolkit::tab_art::TabLayout::Panel,
+    )
 }
 
-/// Existing Character/Reputation actions, with Camelot's vertical mode-tab chrome.
-/// CharacterFrame.xml:569-589; CharacterFrame.lua:207; SharedUIPanelTemplates.lua:313.
-/// Keep the existing Character/Reputation labels and approved tab art.
+/// Current text-only Forever Character/Reputation side-tab projection.
 fn forever_tabs(selected: CharacterTab, frame_width: f32) -> Element {
     let background = art::resolve_art("common-sidetab");
     let (w, art_h) = background.size();

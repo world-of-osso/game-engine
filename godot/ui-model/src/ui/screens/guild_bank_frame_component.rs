@@ -14,7 +14,7 @@ use crate::ui::screens::bank_art::{
     HIGHLIGHT_FONT_COLOR, ITEM_BUTTON, MoneyBoxNames, MoneyPrompt, QUICKSLOT, SlotItem, WHITE,
     cropped, edit_box, item_slot, label, money_display, money_prompt, texture,
 };
-use crate::ui::screens::merchant_frame_component::{tab, tab_width};
+use crate::ui::screens::merchant_frame_component::{PanelTab, PanelTabResize, panel_tabs};
 use crate::ui::screens::quest_art::{
     DynName, NORMAL_FONT_COLOR, panel_button, window_chrome_no_portrait,
 };
@@ -24,6 +24,7 @@ pub const FRAME_NAME: &str = "GuildBankFrame";
 /// GB.xml:167 `<Size x="750" y="428"/>`.
 pub const FRAME_W: f32 = 750.0;
 pub const FRAME_H: f32 = 428.0;
+const MODE_TAB_MAX_WIDTH: f32 = 128.0;
 
 pub const ACTION_CLOSE: &str = "guild_bank_close";
 /// `guild_bank_mode:<bank|log|moneylog|info>`.
@@ -755,35 +756,33 @@ fn side_tab(index: usize, icon: u32, selected: bool, action: &str) -> Element {
 }
 
 /// `GuildBankFrameTab1..4` (PanelTabButtonTemplate, maxTabWidth 128) from the frame's
-/// BOTTOMLEFT 7,-30 (GB.xml:572-579).
+/// BOTTOMLEFT 7,-30 (GB.xml:572-579); `SetNumTabs` anchors at the shared +3 spacing.
 fn mode_tabs(mode: GuildBankModeView) -> Element {
-    let tabs = [
+    let definitions = [
         ("Guild Bank", GuildBankModeView::Bank, "bank"),
         ("Log", GuildBankModeView::Log, "log"),
         ("Money Log", GuildBankModeView::MoneyLog, "moneylog"),
         ("Info", GuildBankModeView::Info, "info"),
     ];
-    let top = FRAME_H + 30.0 - 32.0;
-    let mut x = 7.0;
-    let mut selected = Element::default();
-    let mut others = Element::default();
-    for (index, (label_text, tab_mode, key)) in tabs.into_iter().enumerate() {
-        let width = tab_width(label_text).min(128.0);
-        let element = tab(
-            &format!("{FRAME_NAME}Tab{}", index + 1),
-            label_text,
-            (x, top, width),
-            mode == tab_mode,
-            &format!("{ACTION_MODE_PREFIX}{key}"),
-        );
-        if mode == tab_mode {
-            selected.extend(element);
-        } else {
-            others.extend(element);
-        }
-        // PanelTemplates_AnchorTabs places each tab 3px after its predecessor.
-        x += width + 3.0;
-    }
-    others.extend(selected);
-    others
+    let tabs: Vec<_> = definitions
+        .into_iter()
+        .enumerate()
+        .map(|(index, (label, tab_mode, key))| {
+            PanelTab::new(
+                format!("{FRAME_NAME}Tab{}", index + 1),
+                label,
+                format!("{ACTION_MODE_PREFIX}{key}"),
+                mode == tab_mode,
+            )
+        })
+        .collect();
+    panel_tabs(
+        &tabs,
+        (7.0, FRAME_H + 30.0 - 32.0),
+        PanelTabResize {
+            max_width: Some(MODE_TAB_MAX_WIDTH),
+            ..PanelTabResize::default()
+        },
+        ui_toolkit::tab_art::TabLayout::Panel,
+    )
 }

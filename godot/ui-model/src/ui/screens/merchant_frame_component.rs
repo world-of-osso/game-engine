@@ -989,34 +989,30 @@ fn render_money_parts(
     children
 }
 
-/// `MerchantFrameTab1` CENTER at BOTTOMLEFT 50,-15 and Tab2 at its RIGHT -16,0
-/// (MF.xml:576-594); PanelTabButtonTemplate 32 high, width = text + 20 but at
-/// least both caps (SharedUIPanelTemplates.lua:393-395).
+/// `MerchantFrameTab1` CENTER at BOTTOMLEFT 50,-15 (MF.xml:583-594). Its
+/// `PanelTemplates_SetNumTabs` call replaces the XML's -16 chain with LEFT-to-RIGHT +3.
 fn tabs(buyback_tab: bool) -> Element {
-    let tab1_w = tab_width("Merchant");
-    let tab2_w = tab_width("Buyback");
-    let top = FRAME_H + 15.0 - 16.0;
-    let tab1_x = 50.0 - tab1_w / 2.0;
-    let merchant = tab(
-        "MerchantFrameTab1",
-        "Merchant",
-        (tab1_x, top, tab1_w),
-        !buyback_tab,
-        ACTION_TAB_MERCHANT,
-    );
-    let buyback = tab(
-        "MerchantFrameTab2",
-        "Buyback",
-        (tab1_x + tab1_w - 16.0, top, tab2_w),
-        buyback_tab,
-        ACTION_TAB_BUYBACK,
-    );
-    // The tabs overlap by 16 px; the selected one is drawn over the other.
-    if buyback_tab {
-        merchant.into_iter().chain(buyback).collect()
-    } else {
-        buyback.into_iter().chain(merchant).collect()
-    }
+    let tabs = [
+        PanelTab::new(
+            "MerchantFrameTab1",
+            "Merchant",
+            ACTION_TAB_MERCHANT,
+            !buyback_tab,
+        ),
+        PanelTab::new(
+            "MerchantFrameTab2",
+            "Buyback",
+            ACTION_TAB_BUYBACK,
+            buyback_tab,
+        ),
+    ];
+    panel_tabs_centered_first(
+        &tabs,
+        50.0,
+        FRAME_H + 15.0 - 16.0,
+        PanelTabResize::default(),
+        ui_toolkit::tab_art::TabLayout::Panel,
+    )
 }
 
 #[path = "merchant_frame_component_achievement.rs"]
@@ -1033,6 +1029,89 @@ impl<'a> From<&'a str> for TabLabel<'a> {
     }
 }
 
+pub const PANEL_TAB_SIDES_PADDING: f32 = 20.0;
+pub const PANEL_TAB_SIDE_WIDTHS: f32 = 72.0;
+
+/// Width inputs from `PanelTemplates_TabResize`.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct PanelTabResize {
+    pub padding: f32,
+    pub absolute_width: Option<f32>,
+    pub min_width: Option<f32>,
+    pub max_width: Option<f32>,
+}
+impl Default for PanelTabResize {
+    fn default() -> Self {
+        Self {
+            padding: 0.0,
+            absolute_width: None,
+            min_width: None,
+            max_width: None,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct PanelTabSize {
+    pub width: f32,
+    pub text_width: f32,
+}
+
+/// Apply Retail `PanelTemplates_TabResize` to one `GameFontNormalSmall` caption.
+pub fn resize_panel_tab(label: &str, resize: PanelTabResize) -> PanelTabSize {
+    let font = ui_toolkit::font_object::resolve_font_object("GameFontNormalSmall");
+    let (measured_text_width, _) = measure_text(label, font.font, font.font_size)
+        .expect("PanelTabButtonTemplate font metrics");
+    let natural_width = measured_text_width + PANEL_TAB_SIDES_PADDING + resize.padding;
+    let constrained_text_width = |width| width - PANEL_TAB_SIDES_PADDING - resize.padding;
+
+    let (width, text_width) = if let Some(absolute_width) = resize.absolute_width {
+        let width = absolute_width.max(PANEL_TAB_SIDE_WIDTHS);
+        (width, constrained_text_width(width))
+    } else if let Some(max_width) = resize.max_width
+        && natural_width > max_width
+    {
+        (max_width, constrained_text_width(max_width))
+    } else {
+        let min_width = resize.min_width.unwrap_or(PANEL_TAB_SIDE_WIDTHS);
+        if natural_width < min_width {
+            (min_width, constrained_text_width(min_width))
+        } else {
+            (natural_width, measured_text_width)
+        }
+    };
+
+    PanelTabSize { width, text_width }
+}
+
+/// Advance a tab by its measured width and the authored left-to-right offset.
+pub fn next_panel_tab_left(left: f32, width: f32, offset: f32) -> f32 {
+    left + width + offset
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct PanelTab {
+    pub name: String,
+    pub label: String,
+    pub action: String,
+    pub selected: bool,
+}
+impl PanelTab {
+    pub fn new(
+        name: impl Into<String>,
+        label: impl Into<String>,
+        action: impl Into<String>,
+        selected: bool,
+    ) -> Self {
+        Self {
+            name: name.into(),
+            label: label.into(),
+            action: action.into(),
+            selected,
+        }
+    }
+}
+
 pub enum TabGeometry {
     Panel(f32, f32, f32),
     Minimal(f32, f32, f32),
@@ -1044,36 +1123,76 @@ impl From<(f32, f32, f32)> for TabGeometry {
     }
 }
 
+pub const PANEL_TABS_ANCHOR_OFFSET: f32 = 3.0;
+
+/// Build a row anchored by `PanelTemplates_AnchorTabs` at LEFT-to-RIGHT +3.
+pub fn panel_tabs(
+    tabs: &[PanelTab],
+    start: (f32, f32),
+    resize: PanelTabResize,
+    layout: ui_toolkit::tab_art::TabLayout,
+) -> Element {
+    let (mut left, top) = start;
+    let mut inactive = Element::default();
+    let mut selected = Element::default();
+    for tab in tabs {
+        let size = resize_panel_tab(&tab.label, resize);
+        let element = panel_tab(
+            &tab.name,
+            &tab.label,
+            &tab.action,
+            tab.selected,
+            (left, top),
+            size,
+            layout,
+        );
+        if tab.selected {
+            selected.extend(element);
+        } else {
+            inactive.extend(element);
+        }
+        left = next_panel_tab_left(left, size.width, PANEL_TABS_ANCHOR_OFFSET);
+    }
+    inactive.extend(selected);
+    inactive
+}
+
+/// Center the first tab on its horizontal source anchor, then use shared row geometry.
+pub fn panel_tabs_centered_first(
+    tabs: &[PanelTab],
+    center_x: f32,
+    top: f32,
+    resize: PanelTabResize,
+    layout: ui_toolkit::tab_art::TabLayout,
+) -> Element {
+    let first = tabs.first().expect("PanelTabButtonTemplate needs one tab");
+    let first_width = resize_panel_tab(&first.label, resize).width;
+    panel_tabs(tabs, (center_x - first_width / 2.0, top), resize, layout)
+}
+
 pub fn tab_width<'a>(label: impl Into<TabLabel<'a>>) -> f32 {
-    let label = match label.into() {
-        TabLabel::Panel(label) => label,
+    match label.into() {
+        TabLabel::Panel(label) => resize_panel_tab(label, PanelTabResize::default())
+            .width
+            .ceil(),
         TabLabel::Achievement(label) => {
-            // Achievement XML OnShow: TabResize(30), shared Lua adds side padding20.
-            return (measure_text(label, GameFont::FrizQuadrata, 10.0)
-                .expect("Achievement tabs require GameFontNormalSmall")
-                .0
-                + 50.0)
-                .max(39.0);
+            resize_panel_tab(
+                label,
+                PanelTabResize {
+                    padding: 30.0,
+                    min_width: Some(39.0),
+                    ..PanelTabResize::default()
+                },
+            )
+            .width
         }
         // MinimalTabMixin:OnLoad: GameFontNormal string width +40.
-        TabLabel::Minimal(label) => {
-            return (measure_text(label, GameFont::FrizQuadrata, 12.0)
-                .expect("MinimalTab requires GameFontNormal")
-                .0
-                + 40.0)
-                .ceil();
-        }
-    };
-    ui_toolkit::tab_art::measured_tab_width(
-        ui_toolkit::tab_art::TabLayout::Panel,
-        label,
-        ui_toolkit::tab_art::TabWidth {
-            padding: 0.0,
-            minimum: None,
-            maximum: None,
-        },
-    )
-    .ceil()
+        TabLabel::Minimal(label) => (measure_text(label, GameFont::FrizQuadrata, 12.0)
+            .expect("MinimalTab requires GameFontNormal")
+            .0
+            + 40.0)
+            .ceil(),
+    }
 }
 
 /// MinimalTab.xml anchors each cap to BOTTOM, center between their TOP corners.
@@ -1160,12 +1279,33 @@ pub fn tab(
             return minimal_tab(name, label, (x, y, width), selected, action);
         }
     };
-    use ui_toolkit::tab_art::{TabArtSpec, TabLayout, tab_art, text_y_offset};
-    let mut children = tab_art(
+    panel_tab(
         name,
-        TabArtSpec::new(TabLayout::Panel, selected, [width, 32.0]),
-    );
-    let text_y = (32.0 - 10.0) / 2.0 - text_y_offset(TabLayout::Panel, selected);
+        label,
+        action,
+        selected,
+        (x, y),
+        PanelTabSize {
+            width,
+            text_width: width,
+        },
+        ui_toolkit::tab_art::TabLayout::Panel,
+    )
+}
+
+fn panel_tab(
+    name: &str,
+    label: &str,
+    action: &str,
+    selected: bool,
+    (x, y): (f32, f32),
+    size: PanelTabSize,
+    layout: ui_toolkit::tab_art::TabLayout,
+) -> Element {
+    use ui_toolkit::tab_art::{TabArtSpec, tab_art, text_y_offset};
+    let mut children = tab_art(name, TabArtSpec::new(layout, selected, [size.width, 32.0]));
+    let text_left = (size.width - size.text_width) / 2.0;
+    let text_y = (32.0 - 10.0) / 2.0 - text_y_offset(layout, selected);
     let color = if selected {
         HIGHLIGHT_FONT_COLOR
     } else {
@@ -1174,7 +1314,7 @@ pub fn tab(
     children.extend(text(Text {
         name: format!("{name}Text"),
         text: label,
-        rect: (0.0, text_y, width, 10.0),
+        rect: (text_left, text_y, size.text_width, 10.0),
         font: GameFont::FrizQuadrata,
         size: 10.0,
         color,
@@ -1185,7 +1325,7 @@ pub fn tab(
     rsx! {
         button {
             name: {DynName(name.into())},
-            width,
+            width: size.width,
             height: 32.0,
             onclick: action,
             button_default_skin: false,

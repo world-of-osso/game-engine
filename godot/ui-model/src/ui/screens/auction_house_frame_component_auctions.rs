@@ -34,21 +34,29 @@ pub(super) fn auctions_content(state: &AuctionHouseFrameState) -> Element {
 /// `BidsTab` 3 right of it (`PanelTemplates_AnchorTabs`)
 /// (Mainline/Blizzard_AuctionHouseAuctionsFrame.xml:56-62).
 fn top_tabs(active: AuctionsSubTab) -> Element {
-    let auctions_w = tab_width("Auctions");
+    let resize = PanelTabResize {
+        padding: 20.0,
+        min_width: Some(70.0),
+        ..PanelTabResize::default()
+    };
+    let auctions = resize_panel_tab("Auctions", resize);
     let mut out = panel_tab(
         "AuctionHouseFrameAuctionsFrameAuctionsTab",
         "Auctions",
         &format!("{ACTION_AUCTIONS_TAB_PREFIX}auctions"),
         active == AuctionsSubTab::Auctions,
-        (52.0, 43.0, auctions_w),
+        (52.0, 43.0),
+        auctions,
         true,
     );
+    let bids_left = next_panel_tab_left(52.0, auctions.width, PANEL_TABS_ANCHOR_OFFSET);
     out.extend(panel_tab(
         "AuctionHouseFrameAuctionsFrameBidsTab",
         "Bids",
         &format!("{ACTION_AUCTIONS_TAB_PREFIX}bids"),
         active == AuctionsSubTab::Bids,
-        (52.0 + auctions_w + 3.0, 43.0, tab_width("Bids")),
+        (bids_left, 43.0),
+        resize_panel_tab("Bids", resize),
         true,
     ));
     out
