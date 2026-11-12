@@ -53,6 +53,10 @@ The host keeps the set of NPCs it has queried. It sends one `QuestGiverStatusQue
 - `godot/{rust,ui-model}/src/minimap.rs`, `godot/ui-model/src/{minimap_units,minimap_tracking}.rs` — host projection, rendering and local selection.
 - `shared-protocol/src/protocol/{group_messages,interaction_messages,tooltip_messages}.rs` — group positions, service flags and query-only creature type.
 
+## See Also
+
+- [[calendar-panel]] — Forever-only date-button entry point and native CalendarFrame.
+
 ## Gotchas
 
 - `QuestLogSnapshot` and `QuestLogUpdate` carry `watched_quest_ids`, and the tracker order comes from that list; see [[quest-ui]]. Before this port, `Account` kept only the entries.

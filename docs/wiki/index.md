@@ -1,3 +1,5 @@
+- [Native Calendar panel](systems/calendar-panel.md) — Forever-only CalendarFrame, server-snapshot filtering, dark other-month dates, full year label, and fresh private 3× proof with no world bleed.
+- [Calendar panel rendering](investigations/calendar-panel-rendering.md) — causes and fixes for day shading and title clipping; records the remaining edge-specific UV limit and before/after crops.
 - [Crowded combat FPS](investigations/crowd-combat-fps.md) — 40 geared warriors at the Stormwind dummies: Battle Shout ground kits froze the client 9-62 s. Query cuts, a drape cache, one copy per M2 LOS file, WMO batches once per column and worker-thread draping (kits hidden until draped) bring the Shout phase to 319-493 frames per 20 s with about 1-2 ms of main-thread draping per frame; output identical to master.
 - [Release FPS reprofile — 2026-11-11](investigations/release-fps-reprofile-2026-11-11.md) — standard Stormwind and Ruby profiles, top-five main-system costs, 25/25 byte parity; a trustworthy same-pose FPS A/B remains open.
 - [Dungeon camera below ADT](investigations/dungeon-camera-adt.md) — VERIFIED generic mesh-ray correction: Ruby's 15 yd Forever view is restored; outdoor terrain collision remains. Native camera tests pass17/17, core camera tests pass9/9, and debug/release checks have zero warnings.
@@ -339,7 +341,7 @@
 
 - [Shared Retail menu primitives](systems/menu-primitives.md) — source dropdown/filter/reset/menu elements and measured NavBar; native decimal-alpha regression fixture and [bounded native menu order](systems/menu-primitives.md#native-menu-order-2026-10-18).
 
-- [Native follower dungeon Group Finder](systems/follower-dungeons.md) — VERIFIED server-sent inclusive bounds lock out-of-range Forever rows with Retail GlobalStrings and block queueing; prior both-skin admission/five-role/14m follow proof and private level-10 Ruby admission remain documented, along with the separate Warlock pet-summon gap.
+- [Native follower dungeon Group Finder](systems/follower-dungeons.md) — VERIFIED server-sent inclusive bounds lock out-of-range Forever rows with Retail GlobalStrings and block queueing; server-authoritative level eligibility and localized refusals; VERIFIED private level-10 Ruby queue naturally selected Warlock spec266 and kept four followers for 271.258 s. Evidence is linked from the page.
 
 - [Source-private summons](systems/toy-box.md#source-private-summon-proof-2026-10-12) — real two-peer owner-only UDP repair/public control and both-skin owner sign model/scale/natural expiry; census337 unchanged.
 

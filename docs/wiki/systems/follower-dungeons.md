@@ -18,7 +18,13 @@ VERIFIED (engine UI-model 11/11 at `0a473ee2`, native account/chat 4/4 at `b8eea
 
 VERIFIED (private server log, UDP 5996, November 11, 2026): a level-10 Paladin entered Ruby Life Pools map2521 instance2. VERIFIED (same server log): the normal queue selected follower specs `[104, 264, 64, 254]`. VERIFIED (scene and party-frame captures): samples at 23:44:57.030/23:44:57.602 and 23:46:53.328/23:46:54.048 CST, 116.298/116.446 seconds apart, show `Fjpaladin` and `Follower1`–`Follower4` at the dungeon entrance. The private logs, proof ledger and captures are under `data/diagnostics/follower-join-fail-2026-11-11/private-run/`.
 
-VERIFIED (separate private server log): an earlier natural party selection with Warlock spec265 failed because pet entry417 resolved zero learned native summons and returned the character to map0; this gap remains unchanged. VERIFIED (run script and server log): the passing run used normal selection without a profile or spell workaround. UNVERIFIED: other random party compositions are not covered by this single successful run.
+VERIFIED (historical private server log): an earlier natural party selection with Warlock spec265 failed because pet entry417 resolved zero learned native summons and returned the character to map0. The server-side root cause and fix are recorded in the local [follower-data investigation](../../../../game-server-s1/docs/wiki/investigations/follower-data.md#level-10-warlock-native-pet-selection--2026-11-12).
+
+## Level-10 Warlock live proof — 2026-11-12
+
+VERIFIED (private server log, UDP5996): after three normal queues without a Warlock, the fourth naturally selected spec266 in Ruby Life Pools instance5 at difficulty205. The server spawned specs `[66,105,102,266]` without the earlier pet-entry failure. VERIFIED (scene/UI and client IPC): the same `Follower1`–`Follower4` positions and party frames appear in snapshots 271.258 seconds apart; `game-engine-cli ping` returned `pong` at the second sample. The [private run ledger](../../../data/diagnostics/follower-join-fail-2026-11-11/private-run-warlock-2026-11-12/proof-ledger.txt) contains revisions, hashes, queue seeds, captures and cleanup. This proves one naturally selected Warlock party, not other compositions, movement or dungeon completion.
+
+VERIFIED (server startup log): Fury spec72 was excluded once at level10 because the Journal source pool had no ItemSpec72-eligible one-handed pair. See the server [follower-data investigation](../../../../game-server-s1/docs/wiki/investigations/follower-data.md#level-10-warlock-native-pet-selection--2026-11-12) for the source and targeted-test evidence.
 
 ## Native frames
 

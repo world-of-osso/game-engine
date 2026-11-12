@@ -9,6 +9,19 @@ VERIFIED, SOURCE: Retail `TOGGLECHARACTER4` calls `TogglePVPUI()` when available
 VERIFIED, TEST: the core input-binding suite passes 17/17, and the UI-model Interface-order/default test passes 1/1. VERIFIED, BUILD: the native extension and `native_input_fixture` build through `scripts/engine-build.py --fixture native_input_fixture`, exit 0.
 
 VERIFIED, FOREVER LIVE: the owned-UDP `keybinds` filter passes on `127.0.0.1:55974`. It checks U/Reputation, Shift-Y/Statistics, Ctrl-I/Group Finder, J/Guild, Shift-J/Adventure Guide, and a captured F7 binding that closes/reopens Minimap. It asserts the Forever UI skin; this does not claim the other keybind flow cases passed. VERIFIED, LIVE LOG: the same run logged unresolved negative-geoset rows and an excluded QuestPOIBlob, outside the binding assertions.
+## Native Calendar panel — 2026-11-12
+
+VERIFIED, CODE: `GameTimeFrame` opens the native CalendarFrame only in Forever; `CalendarStateUpdate` snapshots populate the local-date grid. No local holiday/event fallback or invented full-frame backdrop was added. The follow-up darkens other-month cells and raises the year plaque/label above the overlapping month art without changing their anchors.
+
+VERIFIED, TEST: The focused calendar integration filter passes 5/5 tests, including November 29–30 unchanged, December 1–12 shaded, and previous-month shading. Native dev and local release helper builds pass; `cargo fmt --all` passes.
+
+VERIFIED, LIVE: A fresh private client on UDP `127.0.0.1:5995` opened the panel, navigated November 2026 to December and back, closed it, and reopened it from `GameTimeFrame`. The final tree has 12 dark frames, 24 `CalendarShadows` textures, and no `EventBackground` frames. Client logs have no JS automation, authentication, or UI texture-load errors.
+
+VERIFIED, IMAGE: The fresh 3× header/grid capture shows no world bleed. The 4× crop shows November 29–30 normal and December 1–12 dark; the 8× crop shows all of `2026` at its XML anchor. Evidence is under `/syncthing/AgentShared/2026-11-12/calendar-panel/`. See [[calendar-panel-rendering]].
+
+VERIFIED, CLEANUP: The owned client and server stopped, and UDP port 5995 is free. The server used a private database copy under the engine target; no build or data write occurred in the game-server checkout.
+
+UNVERIFIED, LIVE: The final image contains no event title, so non-empty event rendering was not proven against a live server; the model test supplies a concrete `CalendarEventSnapshot`.
 
 ## Guild no-guild Communities display — 2026-11-11
 
@@ -53,6 +66,7 @@ VERIFIED: deployment seed tests3/3; server signed-bound test1/1, queue refusal/s
 ## SpellMisc spell lookup key — 2026-11-11
 
 VERIFIED: The random-mount icon used the SpellMisc row ID instead of its `SpellID` key; the engine constant and rendered-view test now use the Retail-resolved icon. See [[db2-format#installed-csv-column-order-and-signed-selections]].
+VERIFIED: deployment seed tests3/3; server signed-bound test1/1, queue refusal/source tests2/2 and spawn-failure log test1/1; engine UI-model11/11 and account/chat4/4. These assert local-seed requirements, existing/absent runtime-file behavior, signed LFG bounds with squish fallback, pre-transfer level refusal, server-catalog selection and localized Group Finder/system-chat errors. INFERRED: `TargetLevelMin/TargetLevelMax` identify the intended queue bounds; the server contract records this boundary. VERIFIED (private UDP 5996 on November 11, 2026): the level-10 Paladin entered Ruby Life Pools map2521 instance2 and remained with `Follower1`–`Follower4` in scene captures 116.298 seconds apart and party-frame captures 116.446 seconds apart. VERIFIED (private UDP5996 on November12, 2026): after three natural queues without a Warlock, the fourth selected spec266; the same four followers remained in scene/UI snapshots271.258 seconds apart and client IPC ping returned `pong`. The earlier spec265 pet417 failure is fixed; see the [server investigation](../../../game-server-s1/docs/wiki/investigations/follower-data.md#level-10-warlock-native-pet-selection--2026-11-12). Exact logs and captures are in `data/diagnostics/follower-join-fail-2026-11-11/private-run-warlock-2026-11-12/`; both live proofs cover only their selected parties, not full dungeon completion.
 
 ## Ruby emitter frustum cache — 2026-11-11
 

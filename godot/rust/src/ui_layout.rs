@@ -9,17 +9,26 @@ use ui_toolkit::atlas::{self, ActiveSkin};
 use crate::GameClient;
 
 impl GameClient {
+    pub(crate) fn load_character_ui_layout(&self) -> Result<ActiveLayout, String> {
+        let id = self
+            .account
+            .session
+            .selected_character_id
+            .ok_or("Character UI layout requires a selected server character ID")?;
+        ui_layout_data::active_layout(&self.account.hud_layout_path()?, id)
+    }
+
+    pub(crate) fn active_skin_for_layout(skin: LayoutSkin) -> ActiveSkin {
+        match skin {
+            LayoutSkin::Modern => ActiveSkin::Modern,
+            LayoutSkin::Forever => ActiveSkin::Forever,
+        }
+    }
+
     /// In the world the selected character's saved layout applies; glue screens draw Modern.
     pub(super) fn apply_screen_ui_layout(&mut self, screen: SessionScreen) -> Result<(), String> {
         let layout = match screen {
-            SessionScreen::InWorld => {
-                let id = self
-                    .account
-                    .session
-                    .selected_character_id
-                    .ok_or("In-world UI layout requires a selected server character ID")?;
-                ui_layout_data::active_layout(&self.account.hud_layout_path()?, id)?
-            }
+            SessionScreen::InWorld => self.load_character_ui_layout()?,
             SessionScreen::Login
             | SessionScreen::CharacterSelect
             | SessionScreen::CharacterCreate => ActiveLayout {
@@ -78,10 +87,7 @@ impl GameClient {
     /// canvas, each of which mirrors both into its SharedContext so the Screens that read
     /// them rebuild.
     pub(crate) fn apply_ui_layout(&mut self, layout: ActiveLayout) -> Result<(), String> {
-        let skin = match layout.skin {
-            LayoutSkin::Modern => ActiveSkin::Modern,
-            LayoutSkin::Forever => ActiveSkin::Forever,
-        };
+        let skin = Self::active_skin_for_layout(layout.skin);
         let settings = layout.settings;
         crate::ui::hud_edit_layout::publish_placements(layout.elements.clone());
         self.ui_layout = layout;

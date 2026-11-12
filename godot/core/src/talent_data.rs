@@ -366,16 +366,32 @@ impl<'a> Projection<'a> {
 
 pub fn load_talent_page(dir: &Path, class: u32, spec: u32) -> Result<TalentPage, String> {
     let tables = Tables::load(dir)?;
+    project_talent_page(&tables, class, spec)
+}
+
+/// Load the visual page and editable rule graph from one parsed DB2 table set.
+pub fn load_talent_page_and_rules(
+    dir: &Path,
+    class: u32,
+    spec: u32,
+) -> Result<(TalentPage, rule_data::TraitTree), String> {
+    let tables = Tables::load(dir)?;
+    let page = project_talent_page(&tables, class, spec)?;
+    let rules = rule_loader::load_trait_rules_from_tables(&tables, page.tree_id)?;
+    Ok((page, rules))
+}
+
+fn project_talent_page(tables: &Tables, class: u32, spec: u32) -> Result<TalentPage, String> {
     let class_name = tables.row("ChrClasses", class)?.text("Name_lang")?;
     let spec_row = tables.row("ChrSpecialization", spec)?;
     if spec_row.number("ClassID")? != class {
         return Err(format!("Spec {spec} does not belong to class {class}"));
     }
-    let tree_id = find_class_tree(&tables, class_name)?;
+    let tree_id = find_class_tree(tables, class_name)?;
     tables.row("TraitTree", tree_id)?;
-    let projection = Projection::build(&tables, spec)?;
+    let projection = Projection::build(tables, spec)?;
     let (nodes, subtrees) = project_nodes(&projection, tree_id)?;
-    let edges = read_edges(&tables, &nodes)?;
+    let edges = read_edges(tables, &nodes)?;
     let sides = infer_main_sides(&projection, &nodes, &subtrees, &edges)?;
     let mut page = TalentPage {
         tree_id,
@@ -393,10 +409,10 @@ pub fn load_talent_page(dir: &Path, class: u32, spec: u32) -> Result<TalentPage,
             .iter()
             .find(|node| node.node_type == SUBTREE_SELECTION)
             .cloned(),
-        starter_loadout_id: find_starter_loadout(&tables, tree_id, spec)?,
+        starter_loadout_id: find_starter_loadout(tables, tree_id, spec)?,
         ..Default::default()
     };
-    page.heroes = project_heroes(&tables, &page, &nodes, &subtrees, &edges)?;
+    page.heroes = project_heroes(tables, &page, &nodes, &subtrees, &edges)?;
     Ok(page)
 }
 fn find_class_tree(tables: &Tables, class_name: &str) -> Result<u32, String> {

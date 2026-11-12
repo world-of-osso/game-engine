@@ -17,6 +17,7 @@ mod bag_destroy;
 mod bags;
 mod bank;
 mod battleground;
+mod calendar;
 mod camera;
 mod challenge;
 mod char_create;
@@ -408,6 +409,7 @@ pub struct GameClient {
     merchant: merchant::Merchant,
     bags: bags::Bags,
     character_frame: character_frame::CharacterFrame,
+    calendar: calendar::Calendar,
     launcher: launcher::Launcher,
     tooltips: tooltips::Tooltips,
     mailbox: mail::Mailbox,
@@ -587,6 +589,7 @@ impl INode3D for GameClient {
             world_hover_pick: None,
             bags: bags::Bags::default(),
             character_frame: character_frame::CharacterFrame::default(),
+            calendar: calendar::Calendar::default(),
             launcher: launcher::Launcher::default(),
             tooltips: tooltips::Tooltips::default(),
             mailbox: mail::Mailbox::default(),
@@ -2256,6 +2259,14 @@ impl GameClient {
     }
 
     fn effective_ui_scale(&self) -> f32 {
+        self.effective_ui_scale_for_screen(self.account.session.screen == SessionScreen::InWorld)
+    }
+
+    pub(crate) fn effective_world_ui_scale(&self) -> f32 {
+        self.effective_ui_scale_for_screen(true)
+    }
+
+    fn effective_ui_scale_for_screen(&self, in_world: bool) -> f32 {
         let viewport = self
             .base()
             .get_viewport()
@@ -2264,7 +2275,7 @@ impl GameClient {
         ui_scale::effective_ui_scale(
             [viewport.x, viewport.y],
             self.client_options.graphics.ui_scale,
-            self.account.session.screen == SessionScreen::InWorld,
+            in_world,
         )
     }
 
@@ -2299,6 +2310,7 @@ impl GameClient {
         self.tooltips.visit_uis(&mut visit)?;
         self.merchant.visit_uis(&mut visit)?;
         self.character_frame.visit_uis(&mut visit)?;
+        self.calendar.visit_uis(&mut visit)?;
         if let Some(ui) = &mut self.mailbox.ui {
             visit(ui)?;
         }
@@ -2350,8 +2362,18 @@ impl GameClient {
     }
 
     fn sync_registry_ui_scale(&mut self) -> Result<(), String> {
+        // Keep the hidden talent page at world scale during Loading; changing it to
+        // the glue-screen scale and back would rebuild the full tree twice.
         let scale = self.effective_ui_scale();
-        self.for_each_registry_ui(|ui| ui.bind_mut().set_ui_scale(scale))
+        let prewarm_scale = self.effective_world_ui_scale();
+        self.for_each_registry_ui(|ui| {
+            let scale = if ui.get_name().to_string() == "SpellBookPrewarmUI" {
+                prewarm_scale
+            } else {
+                scale
+            };
+            ui.bind_mut().set_ui_scale(scale)
+        })
     }
 
     fn connect_focus_reset(&mut self) -> Result<(), String> {
@@ -2935,6 +2957,7 @@ impl GameClient {
             ("Encounter", |c, d| c.update_encounter(d)),
             ("World map", |c, _| c.update_world_map()),
             ("Minimap", |c, _| c.update_minimap()),
+            ("Calendar", |c, _| c.update_calendar()),
             ("Quests", |c, _| c.update_quests()),
             ("Objective tracker", |c, _| c.update_objective_tracker()),
             ("Mythic Keystone", |c, _| c.update_challenge()),
@@ -3139,6 +3162,7 @@ impl GameClient {
             AccountEvent::GameTime(time) => {
                 self.world_clock = Some((time.second_of_day(), time.new_speed, Instant::now()));
             }
+            AccountEvent::Calendar(update) => self.receive_calendar_update(update)?,
             AccountEvent::LoadTerrain(request) => self.request_terrain(request)?,
             AccountEvent::NewWorld(destination) => self.transfer_world(destination)?,
             AccountEvent::TransferError(error) => self.add_world_error(&error)?,
@@ -3698,12 +3722,29 @@ impl GameClient {
             global_wmo,
             objects,
         );
+        if readiness.complete
+            && let Err(error) = self.prewarm_spellbook_talents()
+        {
+            frame_error::report_once(&format!("Talent UI prewarm: {error}"));
+        }
+        let delay_world_entry =
+            readiness.complete && self.should_delay_world_entry_for_talent_ui(self.frame_id);
+        let progress_percent = if delay_world_entry {
+            readiness.progress_percent.min(99)
+        } else {
+            readiness.progress_percent
+        };
+        let status_text = if delay_world_entry {
+            "Preparing talents..."
+        } else {
+            readiness.status_text.as_str()
+        };
         if let Some(ui) = self.loading_ui.as_mut() {
-            ui.bind_mut().advance_loading(
-                readiness.progress_percent,
-                &readiness.status_text,
-                delta,
-            )?;
+            ui.bind_mut()
+                .advance_loading(progress_percent, status_text, delta)?;
+        }
+        if delay_world_entry {
+            return Ok(());
         }
         if readiness.complete {
             self.account.session.screen = SessionScreen::InWorld;
@@ -3735,6 +3776,7 @@ impl GameClient {
     }
 
     fn reset_world(&mut self) -> Result<(), String> {
+        self.calendar.reset();
         self.close_toybox();
         self.toybox.model = Default::default();
         self.close_housing();

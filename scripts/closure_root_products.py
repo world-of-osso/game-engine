@@ -16,6 +16,10 @@ ITEM_SOURCES = {"Retail": "wow", "Forever70205": "wow_classic_beta"}
 
 @contextmanager
 def source_catalog(graph, product, *, owned_items=False):
+    if not hasattr(graph, "source_appearances"):
+        graph.source_appearances = {}
+    if not hasattr(graph, "source_catalogs"):
+        graph.source_catalogs = {}
     previous = (
         graph.product,
         graph.metadata_build,
@@ -300,12 +304,12 @@ def seed_items(graph, items):
             )
             continue
         groups[source].add(item)
-    from closure_seeds import seed_item_display_rows
+    from closure_seeds import seed_item_display_rows_from_tables
 
     for source, wanted in groups.items():
         if not wanted:
             continue
         with source_catalog(graph, ITEM_SOURCES[source], owned_items=True) as catalogs:
-            seed_item_display_rows(
+            seed_item_display_rows_from_tables(
                 graph, catalogs, owned_displays(catalogs, sorted(wanted))
             )

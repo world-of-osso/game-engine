@@ -404,6 +404,8 @@ fn label(spec: Label<'_>, s: f32) -> Element {
 }
 
 pub fn spellbook_frame_screen(ctx: &SharedContext) -> Element {
+    // Talent art reads the thread skin while building nodes; track layout skin changes.
+    let _ = ctx.get::<ui_toolkit::atlas::ActiveSkin>();
     let state = ctx
         .get::<SpellbookFrameState>()
         .expect("SpellbookFrameState must be in SharedContext");
