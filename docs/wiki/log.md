@@ -16,6 +16,11 @@ VERIFIED, CODE: The guild-only model previously rendered a row with an empty nam
 ## Bag hover Xvfb harness — 2026-11-11
 
 VERIFIED: The old X11 fixture warp left the target slot unhovered; relative `root.push_input` without `Input.warp_mouse` makes the full Forever bag fixture pass at 1920×1080 and 2560×1440. The direct pinned-Godot/Xvfb run exits0; its deliberate child kill is not normal-shutdown proof. INFERRED: the original tooltip failure was an Xvfb input-harness issue, not a client regression. See [[godot-conversion#xvfb-bag-hover-harness-follow-up-2026-11-11]] and persistent triage note `/home/osso/Projects/world-of-osso/game-engine/data/diagnostics/backpack-icon-gap-2026-11-11/xvfb-hover-triage-2026-11-11.txt`.
+## Ground spell targeting — 2026-11-11
+
+VERIFIED: Local 12.1 DB2 distinguishes cursor destinations through `SpellTargetRestrictions.Targets=64`; Consecration 26573 has `DEST_DEST`, range ID1 (Self Only), and no restriction row, while Flamestrike 2120 and DnD 43265 have the explicit destination flag. The native catalog now maps school masks to the sourced AoE `targetarea_*.blp` textures. See [[spell-catalog#ground-destination-and-aoe-decal--2026-11-11]] and [[target-circle-rendering#spell-ground-target-placement]].
+
+VERIFIED: Private Forever phases pass: Flamestrike 2120 proves green/red range tint and one-time placement; ordinary Consecration 26573 sends without opening the cursor. VERIFIED: The 3× review shows broad filled Fire art beside the user's thin-ring crop. UNVERIFIED: Exact visual parity, and private live behavior for Raging Consecration 50915; details are in [[target-circle-rendering#private-forever-proof--2026-11-11]].
 
 ## Ruby emitter frustum cache — 2026-11-11
 
