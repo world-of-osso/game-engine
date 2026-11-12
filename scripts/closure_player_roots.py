@@ -4,7 +4,7 @@ Body sources: core/player_model_data.rs and customization_catalog::overlay_forev
 Starting-item sources: server-combat::NewCharacterKit::new_item.
 """
 
-from closure_root_products import ITEM_SOURCES, SOURCES, source_catalog
+from closure_root_products import SOURCES, source_catalog
 from closure_seeds import number, seed_customizations
 
 SKYBORNE_RACE_MASK_BITS = {95: 32, 96: 33}
@@ -12,7 +12,7 @@ SKYBORNE_RACES = set(SKYBORNE_RACE_MASK_BITS)
 
 
 def player_product(race):
-    return ITEM_SOURCES[player_item_definition_source(race)]
+    return "wow_classic_beta" if race in SKYBORNE_RACES else "wow"
 
 
 def player_item_definition_source(race):

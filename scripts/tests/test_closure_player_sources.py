@@ -182,11 +182,13 @@ INSERT INTO skinned_models VALUES(41,41),(49,49);
         )
         self.files.put(
             "db2/active/ItemModifiedAppearance.csv",
-            b"ID,ItemID,ItemAppearanceID\n1,157655,2\n2,157657,3\n3,157658,4\n",
+            b"ID,ItemID,ItemAppearanceID\n"
+            b"1,157655,2\n2,157657,3\n3,157658,4\n4,157659,5\n",
         )
         self.files.put(
             "db2/active/ItemAppearance.csv",
-            b"ID,ItemDisplayInfoID\n2,82927\n3,82929\n4,82930\n",
+            b"ID,ItemDisplayInfoID\n"
+            b"2,82927\n3,82929\n4,82930\n5,82931\n",
         )
         self.files.put(
             "db2/1.60.1.70205/items/ItemModifiedAppearance.csv",
@@ -199,8 +201,8 @@ INSERT INTO skinned_models VALUES(41,41),(49,49);
         for product_path, displays, models in [
             (
                 "db2/active",
-                [(82927, 50), (82929, 52), (82930, 53)],
-                [(464822, 50), (464824, 52), (464825, 53)],
+                [(82927, 50), (82929, 52), (82930, 53), (82931, 54)],
+                [(464822, 50), (464824, 52), (464825, 53), (464826, 54)],
             ),
             (
                 "db2/1.60.1.70205",
@@ -240,8 +242,10 @@ INSERT INTO skinned_models VALUES(41,41),(49,49);
 
         with closing(sqlite3.connect(self.world)) as db:
             db.executescript(
-                "CREATE TABLE content_item(ID INTEGER PRIMARY KEY);"
-                "INSERT INTO content_item VALUES(157655),(157656),(157657),(157658);"
+                "CREATE TABLE content_item(ID INTEGER PRIMARY KEY,DisplayInfoID);"
+                "INSERT INTO content_item VALUES"
+                "(157655,82927),(157656,82928),(157657,82929),"
+                "(157658,82930),(157659,82931);"
                 "CREATE TABLE skyborne_content_item(ID INTEGER PRIMARY KEY);"
                 "INSERT INTO skyborne_content_item VALUES(157656),(157658);"
                 "CREATE TABLE character_loadout("
@@ -251,7 +255,7 @@ INSERT INTO skinned_models VALUES(41,41),(49,49);
                 "CREATE TABLE character_loadout_item("
                 "ID INTEGER PRIMARY KEY,CharacterLoadoutID,ItemID);"
                 "INSERT INTO character_loadout_item VALUES"
-                "(1,1,157655),(2,2,157656),(3,3,157658),(4,4,157658);"
+                "(1,1,157655),(2,2,157656),(3,3,157658),(4,4,157659);"
                 "CREATE TABLE db2_row_source("
                 "table_name,row_id,build,file_data_id,layout_hash,sha256);"
                 "INSERT INTO db2_row_source VALUES"
@@ -269,6 +273,7 @@ INSERT INTO skinned_models VALUES(41,41),(49,49);
             ("wow_classic_beta", 464823),
             ("wow", 464824),
             ("wow", 464825),
+            ("wow", 464826),
         ]:
             raw = model()
             self.files.publish(product, fdid, "m2", raw)
@@ -296,6 +301,18 @@ INSERT INTO skinned_models VALUES(41,41),(49,49);
         self.assertNotIn(("wow_classic_beta", 464822), receipt_assets)
         self.assertNotIn(("wow", 464823), receipt_assets)
         self.assertNotIn(("wow", 464825), receipt_assets)
+        self.assertNotIn(("wow", 464826), receipt_assets)
+        self.assertEqual(
+            {
+                (item["id"], item["definition_source"])
+                for item in receipt_result["seeds"]["world_selection"]["items"]
+            },
+            {
+                (157655, "Retail"),
+                (157656, "Forever70205"),
+                (157657, "Retail"),
+            },
+        )
 
 
 
