@@ -283,11 +283,11 @@ fn calendar_days(view: &CalendarView) -> Element {
         let left = WEEKDAY_LEFT + column as f32 * DAY_WIDTH;
         let top = DAY_TOP + row as f32 * DAY_HEIGHT;
         elements.extend(calendar_day_button(index, left, top));
-        elements.extend(calendar_day_date(index, day, left, top));
-        elements.extend(calendar_day_events(index, day, left, top));
         if day.is_today {
             elements.extend(calendar_today_art(left, top));
         }
+        elements.extend(calendar_day_date(index, day, left, top));
+        elements.extend(calendar_day_events(index, day, left, top));
     }
     elements
 }
