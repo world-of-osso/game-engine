@@ -5,6 +5,13 @@ use std::{collections::BTreeMap, path::Path};
 
 pub fn load_trait_rules(dir: &Path, tree_id: u32) -> Result<TraitTree, String> {
     let tables = Tables::load(dir)?;
+    load_trait_rules_from_tables(&tables, tree_id)
+}
+
+pub(super) fn load_trait_rules_from_tables(
+    tables: &Tables,
+    tree_id: u32,
+) -> Result<TraitTree, String> {
     let mut spec_sets = BTreeMap::<u32, Vec<u32>>::new();
     for row in tables.rows("SpecSetMember") {
         spec_sets
@@ -13,8 +20,8 @@ pub fn load_trait_rules(dir: &Path, tree_id: u32) -> Result<TraitTree, String> {
             .push(row.number("ChrSpecializationID")?);
     }
     let loader = RuleLoader {
-        tables: &tables,
-        projection: Projection::build(&tables, 0)?,
+        tables,
+        projection: Projection::build(tables, 0)?,
         spec_sets,
     };
     Ok(TraitTree {

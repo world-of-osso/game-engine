@@ -1,4 +1,6 @@
-use game_engine_core::talent_data::{TalentPage, load_talent_page};
+use game_engine_core::talent_data::{
+    TalentPage, load_talent_page, load_talent_page_and_rules, load_trait_rules,
+};
 use std::path::Path;
 fn arcane() -> TalentPage {
     let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/db2/active");
@@ -115,4 +117,16 @@ fn arcane_hero_visibility_uses_sufficient_spec_conditions() {
             .flat_map(|t| &t.nodes)
             .all(|n| n.granted_ranks == 0)
     ); // no chosen hero subtree
+}
+
+#[test]
+fn arcane_page_and_rules_loaded_together_match_separate_loaders() {
+    let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/db2/active");
+    let page = load_talent_page(&dir, 8, 62).expect("local Mage Arcane rows");
+    let expected_rules = load_trait_rules(&dir, page.tree_id).expect("local Arcane rule rows");
+    let (combined_page, combined_rules) =
+        load_talent_page_and_rules(&dir, 8, 62).expect("combined Arcane data");
+
+    assert_eq!(combined_page, page);
+    assert_eq!(combined_rules, expected_rules);
 }

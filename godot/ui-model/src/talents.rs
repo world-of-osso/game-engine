@@ -4,7 +4,7 @@ pub mod search;
 #[path = "talent_editor.rs"]
 mod talent_editor;
 use game_engine_core::spell_catalog::{SPELL_DB2_BUILD, SpellCatalogData};
-use game_engine_core::talent_data::{TalentNode, TalentPage, load_talent_page};
+use game_engine_core::talent_data::{TalentNode, TalentPage, load_talent_page_and_rules};
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 const HIDE_MAX_RANK: u32 = 64;
@@ -255,11 +255,8 @@ pub fn load_talent_view(
     spec: u32,
     catalog: &SpellCatalogData,
 ) -> Result<TalentView, String> {
-    let graph = load_talent_page(&data.join("db2").join(SPELL_DB2_BUILD), class, spec)?;
-    let rules = game_engine_core::talent_data::load_trait_rules(
-        &data.join("db2").join(SPELL_DB2_BUILD),
-        graph.tree_id,
-    )?;
+    let (graph, rules) =
+        load_talent_page_and_rules(&data.join("db2").join(SPELL_DB2_BUILD), class, spec)?;
     let mut view = TalentView {
         graph,
         rules: Some(rules),
