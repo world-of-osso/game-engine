@@ -155,8 +155,8 @@ func consecration_targeting_proof(baseline: bool) -> bool:
 
 func capture_valid_reticle(sent_before: int) -> bool:
 	var decal: Decal
-	for screen_y in [360, 420, 480, 540, 600]:
-		for screen_x in [400, 640, 880]:
+	for screen_y in [480, 540, 420, 600, 360]:
+		for screen_x in [640, 880, 400]:
 			var point := Vector2(screen_x, screen_y)
 			await pointer(point)
 			var candidate := client.get_node_or_null("GroundSpellReticle") as Decal
