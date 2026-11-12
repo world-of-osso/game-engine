@@ -26,11 +26,10 @@ struct PlayerPortraitFixture {
 #[godot_api]
 impl INode for PlayerPortraitFixture {
     fn init(base: Base<Node>) -> Self {
-        let path = ProjectSettings::singleton().globalize_path("res://../data");
         Self {
             base,
             ui: None,
-            world: WorldUnits::new(std::path::PathBuf::from(path.to_string())),
+            world: WorldUnits::new(data_root_path()),
             player_frame_portrait: Portrait::new(PLAYER_PORTRAIT),
             character_frame_portrait: Portrait::new(CHARACTER_FRAME_PORTRAIT),
             character_tab_portrait: Portrait::new(MODE_TAB_PORTRAIT),
@@ -68,6 +67,16 @@ impl PlayerPortraitFixture {
                 .unwrap_or_default()
                 .as_str(),
         )
+    }
+
+    #[func]
+    fn attach_character_frame(&mut self, ui: Gd<RegistryUi>) -> GString {
+        if let Err(error) = game_engine_ui_model::paths::set_data_root(data_root_path()) {
+            return GString::from(error.as_str());
+        }
+        self.character_frame_mode = true;
+        self.ui = Some(ui);
+        GString::from("")
     }
 
     #[func]
@@ -146,8 +155,7 @@ impl PlayerPortraitFixture {
     }
 
     fn mount_ui(&mut self, forever: bool, character_frame: bool) -> Result<(), String> {
-        let path = ProjectSettings::singleton().globalize_path("res://../data");
-        game_engine_ui_model::paths::set_data_root(std::path::PathBuf::from(path.to_string()))?;
+        game_engine_ui_model::paths::set_data_root(data_root_path())?;
         let skin = if forever {
             ui_toolkit::atlas::ActiveSkin::Forever
         } else {
@@ -168,6 +176,11 @@ impl PlayerPortraitFixture {
         self.ui = Some(ui);
         Ok(())
     }
+}
+
+fn data_root_path() -> std::path::PathBuf {
+    let path = ProjectSettings::singleton().globalize_path("res://../data");
+    std::path::PathBuf::from(path.to_string())
 }
 
 fn player_appearance() -> UnitAppearance {

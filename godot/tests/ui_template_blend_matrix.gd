@@ -94,6 +94,14 @@ func check_panel(panel: Dictionary, forever: bool, output: String) -> bool:
 		failures.append(panel.name + ": " + error)
 	if panel.name == "CharacterPaperDoll":
 		await wait_for_portrait(owner, panel.name)
+	elif panel.name in ["CharacterCurrency", "CharacterReputation"]:
+		var portrait: Node = ClassDB.instantiate("PlayerPortraitFixture")
+		owner.add_child(portrait)
+		var portrait_error: String = portrait.call("attach_character_frame", owner)
+		if not portrait_error.is_empty():
+			failures.append(panel.name + " portrait attach: " + portrait_error)
+		else:
+			await wait_for_portrait(portrait, panel.name)
 	elif panel.name == "ProfessionsOrders":
 		var portrait := owner.find_child("CustomerOrdersPreviewPortrait", true, false) as Node
 		if portrait == null:
