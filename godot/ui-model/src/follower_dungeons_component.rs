@@ -496,9 +496,9 @@ fn dungeon_row(view: &View, id: u32, title: &str, index: usize) -> Element {
     let top = index as f32 * ROW_HEIGHT as f32;
     let lock_reason = view.level_lock_key(id).map(localize_error);
     let enabled = view.can_select(id);
-    let mut art = dungeon_row_icon(&name, id, view, lock_reason.is_some());
-    art.extend(dungeon_row_label(&name, title, enabled));
-    crate::selection_list::row_with_disabled_tooltip(
+    let mut art = build_dungeon_row_icon(&name, id, view, lock_reason.is_some());
+    art.extend(build_dungeon_row_label(&name, title, enabled));
+    crate::selection_list::build_row_with_disabled_tooltip(
         name,
         &format!("follower:select:{id}"),
         enabled,
@@ -509,7 +509,7 @@ fn dungeon_row(view: &View, id: u32, title: &str, index: usize) -> Element {
     )
 }
 
-fn dungeon_row_icon(name: &str, id: u32, view: &View, locked: bool) -> Element {
+fn build_dungeon_row_icon(name: &str, id: u32, view: &View, locked: bool) -> Element {
     let mut art = if locked {
         named_atlas_texture(
             format!("{name}LockedIndicator"),
@@ -535,7 +535,7 @@ fn dungeon_row_icon(name: &str, id: u32, view: &View, locked: bool) -> Element {
     art
 }
 
-fn dungeon_row_label(name: &str, title: &str, enabled: bool) -> Element {
+fn build_dungeon_row_label(name: &str, title: &str, enabled: bool) -> Element {
     let color = if enabled {
         NORMAL_FONT_COLOR
     } else {

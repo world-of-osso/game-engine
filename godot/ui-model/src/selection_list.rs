@@ -308,11 +308,11 @@ pub fn row(
     template: (&RowTemplate, bool),
     content: Element,
 ) -> Element {
-    row_with_disabled_tooltip(name, action, enabled, rect, template, content, None)
+    build_row_with_disabled_tooltip(name, action, enabled, rect, template, content, None)
 }
 
 /// Shared row with Retail's disabled-button tooltip for a specific lock reason.
-pub fn row_with_disabled_tooltip(
+pub fn build_row_with_disabled_tooltip(
     name: String,
     action: &str,
     enabled: bool,
