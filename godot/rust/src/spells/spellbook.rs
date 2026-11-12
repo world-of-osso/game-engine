@@ -235,13 +235,20 @@ impl GameClient {
         ))
     }
 
-    pub(crate) fn should_delay_world_entry_for_talent_ui(&self, frame_id: u64) -> bool {
+    pub(crate) fn should_delay_world_entry_for_talent_ui(&mut self, frame_id: u64) -> bool {
         let Some(key) = self.active_talent_key() else {
             return false;
         };
         if self.spells.prefetched_book_key == Some(key) && self.spells.prefetched_book_ui.is_some()
         {
-            return self.spells.prefetched_book_created_frame == Some(frame_id);
+            if self.spells.prefetched_book_created_frame == Some(frame_id) {
+                return true;
+            }
+            if let Some(ui) = self.spells.prefetched_book_ui.as_mut() {
+                ui.set_visible(false);
+            }
+            self.spells.prefetched_book_created_frame = None;
+            return false;
         }
         if self.spells.talent_prewarm_attempted_key == Some(key) {
             return false;
@@ -321,7 +328,8 @@ impl GameClient {
     ) -> Result<Gd<RegistryUi>, String> {
         let mut ui = RegistryUi::new_alloc();
         ui.set_name("SpellBookPrewarmUI");
-        ui.set_layer(5);
+        // Draw once behind Loading so the talent art's render pipelines are ready on first open.
+        ui.set_layer(-1);
         self.base_mut().add_child(&ui);
         let prepared = (|| -> Result<(), String> {
             let mut book = ui.bind_mut();
@@ -333,7 +341,7 @@ impl GameClient {
             ui.free();
             return Err(error);
         }
-        ui.set_visible(false);
+        ui.set_visible(true);
         ui.set_process(false);
         ui.set_process_input(false);
         ui.set_process_unhandled_input(false);

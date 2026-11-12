@@ -136,14 +136,41 @@ func control_name_delta(before: Dictionary, after: Dictionary) -> Array[String]:
 	delta.sort()
 	return delta
 
-func capture_loading_prewarm_tree() -> void:
-	var prewarm := client.get_node_or_null("SpellBookPrewarmUI")
+func capture_loading_prewarm_tree() -> bool:
+	var prewarm := client.get_node_or_null("SpellBookPrewarmUI") as CanvasLayer
 	if prewarm == null:
-		return
+		return true
+	var loading := client.get_node_or_null("LoadingUI") as CanvasLayer
+	if loading == null or not prewarm.is_visible_in_tree() or prewarm.get_layer() >= loading.get_layer():
+		fail("Talent prewarm was not rendered behind the Loading screen")
+		return false
 	loading_prewarm_seen = true
 	if prewarm_frame_counts.is_empty():
 		prewarm_frame_counts = named_control_counts(prewarm)
 		prewarm_talent_node_count = talent_root_count(prewarm)
+		if prewarm_talent_node_count != 88:
+			fail("Loading prewarm has %d numeric TalentNode roots; expected 88" % prewarm_talent_node_count)
+			return false
+		print("TALENTS_PANEL_LOADING_PREWARM ", JSON.stringify({
+			"visible": prewarm.is_visible_in_tree(), "layer": prewarm.get_layer(),
+			"loading_layer": loading.get_layer(), "talent_nodes": prewarm_talent_node_count,
+			"controls": total_control_count(prewarm_frame_counts),
+			"spend_art": spend_art_count(prewarm_frame_counts)
+		}))
+	return true
+
+func rendering_pipeline_counts() -> Dictionary:
+	return {
+		"canvas": RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_PIPELINE_COMPILATIONS_CANVAS),
+		"draw": RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_PIPELINE_COMPILATIONS_DRAW),
+		"specialization": RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_PIPELINE_COMPILATIONS_SPECIALIZATION)
+	}
+
+func pipeline_compilation_delta(before: Dictionary, after: Dictionary) -> Dictionary:
+	var delta: Dictionary = {}
+	for kind in after:
+		delta[kind] = int(after[kind]) - int(before.get(kind, 0))
+	return delta
 
 func wait_for_startup_world(character: String) -> bool:
 	var started_usec := Time.get_ticks_usec()
@@ -156,11 +183,17 @@ func wait_for_startup_world(character: String) -> bool:
 		if state.screen == "Loading" and loading_started_usec == 0:
 			loading_started_usec = Time.get_ticks_usec()
 		if state.screen == "Loading" and OS.get_environment("BENCH_REQUIRE_LOADING_PREWARM") == "1":
-			capture_loading_prewarm_tree()
+			if not capture_loading_prewarm_tree():
+				return false
 		if state.screen == "InWorld" and world_trace_seconds > 0.0 and not world_trace_finished:
 			await capture_world_trace()
 		if state.screen == "InWorld" and Readiness.is_ready(state) and state.local_player_position != null \
 				and (world_trace_seconds <= 0.0 or world_trace_finished):
+			if OS.get_environment("BENCH_REQUIRE_LOADING_PREWARM") == "1":
+				var prewarm := client.get_node_or_null("SpellBookPrewarmUI") as CanvasLayer
+				if prewarm == null or prewarm.is_visible_in_tree():
+					fail("Talent prewarm remained visible after Loading")
+					return false
 			var loading_ms := float(Time.get_ticks_usec() - loading_started_usec) / 1000.0 if loading_started_usec > 0 else -1.0
 			print("TALENTS_PANEL_INWORLD_READY ", JSON.stringify({
 				"elapsed_ms": float(Time.get_ticks_usec() - started_usec) / 1000.0,
@@ -249,6 +282,8 @@ func run_test() -> void:
 		"catalog_ready": spell_state.get("catalog_ready"), "input_processing": client.is_processing_input(),
 		"unhandled_input_processing": client.is_processing_unhandled_input()}))
 	await measure("talents_closed", segment_s, func(_time: float): pass, true)
+	var pipeline_counts_before_open := rendering_pipeline_counts()
+	var pipeline_counts_after_open: Dictionary = {}
 	root.gui_release_focus()
 	var input_probe := InputEventProbe.new()
 	input_probe.set_process_input(true)
@@ -281,6 +316,7 @@ func run_test() -> void:
 			tree_visible_ms = float(Time.get_ticks_usec() - keypress_usec) / 1000.0
 			var draw_started_usec := Time.get_ticks_usec()
 			await RenderingServer.frame_post_draw
+			pipeline_counts_after_open = rendering_pipeline_counts()
 			draw_wait_ms = float(Time.get_ticks_usec() - draw_started_usec) / 1000.0
 			first_frame_ms = float(Time.get_ticks_usec() - keypress_usec) / 1000.0
 			break
@@ -314,8 +350,9 @@ func run_test() -> void:
 			"added_spend_art": added_spend_art
 		}))
 		if OS.get_environment("BENCH_REQUIRE_FAST_FIRST_OPEN") == "1" \
-				and (prewarm_spend_art == 0 or added_frame_names.size() != 0 \
-				or removed_frame_names.size() != 0 or added_root_nodes != 0 or added_spend_art != 0):
+				and (prewarm_spend_art == 0 or prewarm_talent_node_count != 88 or node_count != 88 \
+				or added_frame_names.size() != 0 or removed_frame_names.size() != 0 \
+				or added_root_nodes != 0 or added_spend_art != 0):
 			fail("First-open UI tree differs from Forever Loading prewarm: art=%d added=%s removed=%s" % [
 				prewarm_spend_art, added_frame_names, removed_frame_names])
 			return
@@ -337,7 +374,10 @@ func run_test() -> void:
 	print("TALENTS_PANEL_FOOTER_PASS ", JSON.stringify({"dropdown_width": dropdown_width,
 		"gap_to_search": dropdown_gap, "caption": caption.text, "caption_lines": caption.get_line_count()}))
 	print("TALENTS_PANEL_FIRST_FRAME ", JSON.stringify({"open_ms": first_frame_ms, "tree_visible_ms": tree_visible_ms,
-		"draw_wait_ms": draw_wait_ms, "talent_nodes": node_count,
+		"draw_wait_ms": draw_wait_ms, "pipeline_compilations_before": pipeline_counts_before_open,
+		"pipeline_compilations_after": pipeline_counts_after_open,
+		"pipeline_compilations_delta": pipeline_compilation_delta(pipeline_counts_before_open, pipeline_counts_after_open),
+		"talent_nodes": node_count,
 		"talent_node_controls": panel_state.node_control_count, "wait_frames": open_wait_frames,
 		"lookup_total_ms": float(lookup_total_usec) / 1000.0,
 		"lookup_max_ms": float(lookup_max_usec) / 1000.0, "ui_skin": client.account_state().ui_skin}))
