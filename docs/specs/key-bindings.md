@@ -62,12 +62,13 @@ Sources:
 - Code: `godot/ui-model/src/ui/screens/options_menu_scroll.rs` (the area as a ui-toolkit scroll list, position in `FrameRegistry::scroll_lists`), `godot/rust/src/ui/scroll_lists.rs` (wheel and thumb input), `RegistryModel::reset_options_scroll_for` (`godot/rust/src/ui/mod.rs`).
 
 ### Added Retail Interface candidates
-- [ ] The native Interface catalog keeps supported Retail candidates in `Bindings_Standard.xml` source order. The new catalog test asserts the exact rows, labels, defaults, and order.
-- [ ] `TOGGLECHARACTER2`, `TOGGLECURRENCY`, `TOGGLECOOLDOWNVIEWERSETTINGS`, `TOGGLESTATISTICS`, `TOGGLEHOUSINGDASHBOARD`, `TOGGLEWORLDMAPSIZE`, `TOGGLEMINIMAP`, `TOGGLEWORLDSTATESCORES`, `TOGGLEGUILDTAB`, `TOGGLEDUNGEONSANDRAIDS`, `TOGGLECHARACTER4`, and `TOGGLECOLLECTIONSMOUNTJOURNAL` / `PETJOURNAL` / `TOYBOX` map to the existing native panels listed above; only the defaults already recorded above are bound.
-- [ ] `TOGGLEREAGENTBAG1` is listed in Bags, unbound, and toggles the existing reagent bag (container 5) when carried.
+- [x] The native Interface catalog matches `Bindings_Standard.xml` source order, labels and verified defaults; the core test asserts all catalog rows.
+- [x] The Forever-only live flow verifies U/Reputation, Shift-Y/Statistics, Ctrl-I/Group Finder, J/Guild, Shift-J/Adventure Guide, and a custom F7 binding that closes and reopens Minimap.
+- [x] `TOGGLEREAGENTBAG1` is listed in Bags, unbound, and maps to container 5; the core test asserts the action metadata.
 
 VERIFIED, PRIOR CAPTURE: the five candidate defaults already recorded here are U (Reputation), Shift-Y (Statistics), Shift-Space (World State Scores), J (Guild), and Ctrl-I (Dungeons and Raids); the earlier spec cites `~/Repos/worldofwhatever/DefaultBindings.wtf` as their source.
 VERIFIED, SOURCE: Retail `TOGGLECHARACTER4` calls `TogglePVPUI()` when its availability checks pass; it is not a pet-tab binding.
+VERIFIED, CODE: Other supported dispatch routes are `TOGGLECURRENCY` to the Currency tab, `TOGGLECOOLDOWNVIEWERSETTINGS` to Cooldown Viewer Settings, `TOGGLEHOUSINGDASHBOARD` to Housing Dashboard, `TOGGLEWORLDMAPSIZE` to the native map size state, `TOGGLEWORLDSTATESCORES` to the scoreboard during a battleground, and the Mount Journal, Pet Journal and Toy Box actions to their existing panels.
 VERIFIED, CODE: This checkout has a matching Housing Dashboard toggle: `toggle_housing()` mounts `HousingDashboardUI`, while Retail `TOGGLEHOUSINGDASHBOARD` calls `HousingFramesUtil.ToggleHousingDashboard()`.
 INFERRED, BEHAVIOR: `TOGGLEWORLDMAPSIZE` uses the native normal/maximized map state because Retail's current handler is the TODO `-- MAPREFACTORTODO: Reimplement bind`.
 
@@ -104,12 +105,11 @@ These are not changed here:
 - Insert/Delete pitch in Retail. The table uses Up/Down, which Retail binds to forward/back.
 - The mouse wheel zooms in Retail. The table zooms with Page Up/Down, which Retail binds to chat paging.
 - Z is `TOGGLESHEATH` in Retail. The table makes Z run toggle, which Retail puts on Num Pad /.
-- J is `TOGGLEGUILDTAB` in Retail, with the Adventure Guide on Shift-J. The table puts the Adventure Guide on J.
 
 ## Tests
 - `godot/rust/src/ui/options_keybindings_tests.rs`: left-click then Q binds Action Bar 2 Button 1 and the button reads "Q"; right-click at a button unbinds that action and a click on the label does nothing; Escape cancels listening with the bindings unchanged; S on Move Forward moves it from Move Backward, which reads "Not Bound", with "Action Move Backward is Now Unbound!"; the page's edits survive saving and reloading the options file.
 - `godot/rust/src/ui/scroll_lists_tests.rs`: Action Bar 2's last button scrolls into the area by wheel and its first out, the wheel stops at both ends; dragging the thumb to the bottom shows the last row; another page starts at its top; Sound has no scroll bar; on every page and section the shown rows stay inside the area at every position and the panel fits the canvas.
-- `godot/core/tests/input_bindings_data.rs`: exact section inventory and Interface order; new candidate labels, verified defaults, and unbound actions; the token grammar, Shift shadowing, Action Bar 2/3 persistence, and Retail hotkey text.
+- `godot/core/tests/input_bindings_data.rs` (`interface_catalog_matches_retail_source_order_and_defaults`): exact Interface order, candidate labels/defaults, and Reagent Bag metadata; the same file covers the remaining binding data contracts.
 - `godot/ui-model/tests/options_policy.rs` (`retail_interface_bindings_project_in_source_order_with_defaults`): the Interface model projects verified labels and defaults in source order.
 - `godot/tests/world_keybinds_flow.gd` (`native_input_fixture keybinds`): I opens/closes Group Finder; the Forever-only Retail-Interface filter checks U/Reputation, Shift-Y/Statistics, Ctrl-I/Group Finder, J/Guild, Shift-J/Adventure Guide, and binds F7 to Minimap before checking close/reopen behavior.
 - `godot/ui-model/tests/forever_action_bars.rs` (`extra_bar_bindings_press_their_slot_and_label_their_button`): a key on `MULTIACTIONBAR1BUTTON3` presses slot 63 and labels `MultiBarBottomLeftButton3`; Shift-1 and middle mouse on Action Bar 3; unbound buttons blank; 0 still presses main bar button 10 under Forever.

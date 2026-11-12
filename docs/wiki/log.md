@@ -4,7 +4,11 @@ VERIFIED, SOURCE: The local Retail `Bindings_Standard.xml` supplies Interface ac
 
 VERIFIED, PRIOR CAPTURE: the five defaults retained from the previous spec are U, Shift-Y, Shift-Space, J and Ctrl-I; other supported candidates stay unbound. The previous spec cites `~/Repos/worldofwhatever/DefaultBindings.wtf` for those values, but that path is absent on this host.
 
-VERIFIED, SOURCE: Retail `TOGGLECHARACTER4` calls `TogglePVPUI()` when available. VERIFIED, CODE: this checkout has a matching Housing Dashboard toggle, so that action is included despite the task's missing-panel example. The catalog contains 15 supported candidates and excludes 11 without matching native panels or operations. INFERRED, BEHAVIOR: `TOGGLEWORLDMAPSIZE` toggles the existing normal/maximized state because Retail's handler is a TODO. Focused tests and Forever live input proof remain pending.
+VERIFIED, SOURCE: Retail `TOGGLECHARACTER4` calls `TogglePVPUI()` when available. VERIFIED, CODE: this checkout has a matching Housing Dashboard toggle, so that action is included despite the task's missing-panel example. The catalog contains 15 supported candidates and excludes 11 without matching native panels or operations. INFERRED, BEHAVIOR: `TOGGLEWORLDMAPSIZE` toggles the existing normal/maximized state because Retail's handler is a TODO.
+
+VERIFIED, TEST: the core input-binding suite passes 17/17, and the UI-model Interface-order/default test passes 1/1. VERIFIED, BUILD: the native extension and `native_input_fixture` build through `scripts/engine-build.py --fixture native_input_fixture`, exit 0.
+
+VERIFIED, FOREVER LIVE: the owned-UDP `keybinds` filter passes on `127.0.0.1:55974`. It checks U/Reputation, Shift-Y/Statistics, Ctrl-I/Group Finder, J/Guild, Shift-J/Adventure Guide, and a captured F7 binding that closes/reopens Minimap. It asserts the Forever UI skin; this does not claim the other keybind flow cases passed. The log also contains existing unresolved negative-geoset and malformed-quest-POI diagnostics, outside this audit.
 
 ## Guild no-guild Communities display — 2026-11-11
 
