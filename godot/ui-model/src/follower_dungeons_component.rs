@@ -1,6 +1,6 @@
 //! LFDFrame.xml: follower roles, type dropdown, explanation, ScrollBox and Find Group.
 use crate::bank_art::{WHITE, label, texture};
-use crate::follower_dungeons::View;
+use crate::follower_dungeons::{View, localize_error};
 use crate::menu_primitives::{
     ContextMenu, ContextMenuItem, DropdownButton, DropdownState, MenuElementKind,
     context_menu_with_rows, dropdown_button_with_state, menu_element, menu_row_rect_with_heading,
@@ -26,6 +26,9 @@ const TABS_LEFT: f32 = 19.0;
 // scaled by 0.7, matching LFGRole.xml's BOTTOMLEFT checkbox anchor.
 const ROLE_CHECKBOX_HIGHLIGHT_SIZE: &str = "21,20.3";
 const ROLE_CHECKBOX_HIGHLIGHT_OFFSET: &str = "-17,16.65";
+const RETAIL_DUNGEON_LOCK_ICON_FDID: u32 = 340_023;
+const RETAIL_DUNGEON_LOCK_ICON_TEX_COORDS: &str = "0,0.71875,0,0.875";
+const RETAIL_DUNGEON_LOCK_ICON_RECT: (f32, f32, f32, f32) = (25.0, 3.0, 12.0, 14.0);
 
 pub(super) fn screen(shared: &SharedContext) -> Element {
     let view = shared.get::<View>().cloned().unwrap_or_default();
@@ -494,14 +497,33 @@ fn dungeon_list(shared: &SharedContext, view: &View) -> Element {
 fn dungeon_row(view: &View, id: u32, title: &str, index: usize) -> Element {
     let name = format!("LFDQueueFrameFollowerDungeon{id}");
     let top = index as f32 * ROW_HEIGHT as f32;
+    let lock_reason = view.level_lock_key(id).map(localize_error);
     let enabled = view.can_select(id);
-    let mut art = texture(
-        format!("{name}CheckBox"),
-        130_755,
-        (15.0, 0.0, 20.0, 20.0),
-        "1,1,1,1",
-    );
-    if view.selected == Some(id) {
+    let mut art = build_dungeon_row_icon(&name, id, view, lock_reason.is_some());
+    art.extend(build_dungeon_row_label(&name, title, enabled));
+    crate::selection_list::build_row_with_disabled_tooltip(
+        name,
+        &format!("follower:select:{id}"),
+        enabled,
+        (0.0, top, 295.0, ROW_HEIGHT as f32),
+        (&crate::selection_list::AUTHORED, view.selected == Some(id)),
+        art,
+        lock_reason.as_deref(),
+    )
+}
+
+fn build_dungeon_row_icon(name: &str, id: u32, view: &View, locked: bool) -> Element {
+    let mut art = if locked {
+        build_retail_dungeon_lock_icon(name)
+    } else {
+        texture(
+            format!("{name}CheckBox"),
+            130_755,
+            (15.0, 0.0, 20.0, 20.0),
+            "1,1,1,1",
+        )
+    };
+    if !locked && view.selected == Some(id) {
         art.extend(texture(
             format!("{name}Check"),
             130_751,
@@ -509,18 +531,29 @@ fn dungeon_row(view: &View, id: u32, title: &str, index: usize) -> Element {
             "1,1,1,1",
         ));
     }
-    art.extend(label(
+    art
+}
+
+fn build_retail_dungeon_lock_icon(name: &str) -> Element {
+    let (left, top, width, height) = RETAIL_DUNGEON_LOCK_ICON_RECT;
+    rsx! { texture {
+        name: {DynName(format!("{name}LockedIndicator"))},
+        width, height, texture_fdid: RETAIL_DUNGEON_LOCK_ICON_FDID,
+        tex_coords: RETAIL_DUNGEON_LOCK_ICON_TEX_COORDS,
+        left, top, pos_type: "absolute", draw_layer: "ARTWORK",
+    } }
+}
+
+fn build_dungeon_row_label(name: &str, title: &str, enabled: bool) -> Element {
+    let color = if enabled {
+        NORMAL_FONT_COLOR
+    } else {
+        "0.5,0.5,0.5,1"
+    };
+    label(
         format!("{name}InstanceName"),
         title,
         (40.0, 0.0, 255.0, 20.0),
-        (13.0, NORMAL_FONT_COLOR, "LEFT"),
-    ));
-    crate::selection_list::row(
-        name,
-        &format!("follower:select:{id}"),
-        enabled,
-        (0.0, top, 295.0, ROW_HEIGHT as f32),
-        (&crate::selection_list::AUTHORED, view.selected == Some(id)),
-        art,
+        (13.0, color, "LEFT"),
     )
 }

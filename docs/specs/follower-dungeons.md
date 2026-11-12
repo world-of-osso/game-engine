@@ -8,7 +8,8 @@ Server gameplay contract: [follower dungeons](../../../game-server/docs/specs/fo
 - Queue-send acknowledgment is not server acceptance. `lfg status` exposes the latest authoritative snapshot, match roster and refusal; reconnect clears stale state.
 ## Server-authoritative eligibility
 
-- [x] The client displays entries from the server catalog and does not use local DB2 bounds or player level to hide, disable, or refuse a listed dungeon. It sends the selected catalog ID; the server checks eligibility before map transfer.
+- [x] The client uses only the server catalog's inclusive level bounds with the current player level. An out-of-range row shows the Retail lock marker, is disabled, displays the matching localized GlobalString reason, and cannot be selected or queued; the server still checks admission before map transfer.
+- [x] The locked follower row uses Retail's `UI-LFG-ICON-LOCK` texture at its authored 12×14 size and UV crop; a rendered-output test verifies the FileDataID, crop and size.
 - [x] Server refusal keys use Retail GlobalStrings in the Group Finder description and system chat.
 - [x] VERIFIED (private UDP 5996 on November 11, 2026): a level-10 Paladin queued Ruby Life Pools (dungeon2436, map2521) and entered instance2. Scene captures at 23:44:57.030 and 23:46:53.328 CST, 116.298 seconds apart, and party-frame captures at 23:44:57.602 and 23:46:54.048 CST, 116.446 seconds apart, show the Paladin with `Follower1`–`Follower4`. The private server log and captures are under `data/diagnostics/follower-join-fail-2026-11-11/private-run/`; this proof covers the selected party only.
 - [x] VERIFIED (private UDP 5996 on November 12, 2026): after three natural non-Warlock queues, Ruby Life Pools selected Warlock spec266 in instance5. Scene and party-frame captures at `2026-11-12T10:43:56Z` and `10:48:27Z`, 271.258 seconds apart, show the same four follower names and positions. The private evidence is under `data/diagnostics/follower-join-fail-2026-11-11/private-run-warlock-2026-11-12/`; this does not prove full dungeon movement or completion.
@@ -28,7 +29,7 @@ Server gameplay contract: [follower dungeons](../../../game-server/docs/specs/fo
 ## Tests
 
 - `godot/tests/follower_layout_capture.gd` — native rendered Control rectangles from XML/Lua, all three tab anchors and parent clipping;1920×1080 Modern/Forever closed/open dropdown PNGs. `GODOT_FOLLOWER_LAYOUT_ASSERT=1` enables the geometry gate.
-- `ui-model/tests/follower_dungeons.rs` — real Modern/Forever registries, server-catalog row visibility and queue action without local level filtering, localized gear-source and level-refusal descriptions, selected-role queue actions and pending/refusal/match state.
+- `ui-model/tests/follower_dungeons.rs::follower_group_finder_locks_out_of_range_rows_and_blocks_queueing` — Forever level-9 Ruby lock and GlobalString tooltip, blocked selection/queue, inclusive level-10 admission, and over-max refusal.
 - `godot/rust/src/chat_tests.rs::follower_refusals_are_localized_in_system_chat` — level and gear-source refusal keys become localized system lines.
 - `network/src/wire_tests.rs::follower_group_finder_default_bridge_receives_catalog_over_udp` — default bridge, real loopback UDP catalog delivery.
 - `godot/rust/src/account_dungeonclient_tests.rs::follower_group_finder_account_dispatches_catalog_and_authoritative_state` — decoded catalog and refusal reach the native host while IPC retains authoritative state.

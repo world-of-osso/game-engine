@@ -81,6 +81,7 @@ pub struct View {
     pub visible: bool,
     pub viewport: [f32; 2],
     pub catalog: Option<FollowerDungeons>,
+    pub player_level: Option<u16>,
     pub role: GroupRoleSnapshot,
     pub selected: Option<u32>,
     pub pending: bool,
@@ -97,6 +98,7 @@ impl Default for View {
             visible: false,
             viewport: [1280.0, 720.0],
             catalog: None,
+            player_level: None,
             role: GroupRoleSnapshot::Damage,
             selected: None,
             pending: false,
@@ -174,10 +176,29 @@ impl View {
         self.catalog = Some(catalog);
     }
     pub fn can_select(&self, id: u32) -> bool {
-        !self.pending && !self.matched() && self.contains(id)
+        if self.pending || self.matched() {
+            return false;
+        }
+        self.contains(id) && self.level_lock_key(id).is_none()
     }
     pub fn can_queue(&self) -> bool {
-        !self.pending && !self.matched() && self.selected.is_some_and(|id| self.contains(id))
+        self.selected.is_some_and(|id| self.can_select(id))
+    }
+    pub fn level_lock_key(&self, id: u32) -> Option<&'static str> {
+        let level = u32::from(self.player_level?);
+        let entry = self
+            .catalog
+            .as_ref()?
+            .entries
+            .iter()
+            .find(|entry| entry.id == id)?;
+        if level < entry.min_level {
+            return Some("LFG_LOCKSTATUS_TOO_LOW_LEVEL");
+        }
+        if level > entry.max_level {
+            return Some("LFG_LOCKSTATUS_TOO_HIGH_LEVEL");
+        }
+        None
     }
     pub fn matched(&self) -> bool {
         self.state
