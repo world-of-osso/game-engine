@@ -199,6 +199,14 @@ pub struct Account {
     pub controlled_unit: Option<u64>,
     /// The group's raid target icons, or the solo player's own.
     pub raid_targets: RaidTargetIcons,
+    /// Friends list and latest server feedback (`FriendsChannel`).
+    pub friends: Option<shared::protocol_snapshots::FriendsSnapshot>,
+    pub friends_message: Option<String>,
+    pub friends_error: Option<String>,
+    /// Latest Who query results and server feedback (`WhoChannel`).
+    pub who: Option<shared::protocol_snapshots::WhoSnapshot>,
+    pub who_message: Option<String>,
+    pub who_error: Option<String>,
 }
 
 pub struct NetworkLink {
@@ -438,6 +446,12 @@ impl Account {
             pet_bar: None,
             controlled_unit: None,
             raid_targets: RaidTargetIcons::default(),
+            friends: None,
+            friends_message: None,
+            friends_error: None,
+            who: None,
+            who_message: None,
+            who_error: None,
         }
     }
 
@@ -539,6 +553,12 @@ impl Account {
         self.group = GroupState::default();
         self.pet_bar = None;
         self.raid_targets = RaidTargetIcons::default();
+        self.friends = None;
+        self.friends_message = None;
+        self.friends_error = None;
+        self.who = None;
+        self.who_message = None;
+        self.who_error = None;
         self.quests = QuestRuntime::default();
         self.session.token = self.read_token()?;
         Ok(())
@@ -925,6 +945,30 @@ impl Account {
     pub fn send_request_raid_info(&self) -> Result<(), SessionError> {
         self.bridge()?
             .send::<_, InstanceChannel>(RequestRaidInfo)
+            .map_err(SessionError)
+    }
+
+    pub fn query_friends(&self) -> Result<(), SessionError> {
+        self.bridge()?
+            .send::<_, shared::protocol::FriendsChannel>(shared::protocol::QueryFriends)
+            .map_err(SessionError)
+    }
+
+    pub fn add_friend(&self, name: String) -> Result<(), SessionError> {
+        self.bridge()?
+            .send::<_, shared::protocol::FriendsChannel>(shared::protocol::AddFriend { name })
+            .map_err(SessionError)
+    }
+
+    pub fn remove_friend(&self, name: String) -> Result<(), SessionError> {
+        self.bridge()?
+            .send::<_, shared::protocol::FriendsChannel>(shared::protocol::RemoveFriend { name })
+            .map_err(SessionError)
+    }
+
+    pub fn query_who(&self, query: String) -> Result<(), SessionError> {
+        self.bridge()?
+            .send::<_, shared::protocol::WhoChannel>(shared::protocol::QueryWho { query })
             .map_err(SessionError)
     }
 
@@ -1878,6 +1922,24 @@ impl Account {
         }
         if message.is::<shared::protocol::PvpStateUpdate>() {
             output.push(AccountEvent::Pvp(decode(message)?));
+            return Ok(());
+        }
+        if message.is::<shared::protocol::FriendsStateUpdate>() {
+            let update: shared::protocol::FriendsStateUpdate = decode(message)?;
+            if let Some(snapshot) = update.snapshot {
+                self.friends = Some(snapshot);
+            }
+            self.friends_message = update.message;
+            self.friends_error = update.error;
+            return Ok(());
+        }
+        if message.is::<shared::protocol::WhoStateUpdate>() {
+            let update: shared::protocol::WhoStateUpdate = decode(message)?;
+            if let Some(snapshot) = update.snapshot {
+                self.who = Some(snapshot);
+            }
+            self.who_message = update.message;
+            self.who_error = update.error;
             return Ok(());
         }
         if message.is::<shared::protocol::PetJournalDetailsUpdate>() {

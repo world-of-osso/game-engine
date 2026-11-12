@@ -189,6 +189,20 @@ pub const COLUMN_HEADER: RowTemplate = RowTemplate {
     selected: None,
 };
 
+/// FriendsFrame.xml:260-381 `FriendsListButtonTemplate`: UI-QuestLogTitleHighlight ADD
+/// at TOPLEFT (0,-1) / BOTTOMRIGHT (0,1), also locked for the selected friend row.
+const FRIEND_HIGHLIGHT: RowArt = RowArt {
+    art: Art::File(136_809, FULL_CROP),
+    insets: [0.0, 1.0, 0.0, 1.0],
+    alpha: 1.0,
+    additive: true,
+};
+pub const FRIEND: RowTemplate = RowTemplate {
+    normal: None,
+    hover: Some(FRIEND_HIGHLIGHT),
+    selected: Some(FRIEND_HIGHLIGHT),
+};
+
 /// CommunitiesMemberList.xml:238-241 `CommunitiesMemberListEntryTemplate`: GuildFrame
 /// NormalTexture crop backs every member line; UI-FriendsFrame-HighlightBar ADD on hover.
 pub const GUILD_MEMBER: RowTemplate = RowTemplate {

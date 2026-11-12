@@ -42,6 +42,7 @@ mod flight_map;
 mod follower_dungeons;
 mod foot_ik;
 mod frame_error;
+mod friends_frame;
 mod game_menu;
 mod game_objects;
 mod gameplay;
@@ -408,6 +409,7 @@ pub struct GameClient {
     merchant: merchant::Merchant,
     bags: bags::Bags,
     character_frame: character_frame::CharacterFrame,
+    friends_frame: friends_frame::FriendsFrame,
     launcher: launcher::Launcher,
     tooltips: tooltips::Tooltips,
     mailbox: mail::Mailbox,
@@ -587,6 +589,7 @@ impl INode3D for GameClient {
             world_hover_pick: None,
             bags: bags::Bags::default(),
             character_frame: character_frame::CharacterFrame::default(),
+            friends_frame: friends_frame::FriendsFrame::default(),
             launcher: launcher::Launcher::default(),
             tooltips: tooltips::Tooltips::default(),
             mailbox: mail::Mailbox::default(),
@@ -680,6 +683,7 @@ impl INode3D for GameClient {
             || self.follower_dungeon_pointer(&event)
             || self.adventure_guide_pointer(&event)
             || self.trading_post_pointer(&event)
+            || self.friends_frame_pointer(&event)
             || self.character_lists_pointer(&event)
             || self.mailbox_pointer(&event)
             || self.pet_bar_pointer(&event)
@@ -2294,6 +2298,7 @@ impl GameClient {
         self.tooltips.visit_uis(&mut visit)?;
         self.merchant.visit_uis(&mut visit)?;
         self.character_frame.visit_uis(&mut visit)?;
+        self.friends_frame.visit_uis(&mut visit)?;
         if let Some(ui) = &mut self.mailbox.ui {
             visit(ui)?;
         }
@@ -2902,6 +2907,7 @@ impl GameClient {
             ("Auras", |c, _| c.update_auras()),
             ("Launcher", |c, _| c.update_launcher()),
             ("Character frame", |c, _| c.update_character_frame()),
+            ("Friends frame", |c, _| c.update_friends_frame()),
             ("Framerate toggle", |c, _| {
                 c.update_framerate_toggle();
                 Ok(())
@@ -3741,6 +3747,7 @@ impl GameClient {
         self.loot.reset();
         self.achievements.reset();
         self.raid_info.reset();
+        self.friends_frame.reset();
         self.game_objects.reset();
         self.mailbox.reset();
         self.trade.reset();

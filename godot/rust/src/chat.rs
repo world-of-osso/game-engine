@@ -433,6 +433,11 @@ impl crate::GameClient {
             if action.is_empty() {
                 return Ok(());
             }
+            if action == game_engine_ui_model::friends_frame::ACTION_SOCIAL_TOGGLE {
+                self.toggle_friends_frame()
+                    .map_err(|error| error.to_string())?;
+                continue;
+            }
             if action.starts_with("achievement:open:") {
                 let requests = self.account.achievements.action(&action);
                 self.send_achievement_requests(requests)

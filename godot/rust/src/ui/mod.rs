@@ -1953,6 +1953,29 @@ impl RegistryUi {
         Ok(())
     }
 
+    pub fn show_friends_frame(
+        &mut self,
+        state: game_engine_ui_model::friends_frame_component::FriendsFrameView,
+    ) -> Result<(), String> {
+        if self.model.is_some() {
+            return Err("RegistryUi already has a screen".into());
+        }
+        let parent = self.hud_parent()?;
+        let mut registry = parent.registry();
+        register_metal_frame_style(
+            &mut registry,
+            game_engine_ui_model::panel_style_data::MetalTopLeft::Portrait,
+        )?;
+        self.toplevel = true;
+        self.show_viewport_screen_in(
+            state,
+            game_engine_ui_model::friends_frame_component::friends_frame_screen,
+            ScreenPostsetup::None,
+            registry,
+            parent,
+        )
+    }
+
     pub fn show_mail(
         &mut self,
         state: game_engine_ui_model::mail::NativeMailView,

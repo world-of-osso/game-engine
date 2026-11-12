@@ -25,14 +25,15 @@ pub mod ui {
         pub use crate::{
             auction_house_frame_component, bag_frame_component, bags_bar_component, bank_art,
             bank_frame_component, buff_frame_component, compact_unit_frame_component,
-            cursor_item_component, default_button_atlas, game_menu_component,
-            group_frames_component, guild_bank_frame_component, inworld_unit_frames_component,
-            loot_frame_component, mail_frame_component, menu_primitives, merchant_frame_component,
-            minimal_scroll_bar, objective_tracker_component, options_menu_active_sections,
-            options_menu_component, options_menu_sections, quest_art, quest_frame_component,
-            quest_log_frame_component, ready_check_frame_component, selection_debug_component,
-            stack_split_frame_component, static_popup_component, trash_button_component,
-            world_map_frame_art, world_map_frame_component,
+            cursor_item_component, default_button_atlas, friends_frame_component,
+            game_menu_component, group_frames_component, guild_bank_frame_component,
+            inworld_unit_frames_component, loot_frame_component, mail_frame_component,
+            menu_primitives, merchant_frame_component, minimal_scroll_bar,
+            objective_tracker_component, options_menu_active_sections, options_menu_component,
+            options_menu_sections, quest_art, quest_frame_component, quest_log_frame_component,
+            ready_check_frame_component, selection_debug_component, stack_split_frame_component,
+            static_popup_component, trash_button_component, world_map_frame_art,
+            world_map_frame_component,
         };
 
         #[cfg(test)]
@@ -62,6 +63,9 @@ pub mod encounter_timeline;
 pub mod encounter_timeline_component;
 pub mod follower_dungeons;
 mod follower_dungeons_component;
+pub mod friends_frame;
+#[path = "ui/screens/friends_frame_component.rs"]
+pub mod friends_frame_component;
 pub mod group_countdown;
 pub mod group_loot;
 pub mod group_loot_component;
