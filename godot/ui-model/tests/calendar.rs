@@ -4,9 +4,9 @@ use chrono::{Datelike, Local, NaiveDate, TimeZone};
 use game_engine_ui_model::{
     calendar_data::{
         ACTION_CLOSE, ACTION_NEXT_MONTH, ACTION_PREVIOUS_MONTH, ACTION_TOGGLE,
-        ACTION_TOGGLE_FILTER, ACTION_TOGGLE_SERVER_EVENTS, CalendarModel,
+        ACTION_TOGGLE_FILTER, ACTION_TOGGLE_SERVER_EVENTS, CalendarDay, CalendarModel,
     },
-    calendar_frame_component::calendar_frame_screen,
+    calendar_frame_component::{calendar_frame_screen, calendar_frame_texture_fdids},
 };
 use shared::protocol::{CalendarEventSnapshot, CalendarSnapshot};
 use ui_toolkit::{
@@ -108,6 +108,103 @@ fn assert_calendar_day_buttons_match_retail_grid(registry: &FrameRegistry) {
     assert_eq!(quadrants.len(), 4, "Retail uses all four atlas quadrants");
 }
 
+fn assert_calendar_other_month_dark_frames(
+    days: &[CalendarDay],
+    registry: &FrameRegistry,
+    expected_dark_day_count: usize,
+) {
+    const DAY_WIDTH: f32 = 91.0;
+    const DAY_HEIGHT: f32 = 91.0;
+    const DAY_COLUMNS: usize = 7;
+    const GRID_LEFT: f32 = 12.0;
+    const GRID_TOP: f32 = 74.0;
+    const DARK_TOP_HEIGHT: f32 = 45.0;
+    const DARK_BOTTOM_HEIGHT: f32 = 46.0;
+    const NEXT_MONTH_TEX_COORDS: [[f32; 4]; 2] =
+        [[90.0 / 512.0, 180.0 / 512.0, 45.0 / 256.0, 90.0 / 256.0]; 2];
+    const PREVIOUS_MONTH_TEX_COORDS: [[f32; 4]; 2] = [
+        [90.0 / 512.0, 180.0 / 512.0, 0.0, 45.0 / 256.0],
+        [90.0 / 512.0, 180.0 / 512.0, 45.0 / 256.0, 0.0],
+    ];
+    const TEXTURE_EPSILON: f32 = 0.000001;
+
+    let first_viewed_month_day = days
+        .iter()
+        .find(|day| day.in_viewed_month)
+        .expect("calendar grid includes dates in the viewed month")
+        .date;
+    let mut dark_day_count = 0;
+    for (index, day) in days.iter().enumerate() {
+        let dark_frame_name = format!("CalendarDayButton{}DarkFrame", index + 1);
+        let Some(dark_frame_id) = registry.get_by_name(&dark_frame_name) else {
+            assert!(
+                day.in_viewed_month,
+                "{dark_frame_name} missing for other-month date"
+            );
+            continue;
+        };
+        assert!(
+            !day.in_viewed_month,
+            "{dark_frame_name} dims a viewed-month date"
+        );
+        dark_day_count += 1;
+
+        let dark_frame = registry.get(dark_frame_id).unwrap();
+        assert_eq!(dark_frame.width.value(), DAY_WIDTH);
+        assert_eq!(dark_frame.height.value(), DAY_HEIGHT);
+        assert_eq!(
+            dark_frame.position.left,
+            Val::Px(GRID_LEFT + (index % DAY_COLUMNS) as f32 * DAY_WIDTH)
+        );
+        assert_eq!(
+            dark_frame.position.top,
+            Val::Px(GRID_TOP + (index / DAY_COLUMNS) as f32 * DAY_HEIGHT)
+        );
+        let date_name = format!("CalendarDayButton{}Date", index + 1);
+        let date_frame = registry
+            .get(registry.get_by_name(&date_name).unwrap())
+            .unwrap();
+        assert!(dark_frame.frame_level > date_frame.frame_level);
+        let tex_coords = if day.date < first_viewed_month_day {
+            PREVIOUS_MONTH_TEX_COORDS
+        } else {
+            NEXT_MONTH_TEX_COORDS
+        };
+        for (part, top, height, expected_coords) in [
+            ("Top", 0.0, DARK_TOP_HEIGHT, tex_coords[0]),
+            ("Bottom", DARK_TOP_HEIGHT, DARK_BOTTOM_HEIGHT, tex_coords[1]),
+        ] {
+            let texture_name = format!("{dark_frame_name}{part}");
+            let texture_frame = registry
+                .get(registry.get_by_name(&texture_name).unwrap())
+                .unwrap();
+            assert_eq!(texture_frame.frame_level, dark_frame.frame_level + 1);
+            assert!(texture_frame.frame_level > date_frame.frame_level);
+            assert_eq!(texture_frame.draw_layer, DrawLayer::Overlay);
+            assert_eq!(texture_frame.position.left, Val::Px(0.0));
+            assert_eq!(texture_frame.position.top, Val::Px(top));
+            assert_eq!(texture_frame.width.value(), DAY_WIDTH);
+            assert_eq!(texture_frame.height.value(), height);
+
+            let Some(WidgetData::Texture(texture)) = texture_frame.widget_data.as_ref() else {
+                panic!("{texture_name} is not a texture");
+            };
+            assert_eq!(texture.source, TextureSource::FileDataId(235_432));
+            assert_eq!(texture.vertex_color, [1.0, 1.0, 1.0, 0.9]);
+            for (actual, expected) in texture.tex_coords.into_iter().zip(expected_coords) {
+                assert!(
+                    (actual - expected).abs() < TEXTURE_EPSILON,
+                    "{texture_name} UV"
+                );
+            }
+        }
+    }
+    assert_eq!(
+        dark_day_count, expected_dark_day_count,
+        "all dates outside the viewed month have dark frames"
+    );
+}
+
 #[test]
 fn calendar_frame_emits_retail_grid_and_anchor_art() {
     let today = date(2026, 11, 12);
@@ -115,8 +212,9 @@ fn calendar_frame_emits_retail_grid_and_anchor_art() {
     calendar
         .apply_action(ACTION_TOGGLE, date_parts(today))
         .unwrap();
+    let view = calendar.view().unwrap().unwrap();
     let mut shared = SharedContext::new();
-    shared.insert(calendar.view().unwrap().unwrap());
+    shared.insert(view.clone());
     game_engine_ui_model::paths::set_data_root(
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
     )
@@ -140,12 +238,18 @@ fn calendar_frame_emits_retail_grid_and_anchor_art() {
     let weekday = registry
         .get(registry.get_by_name("CalendarWeekday4Name").unwrap())
         .unwrap();
-    assert_eq!(year.draw_layer, DrawLayer::Artwork);
+    assert_eq!(year.draw_layer, DrawLayer::Overlay);
     assert_eq!(year.position.top, Val::Px(25.0));
+    assert_eq!(year_background.draw_layer, DrawLayer::Overlay);
     assert_eq!(year_background.position.top, Val::Px(24.0));
     assert_eq!(weekday.draw_layer, DrawLayer::Background);
     assert_calendar_weekday_tiles_match_retail_grid(&registry);
     assert_calendar_day_buttons_match_retail_grid(&registry);
+    assert!(view.days[28].in_viewed_month);
+    assert!(view.days[29].in_viewed_month);
+    assert!(!view.days[30].in_viewed_month);
+    assert_calendar_other_month_dark_frames(&view.days, &registry, 12);
+    assert!(calendar_frame_texture_fdids(&view).contains(&235_432));
 
     let today_texture = registry
         .get(registry.get_by_name("CalendarTodayTexture").unwrap())
@@ -164,6 +268,18 @@ fn calendar_frame_emits_retail_grid_and_anchor_art() {
         }
         other => panic!("today glow is {other:?}"),
     }
+
+    let december_today = date(2026, 12, 12);
+    calendar
+        .apply_action(ACTION_NEXT_MONTH, date_parts(december_today))
+        .unwrap();
+    let december_view = calendar.view().unwrap().unwrap();
+    let mut december_shared = SharedContext::new();
+    december_shared.insert(december_view.clone());
+    let mut december_registry = FrameRegistry::new(1920.0, 1080.0);
+    Screen::new(calendar_frame_screen).sync(&december_shared, &mut december_registry);
+    assert_calendar_other_month_dark_frames(&december_view.days, &december_registry, 11);
+    assert!(calendar_frame_texture_fdids(&december_view).contains(&235_432));
 }
 
 #[test]

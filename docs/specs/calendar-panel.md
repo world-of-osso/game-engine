@@ -12,8 +12,8 @@ The in-world Forever Calendar panel is the native `CalendarFrame` opened from `G
 - [x] Navigate both directions, including December-to-January year changes.
 - [x] Display only events received in `CalendarStateUpdate`; do not invent holidays or event rows when the server snapshot is empty.
 - [x] Keep the panel limited to the Forever skin. Add no calendar key binding unless the Retail source defines one.
-- [ ] Darken dates outside the viewed month with the Retail dark-day treatment while leaving viewed-month cells unchanged.
-- [ ] Keep the full year label visible at its XML anchor.
+- [ ] Draw Retail `CalendarShadows` top/bottom overlays above every out-of-month date; leave viewed-month cells unchanged.
+- [ ] Keep the full year plaque and label visible above the month-title art without moving their XML anchors.
 
 ## How it works
 
@@ -35,14 +35,14 @@ The in-world Forever Calendar panel is the native `CalendarFrame` opened from `G
 
 ## Verification
 
-- [x] Calendar integration tests pass 5/5; native dev and local release helper builds pass; `cargo fmt --all -- --check` passes.
-- [x] Private UDP `127.0.0.1:5995` proof covers opening, both month controls, close, and reopen.
-- [x] Compare the authored texture reconstruction with the fresh panel capture; the 3× grid crop shows no world bleed between day cells.
+- [ ] Re-run the calendar integration tests, native dev and local release helper builds, and format checks after the visual follow-up.
+- [ ] Capture the panel on private UDP `127.0.0.1:5995` and confirm the full year label and correct out-of-month shading.
+- [ ] Compare the fresh panel capture with the authored texture reconstruction; inspect the 3× grid crop for world bleed.
 
 ## Known gaps (current cycle)
 
-- [ ] Add the Retail dark-day overlay for dates outside the viewed month; keep November 29–30 unchanged while darkening December 1–12.
-- [ ] Make the `2026` label fully visible above the overlapping month-title art without moving its XML anchor.
+- [ ] Verify that the dark-day overlays leave November 29–30 unchanged and dim December 1–12.
+- [ ] Verify that `2026` is fully visible above the month-title art at its existing XML anchor.
 
 UNVERIFIED, LIVE: The final screenshot contains no event title, so it does not prove visual rendering of a non-empty live server snapshot; the model test covers display from a concrete server snapshot fixture.
 

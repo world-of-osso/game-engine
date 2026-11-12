@@ -1,7 +1,7 @@
 //! Retail `CalendarFrame` from Blizzard_Calendar/Mainline/Blizzard_Calendar.xml and
 //! `CalendarDayButtonTemplate` from Blizzard_CalendarTemplates.xml. Layout is the authored
 //! 659×624 panel with its seven 91px columns and six 91px day rows.
-use chrono::Datelike;
+use chrono::{Datelike, NaiveDate};
 use ui_toolkit::{rsx, widget_def::Element, widgets::font_string::GameFont};
 
 use crate::calendar_data::{
@@ -39,6 +39,14 @@ const CALENDAR_DAY_TEXTURE_VARIANTS: [[u8; DAY_COLUMNS]; DAY_ROWS] = [
 const CALENDAR_WEEKDAY_TEXTURE_TOP: f32 = 180.0 / 256.0;
 const CALENDAR_WEEKDAY_TEXTURE_HEIGHT: f32 = 28.0 / 256.0 - 0.001;
 const CALENDAR_YEAR_BACKGROUND_TOP: f32 = 24.0; // Month bottom 37 minus XML y=13.
+const CALENDAR_DARK_FRAME_LEVEL: f32 = CALENDAR_DAY_DATE_FRAME_LEVEL + 1.0;
+const CALENDAR_DARK_FRAME_TOP_HEIGHT: f32 = 45.0;
+const CALENDAR_DARK_FRAME_BOTTOM_HEIGHT: f32 = 46.0;
+// Base Retail dark-day patches; the texture also has edge-specific UV variants.
+const CALENDAR_NEXT_MONTH_DARK_TOP_TEX_COORDS: &str = "0.17578125,0.3515625,0.17578125,0.3515625";
+const CALENDAR_PREVIOUS_MONTH_DARK_TOP_TEX_COORDS: &str = "0.17578125,0.3515625,0.0,0.17578125";
+const CALENDAR_PREVIOUS_MONTH_DARK_BOTTOM_TEX_COORDS: &str = "0.17578125,0.3515625,0.17578125,0.0";
+const CALENDAR_DARK_DAY_TINT: &str = "1.0,1.0,1.0,0.9";
 const WEEKDAY_LEFT: f32 = 12.0;
 const WEEKDAY_TOP: f32 = 46.0;
 const DAY_TOP: f32 = 74.0;
@@ -47,6 +55,7 @@ const CALENDAR_EVENT_BACKGROUND: u32 = 235_429;
 const CALENDAR_FRAME_SIDES: u32 = 235_430;
 const CALENDAR_FRAME_TOP_BOTTOM: u32 = 235_431;
 const CALENDAR_CURRENT_DAY: u32 = 235_433;
+const CALENDAR_SHADOWS: u32 = 235_432;
 const CALENDAR_HIGHLIGHTS: u32 = 235_438;
 const CALENDAR_MORE_ARROW: u32 = 235_487;
 const PREVIOUS_PAGE_UP: u32 = 130_869;
@@ -158,6 +167,9 @@ pub fn calendar_frame_texture_fdids(view: &CalendarView) -> Vec<u32> {
     if view.days.iter().any(|day| day.events.len() > 4) {
         fdids.push(CALENDAR_MORE_ARROW);
     }
+    if view.days.iter().any(|day| !day.in_viewed_month) {
+        fdids.push(CALENDAR_SHADOWS);
+    }
     fdids.sort_unstable();
     fdids.dedup();
     fdids
@@ -222,12 +234,13 @@ fn calendar_month_backgrounds() -> Element {
         month_rect,
         "OVERLAY",
     );
+    // The year plaque overlaps the month plaque, so draw it above the shared background.
     children.extend(calendar_texture(
         "CalendarYearBackground".into(),
         CALENDAR_BACKGROUND,
         "0,0.5546875,0.828125,0.96875",
         year_rect,
-        "ARTWORK",
+        "OVERLAY",
     ));
     children
 }
@@ -251,7 +264,7 @@ fn calendar_month_labels(view: &CalendarView) -> Element {
         11.0,
         WEEKDAY_GOLD,
         "CENTER",
-        "ARTWORK",
+        "OVERLAY",
     ));
     children
 }
@@ -295,6 +308,12 @@ fn calendar_weekday(index: usize, weekday: &str) -> Element {
 }
 
 fn calendar_days(view: &CalendarView) -> Element {
+    let first_viewed_month_day = view
+        .days
+        .iter()
+        .find(|day| day.in_viewed_month)
+        .map(|day| day.date)
+        .expect("calendar grid includes dates in the viewed month");
     let mut elements = Vec::new();
     for (index, day) in view.days.iter().take(DAY_COUNT).enumerate() {
         let column = index % DAY_COLUMNS;
@@ -307,6 +326,13 @@ fn calendar_days(view: &CalendarView) -> Element {
         }
         elements.extend(calendar_day_date(index, day, left, top));
         elements.extend(calendar_day_events(index, day, left, top));
+        elements.extend(calendar_day_dark_overlay(
+            index,
+            day,
+            first_viewed_month_day,
+            left,
+            top,
+        ));
     }
     elements
 }
@@ -353,6 +379,82 @@ fn calendar_day_button_art(index: usize) -> String {
     let tex_right = cell_x + CALENDAR_ATLAS_TILE_SIZE;
     let tex_bottom = cell_y + CALENDAR_ATLAS_TILE_SIZE;
     format!("{cell_x},{tex_right},{cell_y},{tex_bottom}")
+}
+
+fn calendar_day_dark_overlay(
+    index: usize,
+    day: &CalendarDay,
+    first_viewed_month_day: NaiveDate,
+    left: f32,
+    top: f32,
+) -> Element {
+    if day.in_viewed_month {
+        return Vec::new();
+    }
+
+    let (top_tex_coords, bottom_tex_coords) = if day.date < first_viewed_month_day {
+        (
+            CALENDAR_PREVIOUS_MONTH_DARK_TOP_TEX_COORDS,
+            CALENDAR_PREVIOUS_MONTH_DARK_BOTTOM_TEX_COORDS,
+        )
+    } else {
+        (
+            CALENDAR_NEXT_MONTH_DARK_TOP_TEX_COORDS,
+            CALENDAR_NEXT_MONTH_DARK_TOP_TEX_COORDS,
+        )
+    };
+    let top_texture = calendar_day_dark_texture(
+        index,
+        "Top",
+        top_tex_coords,
+        [0.0, 0.0, DAY_WIDTH, CALENDAR_DARK_FRAME_TOP_HEIGHT],
+    );
+    let bottom_texture = calendar_day_dark_texture(
+        index,
+        "Bottom",
+        bottom_tex_coords,
+        [
+            0.0,
+            CALENDAR_DARK_FRAME_TOP_HEIGHT,
+            DAY_WIDTH,
+            CALENDAR_DARK_FRAME_BOTTOM_HEIGHT,
+        ],
+    );
+    rsx! {
+        r#frame {
+            name: {DynName(format!("CalendarDayButton{}DarkFrame", index + 1))},
+            width: DAY_WIDTH,
+            height: DAY_HEIGHT,
+            pos_type: "absolute",
+            left,
+            top,
+            frame_level: CALENDAR_DARK_FRAME_LEVEL,
+            {top_texture}
+            {bottom_texture}
+        }
+    }
+}
+
+fn calendar_day_dark_texture(
+    index: usize,
+    part: &str,
+    tex_coords: &str,
+    [left, top, width, height]: [f32; 4],
+) -> Element {
+    rsx! {
+        texture {
+            name: {DynName(format!("CalendarDayButton{}DarkFrame{part}", index + 1))},
+            width,
+            height,
+            texture_fdid: CALENDAR_SHADOWS,
+            tex_coords,
+            vertex_color: CALENDAR_DARK_DAY_TINT,
+            pos_type: "absolute",
+            left,
+            top,
+            draw_layer: "OVERLAY",
+        }
+    }
 }
 
 fn calendar_day_date(index: usize, day: &CalendarDay, left: f32, top: f32) -> Element {
