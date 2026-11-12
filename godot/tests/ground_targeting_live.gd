@@ -7,6 +7,7 @@ const SERVER := "127.0.0.1:5993"
 
 var phase := ""
 var pointer_notified := false
+var valid_ground_point := Vector2.ZERO
 
 func _initialize() -> void:
 	Engine.max_fps = 30
@@ -153,24 +154,38 @@ func consecration_targeting_proof(baseline: bool) -> bool:
 	return true
 
 func capture_valid_reticle(sent_before: int) -> bool:
-	var point := reticle_point(8.0)
-	await pointer(point)
-	if not await wait_until(func():
-		var reticle := client.get_node_or_null("GroundSpellReticle") as Decal
-		return reticle != null and reticle.visible
-	, 10000, "Flamestrike area decal"):
+	var decal: Decal
+	for screen_y in [360, 420, 480, 540, 600]:
+		for screen_x in [400, 640, 880]:
+			var point := Vector2(screen_x, screen_y)
+			await pointer(point)
+			var candidate := client.get_node_or_null("GroundSpellReticle") as Decal
+			if candidate == null or not candidate.visible:
+				continue
+			var distance := player.global_position.distance_to(candidate.global_position)
+			var height_difference := abs(candidate.global_position.y - player.global_position.y)
+			print("GROUND_VALID_PROBE point=", point, " distance=", distance,
+				" height_difference=", height_difference)
+			if distance < 3.0 or distance > 40.0 or height_difference > 1.5:
+				continue
+			decal = candidate
+			valid_ground_point = point
+			break
+		if decal != null:
+			break
+	if decal == null:
+		fail("No visible flat ground point within Flamestrike's 40-yard range")
 		return false
 	if client.spells_state().sent.size() != sent_before:
 		fail("Flamestrike was sent before a cursor destination was selected")
 		return false
-	var decal := client.get_node("GroundSpellReticle") as Decal
 	var projected := root.get_camera_3d().unproject_position(decal.global_position)
 	var distance := player.global_position.distance_to(decal.global_position)
-	print("GROUND_VALID_PROOF pointer=", point, " projected=", projected, " player=",
-		player.global_position, " decal=", decal.global_position, " distance=", distance,
-		" color=", decal.modulate)
+	print("GROUND_VALID_PROOF pointer=", valid_ground_point, " projected=", projected,
+		" player=", player.global_position, " decal=", decal.global_position,
+		" distance=", distance, " color=", decal.modulate)
 	var viewport := Rect2(Vector2.ZERO, Vector2(root.size))
-	if not viewport.has_point(point) or not viewport.has_point(projected):
+	if not viewport.has_point(valid_ground_point) or not viewport.has_point(projected):
 		fail("In-range target decal center projects outside the viewport")
 		return false
 	if decal.texture_albedo == null or not is_equal_approx(decal.size.x, 16.0):
@@ -178,6 +193,7 @@ func capture_valid_reticle(sent_before: int) -> bool:
 		return false
 	if decal.modulate.g <= decal.modulate.r:
 		fail("In-range Flamestrike decal is not green")
+		return false
 	if not await save_texture_reference(decal):
 		return false
 	await capture("ground-target-after")
@@ -220,7 +236,7 @@ func capture_out_of_range_reticle() -> bool:
 func place_flamestrike(sent_before: int) -> bool:
 	client.set_camera_orbit(PI, -0.3, 12.0)
 	await wait_frames(12)
-	var point := reticle_point(8.0)
+	var point := valid_ground_point
 	await pointer(point)
 	if not await wait_until(func():
 		var decal := client.get_node_or_null("GroundSpellReticle") as Decal
