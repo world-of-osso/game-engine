@@ -515,6 +515,39 @@ impl GameClient {
             return Ok(());
         }
         let state = self.spellbook_state()?;
+        if std::env::var_os("GAME_PROFILE_MS").is_some()
+            && let Some(previous) = &self.spells.book_art_state
+            && previous != &state
+        {
+            let talents = match (&previous.talents, &state.talents) {
+                (Some(before), Some(after)) => format!(
+                    "graph={} editor_snapshot={} editor_error={} choice={} loadouts={} level={} pvp={} pvp_pending={} pvp_slot={} action_bar={}",
+                    before.graph != after.graph,
+                    before.editor.snapshot != after.editor.snapshot,
+                    before.editor.error_text != after.editor.error_text,
+                    before.editor.choice_node != after.editor.choice_node,
+                    before.editor.loadouts != after.editor.loadouts,
+                    before.level != after.level,
+                    before.pvp != after.pvp,
+                    before.pvp_pending != after.pvp_pending,
+                    before.pvp_slot != after.pvp_slot,
+                    before.on_action_bar != after.on_action_bar,
+                ),
+                (before, after) => format!("presence_{}->{}", before.is_some(), after.is_some()),
+            };
+            godot_print!(
+                "PROFILE spellbook.state_diff viewport={} categories={} selected={} page={} portrait={} tab={} specializations={} can_activate_spec={} talents={}",
+                previous.viewport != state.viewport,
+                previous.categories != state.categories,
+                previous.selected != state.selected,
+                previous.page != state.page,
+                previous.portrait_fdid != state.portrait_fdid,
+                previous.tab != state.tab,
+                previous.specializations != state.specializations,
+                previous.can_activate_spec != state.can_activate_spec,
+                talents,
+            );
+        }
         self.spells.book = state.clone();
         self.extract_spellbook_art(&state);
         let existing = self
