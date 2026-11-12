@@ -103,6 +103,48 @@ class ClosureTests(unittest.TestCase):
         self.assertIsNone(texture["actual_build"])
         self.assertEqual(texture["identity_status"], "unverified")
 
+    def test_wmo_gfid_groups_resolve_every_momt_texture_slot(self):
+        self.put("models/3.wmo", chunk("GFID", ints(4, 5), True))
+        texture_fields = [12, 24, 36, 40, 44, 48, 52, 56, 60]
+        expected = {(3, "wmo"), (4, "wmo"), (5, "wmo")}
+        for group_index, group_id in enumerate((4, 5)):
+            names = bytearray()
+            material = bytearray(64)
+            struct.pack_into("<I", material, 4, 23)
+            for slot, field in enumerate(texture_fields):
+                texture_id = 10 + group_index * len(texture_fields) + slot
+                logical = f"world/wmo/group{group_id}/material{slot}.blp"
+                self.paths[texture_id] = logical
+                offset = len(names)
+                names.extend(logical.encode() + b"\0")
+                self.put(
+                    f"textures/{texture_id}.blp",
+                    f"BLP2 {texture_id}".encode(),
+                )
+                expected.add((texture_id, "blp"))
+                struct.pack_into("<I", material, field, offset)
+            self.put(
+                f"models/{group_id}.wmo",
+                chunk("MOTX", bytes(names), True) + chunk("MOMT", material, True),
+            )
+
+        result = self.closure(3, "wmo")
+        self.assertEqual(
+            {(asset["fdid"], asset["type"]) for asset in result["assets"]},
+            expected,
+        )
+        for group_index, group_id in enumerate((4, 5)):
+            for slot, field in enumerate(texture_fields):
+                texture_id = 10 + group_index * len(texture_fields) + slot
+                texture = next(
+                    asset for asset in result["assets"] if asset["fdid"] == texture_id
+                )
+                self.assertIn(
+                    {"parent_fdid": group_id, "reason": f"WMO MOMT[0] field {field}"},
+                    texture["edges"],
+                )
+        self.assertEqual(result["summary"]["missing"], 0)
+
     def test_missing_model_is_retained_and_marks_unexpanded_boundary(self):
         self.put("models/2.m2", model(chunk("SKID", ints(6))))
         result = self.closure(2, "m2")

@@ -8,6 +8,7 @@ import unittest
 
 SCRIPTS = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(SCRIPTS))
+from asset_closure import RawByteGraph
 from closure_receipts import ReceiptClosure
 from closure_seeds import seed_catalogs
 from test_asset_closure import model
@@ -198,47 +199,84 @@ INSERT INTO skinned_models VALUES(41,41),(49,49);
             "db2/1.60.1.70205/items/ItemAppearance.csv",
             b"ID,ItemDisplayInfoID\n2,82928\n",
         )
-        for product_path, displays, models in [
+        for product_path, displays, models, textures, material_rows in [
             (
                 "db2/active",
-                [(82927, 50), (82929, 52), (82930, 53), (82931, 54)],
+                [
+                    (82927, 50, 79207),
+                    (82929, 52, 0),
+                    (82930, 53, 0),
+                    (82931, 54, 0),
+                ],
                 [(464822, 50), (464824, 52), (464825, 53), (464826, 54)],
+                [
+                    (464900, 79207),
+                    (464901, 79207),
+                    (464902, 79208),
+                    (464903, 79209),
+                ],
+                [(82927, 79208, 79209)],
             ),
             (
                 "db2/1.60.1.70205",
-                [(82928, 51)],
+                [(82928, 51, 80207)],
                 [(464823, 51)],
+                [
+                    (465000, 80207),
+                    (465001, 80207),
+                    (465002, 80208),
+                    (465003, 80209),
+                ],
+                [(82928, 80208, 80209)],
             ),
         ]:
             display_rows = "".join(
-                f"{display},{resource},0\n" for display, resource in displays
+                f"{display},{model_resource},{material_resource}\n"
+                for display, model_resource, material_resource in displays
             )
             model_rows = "".join(
                 f"{fdid},{resource}\n" for fdid, resource in models
             )
+            texture_csv = "FileDataID,MaterialResourcesID\n" + "".join(
+                f"{fdid},{resource}\n" for fdid, resource in textures
+            )
+            material_csv = "ID,ItemDisplayInfoID,MaterialResourcesID\n" + "".join(
+                f"{index},{display},{resource}\n"
+                for index, (display, resource, _model_resource) in enumerate(
+                    material_rows, 1
+                )
+            )
+            model_material_csv = (
+                "ID,ItemDisplayInfoID,MaterialResourcesID\n"
+                + "".join(
+                    f"{index},{display},{resource}\n"
+                    for index, (display, _material_resource, resource) in enumerate(
+                        material_rows, 1
+                    )
+                )
+            )
             display_csv = (
-                "ID,ModelResourcesID_1,ModelMaterialResourcesID_1\n"
+                "ID,ModelResourcesID_1,ModelMaterialResourcesID_0\n"
                 f"{display_rows}"
             )
             model_csv = f"FileDataID,ModelResourcesID\n{model_rows}"
-            self.files.put(
-                f"{product_path}/ItemDisplayInfo.csv", display_csv.encode()
-            )
-            self.files.put(
-                f"{product_path}/ModelFileData.csv", model_csv.encode()
-            )
-            for table, header in [
-                ("TextureFileData", "FileDataID,MaterialResourcesID\n"),
-                (
-                    "ItemDisplayInfoMaterialRes",
-                    "ID,ItemDisplayInfoID,MaterialResourcesID\n",
-                ),
-                (
-                    "ItemDisplayInfoModelMatRes",
-                    "ID,ItemDisplayInfoID,MaterialResourcesID\n",
-                ),
+            for table, content in [
+                ("ItemDisplayInfo", display_csv),
+                ("ModelFileData", model_csv),
+                ("TextureFileData", texture_csv),
+                ("ItemDisplayInfoMaterialRes", material_csv),
+                ("ItemDisplayInfoModelMatRes", model_material_csv),
             ]:
-                self.files.put(f"{product_path}/{table}.csv", header.encode())
+                self.files.put(f"{product_path}/{table}.csv", content.encode())
+            product = (
+                "wow_classic_beta"
+                if product_path == "db2/1.60.1.70205"
+                else "wow"
+            )
+            for fdid, _resource in textures:
+                raw = f"BLP2 fixture {fdid}".encode()
+                self.files.publish(product, fdid, "blp", raw)
+                self.files.put(f"textures/{fdid}.blp", raw)
 
         with closing(sqlite3.connect(self.world)) as db:
             db.executescript(
@@ -303,6 +341,17 @@ INSERT INTO skinned_models VALUES(41,41),(49,49);
         self.assertNotIn(("wow", 464823), receipt_assets)
         self.assertNotIn(("wow", 464825), receipt_assets)
         self.assertNotIn(("wow", 464826), receipt_assets)
+        expected_textures = {
+            ("wow", 464900),
+            ("wow", 464901),
+            ("wow", 464902),
+            ("wow", 464903),
+            ("wow_classic_beta", 465000),
+            ("wow_classic_beta", 465001),
+            ("wow_classic_beta", 465002),
+            ("wow_classic_beta", 465003),
+        }
+        self.assertTrue(expected_textures <= receipt_assets)
         self.assertEqual(
             {
                 (item["id"], item["definition_source"])
@@ -314,7 +363,31 @@ INSERT INTO skinned_models VALUES(41,41),(49,49);
                 (157657, "Retail"),
             },
         )
-
+        candidate_graph = RawByteGraph(self.data, {}, "wow", "active")
+        candidate_result = result_for(candidate_graph)
+        candidate_textures = {
+            (row["requested_product"], row["fdid"])
+            for row in candidate_result["assets"]
+            if row["type"] == "blp"
+        }
+        self.assertTrue(expected_textures <= candidate_textures)
+        self.assertEqual(
+            {
+                (item["id"], item["definition_source"])
+                for item in candidate_result["seeds"]["world_selection"]["items"]
+            },
+            {
+                (157655, "Retail"),
+                (157656, "Forever70205"),
+                (157657, "Retail"),
+            },
+        )
+        self.assertTrue(
+            any(
+                issue["code"] == "world_item_display_source_identity"
+                for issue in candidate_result["unresolved"]
+            )
+        )
 
 
 if __name__ == "__main__":

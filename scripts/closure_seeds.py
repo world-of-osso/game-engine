@@ -124,7 +124,7 @@ def seed_displays(graph, catalogs, displays):
 
 
 def seed_items(graph, catalogs, db, item_ids):
-    if graph.receipt_audit:
+    if graph.receipt_audit or (item_ids and isinstance(item_ids[0], dict)):
         from closure_root_products import seed_items as seed_sourced_items
 
         return seed_sourced_items(graph, item_ids)
@@ -147,10 +147,10 @@ def seed_item_displays(graph, catalogs, displays):
         )
 
         return seed_sourced_item_displays(graph, displays)
-    return seed_item_display_rows(graph, catalogs, displays)
+    return seed_item_display_rows_from_tables(graph, catalogs, displays)
 
 
-def seed_item_display_rows(graph, catalogs, displays):
+def seed_item_display_rows_from_tables(graph, catalogs, displays):
     info = catalogs.index("ItemDisplayInfo")
     model_rows = defaultdict(list)
     texture_rows = defaultdict(list)
@@ -792,17 +792,19 @@ def seed_catalogs(graph, world_path, config):
                 item_sources.update(
                     starting_items(graph, catalogs, db, character)
                 )
-            if graph.receipt_audit:
-                items = [
-                    {"id": item, "definition_source": source}
-                    for item, source in sorted(item_sources)
-                ]
-            else:
-                items = sorted({item for item, _source in item_sources})
+            items = [
+                {"id": item, "definition_source": source}
+                for item, source in sorted(item_sources)
+            ]
             graph.issue(
                 "world_loadout_source_identity",
                 "world.db lacks/does not validate per-row product receipts; loadout Purpose=9 union audited, not authenticated",
             )
+            if not graph.receipt_audit:
+                graph.issue(
+                    "world_item_display_source_identity",
+                    "RawByteGraph does not validate ItemModifiedAppearance/ItemAppearance source-table receipts; display traversal is candidate-only",
+                )
         spells = config["spells"]
         if spells == "all":
             spells = [
