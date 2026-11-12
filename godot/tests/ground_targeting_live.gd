@@ -163,7 +163,7 @@ func capture_valid_reticle(sent_before: int) -> bool:
 			if candidate == null or not candidate.visible:
 				continue
 			var distance := player.global_position.distance_to(candidate.global_position)
-			var height_difference := abs(candidate.global_position.y - player.global_position.y)
+			var height_difference: float = absf(candidate.global_position.y - player.global_position.y)
 			print("GROUND_VALID_PROBE point=", point, " distance=", distance,
 				" height_difference=", height_difference)
 			if distance < 3.0 or distance > 40.0 or height_difference > 1.5:
