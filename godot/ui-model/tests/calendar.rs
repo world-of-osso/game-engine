@@ -1,9 +1,19 @@
 use chrono::{Datelike, Local, NaiveDate, TimeZone};
-use game_engine_ui_model::calendar_data::{
-    ACTION_CLOSE, ACTION_NEXT_MONTH, ACTION_PREVIOUS_MONTH, ACTION_TOGGLE, ACTION_TOGGLE_FILTER,
-    ACTION_TOGGLE_SERVER_EVENTS, CalendarModel,
+use game_engine_ui_model::{
+    calendar_data::{
+        ACTION_CLOSE, ACTION_NEXT_MONTH, ACTION_PREVIOUS_MONTH, ACTION_TOGGLE,
+        ACTION_TOGGLE_FILTER, ACTION_TOGGLE_SERVER_EVENTS, CalendarModel,
+    },
+    calendar_frame_component::calendar_frame_screen,
 };
 use shared::protocol::{CalendarEventSnapshot, CalendarSnapshot};
+use ui_toolkit::{
+    frame::WidgetData,
+    layout_values::Val,
+    registry::FrameRegistry,
+    screen::{Screen, SharedContext},
+    widgets::texture::BlendMode,
+};
 
 fn date(year: i32, month: u32, day: u32) -> NaiveDate {
     NaiveDate::from_ymd_opt(year, month, day).expect("fixture date is valid")
@@ -11,6 +21,31 @@ fn date(year: i32, month: u32, day: u32) -> NaiveDate {
 
 fn date_parts(date: NaiveDate) -> (i32, u32, u32) {
     (date.year(), date.month(), date.day())
+}
+
+#[test]
+fn today_glow_uses_retail_anchor_and_additive_blending() {
+    let today = date(2026, 11, 12);
+    let mut calendar = CalendarModel::default();
+    calendar
+        .apply_action(ACTION_TOGGLE, date_parts(today))
+        .unwrap();
+    let mut shared = SharedContext::new();
+    shared.insert(calendar.view().unwrap().unwrap());
+    let mut registry = FrameRegistry::new(1920.0, 1080.0);
+    Screen::new(calendar_frame_screen).sync(&shared, &mut registry);
+
+    let glow = registry
+        .get(registry.get_by_name("CalendarTodayTextureGlow").unwrap())
+        .unwrap();
+    assert_eq!(glow.position.left, Val::Px(367.5));
+    assert_eq!(glow.position.top, Val::Px(160.5));
+    match glow.widget_data.as_ref() {
+        Some(WidgetData::Texture(texture)) => {
+            assert_eq!(texture.blend_mode, BlendMode::Additive);
+        }
+        other => panic!("today glow is {other:?}"),
+    }
 }
 
 #[test]

@@ -18,6 +18,8 @@ use crate::ui::strata::FrameStrata;
 const FRAME_WIDTH: f32 = 659.0;
 const FRAME_HEIGHT: f32 = 624.0;
 const CALENDAR_DAY_DATE_FRAME_LEVEL: f32 = 2.0;
+const CALENDAR_TODAY_GLOW_LEFT_OFFSET: f32 = -8.5;
+const CALENDAR_TODAY_GLOW_TOP_OFFSET: f32 = -4.5;
 const DAY_WIDTH: f32 = 91.0;
 const DAY_HEIGHT: f32 = 91.0;
 const DAY_COLUMNS: usize = 7;
@@ -427,13 +429,21 @@ fn calendar_today_art(left: f32, top: f32) -> Element {
         [left - 27.0, top - 24.5, 145.0, 140.0],
         "BORDER",
     );
-    elements.extend(calendar_texture(
-        "CalendarTodayTextureGlow".into(),
-        CALENDAR_CURRENT_DAY,
-        "0.5625,1,0,0.5078125",
-        [left - 8.5, top - 34.5, 112.0, 130.0],
-        "OVERLAY",
-    ));
+    let glow_name = DynName("CalendarTodayTextureGlow".into());
+    elements.extend(rsx! {
+        texture {
+            name: glow_name,
+            width: 112.0,
+            height: 130.0,
+            texture_fdid: CALENDAR_CURRENT_DAY,
+            tex_coords: "0.5625,1,0,0.5078125",
+            pos_type: "absolute",
+            left: {left + CALENDAR_TODAY_GLOW_LEFT_OFFSET},
+            top: {top + CALENDAR_TODAY_GLOW_TOP_OFFSET},
+            draw_layer: "OVERLAY",
+            blend_mode: "ADD",
+        }
+    });
     elements
 }
 
