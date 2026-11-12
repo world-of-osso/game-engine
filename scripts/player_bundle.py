@@ -164,7 +164,7 @@ def housing_neighborhood_map_ids(root):
     return map_ids
 
 
-def ui_texture_fdids(root):
+def ui_map_texture_fdids(root):
     map_rows = {int(row['ID']): row for row in read_db2_rows(root, 'UiMap')}
     art_by_map = {
         int(row['UiMapID']): int(row['UiMapArtID'])
@@ -235,6 +235,11 @@ def ui_texture_fdids(root):
             and int(row['ColIndex']) * tile_width < width
             and int(row['RowIndex']) * tile_height < height
         )
+    return fdids
+
+
+def ui_texture_fdids(root):
+    fdids = ui_map_texture_fdids(root)
     for version in ATLAS_DB2_VERSIONS:
         atlas_ids = {
             int(row['UiTextureAtlasID'])

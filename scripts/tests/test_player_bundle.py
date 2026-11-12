@@ -376,10 +376,13 @@ class PlayerBundleTest(unittest.TestCase):
             for name, content in rows.items():
                 (tables / f'{name}.csv').write_text(content)
 
-            expected_fdids = {
+            expected_map_fdids = {
                 1599407, 1603193, 7438338, 7438339, 7438340, 7438341,
-                2168041, 2168254, 6875169, 8040088, 6855432,
+                2168041, 2168254,
             }
+            expected_atlas_fdids = {6875169, 8040088, 6855432}
+            expected_fdids = expected_map_fdids | expected_atlas_fdids
+            self.assertEqual(bundle.ui_map_texture_fdids(root), expected_map_fdids)
             self.assertEqual(bundle.ui_texture_fdids(root), expected_fdids)
             self.assertNotIn(2034162, expected_fdids)
             self.assertNotIn(2133758, expected_fdids)
