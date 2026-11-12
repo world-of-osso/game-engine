@@ -34,6 +34,8 @@ const RAID_PORTRAIT: u32 = 341_547;
 const WHO_FONT_SIZE: f32 = 10.0;
 const WHO_COLUMN_TABS: u32 = 131_139;
 const WHO_LIST_W: f32 = 302.0;
+/// FriendsFrame.xml:384 `WhoListButtonTemplate` is 298 px inside the 302 px scroll box.
+const WHO_ROW_W: f32 = 298.0;
 const WHO_LIST_H: f32 = 272.0;
 const LIST_TOP: f32 = 87.0;
 const FRIEND_LIST_H: f32 = 309.0;
@@ -537,7 +539,7 @@ fn who_row(index: usize, row: &WhoListRow, row_height: f32, selected: Option<&st
         name.clone(),
         &action,
         true,
-        (0.0, index as f32 * row_height, WHO_LIST_W, row_height),
+        (0.0, index as f32 * row_height, WHO_ROW_W, row_height),
         (
             &selection_list::QUEST_TITLE,
             selected == Some(row.name.as_str()),
